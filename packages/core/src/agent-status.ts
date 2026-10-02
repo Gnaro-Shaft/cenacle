@@ -43,6 +43,7 @@ const NEUTRAL_EVENT_TYPES: ReadonlySet<string> = new Set([
   "model.answered",
   "mail.fetched",
   "mail.fetch_failed",
+  "mail.sorted_by_rules",
 ]);
 
 const PROPOSAL_OUTCOMES: ReadonlySet<string> = new Set([

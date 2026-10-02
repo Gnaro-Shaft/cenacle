@@ -52,6 +52,7 @@ describe("projectStatus", () => {
       ev("state.changed", { to: "reading" }),
       ev("mail.fetched", { count: 3, truncated: false, durationMs: 40 }),
       ev("mail.fetch_failed", { reason: "Error" }),
+      ev("mail.sorted_by_rules", { bruit: 1, remaining: 0 }),
     ]);
     expect(status.internal).toBe("reading");
     expect(status.view.visual).toBe("working");
