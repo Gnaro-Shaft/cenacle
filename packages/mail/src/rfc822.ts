@@ -11,6 +11,13 @@ function encodeWord(text: string): string {
   return `=?UTF-8?B?${Buffer.from(text, "utf8").toString("base64")}?=`;
 }
 
+/** A display name with RFC 5322 specials, e.g. "(fictive)", must be quoted or it reads as a comment. */
+function displayName(name: string): string {
+  const encoded = encodeWord(name);
+  if (encoded !== name || !/[()<>[\]:;@\\,."]/.test(name)) return encoded;
+  return `"${name.replace(/[\\"]/g, "\\$&")}"`;
+}
+
 function wrap76(base64: string): string {
   return base64.match(/.{1,76}/g)?.join("\r\n") ?? "";
 }
@@ -29,7 +36,7 @@ export function toRfc822(message: FixtureMessage): Buffer {
     assertHeaderSafe(value, field);
   }
   const headers = [
-    `From: ${encodeWord(message.from.name)} <${message.from.address}>`,
+    `From: ${displayName(message.from.name)} <${message.from.address}>`,
     `To: <${message.to}>`,
     `Subject: ${encodeWord(message.subject)}`,
     `Date: ${new Date(message.date).toUTCString().replace("GMT", "+0000")}`,

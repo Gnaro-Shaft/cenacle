@@ -1,6 +1,8 @@
 export { type Cadre, CadreError, loadCadre, type MailCadre, parseCadre } from "./cadre.ts";
 export { type CollectSummary, collectMail } from "./collect.ts";
+export { cleanForModel, htmlToText, toMailForModel } from "./mail-text.ts";
 export { type FetchResult, fetchMailRefs, type MailRef, PostmanError } from "./postman.ts";
+export { fixtureForModel, MAX_SOURCE_BYTES, readMailsForModel } from "./reader.ts";
 export { toRfc822 } from "./rfc822.ts";
 export {
   EXAMPLE_RULES_PATH,

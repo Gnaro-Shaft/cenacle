@@ -49,3 +49,21 @@ describe("toRfc822 — adversarial", () => {
     expect(raw.split("\r\n\r\n")[0]).not.toContain("forged");
   });
 });
+
+describe("toRfc822 — display names with specials", () => {
+  it("quotes a name with parentheses, so it is not read as a comment", () => {
+    const raw = toRfc822({
+      ...message,
+      from: { name: "La Lettre (fictive)", address: "a@b.example" },
+    });
+    expect(raw.toString()).toContain('From: "La Lettre (fictive)" <a@b.example>');
+  });
+
+  it("escapes quotes and backslashes inside a quoted name", () => {
+    const raw = toRfc822({
+      ...message,
+      from: { name: 'Dupont, "Al" \\ x', address: "a@b.example" },
+    });
+    expect(raw.toString()).toContain('From: "Dupont, \\"Al\\" \\\\ x" <a@b.example>');
+  });
+});
