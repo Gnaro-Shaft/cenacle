@@ -1,0 +1,47 @@
+# Cénacle — sorting rules, EXAMPLE (fictional domains of the test mailbox).
+#
+# Your real rules go in regles.local.toml, which git ignores: your clients'
+# domains are personal and business data, and this repository is public.
+#
+# One exact domain → one category. No wildcard: a subdomain needs its own line
+# (so "client.example.attacker.test" never passes for "client.example").
+# Mails whose domain no rule knows are left for the model (phase 2, M5).
+# Phase 5: a "clients_prospects" rule will only apply to authenticated senders.
+
+[clients_prospects]
+domains = [
+  "agence-kora.example",
+  "atelier-lumen.example",
+  "biscuiterie-nantaise.example",
+  "cabinet-orme.example",
+  "logistique-ardent.example",
+  "mutuelle-horizon.example",
+  "plateforme-freelance.example",
+  "studio-pivoine.example",
+  "transports-vasseur.example",
+]
+
+[administratif]
+domains = [
+  "assurance-prevoyance.example",
+  "banque-exemple.example",
+  "cabinet-delmas.example",
+  "caisse-independants.test",
+  "hebergeur-nuage.example",
+  "logiciel-compta.example",
+  "operateur-mobile.example",
+  "registre-domaines.example",
+]
+
+[bruit]
+domains = [
+  "boutique-gadget.example",
+  "datadays.example",
+  "forum-dev.example",
+  "lettre-tech.example",
+  "outil-notes.example",
+  "plateforme-video.example",
+  "podcast-ia.example",
+  "reseau-pro.example",
+  "voyages-soleil.example",
+]

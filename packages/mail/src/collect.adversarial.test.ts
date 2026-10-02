@@ -4,6 +4,7 @@ import type { Journal, NewEvent, StoredEvent } from "@cenacle/journal";
 import { describe, expect, it } from "vitest";
 import { collectMail } from "./collect.ts";
 import type { FetchResult } from "./postman.ts";
+import { parseRules } from "./rules.ts";
 
 function memoryJournal(): Journal & { events: StoredEvent[] } {
   const events: StoredEvent[] = [];
@@ -60,6 +61,28 @@ describe("collectMail", () => {
       /client\.example|"uid"/,
     );
     expect(projectStatus("iris", journal.events).view.visual).toBe("resting");
+  });
+
+  it("with rules, journals the counts per category — never which domain went where", async () => {
+    const journal = memoryJournal();
+    const rules = parseRules('[clients_prospects]\ndomains = ["client.example"]\n');
+    const summary = await collectMail({ journal, fetch: async () => result, rules });
+    expect(summary.ruleSort?.counts).toEqual({
+      clients_prospects: 2,
+      administratif: 0,
+      bruit: 0,
+      a_trier: 1,
+      remaining: 0,
+    });
+    expect(journal.events.map((e) => e.type)).toEqual([
+      "state.changed",
+      "mail.fetched",
+      "mail.sorted_by_rules",
+      "state.changed",
+    ]);
+    expect(JSON.stringify(journal.events.map((e) => e.payload))).not.toMatch(
+      /client\.example|"uid"/,
+    );
   });
 
   it("turns Iris sick on failure, journals the error name without its message, and rethrows", async () => {

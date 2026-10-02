@@ -1,11 +1,12 @@
 /**
  * One collection pass by Iris: journaled, and visible on her box.
  *
- * The journal gets facts, not content (charter): how many mails, whether the
- * ceiling was hit, how long it took — never a UID, a domain or a subject.
+ * The journal gets facts, not content (charter): how many mails, how many per
+ * category, how long it took — never a UID, a domain or a subject.
  */
 import type { Journal } from "@cenacle/journal";
 import type { FetchResult } from "./postman.ts";
+import { type RuleSort, type Rules, sortByRules } from "./rules.ts";
 
 const AGENT = "iris";
 
@@ -16,21 +17,27 @@ export interface CollectSummary {
   readonly lastUid: number | null;
   readonly unseen: number;
   readonly durationMs: number;
+  /** Present when rules were given. */
+  readonly ruleSort?: RuleSort;
 }
 
 export interface CollectDeps {
   readonly journal: Journal;
   readonly fetch: () => Promise<FetchResult>;
+  /** If given, mails are sorted by these rules after the fetch. */
+  readonly rules?: Rules;
   readonly now?: () => number;
 }
 
 export async function collectMail(deps: CollectDeps): Promise<CollectSummary> {
-  const { journal, fetch, now = () => performance.now() } = deps;
+  const { journal, fetch, rules, now = () => performance.now() } = deps;
   await journal.append({ agent: AGENT, type: "state.changed", payload: { to: "reading" } });
   const started = now();
   let result: FetchResult;
+  let ruleSort: RuleSort | undefined;
   try {
     result = await fetch();
+    if (rules !== undefined) ruleSort = sortByRules(result.refs, rules);
   } catch (error) {
     // No message: an IMAP error may echo server data. The name is enough to start looking.
     const reason = error instanceof Error ? error.name : "unknown";
@@ -44,6 +51,13 @@ export async function collectMail(deps: CollectDeps): Promise<CollectSummary> {
     type: "mail.fetched",
     payload: { count: result.refs.length, truncated: result.truncated, durationMs },
   });
+  if (ruleSort !== undefined) {
+    await journal.append({
+      agent: AGENT,
+      type: "mail.sorted_by_rules",
+      payload: { ...ruleSort.counts },
+    });
+  }
   await journal.append({ agent: AGENT, type: "state.changed", payload: { to: "idle" } });
   return {
     count: result.refs.length,
@@ -52,5 +66,6 @@ export async function collectMail(deps: CollectDeps): Promise<CollectSummary> {
     lastUid: result.lastUid,
     unseen: result.unseen,
     durationMs,
+    ...(ruleSort === undefined ? {} : { ruleSort }),
   };
 }
