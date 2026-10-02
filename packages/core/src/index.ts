@@ -32,6 +32,15 @@ export {
   loadFixtureSent,
   SENT_FIXTURE_PATH,
 } from "./fixtures.ts";
+export {
+  countFollowUps,
+  FOLLOW_UP_HOURS,
+  FOLLOW_UP_TIME_ZONE,
+  type FollowedMail,
+  type FollowUpCounts,
+  followUpOf,
+  type MyMail,
+} from "./follow-up.ts";
 export { type MailCounts, MailCountsError } from "./mail-counts.ts";
 export { type MailForModel, MODEL_FIELD_MAX, MODEL_TEXT_MAX } from "./mail-for-model.ts";
 export {
@@ -40,3 +49,4 @@ export {
   type StatusMessage,
   toStatusMessage,
 } from "./status-message.ts";
+export { workingHoursBetween, zonedMidnight } from "./working-hours.ts";

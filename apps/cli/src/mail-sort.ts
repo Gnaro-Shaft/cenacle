@@ -5,7 +5,7 @@
  * Usage: npm run mail:sort [-- --rules-only]
  */
 import { createLocalModels, localModelConfigFromEnv, sortByModel } from "@cenacle/brain";
-import { countConversations } from "@cenacle/core";
+import { countConversations, countFollowUps } from "@cenacle/core";
 import { connectAsApp, createJournal, createMailStore } from "@cenacle/journal";
 import {
   collectMail,
@@ -25,7 +25,7 @@ try {
   const store = createMailStore(sql);
   const keyer = keyerFromEnv();
   const { mail } = loadCadre();
-  const { rules, example } = loadRules();
+  const { rules, noFollowUp, example } = loadRules();
   if (example) {
     console.log("ℹ règles : regles.example.toml (domaines fictifs) — pas de regles.local.toml");
   }
@@ -34,6 +34,7 @@ try {
     journal,
     store,
     rules,
+    noFollowUp,
     fetchInbox: (afterUid) => fetchMailRefs(mail, password, keyer, { afterUid }),
     fetchSent: (afterUid) => fetchSentRefs(mail, password, keyer, { afterUid }),
   });
@@ -79,6 +80,8 @@ try {
   console.log(
     `  mémoire : clients ${t.clients_prospects}, admin ${t.administratif}, bruit ${t.bruit}, à trier ${t.a_trier}, en attente ${t.pending} — ${summary.unseen} toujours non lus`,
   );
+  const f = countFollowUps(await store.inbox(), await store.sent(), new Date());
+  console.log(`  suivi : ${f.waiting} en attente de réponse, ${f.due} relances dues`);
   if (summary.truncated) console.log("… plafond atteint : relancer pour lire la suite");
 } catch (error) {
   console.error(`🛑 ${error instanceof Error ? error.message : String(error)}`);

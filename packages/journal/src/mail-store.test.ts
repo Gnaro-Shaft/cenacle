@@ -14,6 +14,7 @@ const K = (c: string) => c.repeat(64);
 const inbox = (uid: number, at = "2026-09-30T08:00:00.000Z") => ({
   uid,
   receivedAt: at,
+  noFollowUp: uid === 3,
   senderKey: K("a"),
   messageKey: K(String(uid % 10)),
   threadKeys: [K("f")],
@@ -66,5 +67,20 @@ describe("mail store", () => {
     await store.saveInbox("7", [inbox(1, "2026-06-01T00:00:00.000Z"), inbox(2)]);
     expect(await store.purgeBefore(new Date("2026-07-01T00:00:00Z"))).toBe(1);
     expect((await store.inbox()).map((i) => i.uid)).toEqual([2]);
+  });
+
+  it("keeps the no-follow-up flag decided at collection time", async () => {
+    await store.saveInbox("7", [inbox(1), inbox(3)]);
+    expect((await store.inbox()).map((i) => [i.uid, i.noFollowUp])).toEqual([
+      [1, false],
+      [3, true],
+    ]);
+  });
+
+  it("forgets mails that left the server, and only those", async () => {
+    await store.saveInbox("7", [inbox(1), inbox(2), inbox(3)]);
+    expect(await store.keepOnly("inbox", [1, 3])).toBe(1);
+    expect((await store.inbox()).map((i) => i.uid)).toEqual([1, 3]);
+    expect(await store.keepOnly("inbox", [])).toBe(2);
   });
 });
