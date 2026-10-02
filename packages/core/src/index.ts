@@ -17,6 +17,14 @@ export {
   projectStatus,
 } from "./agent-status.ts";
 export {
+  CATEGORIES,
+  type Category,
+  FIXTURE_PATH,
+  type FixtureMailbox,
+  type FixtureMessage,
+  loadFixtureMailbox,
+} from "./fixtures.ts";
+export {
   type AgentMessage,
   type ProblemMessage,
   type StatusMessage,
