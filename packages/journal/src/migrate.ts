@@ -2,7 +2,8 @@
  * Applies the schema and sets up the application role.
  *
  * Runs as the database owner. The application itself never connects as
- * the owner: it uses `cenacle_app`, which may only INSERT and SELECT.
+ * the owner: it uses `cenacle_app`, which may only INSERT and SELECT events
+ * (and read, add, categorize and expire mail items).
  *
  * Usage: node --env-file=.env packages/journal/src/migrate.ts
  * (self-contained on purpose: no relative imports, so Node can run it directly)
@@ -54,6 +55,10 @@ export async function migrate({ ownerUrl, appPassword }: MigrateOptions): Promis
     await sql.unsafe(`GRANT USAGE ON SCHEMA public TO ${APP_ROLE}`);
     await sql.unsafe(`REVOKE ALL ON events FROM ${APP_ROLE}`);
     await sql.unsafe(`GRANT INSERT, SELECT ON events TO ${APP_ROLE}`);
+    // Mail items change (a category is set once) and expire (retention), but
+    // the app still cannot alter the table's structure.
+    await sql.unsafe(`REVOKE ALL ON mail_items FROM ${APP_ROLE}`);
+    await sql.unsafe(`GRANT SELECT, INSERT, UPDATE, DELETE ON mail_items TO ${APP_ROLE}`);
   } finally {
     await sql.end();
   }

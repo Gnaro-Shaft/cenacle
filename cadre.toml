@@ -8,5 +8,7 @@ host = "127.0.0.1"
 port = 3143
 user = "test-cenacle"
 mailbox = "INBOX"
+# My sent mails, read-only too: how Iris knows I answered (phase 3).
+sent_mailbox = "Sent"
 # Most mails read in one pass; a bigger backlog is read over several passes.
 max_per_fetch = 500

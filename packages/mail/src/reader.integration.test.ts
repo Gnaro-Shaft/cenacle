@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { loadFixtureMailbox, loadFixtureSent } from "@cenacle/core";
 import { beforeAll, describe, expect, it } from "vitest";
 import { loadCadre } from "./cadre.ts";
+import { createKeyer } from "./keys.ts";
 import { fetchMailRefs } from "./postman.ts";
 import { fixtureForModel, readMailsForModel } from "./reader.ts";
 import { loadFixtures, testMailboxConfigFromEnv } from "./test-mailbox.ts";
@@ -13,6 +14,7 @@ if (existsSync(envFile)) process.loadEnvFile(envFile);
 const { password } = testMailboxConfigFromEnv();
 const { mail } = loadCadre();
 const { messages } = loadFixtureMailbox();
+const keyer = createKeyer("6".repeat(64));
 
 describe("reader (GreenMail)", () => {
   beforeAll(async () => {
@@ -23,7 +25,7 @@ describe("reader (GreenMail)", () => {
   });
 
   it("gives the model the same view as the fixture, and leaves every mail unread", async () => {
-    const { refs, unseen } = await fetchMailRefs(mail, password);
+    const { refs, unseen } = await fetchMailRefs(mail, password, keyer);
     const uids = refs.map((r) => r.uid);
     const read = await readMailsForModel(mail, password, uids);
     expect(read).toHaveLength(messages.length);
@@ -33,13 +35,13 @@ describe("reader (GreenMail)", () => {
       if (fixture === undefined) throw new Error("missing fixture");
       expect(m).toEqual(fixtureForModel(m.uid, fixture));
     });
-    const after = await fetchMailRefs(mail, password);
+    const after = await fetchMailRefs(mail, password, keyer);
     expect(after.unseen).toBe(unseen);
     expect(unseen).toBe(messages.length);
   });
 
   it("the HTML trap reaches the model as text, its script dropped", async () => {
-    const { refs } = await fetchMailRefs(mail, password);
+    const { refs } = await fetchMailRefs(mail, password, keyer);
     const index = messages.findIndex((m) => m.expected.trap === "injection_cachee_html");
     const uid = refs[index]?.uid ?? 0;
     const [trap] = await readMailsForModel(mail, password, [uid]);

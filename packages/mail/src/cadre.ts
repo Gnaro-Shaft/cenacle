@@ -15,6 +15,8 @@ export interface MailCadre {
   readonly port: number;
   readonly user: string;
   readonly mailbox: string;
+  /** Where my sent mails are (read-only too): tells Iris I answered. */
+  readonly sentMailbox: string;
   readonly maxPerFetch: number;
 }
 
@@ -31,7 +33,7 @@ export class CadreError extends Error {
 
 const LOOPBACK: ReadonlySet<string> = new Set(["127.0.0.1", "localhost", "::1"]);
 export const MAX_PER_FETCH_LIMIT = 5000;
-const MAIL_KEYS = ["host", "port", "user", "mailbox", "max_per_fetch"] as const;
+const MAIL_KEYS = ["host", "port", "user", "mailbox", "sent_mailbox", "max_per_fetch"] as const;
 
 function isTable(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -81,6 +83,7 @@ export function toCadre(raw: unknown): Cadre {
       port: integer(mail, "port", 1, 65535),
       user: text(mail, "user", /^[A-Za-z0-9._@+-]{1,128}$/),
       mailbox: text(mail, "mailbox", /^[A-Za-z0-9 ._/-]{1,128}$/),
+      sentMailbox: text(mail, "sent_mailbox", /^[A-Za-z0-9 ._/-]{1,128}$/),
       maxPerFetch: integer(mail, "max_per_fetch", 1, MAX_PER_FETCH_LIMIT),
     },
   };

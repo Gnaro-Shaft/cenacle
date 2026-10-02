@@ -8,6 +8,7 @@ describe("cadre.toml", () => {
       port: 3143,
       user: "test-cenacle",
       mailbox: "INBOX",
+      sentMailbox: "Sent",
       maxPerFetch: 500,
     });
   });

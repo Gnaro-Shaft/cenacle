@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { senderDomain } from "./sender-domain.ts";
+import { addressList, senderAddress, senderDomain } from "./sender-domain.ts";
 
 describe("senderDomain", () => {
   it.each([
@@ -11,5 +11,30 @@ describe("senderDomain", () => {
     ["alice@client.example (Alice)", "client.example"],
   ])("reads %j", (raw, domain) => {
     expect(senderDomain(raw)).toBe(domain);
+  });
+});
+
+describe("senderAddress and addressList", () => {
+  it("reads the sender's address, lowercased", () => {
+    expect(senderAddress('From: "Alice" <Alice.Martin@Client.Example>')).toBe(
+      "alice.martin@client.example",
+    );
+  });
+
+  it("reads every address of a To header, quotes and comments included", () => {
+    expect(
+      addressList(
+        'To: a@one.example, "Dupont, Bob" <bob@two.example> (team), <c@three.test>',
+        "to",
+      ),
+    ).toEqual(["a@one.example", "bob@two.example", "c@three.test"]);
+  });
+
+  it("drops what it cannot read, and refuses groups", () => {
+    expect(addressList("To: a@one.example, broken@, <x y@z.example>", "to")).toEqual([
+      "a@one.example",
+    ]);
+    expect(addressList("To: team: a@one.example;", "to")).toEqual([]);
+    expect(addressList(undefined, "to")).toEqual([]);
   });
 });

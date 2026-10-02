@@ -44,7 +44,7 @@ export function describeStatus(status: AgentStatus): string {
     // Counters only: no mail content ever goes to Telegram.
     const m = status.mail;
     lines.push(
-      `📬 Dernier tri : clients ${m.clients_prospects} · admin ${m.administratif} · bruit ${m.bruit} · à trier ${m.a_trier}${m.pending > 0 ? ` · ${m.pending} en cours` : ""}`,
+      `📬 Courrier : clients ${m.clients_prospects} · admin ${m.administratif} · bruit ${m.bruit} · à trier ${m.a_trier}${m.pending > 0 ? ` · ${m.pending} en cours` : ""}`,
     );
   }
   return lines.join("\n");

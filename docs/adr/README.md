@@ -16,5 +16,6 @@ Elles sont rédigées en français (le code et le README sont en anglais).
 | [0009](0009-conformite-executable.md) | Le registre des traitements est un fichier que le code applique | Acceptée |
 | [0010](0010-tests-et-jeux-de-mails.md) | Boîtes de test, jeu de mails fictifs, tests adversariaux | Acceptée |
 | [0011](0011-depot-public.md) | Un dépôt public se pense dès le premier commit | Acceptée |
+| [0012](0012-memoire-du-courrier.md) | Ce qu'Iris retient d'un mail : des clés, pas des adresses, 90 jours | Acceptée |
 
 Les règles dures qui s'appliquent à tout le code sont dans [`../charte.md`](../charte.md).

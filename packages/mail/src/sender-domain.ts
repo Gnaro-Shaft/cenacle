@@ -43,19 +43,20 @@ function validDomain(domain: string): boolean {
   return labels.length >= 2 && labels.every((label) => LABEL.test(label));
 }
 
-/**
- * `raw` is the header as fetched: `From: ...` or just its value, possibly folded.
- * Returns the lowercased domain, or null if it cannot be read unambiguously.
- */
-export function senderDomain(raw: string | null | undefined): string | null {
+interface Mailbox {
+  readonly address: string;
+  readonly domain: string;
+}
+
+function unfoldHeader(raw: string | null | undefined, name: string): string | null {
   if (typeof raw !== "string" || raw.length === 0 || raw.length > MAX_HEADER_LENGTH) return null;
   const unfolded = raw.replace(/\r?\n[ \t]+/g, " ").trim();
-  if (/[\r\n]/.test(unfolded)) return null; // several header lines: not a single From
-  const value = unfolded.replace(/^from:\s*/i, "");
-  const plain = stripQuotedAndComments(value);
-  if (plain === null) return null;
-  if (plain.includes(",") || plain.includes(";")) return null; // several senders or a group
+  if (/[\r\n]/.test(unfolded)) return null; // several header lines: not a single header
+  return unfolded.replace(new RegExp(`^${name}:\\s*`, "i"), "");
+}
 
+/** One mailbox, already stripped of quotes and comments: `a@b.c` or `Name <a@b.c>`. */
+function parseMailbox(plain: string): Mailbox | null {
   const opens = plain.split("<").length - 1;
   const closes = plain.split(">").length - 1;
   let address: string;
@@ -71,5 +72,46 @@ export function senderDomain(raw: string | null | undefined): string | null {
   const local = address.slice(0, at);
   const domain = address.slice(at + 1).toLowerCase();
   if (!LOCAL_PART.test(local) || !validDomain(domain)) return null;
-  return domain;
+  // Local parts are case-insensitive in practice: one address, one spelling.
+  return { address: `${local.toLowerCase()}@${domain}`, domain };
+}
+
+function singleSender(raw: string | null | undefined): Mailbox | null {
+  const value = unfoldHeader(raw, "from");
+  if (value === null) return null;
+  const plain = stripQuotedAndComments(value);
+  if (plain === null) return null;
+  if (plain.includes(",") || plain.includes(";")) return null; // several senders or a group
+  return parseMailbox(plain);
+}
+
+/**
+ * `raw` is the header as fetched: `From: ...` or just its value, possibly folded.
+ * Returns the lowercased domain, or null if it cannot be read unambiguously.
+ */
+export function senderDomain(raw: string | null | undefined): string | null {
+  return singleSender(raw)?.domain ?? null;
+}
+
+/** The sender's lowercased address, or null — same strict reading as senderDomain. */
+export function senderAddress(raw: string | null | undefined): string | null {
+  return singleSender(raw)?.address ?? null;
+}
+
+/**
+ * Every readable address of a To/Cc header (`To: a@x, "B, C" <b@y>`).
+ * Unreadable entries are left out; groups and broken headers give [].
+ */
+export function addressList(raw: string | null | undefined, name: string): string[] {
+  const value = unfoldHeader(raw, name);
+  if (value === null) return [];
+  const plain = stripQuotedAndComments(value);
+  if (plain === null || plain.includes(";") || plain.includes(":")) return [];
+  const addresses = new Set<string>();
+  for (const part of plain.split(",")) {
+    const mailbox = parseMailbox(part);
+    if (mailbox !== null) addresses.add(mailbox.address);
+    if (addresses.size >= 50) break;
+  }
+  return [...addresses];
 }

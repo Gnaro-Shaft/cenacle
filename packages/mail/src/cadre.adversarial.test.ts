@@ -7,6 +7,7 @@ const valid = {
   port: "3143",
   user: '"test-cenacle"',
   mailbox: '"INBOX"',
+  sent_mailbox: '"Sent"',
   max_per_fetch: "500",
 };
 const toml = (mail: Record<string, string>, extra = "") =>

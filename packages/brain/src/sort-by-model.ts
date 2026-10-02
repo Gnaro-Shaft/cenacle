@@ -22,6 +22,8 @@ export interface ModelSort {
 
 export interface SortByModelDeps extends ClassifyOptions {
   readonly journal: Journal;
+  /** Remembers each decision as soon as it is made (so a later pass never redoes it). */
+  readonly onClassified?: (result: Classification) => Promise<void>;
   readonly classify?: typeof classifyMail;
 }
 
@@ -61,6 +63,7 @@ export async function sortByModel(
       });
       return { classified, waiting, counts, durationMs: Date.now() - started };
     }
+    await deps.onClassified?.(result);
     // The category only: which mail it was never reaches the journal.
     await journal.append({
       agent: AGENT,

@@ -16,6 +16,7 @@ export {
   ProjectionError,
   projectStatus,
 } from "./agent-status.ts";
+export { conversationIds, countConversations, type Threaded } from "./conversations.ts";
 export {
   CATEGORIES,
   type Category,
