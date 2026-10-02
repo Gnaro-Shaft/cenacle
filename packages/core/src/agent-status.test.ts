@@ -53,6 +53,8 @@ describe("projectStatus", () => {
       ev("mail.fetched", { count: 3, truncated: false, durationMs: 40 }),
       ev("mail.fetch_failed", { reason: "Error" }),
       ev("mail.sorted_by_rules", { bruit: 1, remaining: 0 }),
+      ev("mail.sorted_by_model", { bruit: 1, invalid: 0 }),
+      ev("mail.model_waiting", { sorted: 0, waiting: 1 }),
     ]);
     expect(status.internal).toBe("reading");
     expect(status.view.visual).toBe("working");

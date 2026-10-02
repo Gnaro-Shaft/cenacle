@@ -44,6 +44,8 @@ const NEUTRAL_EVENT_TYPES: ReadonlySet<string> = new Set([
   "mail.fetched",
   "mail.fetch_failed",
   "mail.sorted_by_rules",
+  "mail.sorted_by_model",
+  "mail.model_waiting",
 ]);
 
 const PROPOSAL_OUTCOMES: ReadonlySet<string> = new Set([

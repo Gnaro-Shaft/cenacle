@@ -24,6 +24,7 @@ export {
   type FixtureMessage,
   loadFixtureMailbox,
 } from "./fixtures.ts";
+export { type MailForModel, MODEL_FIELD_MAX, MODEL_TEXT_MAX } from "./mail-for-model.ts";
 export {
   type AgentMessage,
   type ProblemMessage,

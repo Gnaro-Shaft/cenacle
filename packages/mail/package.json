@@ -11,6 +11,7 @@
     "@cenacle/core": "0.0.0",
     "@cenacle/journal": "0.0.0",
     "imapflow": "2.2.1",
+    "postal-mime": "4.0.2",
     "smol-toml": "1.9.0"
   }
 }

@@ -29,8 +29,10 @@ export interface FakeModelServer {
   close(): Promise<void>;
 }
 
-/** Answers every chat completion with `reply`, streamed in two chunks. */
-export async function fakeModelServer(reply: string): Promise<FakeModelServer> {
+/** Answers every chat completion with `reply` (or `reply(requestBody)`), streamed in two chunks. */
+export async function fakeModelServer(
+  replyWith: string | ((body: string) => string),
+): Promise<FakeModelServer> {
   const requests: string[] = [];
   const server: Server = createServer((req, res) => {
     let body = "";
@@ -39,6 +41,7 @@ export async function fakeModelServer(reply: string): Promise<FakeModelServer> {
     });
     req.on("end", () => {
       requests.push(body);
+      const reply = typeof replyWith === "string" ? replyWith : replyWith(body);
       res.writeHead(200, { "content-type": "text/event-stream" });
       const send = (delta: object, finish: string | null) =>
         res.write(
