@@ -8,6 +8,7 @@
 import type { Journal } from "@cenacle/journal";
 import { Agent } from "@earendil-works/pi-agent-core";
 import type { AssistantMessage } from "@earendil-works/pi-ai";
+import { type Span, SpanStatusCode, trace } from "@opentelemetry/api";
 import type { LocalModels } from "./local-model.ts";
 import { type DataClass, route } from "./router.ts";
 
@@ -43,6 +44,21 @@ export interface AskOptions {
 }
 
 const AGENT = "iris";
+const tracer = trace.getTracer("cenacle.brain");
+
+/**
+ * The only attributes a span may carry: structure and counts, never content.
+ * Tests check every recorded attribute against this list.
+ */
+export const SPAN_ATTRIBUTES = [
+  "cenacle.agent",
+  "cenacle.data_class",
+  "cenacle.destination",
+  "cenacle.outcome",
+  "gen_ai.request.model",
+  "gen_ai.usage.output_tokens",
+  "gen_ai.usage.reasoning_tokens",
+] as const;
 
 function textOf(message: AssistantMessage): string {
   return message.content
@@ -51,10 +67,34 @@ function textOf(message: AssistantMessage): string {
     .trim();
 }
 
-export async function askIris(options: AskOptions): Promise<IrisAnswer> {
+export function askIris(options: AskOptions): Promise<IrisAnswer> {
+  return tracer.startActiveSpan("iris.ask", async (span) => {
+    try {
+      return await askIrisTraced(options, span);
+    } catch (error) {
+      span.setAttribute(
+        "cenacle.outcome",
+        error instanceof ModelUnavailableError ? "model_unavailable" : "error",
+      );
+      // The message may quote the model server; only the error's name is recorded.
+      span.setStatus({ code: SpanStatusCode.ERROR, message: (error as Error).name });
+      throw error;
+    } finally {
+      span.end();
+    }
+  });
+}
+
+async function askIrisTraced(options: AskOptions, span: Span): Promise<IrisAnswer> {
   const { journal, local } = options;
   // Phase 1 has no EU API: the router must answer "local" for every class.
   const destination = route({ dataClass: options.dataClass }, { euApiConfigured: false });
+  span.setAttributes({
+    "cenacle.agent": AGENT,
+    "cenacle.data_class": options.dataClass,
+    "cenacle.destination": destination,
+    "gen_ai.request.model": local.model.id,
+  });
   await journal.append({
     agent: AGENT,
     type: "model.routed",
@@ -89,6 +129,13 @@ export async function askIris(options: AskOptions): Promise<IrisAnswer> {
   }
 
   const text = textOf(answer);
+  span.setAttributes({
+    "cenacle.outcome": "answered",
+    "gen_ai.usage.output_tokens": answer.usage.output,
+    ...(answer.usage.reasoning === undefined
+      ? {}
+      : { "gen_ai.usage.reasoning_tokens": answer.usage.reasoning }),
+  });
   const result: IrisAnswer = {
     text,
     durationMs: Date.now() - started,

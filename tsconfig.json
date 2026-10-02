@@ -11,6 +11,9 @@
       "path": "packages/brain"
     },
     {
+      "path": "packages/observability"
+    },
+    {
       "path": "apps/cli"
     },
     {

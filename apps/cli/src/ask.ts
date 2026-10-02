@@ -5,6 +5,7 @@
  */
 import { askIris, createLocalModels, localModelConfigFromEnv } from "@cenacle/brain";
 import { connectAsApp, createJournal } from "@cenacle/journal";
+import { setupTracing } from "@cenacle/observability";
 
 const question = process.argv.slice(2).join(" ").trim();
 if (question === "") {
@@ -12,6 +13,7 @@ if (question === "") {
   process.exit(1);
 }
 
+const tracing = setupTracing("cenacle-cli");
 const sql = connectAsApp();
 try {
   const local = createLocalModels(localModelConfigFromEnv());
@@ -33,4 +35,5 @@ try {
   process.exitCode = 1;
 } finally {
   await sql.end();
+  await tracing.shutdown();
 }

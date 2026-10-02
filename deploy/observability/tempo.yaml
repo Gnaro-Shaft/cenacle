@@ -1,0 +1,38 @@
+# Tempo for Cénacle (ADR-0008) — local only. Adapted from a configuration
+# proven on Tempo 3.0.3 in a previous project. Pitfalls of version 3:
+# `compactor` no longer exists, and retention is set in TWO places that must
+# agree (otherwise 14 days). Usage statistics are switched off.
+
+stream_over_http_enabled: true
+
+server:
+  http_listen_port: 3200
+  grpc_listen_port: 9095
+
+usage_report:
+  reporting_enabled: false
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        http:
+          endpoint: 0.0.0.0:4318 # inside the container; published on 127.0.0.1 only
+
+backend_worker:
+  compaction:
+    block_retention: 168h # 7 days
+
+backend_scheduler:
+  provider:
+    compaction:
+      compaction:
+        block_retention: 168h # must match the value above
+
+storage:
+  trace:
+    backend: local
+    wal:
+      path: /var/tempo/wal
+    local:
+      path: /var/tempo/blocks
