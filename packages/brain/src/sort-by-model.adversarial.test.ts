@@ -24,9 +24,25 @@ const ok =
     durationMs: 5,
   });
 
+/** A journal where a pass already fetched the 3 mails and the rules left them all. */
+async function journalAfterRules(): Promise<ReturnType<typeof memoryJournal>> {
+  const journal = memoryJournal();
+  await journal.append({
+    agent: "iris",
+    type: "mail.fetched",
+    payload: { count: 3, truncated: false, durationMs: 1 },
+  });
+  await journal.append({
+    agent: "iris",
+    type: "mail.sorted_by_rules",
+    payload: { clients_prospects: 0, administratif: 0, bruit: 0, a_trier: 0, remaining: 3 },
+  });
+  return journal;
+}
+
 describe("sortByModel", () => {
   it("counts per category, then rests — no content in the journal", async () => {
-    const journal = memoryJournal();
+    const journal = await journalAfterRules();
     const result = await sortByModel(mails, { journal, local, classify: ok("bruit") });
     expect(result.counts).toEqual({
       clients_prospects: 0,
@@ -36,23 +52,36 @@ describe("sortByModel", () => {
       invalid: 0,
     });
     expect(journal.events.map((e) => e.type)).toEqual([
+      "mail.fetched",
+      "mail.sorted_by_rules",
       "model.routed",
       "state.changed",
+      "mail.model_sorted",
+      "mail.model_sorted",
+      "mail.model_sorted",
       "mail.sorted_by_model",
       "state.changed",
     ]);
     expect(JSON.stringify(journal.events.map((e) => e.payload))).not.toMatch(/[Ss]ecret|"uid"/);
-    expect(projectStatus("iris", journal.events).internal).toBe("idle");
+    const status = projectStatus("iris", journal.events);
+    expect(status.internal).toBe("idle");
+    expect(status.mail).toEqual({
+      clients_prospects: 0,
+      administratif: 0,
+      bruit: 3,
+      a_trier: 0,
+      pending: 0,
+    });
   });
 
   it("counts invalid answers, which went to À trier", async () => {
-    const journal = memoryJournal();
+    const journal = await journalAfterRules();
     const result = await sortByModel(mails, { journal, local, classify: ok("a_trier", false) });
     expect(result.counts).toMatchObject({ a_trier: 3, invalid: 3 });
   });
 
   it("waits for the Mac when the model stops answering: no guess for the rest", async () => {
-    const journal = memoryJournal();
+    const journal = await journalAfterRules();
     let calls = 0;
     const result = await sortByModel(mails, {
       journal,
@@ -67,10 +96,11 @@ describe("sortByModel", () => {
     const status = projectStatus("iris", journal.events);
     expect(status.internal).toBe("waiting_for_local_model");
     expect(status.view.note).toBe("waiting_for_mac");
+    expect(status.mail?.pending).toBe(2);
   });
 
   it("an unexpected error turns Iris sick and is rethrown", async () => {
-    const journal = memoryJournal();
+    const journal = await journalAfterRules();
     const boom = new Error("boom");
     await expect(
       sortByModel(mails, {

@@ -1,4 +1,5 @@
-import type { ViewNote, VisualState } from "@cenacle/core";
+import type { MailCounts, ViewNote, VisualState } from "@cenacle/core";
+import { MailCounters } from "./MailCounters.tsx";
 import { useAgentStream } from "./useAgentStream.ts";
 
 const LABELS: Record<VisualState | "offline", string> = {
@@ -24,10 +25,12 @@ export function AgentBox({ agent, title, duty }: Props) {
   let visual: VisualState | "offline" = "offline";
   let detail: string | null = null;
   let pending = 0;
+  let mail: MailCounts | null = null;
   if (stream.kind === "status") {
     visual = stream.visual;
     detail = stream.note === null ? null : NOTES[stream.note];
     pending = stream.pendingApprovals;
+    mail = stream.mail;
   } else if (stream.kind === "problem") {
     visual = "sick";
     detail = stream.message;
@@ -58,6 +61,7 @@ export function AgentBox({ agent, title, duty }: Props) {
       <p className="duty">{duty}</p>
       <p className="state">{LABELS[visual]}</p>
       {detail !== null && <p className="detail">{detail}</p>}
+      {mail !== null && <MailCounters counts={mail} />}
     </article>
   );
 }

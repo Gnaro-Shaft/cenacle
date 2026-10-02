@@ -40,6 +40,13 @@ export function describeStatus(status: AgentStatus): string {
       ? "Rien à valider."
       : `💬 ${status.pendingApprovals} validation(s) en attente — à lire sur la page.`,
   );
+  if (status.mail !== null) {
+    // Counters only: no mail content ever goes to Telegram.
+    const m = status.mail;
+    lines.push(
+      `📬 Dernier tri : clients ${m.clients_prospects} · admin ${m.administratif} · bruit ${m.bruit} · à trier ${m.a_trier}${m.pending > 0 ? ` · ${m.pending} en cours` : ""}`,
+    );
+  }
   return lines.join("\n");
 }
 

@@ -61,6 +61,12 @@ export async function sortByModel(
       });
       return { classified, waiting, counts, durationMs: Date.now() - started };
     }
+    // The category only: which mail it was never reaches the journal.
+    await journal.append({
+      agent: AGENT,
+      type: "mail.model_sorted",
+      payload: { category: result.category },
+    });
     classified.push(result);
     counts[result.category]++;
     if (!result.valid) counts.invalid++;

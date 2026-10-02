@@ -18,6 +18,12 @@ try {
   console.log(`   internal state : ${status.internal}`);
   console.log(`   since          : ${status.since?.toISOString() ?? "—"}`);
   console.log(`   💬 pending     : ${status.pendingApprovals}`);
+  if (status.mail !== null) {
+    const m = status.mail;
+    console.log(
+      `   📬 last sort   : clients ${m.clients_prospects}, admin ${m.administratif}, bruit ${m.bruit}, à trier ${m.a_trier}, pending ${m.pending}`,
+    );
+  }
   console.log(`   events applied : ${events.length}`);
 } catch (error) {
   if (error instanceof ProjectionError) {
