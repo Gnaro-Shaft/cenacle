@@ -1,0 +1,12 @@
+# Cénacle — settings that are not secrets. Versioned, public: never put a
+# password, a real address, an IP or a tailnet name here (they live in .env).
+
+[mail]
+# Phase 2: the fictional test mailbox (GreenMail) only — any host that is not
+# this machine is refused by the code until phase 5.
+host = "127.0.0.1"
+port = 3143
+user = "test-cenacle"
+mailbox = "INBOX"
+# Most mails read in one pass; a bigger backlog is read over several passes.
+max_per_fetch = 500

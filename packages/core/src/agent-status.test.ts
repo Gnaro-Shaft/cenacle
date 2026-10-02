@@ -46,4 +46,14 @@ describe("projectStatus", () => {
     expect(status.internal).toBe("idle");
     expect(status.lastEventId).toBe(heartbeat.id);
   });
+
+  it("treats mail collection events as neutral: the state events drive the box", () => {
+    const status = projectStatus("iris", [
+      ev("state.changed", { to: "reading" }),
+      ev("mail.fetched", { count: 3, truncated: false, durationMs: 40 }),
+      ev("mail.fetch_failed", { reason: "Error" }),
+    ]);
+    expect(status.internal).toBe("reading");
+    expect(status.view.visual).toBe("working");
+  });
 });

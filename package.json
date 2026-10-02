@@ -30,7 +30,8 @@
     "obs:up": "docker compose --profile obs up -d",
     "obs:down": "docker compose --profile obs stop tempo grafana",
     "fixtures:stats": "node apps/cli/src/fixtures-stats.ts",
-    "mail:load": "node --env-file=.env apps/cli/src/mail-load.ts"
+    "mail:load": "node --env-file=.env apps/cli/src/mail-load.ts",
+    "mail:fetch": "node --env-file=.env apps/cli/src/mail-fetch.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
