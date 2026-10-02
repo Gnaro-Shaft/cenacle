@@ -1,0 +1,21 @@
+# Local services for Cénacle. Everything listens on 127.0.0.1 only.
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cenacle_owner
+      POSTGRES_PASSWORD: ${CENACLE_DB_OWNER_PASSWORD:?set CENACLE_DB_OWNER_PASSWORD in .env}
+      POSTGRES_DB: cenacle
+    ports:
+      - "127.0.0.1:${CENACLE_DB_PORT:-55432}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cenacle_owner -d cenacle"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  db-data:

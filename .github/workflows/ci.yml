@@ -11,6 +11,23 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+    env:
+      # Throwaway values for the CI database only — not secrets.
+      CENACLE_DB_PORT: "55432"
+      CENACLE_DB_OWNER_PASSWORD: ci_owner_only_for_ci_0000
+      CENACLE_DB_APP_PASSWORD: ci_app_only_for_ci_00000
+    services:
+      db:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: cenacle_owner
+          POSTGRES_PASSWORD: ci_owner_only_for_ci_0000
+          POSTGRES_DB: cenacle
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U cenacle_owner -d cenacle"
+          --health-interval 5s --health-timeout 3s --health-retries 10
     steps:
       - uses: actions/checkout@v7
         with:

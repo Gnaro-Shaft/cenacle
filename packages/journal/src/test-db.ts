@@ -1,0 +1,57 @@
+/**
+ * Test database helpers. Tests run against a real PostgreSQL — the
+ * guarantees we test (triggers, privileges) only exist there.
+ */
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import postgres from "postgres";
+import { migrate, requireEnv, urlsFromEnv } from "./migrate.js";
+
+export const TEST_DB = "cenacle_test";
+
+/** Turns a raw connection error into an actionable message. */
+function explainConnectionError(error: unknown): string {
+  const text = String(error);
+  if (text.includes("password authentication failed")) {
+    return (
+      "PostgreSQL rejected the owner password from .env. The database volume was " +
+      "probably created with another password (POSTGRES_PASSWORD only applies on first " +
+      "start). If it holds nothing you need: docker compose down -v && npm run db:up " +
+      `&& npm run db:migrate\n${text}`
+    );
+  }
+  if (text.includes("ECONNREFUSED")) {
+    return `PostgreSQL is not running — start it with: npm run db:up\n${text}`;
+  }
+  return `Unexpected PostgreSQL error\n${text}`;
+}
+
+export function loadEnv(): void {
+  const file = join(import.meta.dirname, "..", "..", "..", ".env");
+  if (existsSync(file)) process.loadEnvFile(file);
+}
+
+/** Recreates the test database from scratch and migrates it. */
+export async function resetTestDatabase(): Promise<void> {
+  loadEnv();
+  requireEnv("CENACLE_DB_OWNER_PASSWORD");
+  const { ownerUrl } = urlsFromEnv("postgres");
+  const admin = postgres(ownerUrl, { max: 1, onnotice: () => {} });
+  try {
+    await admin.unsafe(`DROP DATABASE IF EXISTS ${TEST_DB} WITH (FORCE)`);
+    await admin.unsafe(`CREATE DATABASE ${TEST_DB}`);
+  } catch (error) {
+    throw new Error(explainConnectionError(error));
+  } finally {
+    await admin.end();
+  }
+  await migrate({
+    ownerUrl: urlsFromEnv(TEST_DB).ownerUrl,
+    appPassword: requireEnv("CENACLE_DB_APP_PASSWORD"),
+  });
+}
+
+export function appConnection() {
+  loadEnv();
+  return postgres(urlsFromEnv(TEST_DB).appUrl, { max: 2, onnotice: () => {} });
+}
