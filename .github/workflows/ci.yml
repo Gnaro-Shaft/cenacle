@@ -16,6 +16,7 @@ jobs:
       CENACLE_DB_PORT: "55432"
       CENACLE_DB_OWNER_PASSWORD: ci_owner_only_for_ci_0000
       CENACLE_DB_APP_PASSWORD: ci_app_only_for_ci_00000
+      CENACLE_TEST_MAIL_PASSWORD: ci_test_mailbox_only_000
     services:
       db:
         image: postgres:18-alpine
@@ -28,6 +29,16 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U cenacle_owner -d cenacle"
           --health-interval 5s --health-timeout 3s --health-retries 10
+      mail:
+        image: greenmail/standalone:2.1.14
+        env:
+          GREENMAIL_OPTS: >-
+            -Dgreenmail.setup.test.smtp -Dgreenmail.setup.test.imap
+            -Dgreenmail.hostname=0.0.0.0
+            -Dgreenmail.users=test-cenacle:ci_test_mailbox_only_000@cenacle.test
+        ports:
+          - 3025:3025
+          - 3143:3143
     steps:
       - uses: actions/checkout@v7
         with:

@@ -6,8 +6,10 @@ export default defineConfig({
       {
         test: {
           name: "unit",
-          // Every package and app except the journal, whose tests need a database.
+          // Every package and app except the journal, whose tests need a database,
+          // and integration tests, which need the local services.
           include: ["packages/!(journal)/src/**/*.test.ts", "apps/*/src/**/*.test.ts"],
+          exclude: ["**/*.integration.test.ts", "**/node_modules/**"],
         },
       },
       {
@@ -15,6 +17,14 @@ export default defineConfig({
           name: "db",
           include: ["packages/journal/src/**/*.test.ts"],
           globalSetup: ["packages/journal/src/global-setup.ts"],
+          fileParallelism: false,
+        },
+      },
+      {
+        test: {
+          name: "services",
+          include: ["**/src/**/*.integration.test.ts"],
+          exclude: ["**/node_modules/**"],
           fileParallelism: false,
         },
       },

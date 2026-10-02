@@ -17,6 +17,19 @@ services:
       timeout: 3s
       retries: 10
 
+  # Test mail server (phase 2) — fictional mailbox only, in memory, local only.
+  mail:
+    image: greenmail/standalone:2.1.14
+    restart: unless-stopped
+    environment:
+      GREENMAIL_OPTS: >-
+        -Dgreenmail.setup.test.smtp -Dgreenmail.setup.test.imap
+        -Dgreenmail.hostname=0.0.0.0
+        -Dgreenmail.users=test-cenacle:${CENACLE_TEST_MAIL_PASSWORD:?set CENACLE_TEST_MAIL_PASSWORD in .env}@cenacle.test
+    ports:
+      - "127.0.0.1:3025:3025" # SMTP
+      - "127.0.0.1:3143:3143" # IMAP
+
   # Observability (milestone J8) — started only with: npm run obs:up
   tempo:
     profiles: ["obs"]
