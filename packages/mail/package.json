@@ -9,6 +9,8 @@
   },
   "dependencies": {
     "@cenacle/core": "0.0.0",
-    "imapflow": "2.2.1"
+    "@cenacle/journal": "0.0.0",
+    "imapflow": "2.2.1",
+    "smol-toml": "1.9.0"
   }
 }

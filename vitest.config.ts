@@ -26,6 +26,9 @@ export default defineConfig({
           include: ["**/src/**/*.integration.test.ts"],
           exclude: ["**/node_modules/**"],
           fileParallelism: false,
+          // Loading 146 mails into a cold GreenMail can take several seconds.
+          testTimeout: 30_000,
+          hookTimeout: 30_000,
         },
       },
     ],
