@@ -17,7 +17,11 @@ Cénacle est une équipe d'agents personnels. Les projets précédents de l'aute
 
 - Les permissions sont à notre charge, et c'est voulu : voir ADR-0004 et la charte (règles 1 et 2).
 - Le code des projets Python précédents n'est pas réutilisable. Leurs décisions, elles, le sont.
-- **À vérifier à l'installation** : le *scope* npm exact des paquets Pi (le dépôt a changé d'organisation), et la télémétrie émise par défaut, qu'on coupe et dont on teste l'absence.
+- **Vérifié à l'installation (2026-10-02)** :
+  - paquets `@earendil-works/pi-ai` et `@earendil-works/pi-agent-core` **1.0.0**, licence MIT (l'ancien scope `@mariozechner` s'arrête à 0.73) ;
+  - `@earendil-works/pi-telemetry` ne contient **aucun exportateur** ni appel réseau : un contrat de télémétrie, désactivé (no-op) tant qu'on ne lui passe pas de contexte. Aucun code d'analytics dans les paquets ;
+  - seul le fournisseur « local » est enregistré : les autres fournisseurs du catalogue n'existent pas dans le processus. Un test prouve que les seules requêtes émises vont à l'adresse locale configurée.
+- **Coût noté** : `pi-ai` tire les SDK de plusieurs fournisseurs (OpenAI, Anthropic, Google, AWS) — environ 100 Mo de `node_modules`, chargés paresseusement. Acceptable ; à surveiller.
 
 ## Alternatives écartées
 

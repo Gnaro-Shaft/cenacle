@@ -8,6 +8,9 @@
       "path": "packages/journal"
     },
     {
+      "path": "packages/brain"
+    },
+    {
       "path": "apps/cli"
     },
     {

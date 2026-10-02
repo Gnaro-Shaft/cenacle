@@ -37,7 +37,11 @@ export class ProjectionError extends Error {
 }
 
 /** Event types that exist but do not change an agent's status. */
-const NEUTRAL_EVENT_TYPES: ReadonlySet<string> = new Set(["heartbeat"]);
+const NEUTRAL_EVENT_TYPES: ReadonlySet<string> = new Set([
+  "heartbeat",
+  "model.routed",
+  "model.answered",
+]);
 
 const PROPOSAL_OUTCOMES: ReadonlySet<string> = new Set([
   "accepted",

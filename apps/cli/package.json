@@ -6,6 +6,7 @@
   "type": "module",
   "dependencies": {
     "@cenacle/core": "0.0.0",
-    "@cenacle/journal": "0.0.0"
+    "@cenacle/journal": "0.0.0",
+    "@cenacle/brain": "0.0.0"
   }
 }

@@ -6,11 +6,8 @@ export default defineConfig({
       {
         test: {
           name: "unit",
-          include: [
-            "packages/core/src/**/*.test.ts",
-            "apps/server/src/**/*.test.ts",
-            "apps/telegram/src/**/*.test.ts",
-          ],
+          // Every package and app except the journal, whose tests need a database.
+          include: ["packages/!(journal)/src/**/*.test.ts", "apps/*/src/**/*.test.ts"],
         },
       },
       {

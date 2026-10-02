@@ -1,20 +1,14 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": "src",
+    "rootDir": ".",
     "outDir": "dist",
     "types": ["node"]
   },
   "include": ["src"],
   "references": [
     {
-      "path": "../../packages/core"
-    },
-    {
-      "path": "../../packages/journal"
-    },
-    {
-      "path": "../../packages/brain"
+      "path": "../journal"
     }
   ]
 }
