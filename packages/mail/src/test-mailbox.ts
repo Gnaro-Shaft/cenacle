@@ -4,9 +4,9 @@
  * This is the only code allowed to write into a mailbox, so it refuses any
  * server that is not on this machine: it must never touch a real mailbox.
  */
-import type { FixtureMessage } from "@cenacle/core";
+import type { FixtureMessage, FixtureSentFolder } from "@cenacle/core";
 import { ImapFlow } from "imapflow";
-import { toRfc822 } from "./rfc822.ts";
+import { sentToRfc822, toRfc822 } from "./rfc822.ts";
 
 export interface TestMailboxConfig {
   readonly host: string;
@@ -65,11 +65,33 @@ export async function countInbox(client: ImapFlow): Promise<MailboxCounts> {
   return { messages: status.messages ?? 0, unseen: status.unseen ?? 0 };
 }
 
-/** Appends every fixture to INBOX, unread, with its original date. */
+export const SENT_MAILBOX = "Sent";
+
+async function emptyMailbox(client: ImapFlow, mailbox: string): Promise<void> {
+  const lock = await client.getMailboxLock(mailbox);
+  try {
+    if (client.mailbox !== false && client.mailbox.exists > 0) await client.messageDelete("1:*");
+  } finally {
+    lock.release();
+  }
+}
+
+async function ensureMailbox(client: ImapFlow, mailbox: string): Promise<void> {
+  const existing = await client.list();
+  if (!existing.some((box) => box.path === mailbox)) await client.mailboxCreate(mailbox);
+}
+
+export interface LoadOptions {
+  readonly reset?: boolean;
+  /** My sent mails: loaded into the Sent folder, already read. */
+  readonly sent?: FixtureSentFolder;
+}
+
+/** Appends every fixture to INBOX (unread, original date), and my sent mails to Sent. */
 export async function loadFixtures(
   config: TestMailboxConfig,
   messages: readonly FixtureMessage[],
-  options: { readonly reset?: boolean } = {},
+  options: LoadOptions = {},
 ): Promise<MailboxCounts> {
   const client = connectTestMailbox(config);
   await client.connect();
@@ -81,18 +103,28 @@ export async function loadFixtures(
           `INBOX already holds ${before.messages} messages — use --reset to empty the test mailbox first`,
         );
       }
-      const lock = await client.getMailboxLock("INBOX");
-      try {
-        await client.messageDelete("1:*");
-      } finally {
-        lock.release();
-      }
+      await emptyMailbox(client, "INBOX");
     }
+    const sent = options.sent?.messages ?? [];
     for (const message of messages) {
-      await client.append("INBOX", toRfc822(message), [], new Date(message.date));
+      await client.append("INBOX", toRfc822(message, sent), [], new Date(message.date));
+    }
+    if (options.sent !== undefined) {
+      await ensureMailbox(client, SENT_MAILBOX);
+      await emptyMailbox(client, SENT_MAILBOX);
+      for (const message of sent) {
+        const raw = sentToRfc822(message, options.sent.from);
+        await client.append(SENT_MAILBOX, raw, ["\\Seen"], new Date(message.date));
+      }
     }
     return await countInbox(client);
   } finally {
     await client.logout();
   }
+}
+
+export async function countMailbox(client: ImapFlow, mailbox: string): Promise<number> {
+  const status = await client.status(mailbox, { messages: true });
+  if (status === false) throw new Error(`${mailbox} status unavailable`);
+  return status.messages ?? 0;
 }

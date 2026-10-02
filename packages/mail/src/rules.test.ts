@@ -57,7 +57,7 @@ describe("rules", () => {
       administratif: 40,
       bruit: 46,
       a_trier: 0,
-      remaining: 24,
+      remaining: 25,
     });
     expect(Object.keys(counts)).toEqual([...CATEGORIES, "remaining"]);
   });

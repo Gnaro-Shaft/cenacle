@@ -1,11 +1,12 @@
 // Needs the test mail server: npm run db:up (starts GreenMail too).
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { loadFixtureMailbox } from "@cenacle/core";
+import { loadFixtureMailbox, loadFixtureSent } from "@cenacle/core";
 import { describe, expect, it } from "vitest";
 import {
   connectTestMailbox,
   countInbox,
+  countMailbox,
   loadFixtures,
   testMailboxConfigFromEnv,
 } from "./test-mailbox.ts";
@@ -16,9 +17,17 @@ const config = testMailboxConfigFromEnv();
 const { messages } = loadFixtureMailbox();
 
 describe("test mailbox (GreenMail)", () => {
-  it("loads every fixture, unread", async () => {
-    const counts = await loadFixtures(config, messages, { reset: true });
+  it("loads every fixture, unread, and my sent mails into Sent", async () => {
+    const sent = loadFixtureSent();
+    const counts = await loadFixtures(config, messages, { reset: true, sent });
     expect(counts).toEqual({ messages: messages.length, unseen: messages.length });
+    const client = connectTestMailbox(config);
+    await client.connect();
+    try {
+      expect(await countMailbox(client, "Sent")).toBe(sent.messages.length);
+    } finally {
+      await client.logout();
+    }
   });
 
   it("serves the subjects back decoded, accents included", async () => {
