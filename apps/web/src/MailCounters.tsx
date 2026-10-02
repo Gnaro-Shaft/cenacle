@@ -7,11 +7,11 @@ const CASES = [
   ["a_trier", "À trier"],
 ] as const;
 
-/** How the last collection pass was sorted: four numbers, no content. */
+/** The mails Iris remembers, per category: four numbers, no content. */
 export function MailCounters({ counts }: { readonly counts: MailCounts }) {
   return (
     <div className="counters">
-      <dl aria-label="Dernier tri du courrier">
+      <dl aria-label="Courrier suivi par Iris">
         {CASES.map(([key, label]) => (
           <div key={key} className={`counter ${key}`}>
             <dt>{label}</dt>

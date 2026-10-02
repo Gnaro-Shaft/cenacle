@@ -28,8 +28,8 @@ describe("rules", () => {
       rules,
     );
     expect(result.sorted).toEqual([
-      { uid: 1, category: "bruit" },
-      { uid: 3, category: "a_trier" },
+      { uid: 1, category: "bruit", decidedBy: "rule" },
+      { uid: 3, category: "a_trier", decidedBy: "unreadable" },
     ]);
     expect(result.remaining).toEqual([{ uid: 2, domain: "other.example" }]);
     expect(result.counts).toEqual({

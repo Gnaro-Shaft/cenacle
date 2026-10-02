@@ -99,19 +99,27 @@ export function loadRules(
 export interface SortedRef {
   readonly uid: number;
   readonly category: Category;
+  /** "rule" for an exact domain rule, "unreadable" when the sender could not be read. */
+  readonly decidedBy: "rule" | "unreadable";
 }
 
-export interface RuleSort {
+export interface RuleSort<T extends Sortable = MailRef> {
   /** Decided without a model: by an exact rule, or "a_trier" for an unreadable sender. */
   readonly sorted: readonly SortedRef[];
   /** Domains no rule knows: left for the model. */
-  readonly remaining: readonly MailRef[];
+  readonly remaining: readonly T[];
   readonly counts: Readonly<Record<Category, number>> & { readonly remaining: number };
 }
 
-export function sortByRules(refs: readonly MailRef[], rules: Rules): RuleSort {
+/** What sorting by rules needs to know of a mail. */
+export interface Sortable {
+  readonly uid: number;
+  readonly domain: string | null;
+}
+
+export function sortByRules<T extends Sortable>(refs: readonly T[], rules: Rules): RuleSort<T> {
   const sorted: SortedRef[] = [];
-  const remaining: MailRef[] = [];
+  const remaining: T[] = [];
   const counts = { clients_prospects: 0, administratif: 0, bruit: 0, a_trier: 0, remaining: 0 };
   for (const ref of refs) {
     const category: Category | undefined = ref.domain === null ? "a_trier" : rules.get(ref.domain);
@@ -119,7 +127,11 @@ export function sortByRules(refs: readonly MailRef[], rules: Rules): RuleSort {
       remaining.push(ref);
       counts.remaining++;
     } else {
-      sorted.push({ uid: ref.uid, category });
+      sorted.push({
+        uid: ref.uid,
+        category,
+        decidedBy: ref.domain === null ? "unreadable" : "rule",
+      });
       counts[category]++;
     }
   }

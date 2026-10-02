@@ -38,14 +38,35 @@ describe("mail counters — a full pass", () => {
     });
   });
 
-  it("a new fetch starts the counters again", () => {
+  it("a new pass adds its new mails to what is remembered", () => {
     const status = projectStatus("iris", [fetched(4), rules(), fetched(2)]);
     expect(status.mail).toEqual({
-      clients_prospects: 0,
-      administratif: 0,
-      bruit: 0,
+      clients_prospects: 1,
+      administratif: 1,
+      bruit: 1,
       a_trier: 0,
-      pending: 2,
+      pending: 3,
+    });
+  });
+
+  it("totals from the store set the counters exactly (after retention, say)", () => {
+    const status = projectStatus("iris", [
+      fetched(4),
+      rules(),
+      ev("mail.totals", {
+        clients_prospects: 0,
+        administratif: 1,
+        bruit: 1,
+        a_trier: 0,
+        pending: 0,
+      }),
+    ]);
+    expect(status.mail).toEqual({
+      clients_prospects: 0,
+      administratif: 1,
+      bruit: 1,
+      a_trier: 0,
+      pending: 0,
     });
   });
 });
@@ -56,7 +77,20 @@ describe("mail counters — refused", () => {
     ["a fractional count", [fetched(1.5)]],
     ["a string count", [ev("mail.fetched", { count: "4" })]],
     ["rules before any fetch", [rules()]],
-    ["rules that do not add up", [fetched(4), rules({ remaining: 5 })]],
+    ["rules sorting more than pending", [fetched(2), rules()]],
+    ["totals with a missing count", [ev("mail.totals", { bruit: 1 })]],
+    [
+      "negative totals",
+      [
+        ev("mail.totals", {
+          clients_prospects: -1,
+          administratif: 0,
+          bruit: 0,
+          a_trier: 0,
+          pending: 0,
+        }),
+      ],
+    ],
     ["a missing category count", [fetched(4), rules({ bruit: undefined })]],
     ["a model sort before any fetch", [ev("mail.model_sorted", { category: "bruit" })]],
     [

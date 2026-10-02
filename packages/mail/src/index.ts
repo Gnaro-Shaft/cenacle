@@ -1,7 +1,16 @@
 export { type Cadre, CadreError, loadCadre, type MailCadre, parseCadre } from "./cadre.ts";
-export { type CollectSummary, collectMail } from "./collect.ts";
+export { type CollectDeps, type CollectSummary, collectMail, RETENTION_DAYS } from "./collect.ts";
+export { createKeyer, KeyError, type Keyer, keyerFromEnv, messageIds } from "./keys.ts";
 export { cleanForModel, htmlToText, toMailForModel } from "./mail-text.ts";
-export { type FetchResult, fetchMailRefs, type MailRef, PostmanError } from "./postman.ts";
+export {
+  type FetchResult,
+  fetchMailRefs,
+  fetchSentRefs,
+  type MailRef,
+  PostmanError,
+  type SentRef,
+  splitHeaders,
+} from "./postman.ts";
 export { fixtureForModel, MAX_SOURCE_BYTES, readMailsForModel } from "./reader.ts";
 export { sentToRfc822, toRfc822 } from "./rfc822.ts";
 export {
@@ -18,7 +27,7 @@ export {
   type SortedRef,
   sortByRules,
 } from "./rules.ts";
-export { senderDomain } from "./sender-domain.ts";
+export { addressList, senderAddress, senderDomain } from "./sender-domain.ts";
 export {
   assertTestMailbox,
   connectTestMailbox,

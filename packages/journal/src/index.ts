@@ -10,3 +10,16 @@ export {
   readAllEvents,
   type StoredEvent,
 } from "./journal.ts";
+export {
+  CATEGORY_VALUES,
+  createMailStore,
+  type DecidedBy,
+  type InboxItem,
+  type Mailbox,
+  type MailStore,
+  type Position,
+  type SentItem,
+  type StoredCategory,
+  type StoredInboxItem,
+  type Totals,
+} from "./mail-store.ts";

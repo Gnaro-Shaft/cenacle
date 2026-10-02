@@ -9,6 +9,7 @@ import { type AgentView, type InternalState, isInternalState, toView } from "./a
 import {
   applyModelSort,
   applyRuleSort,
+  applyTotals,
   type MailCounts,
   MailCountsError,
   startPass,
@@ -32,7 +33,7 @@ export interface AgentStatus {
   /** Proposals waiting for the owner's decision: the number in the bubble. */
   readonly pendingApprovals: number;
   readonly pendingProposalIds: readonly string[];
-  /** How the last collection pass was sorted; null before the first one. */
+  /** The mails Iris remembers, per category; null before the first pass. */
   readonly mail: MailCounts | null;
   /** Id of the last event applied; the next one must be greater. */
   readonly lastEventId: bigint | null;
@@ -89,7 +90,8 @@ function withPending(status: AgentStatus, ids: readonly string[]): AgentStatus {
 }
 
 function applyMailEvent(counts: MailCounts | null, event: AgentEvent): MailCounts {
-  if (event.type === "mail.fetched") return startPass(event.payload);
+  if (event.type === "mail.fetched") return startPass(counts, event.payload);
+  if (event.type === "mail.totals") return applyTotals(event.payload);
   if (event.type === "mail.sorted_by_rules") return applyRuleSort(counts, event.payload);
   return applyModelSort(counts, event.payload);
 }
@@ -136,6 +138,7 @@ export function applyEvent(status: AgentStatus, event: AgentEvent): AgentStatus 
     case "mail.fetched":
     case "mail.sorted_by_rules":
     case "mail.model_sorted":
+    case "mail.totals":
       try {
         return { ...next, mail: applyMailEvent(next.mail, event) };
       } catch (error) {

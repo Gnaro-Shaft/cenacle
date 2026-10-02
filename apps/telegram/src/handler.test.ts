@@ -65,9 +65,7 @@ describe("describeStatus — mail counters", () => {
       },
     ]);
     const text = describeStatus(status);
-    expect(text).toContain(
-      "📬 Dernier tri : clients 2 · admin 1 · bruit 1 · à trier 0 · 1 en cours",
-    );
+    expect(text).toContain("📬 Courrier : clients 2 · admin 1 · bruit 1 · à trier 0 · 1 en cours");
   });
 
   it("says nothing about mail before the first pass", () => {
