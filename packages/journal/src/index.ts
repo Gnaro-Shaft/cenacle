@@ -7,5 +7,6 @@ export {
   type NewEvent,
   type Payload,
   type ReadOptions,
+  readAllEvents,
   type StoredEvent,
 } from "./journal.ts";

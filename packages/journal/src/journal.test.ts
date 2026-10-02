@@ -37,3 +37,12 @@ describe("journal", () => {
     expect(events).toHaveLength(2);
   });
 });
+
+describe("readAllEvents", () => {
+  it("reads beyond one page", async () => {
+    const { readAllEvents } = await import("./journal.ts");
+    const rows = Array.from({ length: 1005 }, () => sql`('paging', 'heartbeat')`);
+    await sql`insert into events (agent, type) values ${rows.reduce((a, b) => sql`${a}, ${b}`)}`;
+    expect(await readAllEvents(journal, "paging")).toHaveLength(1005);
+  });
+});

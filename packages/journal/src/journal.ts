@@ -121,3 +121,16 @@ export function createJournal(sql: Sql): Journal {
     },
   };
 }
+
+/** Reads every event of an agent, oldest first, page by page. */
+export async function readAllEvents(journal: Journal, agent: string): Promise<StoredEvent[]> {
+  const events: StoredEvent[] = [];
+  let afterId = 0n;
+  for (;;) {
+    const page = await journal.read({ agent, afterId, limit: MAX_READ_LIMIT });
+    events.push(...page);
+    const last = page.at(-1);
+    if (last === undefined || page.length < MAX_READ_LIMIT) return events;
+    afterId = last.id;
+  }
+}

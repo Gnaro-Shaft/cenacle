@@ -3,7 +3,7 @@
  * Usage: npm run simulate -- <idle|work|wait-mac|sick|propose|approve> [agent]
  */
 import { projectStatus } from "@cenacle/core";
-import { connectAsApp, createJournal, type NewEvent } from "@cenacle/journal";
+import { connectAsApp, createJournal, type NewEvent, readAllEvents } from "@cenacle/journal";
 
 const [scenario, agent = "iris"] = process.argv.slice(2);
 const sql = connectAsApp();
@@ -27,7 +27,7 @@ async function eventFor(name: string | undefined): Promise<NewEvent> {
         payload: { proposalId: `demo-${Date.now().toString(36)}` },
       };
     case "approve": {
-      const status = projectStatus(agent, await journal.read({ agent, limit: 1000 }));
+      const status = projectStatus(agent, await readAllEvents(journal, agent));
       const [first] = status.pendingProposalIds;
       if (first === undefined) throw new Error("Nothing to approve: no pending proposal");
       return {

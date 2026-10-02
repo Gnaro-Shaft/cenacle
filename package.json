@@ -23,7 +23,8 @@
     "status": "node --env-file=.env apps/cli/src/status.ts",
     "server": "node --env-file=.env apps/server/src/main.ts",
     "web": "npm run dev -w @cenacle/web",
-    "simulate": "node --env-file=.env apps/cli/src/simulate.ts"
+    "simulate": "node --env-file=.env apps/cli/src/simulate.ts",
+    "bot": "node --env-file=.env apps/telegram/src/main.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
