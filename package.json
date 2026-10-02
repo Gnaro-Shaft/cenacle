@@ -25,7 +25,8 @@
     "web": "npm run dev -w @cenacle/web",
     "simulate": "node --env-file=.env apps/cli/src/simulate.ts",
     "bot": "node --env-file=.env apps/telegram/src/main.ts",
-    "ask": "node --env-file=.env apps/cli/src/ask.ts"
+    "ask": "node --env-file=.env apps/cli/src/ask.ts",
+    "probe:thinking": "node --env-file=.env apps/cli/src/probe-thinking.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

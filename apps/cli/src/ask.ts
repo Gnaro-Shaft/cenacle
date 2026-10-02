@@ -16,16 +16,17 @@ const sql = connectAsApp();
 try {
   const local = createLocalModels(localModelConfigFromEnv());
   console.log(`… Iris asks ${local.model.id} (local)`);
-  const started = Date.now();
   const answer = await askIris({
     question,
     dataClass: "personal",
     journal: createJournal(sql),
     local,
   });
-  console.log(`\n${answer}\n`);
+  console.log(`\n${answer.text}\n`);
+  const reasoning =
+    answer.reasoningTokens === null ? "" : `, of which ${answer.reasoningTokens} hidden reasoning`;
   console.log(
-    `(${((Date.now() - started) / 1000).toFixed(1)} s, local model, nothing sent elsewhere)`,
+    `(${(answer.durationMs / 1000).toFixed(1)} s, ${answer.outputTokens} tokens generated${reasoning}, local model, nothing sent elsewhere)`,
   );
 } catch (error) {
   console.error(`🤒 ${error instanceof Error ? error.message : String(error)}`);

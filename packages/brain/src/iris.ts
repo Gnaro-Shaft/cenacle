@@ -12,7 +12,8 @@ import type { LocalModels } from "./local-model.ts";
 import { type DataClass, route } from "./router.ts";
 
 export const IRIS_SYSTEM_PROMPT = [
-  "Tu es Iris, messagère du Cénacle, l'équipe d'agents de ton propriétaire.",
+  "Tu es Iris, la messagère du Cénacle, une petite équipe d'agents au service d'une seule personne.",
+  "Cette personne est ton interlocuteur : tu lui parles directement et tu la tutoies.",
   "Tu réponds en français, brièvement et simplement.",
   "Tu ne prétends jamais avoir fait une action que tu n'as pas faite.",
 ].join(" ");
@@ -22,6 +23,15 @@ export class ModelUnavailableError extends Error {
     super(message);
     this.name = "ModelUnavailableError";
   }
+}
+
+export interface IrisAnswer {
+  readonly text: string;
+  readonly durationMs: number;
+  /** Tokens generated, as reported by the server (includes any hidden reasoning). */
+  readonly outputTokens: number;
+  /** Hidden reasoning tokens, when the server reports them. */
+  readonly reasoningTokens: number | null;
 }
 
 export interface AskOptions {
@@ -41,7 +51,7 @@ function textOf(message: AssistantMessage): string {
     .trim();
 }
 
-export async function askIris(options: AskOptions): Promise<string> {
+export async function askIris(options: AskOptions): Promise<IrisAnswer> {
   const { journal, local } = options;
   // Phase 1 has no EU API: the router must answer "local" for every class.
   const destination = route({ dataClass: options.dataClass }, { euApiConfigured: false });
@@ -79,11 +89,22 @@ export async function askIris(options: AskOptions): Promise<string> {
   }
 
   const text = textOf(answer);
+  const result: IrisAnswer = {
+    text,
+    durationMs: Date.now() - started,
+    outputTokens: answer.usage.output,
+    reasoningTokens: answer.usage.reasoning ?? null,
+  };
   await journal.append({
     agent: AGENT,
     type: "model.answered",
-    payload: { durationMs: Date.now() - started, answerChars: text.length },
+    payload: {
+      durationMs: result.durationMs,
+      answerChars: text.length,
+      outputTokens: result.outputTokens,
+      reasoningTokens: result.reasoningTokens,
+    },
   });
   await journal.append({ agent: AGENT, type: "state.changed", payload: { to: "idle" } });
-  return text;
+  return result;
 }

@@ -23,7 +23,8 @@ describe("askIris", () => {
       local,
     });
 
-    expect(answer).toBe("Bonjour, je suis Iris.");
+    expect(answer.text).toBe("Bonjour, je suis Iris.");
+    expect(answer.durationMs).toBeGreaterThanOrEqual(0);
     expect(journal.events.map((e) => e.type)).toEqual([
       "model.routed",
       "state.changed",
@@ -39,5 +40,12 @@ describe("askIris", () => {
     await askIris({ question: "Ping ?", dataClass: "personal", journal: memoryJournal(), local });
     expect(server.requests[0]).toContain("Tu es Iris");
     expect(server.requests[0]).toContain("Ping ?");
+  });
+
+  it("asks the model not to reason in hidden tokens", async () => {
+    server = await fakeModelServer("ok");
+    const local = createLocalModels({ baseUrl: server.baseUrl, modelId: "test-model" });
+    await askIris({ question: "x", dataClass: "personal", journal: memoryJournal(), local });
+    expect(JSON.parse(server.requests[0] ?? "{}")).toMatchObject({ reasoning_effort: "none" });
   });
 });

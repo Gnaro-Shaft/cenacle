@@ -41,12 +41,22 @@ export function createLocalModels(config: LocalModelConfig): LocalModels {
     api: "openai-completions",
     provider: "local",
     baseUrl: config.baseUrl,
-    reasoning: false,
+    // Hidden reasoning is switched OFF: measured on 2026-10-02, it was 85-96% of
+    // the tokens and made latency swing from 8 to 34 s for a one-line answer.
+    // LM Studio honours `reasoning_effort: "none"` (also what Legion measured);
+    // declaring the model as "reasoning" is what lets pi send that value.
+    reasoning: true,
+    thinkingLevelMap: { off: "none" },
     input: ["text"],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: 32768,
     maxTokens: 2048,
-    compat: { supportsStore: false, supportsDeveloperRole: false, maxTokensField: "max_tokens" },
+    compat: {
+      supportsStore: false,
+      supportsDeveloperRole: false,
+      supportsReasoningEffort: true,
+      maxTokensField: "max_tokens",
+    },
   };
   const provider = createProvider({
     id: "local",

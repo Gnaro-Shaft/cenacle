@@ -1,4 +1,4 @@
-export { askIris, IRIS_SYSTEM_PROMPT, ModelUnavailableError } from "./iris.ts";
+export { askIris, IRIS_SYSTEM_PROMPT, type IrisAnswer, ModelUnavailableError } from "./iris.ts";
 export {
   createLocalModels,
   type LocalModelConfig,
