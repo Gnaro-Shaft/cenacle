@@ -1,3 +1,4 @@
+export { connectAsApp } from "./connect.ts";
 export {
   createJournal,
   InvalidEventError,
@@ -7,4 +8,4 @@ export {
   type Payload,
   type ReadOptions,
   type StoredEvent,
-} from "./journal.js";
+} from "./journal.ts";

@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from "vitest";
-import { createJournal } from "./journal.js";
-import { appConnection } from "./test-db.js";
+import { createJournal } from "./journal.ts";
+import { appConnection } from "./test-db.ts";
 
 const sql = appConnection();
 const journal = createJournal(sql);

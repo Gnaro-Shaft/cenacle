@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { INTERNAL_STATES, toView } from "./agent-state.js";
+import { INTERNAL_STATES, toView } from "./agent-state.ts";
 
 describe("toView", () => {
   it("shows an idle agent as resting, without a note", () => {

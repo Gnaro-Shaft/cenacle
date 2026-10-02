@@ -6,6 +6,9 @@
     },
     {
       "path": "packages/journal"
+    },
+    {
+      "path": "apps/cli"
     }
   ]
 }

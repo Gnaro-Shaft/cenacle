@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createJournal, InvalidEventError, MAX_PAYLOAD_BYTES } from "./journal.js";
-import { appConnection } from "./test-db.js";
+import { createJournal, InvalidEventError, MAX_PAYLOAD_BYTES } from "./journal.ts";
+import { appConnection } from "./test-db.ts";
 
 // The journal must survive a buggy or manipulated caller: history cannot
 // be rewritten, not even by the application's own database role.

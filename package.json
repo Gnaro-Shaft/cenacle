@@ -19,7 +19,8 @@
     "test": "vitest run",
     "check": "npm run lint && npm run typecheck && npm run test",
     "db:up": "docker compose up -d --wait",
-    "db:migrate": "node --env-file=.env packages/journal/src/migrate.ts"
+    "db:migrate": "node --env-file=.env packages/journal/src/migrate.ts",
+    "status": "node --env-file=.env apps/cli/src/status.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

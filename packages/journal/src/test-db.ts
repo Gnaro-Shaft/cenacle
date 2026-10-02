@@ -5,7 +5,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import postgres from "postgres";
-import { migrate, requireEnv, urlsFromEnv } from "./migrate.js";
+import { migrate, requireEnv, urlsFromEnv } from "./migrate.ts";
 
 export const TEST_DB = "cenacle_test";
 

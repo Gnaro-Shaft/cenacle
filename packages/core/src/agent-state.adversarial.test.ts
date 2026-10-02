@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toView, UnknownStateError } from "./agent-state.js";
+import { toView, UnknownStateError } from "./agent-state.ts";
 
 // These tests try to break toView: nothing unexpected may silently
 // become a harmless-looking "resting" agent.
