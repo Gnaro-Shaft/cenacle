@@ -8,6 +8,7 @@
     "@cenacle/core": "0.0.0",
     "@cenacle/journal": "0.0.0",
     "@cenacle/brain": "0.0.0",
-    "@cenacle/observability": "0.0.0"
+    "@cenacle/observability": "0.0.0",
+    "@cenacle/mail": "0.0.0"
   }
 }
