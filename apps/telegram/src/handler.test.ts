@@ -1,7 +1,7 @@
-import { applyEvent, initialStatus } from "@cenacle/core";
+import { applyEvent, initialStatus, projectStatus } from "@cenacle/core";
 import { describe, expect, it } from "vitest";
 import type { TelegramUpdate } from "./api.ts";
-import { handleUpdate } from "./handler.ts";
+import { describeStatus, handleUpdate } from "./handler.ts";
 
 const OWNER = 111222333;
 const msg = (text: string, chatId = OWNER, fromId = OWNER, type = "private"): TelegramUpdate => ({
@@ -43,5 +43,34 @@ describe("handleUpdate", () => {
     expect(await handleUpdate(msg("/aide"), deps)).toHaveLength(1);
     const [action] = await handleUpdate(msg("bonjour"), deps);
     expect(action?.kind === "reply" && action.text).toContain("/etat");
+  });
+});
+
+describe("describeStatus — mail counters", () => {
+  it("shows the last sort's counters, and only counters", () => {
+    const status = projectStatus("iris", [
+      {
+        id: 1n,
+        occurredAt: new Date(0),
+        agent: "iris",
+        type: "mail.fetched",
+        payload: { count: 5 },
+      },
+      {
+        id: 2n,
+        occurredAt: new Date(0),
+        agent: "iris",
+        type: "mail.sorted_by_rules",
+        payload: { clients_prospects: 2, administratif: 1, bruit: 1, a_trier: 0, remaining: 1 },
+      },
+    ]);
+    const text = describeStatus(status);
+    expect(text).toContain(
+      "📬 Dernier tri : clients 2 · admin 1 · bruit 1 · à trier 0 · 1 en cours",
+    );
+  });
+
+  it("says nothing about mail before the first pass", () => {
+    expect(describeStatus(initialStatus("iris"))).not.toContain("📬");
   });
 });

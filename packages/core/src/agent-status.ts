@@ -6,6 +6,13 @@
  * an event we do not understand must never be quietly skipped.
  */
 import { type AgentView, type InternalState, isInternalState, toView } from "./agent-state.ts";
+import {
+  applyModelSort,
+  applyRuleSort,
+  type MailCounts,
+  MailCountsError,
+  startPass,
+} from "./mail-counts.ts";
 
 /** The shape of a journal event, as far as the projection is concerned. */
 export interface AgentEvent {
@@ -25,6 +32,8 @@ export interface AgentStatus {
   /** Proposals waiting for the owner's decision: the number in the bubble. */
   readonly pendingApprovals: number;
   readonly pendingProposalIds: readonly string[];
+  /** How the last collection pass was sorted; null before the first one. */
+  readonly mail: MailCounts | null;
   /** Id of the last event applied; the next one must be greater. */
   readonly lastEventId: bigint | null;
 }
@@ -41,10 +50,8 @@ const NEUTRAL_EVENT_TYPES: ReadonlySet<string> = new Set([
   "heartbeat",
   "model.routed",
   "model.answered",
-  "mail.fetched",
   "mail.fetch_failed",
-  "mail.sorted_by_rules",
-  "mail.sorted_by_model",
+  "mail.sorted_by_model", // summary of the per-mail events below
   "mail.model_waiting",
 ]);
 
@@ -64,6 +71,7 @@ export function initialStatus(agent: string): AgentStatus {
     since: null,
     pendingApprovals: 0,
     pendingProposalIds: [],
+    mail: null,
     lastEventId: null,
   };
 }
@@ -78,6 +86,12 @@ function proposalId(event: AgentEvent): string {
 
 function withPending(status: AgentStatus, ids: readonly string[]): AgentStatus {
   return { ...status, pendingProposalIds: ids, pendingApprovals: ids.length };
+}
+
+function applyMailEvent(counts: MailCounts | null, event: AgentEvent): MailCounts {
+  if (event.type === "mail.fetched") return startPass(event.payload);
+  if (event.type === "mail.sorted_by_rules") return applyRuleSort(counts, event.payload);
+  return applyModelSort(counts, event.payload);
 }
 
 /** Applies one event to a status and returns a new status (never mutates). */
@@ -119,6 +133,15 @@ export function applyEvent(status: AgentStatus, event: AgentEvent): AgentStatus 
         next.pendingProposalIds.filter((pending) => pending !== id),
       );
     }
+    case "mail.fetched":
+    case "mail.sorted_by_rules":
+    case "mail.model_sorted":
+      try {
+        return { ...next, mail: applyMailEvent(next.mail, event) };
+      } catch (error) {
+        if (error instanceof MailCountsError) throw new ProjectionError(event, error.message);
+        throw error;
+      }
     default:
       if (NEUTRAL_EVENT_TYPES.has(event.type)) return next;
       throw new ProjectionError(event, "unknown event type — declare it before using it");

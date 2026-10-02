@@ -47,16 +47,29 @@ describe("projectStatus", () => {
     expect(status.lastEventId).toBe(heartbeat.id);
   });
 
-  it("treats mail collection events as neutral: the state events drive the box", () => {
+  it("mail events never change the state: the state events drive the box", () => {
     const status = projectStatus("iris", [
       ev("state.changed", { to: "reading" }),
       ev("mail.fetched", { count: 3, truncated: false, durationMs: 40 }),
       ev("mail.fetch_failed", { reason: "Error" }),
-      ev("mail.sorted_by_rules", { bruit: 1, remaining: 0 }),
-      ev("mail.sorted_by_model", { bruit: 1, invalid: 0 }),
-      ev("mail.model_waiting", { sorted: 0, waiting: 1 }),
+      ev("mail.sorted_by_rules", {
+        clients_prospects: 0,
+        administratif: 0,
+        bruit: 1,
+        a_trier: 0,
+        remaining: 2,
+      }),
+      ev("mail.model_sorted", { category: "clients_prospects" }),
+      ev("mail.model_waiting", { sorted: 1, waiting: 1 }),
     ]);
     expect(status.internal).toBe("reading");
     expect(status.view.visual).toBe("working");
+    expect(status.mail).toEqual({
+      clients_prospects: 1,
+      administratif: 0,
+      bruit: 1,
+      a_trier: 0,
+      pending: 1,
+    });
   });
 });

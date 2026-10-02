@@ -173,6 +173,31 @@ h1 {
   filter: grayscale(1);
 }
 
+/* Counters of the last mail pass */
+.counters dl {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  margin: 12px 0 0;
+}
+.counter {
+  border-radius: 8px;
+  padding: 4px 0;
+  background: color-mix(in srgb, var(--muted) 12%, transparent);
+}
+.counter dt {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+.counter dd {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.counter.clients_prospects dd {
+  color: var(--accent);
+}
+
 @keyframes breathe {
   50% {
     transform: scale(1.03);

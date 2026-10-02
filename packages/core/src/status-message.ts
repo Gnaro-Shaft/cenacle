@@ -4,6 +4,7 @@
  */
 import type { ViewNote, VisualState } from "./agent-state.ts";
 import type { AgentStatus } from "./agent-status.ts";
+import type { MailCounts } from "./mail-counts.ts";
 
 export interface StatusMessage {
   readonly kind: "status";
@@ -13,6 +14,8 @@ export interface StatusMessage {
   readonly note: ViewNote | null;
   readonly since: string | null;
   readonly pendingApprovals: number;
+  /** Counters of the last collection pass; null before the first one. */
+  readonly mail: MailCounts | null;
   readonly lastEventId: string | null;
 }
 
@@ -34,6 +37,7 @@ export function toStatusMessage(status: AgentStatus): StatusMessage {
     note: status.view.note,
     since: status.since?.toISOString() ?? null,
     pendingApprovals: status.pendingApprovals,
+    mail: status.mail,
     lastEventId: status.lastEventId?.toString() ?? null,
   };
 }
