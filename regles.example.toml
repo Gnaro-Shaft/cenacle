@@ -45,3 +45,10 @@ domains = [
   "reseau-pro.example",
   "voyages-soleil.example",
 ]
+
+# Domains that never expect a reply by mail (platform notifications): their
+# mails are sorted as usual, but Iris never reminds me to answer them.
+[sans_suivi]
+domains = [
+  "plateforme-freelance.example",
+]

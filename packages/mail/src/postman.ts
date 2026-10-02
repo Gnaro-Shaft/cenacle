@@ -41,6 +41,8 @@ export interface FetchResult<T> {
   readonly refs: readonly T[];
   /** Changes when the server renumbers the mailbox: remembered UIDs are then void. */
   readonly uidValidity: string;
+  /** Every UID still in the mailbox: a remembered mail that is gone was deleted or moved. */
+  readonly present: readonly number[];
   /** Mails in the mailbox after `afterUid` (the ones this pass could see). */
   readonly available: number;
   /** True when the ceiling stopped this pass: run another from `lastUid`. */
@@ -120,12 +122,15 @@ async function readHeaders(
     const entries: RawEntry[] = [];
     let available = 0;
     let uidValidity = "";
+    let present: number[] = [];
     const lock = await client.getMailboxLock(mailbox, { readOnly: true });
     try {
       if (client.mailbox === false || !client.mailbox.readOnly) {
         throw new PostmanError(`${mailbox} was not opened read-only — refusing to read`);
       }
       uidValidity = String(client.mailbox.uidValidity);
+      const all = await client.search({ all: true }, { uid: true });
+      present = (Array.isArray(all) ? all : []).sort((a, b) => a - b);
       // "n:*" also returns the last mail when n is past it: filter on the UID.
       const found = await client.search({ uid: `${afterUid + 1}:*` }, { uid: true });
       const uids = (Array.isArray(found) ? found : [])
@@ -159,6 +164,7 @@ async function readHeaders(
     return {
       refs: entries,
       uidValidity,
+      present,
       available,
       truncated: available > entries.length,
       lastUid: entries.at(-1)?.uid ?? null,

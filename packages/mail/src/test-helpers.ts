@@ -52,6 +52,16 @@ export function memoryMailStore(): MailStore & {
       rowsOf(mailbox).clear();
       return n;
     },
+    async keepOnly(mailbox, uids) {
+      let n = 0;
+      for (const uid of [...rowsOf(mailbox).keys()]) {
+        if (!uids.includes(uid)) {
+          rowsOf(mailbox).delete(uid);
+          n++;
+        }
+      }
+      return n;
+    },
     async saveInbox(uidValidity, items: readonly InboxItem[]) {
       let added = 0;
       for (const item of items) {

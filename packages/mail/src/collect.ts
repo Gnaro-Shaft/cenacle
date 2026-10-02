@@ -25,7 +25,7 @@ export interface CollectSummary {
   readonly ruleSort: RuleSort;
   /** Inbox mails still without a category (new or older): for the model. */
   readonly uncategorized: readonly number[];
-  /** Rows deleted by retention, or because the server renumbered a mailbox. */
+  /** Rows deleted: retention, mails gone from the server, or a renumbered mailbox. */
   readonly purged: number;
 }
 
@@ -35,6 +35,8 @@ export interface CollectDeps {
   readonly fetchInbox: (afterUid: number) => Promise<FetchResult<MailRef>>;
   readonly fetchSent: (afterUid: number) => Promise<FetchResult<SentRef>>;
   readonly rules: Rules;
+  /** Domains that never expect a reply by mail ([sans_suivi]). */
+  readonly noFollowUp?: ReadonlySet<string>;
   readonly clock?: () => Date;
   readonly now?: () => number;
 }
@@ -64,9 +66,10 @@ export async function collectMail(deps: CollectDeps): Promise<CollectSummary> {
     // Mapped field by field: the domain is used for sorting below, never stored.
     const added = await store.saveInbox(
       inbox.result.uidValidity,
-      inbox.result.refs.map(({ uid, receivedAt, senderKey, messageKey, threadKeys }) => ({
+      inbox.result.refs.map(({ uid, domain, receivedAt, senderKey, messageKey, threadKeys }) => ({
         uid,
         receivedAt,
+        noFollowUp: domain !== null && (deps.noFollowUp?.has(domain) ?? false),
         senderKey,
         messageKey,
         threadKeys,
@@ -103,8 +106,12 @@ export async function collectMail(deps: CollectDeps): Promise<CollectSummary> {
       payload: { ...ruleSort.counts },
     });
 
+    // Deleted or moved on the server: forgotten here too (no reminder for a mail that is gone).
+    const gone =
+      (await store.keepOnly("inbox", inbox.result.present)) +
+      (await store.keepOnly("sent", sent.result.present));
     const cutoff = new Date(clock().getTime() - RETENTION_DAYS * DAY_MS);
-    const purged = (await store.purgeBefore(cutoff)) + inbox.forgotten + sent.forgotten;
+    const purged = (await store.purgeBefore(cutoff)) + inbox.forgotten + sent.forgotten + gone;
     await journal.append({
       agent: AGENT,
       type: "mail.totals",

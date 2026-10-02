@@ -15,6 +15,8 @@ export type Mailbox = "inbox" | "sent";
 export interface InboxItem {
   readonly uid: number;
   readonly receivedAt: string;
+  /** Its domain never expects a reply by mail: never followed up. */
+  readonly noFollowUp: boolean;
   readonly senderKey: string | null;
   readonly messageKey: string | null;
   readonly threadKeys: readonly string[];
@@ -45,6 +47,8 @@ export interface MailStore {
   position(mailbox: Mailbox): Promise<Position | null>;
   /** Forgets a whole mailbox (its UIDs were renumbered). Returns the rows deleted. */
   forget(mailbox: Mailbox): Promise<number>;
+  /** Forgets the mails of a mailbox that are no longer on the server (deleted or moved). */
+  keepOnly(mailbox: Mailbox, uids: readonly number[]): Promise<number>;
   /** Remembers new mails; already known ones are left as they are. Returns the rows added. */
   saveInbox(uidValidity: string, items: readonly InboxItem[]): Promise<number>;
   saveSent(uidValidity: string, items: readonly SentItem[]): Promise<number>;
@@ -62,6 +66,7 @@ export interface MailStore {
 interface Row {
   uid: string;
   at: Date;
+  no_follow_up: boolean;
   category: StoredCategory | null;
   decided_by: DecidedBy | null;
   sender_key: string | null;
@@ -90,12 +95,19 @@ export function createMailStore(sql: Sql): MailStore {
       return (await sql`delete from mail_items where mailbox = ${mailbox}`).count;
     },
 
+    async keepOnly(mailbox, uids) {
+      const result = await sql`
+        delete from mail_items
+        where mailbox = ${mailbox} and not (uid = any(${sql.array(uids.map(String))}::bigint[]))`;
+      return result.count;
+    },
+
     async saveInbox(uidValidity, items) {
       let added = 0;
       for (const item of items) {
         const result = await sql`
-          insert into mail_items (mailbox, uid_validity, uid, at, sender_key, message_key, thread_keys)
-          values ('inbox', ${uidValidity}, ${item.uid}, ${item.receivedAt}, ${item.senderKey},
+          insert into mail_items (mailbox, uid_validity, uid, at, no_follow_up, sender_key, message_key, thread_keys)
+          values ('inbox', ${uidValidity}, ${item.uid}, ${item.receivedAt}, ${item.noFollowUp}, ${item.senderKey},
                   ${item.messageKey}, ${sql.array([...item.threadKeys])})
           on conflict do nothing`;
         added += result.count;
@@ -142,11 +154,13 @@ export function createMailStore(sql: Sql): MailStore {
 
     async inbox() {
       const rows = await sql<Row[]>`
-        select uid::text, at, category, decided_by, sender_key, recipient_keys, message_key, thread_keys
+        select uid::text, at, no_follow_up, category, decided_by, sender_key, recipient_keys,
+               message_key, thread_keys
         from mail_items where mailbox = 'inbox' order by uid`;
       return rows.map((r) => ({
         uid: Number(r.uid),
         receivedAt: r.at.toISOString(),
+        noFollowUp: r.no_follow_up,
         senderKey: r.sender_key,
         messageKey: r.message_key,
         threadKeys: r.thread_keys,

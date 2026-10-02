@@ -62,3 +62,17 @@ describe("rules", () => {
     expect(Object.keys(counts)).toEqual([...CATEGORIES, "remaining"]);
   });
 });
+
+describe("[sans_suivi]", () => {
+  it("lists the domains that never get a follow-up, without making them a category", () => {
+    const loaded = loadRules({ local: "/nonexistent/x.toml", example: EXAMPLE_RULES_PATH });
+    expect([...loaded.noFollowUp]).toEqual(["plateforme-freelance.example"]);
+    expect(loaded.rules.has("plateforme-freelance.example")).toBe(true);
+  });
+
+  it("checks its domains as strictly as the categories", () => {
+    expect(() => parseRules('[sans_suivi]\ndomains = ["*.plateforme.example"]')).toThrow(
+      /invalid domain/,
+    );
+  });
+});

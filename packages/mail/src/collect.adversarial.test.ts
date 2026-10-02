@@ -21,9 +21,14 @@ const ref = (
   threadKeys: [],
   receivedAt,
 });
-const result = <T>(refs: T[], uidValidity = "1"): FetchResult<T> => ({
+const result = <T extends { uid: number }>(
+  refs: T[],
+  uidValidity = "1",
+  present?: number[],
+): FetchResult<T> => ({
   refs,
   uidValidity,
+  present: present ?? refs.map((r) => r.uid),
   available: refs.length,
   truncated: false,
   lastUid: null,
@@ -42,9 +47,18 @@ function setup(inbox: (afterUid: number) => MailRef[], sent: SentRef[] = [], val
     clock: () => NOW,
     fetchInbox: async (afterUid) => {
       asked.push(afterUid);
-      return result(inbox(afterUid), validity());
+      return result(
+        inbox(afterUid),
+        validity(),
+        inbox(0).map((r) => r.uid),
+      );
     },
-    fetchSent: async (afterUid) => result(sent.filter((s) => s.uid > afterUid)),
+    fetchSent: async (afterUid) =>
+      result(
+        sent.filter((s) => s.uid > afterUid),
+        "1",
+        sent.map((s) => s.uid),
+      ),
   };
   return { journal, store, deps, asked };
 }
@@ -102,6 +116,25 @@ describe("collectMail", () => {
     expect(asked).toEqual([0, 2, 0]);
     expect(second.purged).toBe(2);
     expect((await store.inbox()).map((i) => i.uid)).toEqual([1, 2]);
+  });
+
+  it("flags mails from a [sans_suivi] domain, without storing the domain", async () => {
+    const { deps, store } = setup(() => [ref(1, "client.example"), ref(2, "platform.example")]);
+    await collectMail({ ...deps, noFollowUp: new Set(["platform.example"]) });
+    expect((await store.inbox()).map((i) => [i.uid, i.noFollowUp])).toEqual([
+      [1, false],
+      [2, true],
+    ]);
+  });
+
+  it("forgets a mail deleted or moved on the server", async () => {
+    const all = [ref(1, "client.example"), ref(2, "client.example")];
+    const { deps, store } = setup((after) => all.filter((r) => r.uid > after));
+    await collectMail(deps);
+    all.splice(0, 1);
+    const second = await collectMail(deps);
+    expect(second.purged).toBe(1);
+    expect((await store.inbox()).map((i) => i.uid)).toEqual([2]);
   });
 
   it("forgets mails older than 90 days", async () => {

@@ -38,27 +38,48 @@ function isRuleCategory(value: string): value is RuleCategory {
   return (RULE_CATEGORIES as readonly string[]).includes(value);
 }
 
+/**
+ * Domains that never expect a reply by mail (platform notifications): their
+ * mails are sorted as usual, but no follow-up is ever due for them.
+ */
+export const NO_FOLLOW_UP_SECTION = "sans_suivi";
+
+function validDomains(section: unknown, where: string): string[] {
+  if (!isTable(section)) throw new RulesError(`[${where}] must be a section`);
+  for (const key of Object.keys(section)) {
+    if (key !== "domains") throw new RulesError(`unknown key "${key}" in [${where}]`);
+  }
+  const domains = section.domains;
+  if (!Array.isArray(domains)) throw new RulesError(`[${where}] domains must be a list`);
+  for (const domain of domains) {
+    // Same strict reading as a received From header: lowercase, valid labels, no wildcard.
+    if (typeof domain !== "string" || senderDomain(`x@${domain}`) !== domain) {
+      throw new RulesError(`invalid domain ${JSON.stringify(domain)} in [${where}]`);
+    }
+  }
+  return domains as string[];
+}
+
+export function toNoFollowUp(raw: unknown): ReadonlySet<string> {
+  if (!isTable(raw) || raw[NO_FOLLOW_UP_SECTION] === undefined) return new Set();
+  return new Set(validDomains(raw[NO_FOLLOW_UP_SECTION], NO_FOLLOW_UP_SECTION));
+}
+
 /** Validates already-parsed TOML. Exported for tests. */
 export function toRules(raw: unknown): Rules {
   if (!isTable(raw)) throw new RulesError("not a table");
   const rules = new Map<string, RuleCategory>();
   for (const [category, section] of Object.entries(raw)) {
+    if (category === NO_FOLLOW_UP_SECTION) {
+      toNoFollowUp(raw); // validated here too, read by toNoFollowUp
+      continue;
+    }
     if (!isRuleCategory(category)) {
       throw new RulesError(
         `unknown category "${category}" (allowed: ${RULE_CATEGORIES.join(", ")})`,
       );
     }
-    if (!isTable(section)) throw new RulesError(`[${category}] must be a section`);
-    for (const key of Object.keys(section)) {
-      if (key !== "domains") throw new RulesError(`unknown key "${key}" in [${category}]`);
-    }
-    const domains = section.domains;
-    if (!Array.isArray(domains)) throw new RulesError(`[${category}] domains must be a list`);
-    for (const domain of domains) {
-      // Same strict reading as a received From header: lowercase, valid labels, no wildcard.
-      if (typeof domain !== "string" || senderDomain(`x@${domain}`) !== domain) {
-        throw new RulesError(`invalid domain ${JSON.stringify(domain)} in [${category}]`);
-      }
+    for (const domain of validDomains(section, category)) {
       const already = rules.get(domain);
       if (already !== undefined) {
         throw new RulesError(`"${domain}" is in both [${already}] and [${category}]`);
@@ -70,18 +91,22 @@ export function toRules(raw: unknown): Rules {
   return rules;
 }
 
-export function parseRules(source: string): Rules {
-  let raw: unknown;
+function parseToml(source: string): unknown {
   try {
-    raw = parse(source);
+    return parse(source);
   } catch (error) {
     throw new RulesError(`invalid TOML (${error instanceof Error ? error.message : error})`);
   }
-  return toRules(raw);
+}
+
+export function parseRules(source: string): Rules {
+  return toRules(parseToml(source));
 }
 
 export interface LoadedRules {
   readonly rules: Rules;
+  /** Domains whose mails never get a follow-up ([sans_suivi]). */
+  readonly noFollowUp: ReadonlySet<string>;
   /** True when no regles.local.toml exists and the fictional example is used. */
   readonly example: boolean;
 }
@@ -90,10 +115,8 @@ export function loadRules(
   paths = { local: LOCAL_RULES_PATH, example: EXAMPLE_RULES_PATH },
 ): LoadedRules {
   const example = !existsSync(paths.local);
-  return {
-    rules: parseRules(readFileSync(example ? paths.example : paths.local, "utf8")),
-    example,
-  };
+  const raw = parseToml(readFileSync(example ? paths.example : paths.local, "utf8"));
+  return { rules: toRules(raw), noFollowUp: toNoFollowUp(raw), example };
 }
 
 export interface SortedRef {
