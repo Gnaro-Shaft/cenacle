@@ -9,6 +9,12 @@
     },
     {
       "path": "apps/cli"
+    },
+    {
+      "path": "apps/server"
+    },
+    {
+      "path": "apps/web"
     }
   ]
 }

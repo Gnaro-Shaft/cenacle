@@ -19,7 +19,7 @@ describe("toView — adversarial", () => {
   });
 
   it("returns a fresh view: mutating one cannot corrupt the next", () => {
-    const view = toView("idle") as { visual: string; note: string | null };
+    const view = toView("idle") as { visual: string; note: unknown };
     view.visual = "working";
     view.note = "tampered";
     expect(toView("idle")).toEqual({ visual: "resting", note: null });

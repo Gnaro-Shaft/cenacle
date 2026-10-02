@@ -115,7 +115,7 @@ export function createJournal(sql: Sql): Journal {
         from events
         where id > ${after}::bigint
           ${options.agent === undefined ? sql`` : sql`and agent = ${options.agent}`}
-        order by id
+        order by events.id
         limit ${limit}`;
       return rows.map(toStored);
     },

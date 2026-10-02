@@ -37,7 +37,7 @@ describe("projectStatus", () => {
     ]);
     expect(status.pendingApprovals).toBe(1);
     expect(status.pendingProposalIds).toEqual(["p2"]);
-    expect(status.view).toEqual({ visual: "resting", note: "waiting for the Mac" });
+    expect(status.view).toEqual({ visual: "resting", note: "waiting_for_mac" });
   });
 
   it("ignores neutral events but still records them as applied", () => {

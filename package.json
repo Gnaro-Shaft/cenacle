@@ -20,7 +20,10 @@
     "check": "npm run lint && npm run typecheck && npm run test",
     "db:up": "docker compose up -d --wait",
     "db:migrate": "node --env-file=.env packages/journal/src/migrate.ts",
-    "status": "node --env-file=.env apps/cli/src/status.ts"
+    "status": "node --env-file=.env apps/cli/src/status.ts",
+    "server": "node --env-file=.env apps/server/src/main.ts",
+    "web": "npm run dev -w @cenacle/web",
+    "simulate": "node --env-file=.env apps/cli/src/simulate.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

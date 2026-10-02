@@ -9,7 +9,7 @@ describe("toView", () => {
   it("shows waiting for the local model as resting, not sick", () => {
     expect(toView("waiting_for_local_model")).toEqual({
       visual: "resting",
-      note: "waiting for the Mac",
+      note: "waiting_for_mac",
     });
   });
 

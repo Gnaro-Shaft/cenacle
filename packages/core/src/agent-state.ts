@@ -18,10 +18,13 @@ export type InternalState = (typeof INTERNAL_STATES)[number];
 
 export type VisualState = "resting" | "working" | "sick";
 
+/** Notes are codes, not sentences: the page owns the wording (and the language). */
+export type ViewNote = "waiting_for_mac";
+
 export interface AgentView {
   readonly visual: VisualState;
-  /** Small caption under the character, e.g. "waiting for the Mac". */
-  readonly note: string | null;
+  /** Why the agent shows this way, as a code the page translates; null if obvious. */
+  readonly note: ViewNote | null;
 }
 
 export class UnknownStateError extends Error {
@@ -50,7 +53,7 @@ export function toView(state: unknown): AgentView {
     case "idle":
       return { visual: "resting", note: null };
     case "waiting_for_local_model":
-      return { visual: "resting", note: "waiting for the Mac" };
+      return { visual: "resting", note: "waiting_for_mac" };
     case "reading":
     case "thinking":
     case "drafting":

@@ -89,3 +89,12 @@ describe("the journal rejects malformed events before they reach the database", 
     await expect(journal.read({ agent: "iris' or '1'='1" })).rejects.toThrow(InvalidEventError);
   });
 });
+
+describe("reading order", () => {
+  it("orders by numeric id, not as text (10 comes after 9, not after 1)", async () => {
+    for (let i = 0; i < 12; i++) await journal.append({ agent: "order-check", type: "heartbeat" });
+    const ids = (await journal.read({ agent: "order-check" })).map((e) => e.id);
+    expect(ids).toEqual([...ids].sort((a, b) => (a < b ? -1 : 1)));
+    expect(ids).toHaveLength(12);
+  });
+});

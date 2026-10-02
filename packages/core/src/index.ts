@@ -5,6 +5,7 @@ export {
   isInternalState,
   toView,
   UnknownStateError,
+  type ViewNote,
   type VisualState,
 } from "./agent-state.ts";
 export {
@@ -15,3 +16,9 @@ export {
   ProjectionError,
   projectStatus,
 } from "./agent-status.ts";
+export {
+  type AgentMessage,
+  type ProblemMessage,
+  type StatusMessage,
+  toStatusMessage,
+} from "./status-message.ts";
