@@ -1,7 +1,7 @@
 // Needs the test mail server: npm run db:up (starts GreenMail too).
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { loadFixtureMailbox } from "@cenacle/core";
+import { loadFixtureMailbox, loadFixtureSent } from "@cenacle/core";
 import { beforeAll, describe, expect, it } from "vitest";
 import { loadCadre } from "./cadre.ts";
 import { fetchMailRefs } from "./postman.ts";
@@ -15,7 +15,10 @@ const { messages } = loadFixtureMailbox();
 
 describe("postman (GreenMail)", () => {
   beforeAll(async () => {
-    await loadFixtures(testMailboxConfigFromEnv(), messages, { reset: true });
+    await loadFixtures(testMailboxConfigFromEnv(), messages, {
+      reset: true,
+      sent: loadFixtureSent(),
+    });
   });
 
   it("reads every mail's UID and domain, and leaves them all unread", async () => {
