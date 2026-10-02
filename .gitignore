@@ -1,0 +1,19 @@
+# Secrets and real configuration — never committed
+.env
+.env.*
+!.env.example
+*.local.toml
+*.pem
+*.key
+*.age
+
+# Node
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/

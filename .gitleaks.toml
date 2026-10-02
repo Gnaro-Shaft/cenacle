@@ -1,0 +1,3 @@
+# Gitleaks configuration: the default rule set, nothing removed.
+[extend]
+useDefault = true
