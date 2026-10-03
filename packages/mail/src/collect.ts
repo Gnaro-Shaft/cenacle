@@ -6,7 +6,8 @@
  * the retention period. The journal gets facts, not content (charter): counts
  * and durations — never a UID, a domain or a key.
  */
-import type { Journal, Mailbox, MailStore } from "@cenacle/journal";
+import { countFollowUps } from "@cenacle/core";
+import type { Journal, Mailbox, MailStore, Totals } from "@cenacle/journal";
 import type { FetchResult, MailRef, SentRef } from "./postman.ts";
 import { type RuleSort, type Rules, sortByRules } from "./rules.ts";
 
@@ -39,6 +40,15 @@ export interface CollectDeps {
   readonly noFollowUp?: ReadonlySet<string>;
   readonly clock?: () => Date;
   readonly now?: () => number;
+}
+
+/** What the box shows: mails per category, plus who still waits for my reply. */
+export async function mailTotals(
+  store: MailStore,
+  now: Date,
+): Promise<Totals & { readonly waiting: number; readonly due: number }> {
+  const followUps = countFollowUps(await store.inbox(), await store.sent(), now);
+  return { ...(await store.totals()), waiting: followUps.waiting, due: followUps.due };
 }
 
 /** Reads what is new; if the server renumbered the mailbox, forgets it and reads it all. */
@@ -115,7 +125,7 @@ export async function collectMail(deps: CollectDeps): Promise<CollectSummary> {
     await journal.append({
       agent: AGENT,
       type: "mail.totals",
-      payload: { ...(await store.totals()) },
+      payload: { ...(await mailTotals(store, clock())) },
     });
     await journal.append({ agent: AGENT, type: "state.changed", payload: { to: "idle" } });
     return {

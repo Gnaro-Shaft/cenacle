@@ -71,6 +71,8 @@ describe("sortByModel", () => {
       bruit: 3,
       a_trier: 0,
       pending: 0,
+      waiting: 0,
+      due: 0,
     });
   });
 

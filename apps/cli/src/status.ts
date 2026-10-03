@@ -21,7 +21,7 @@ try {
   if (status.mail !== null) {
     const m = status.mail;
     console.log(
-      `   📬 mail        : clients ${m.clients_prospects}, admin ${m.administratif}, bruit ${m.bruit}, à trier ${m.a_trier}, pending ${m.pending}`,
+      `   📬 mail        : clients ${m.clients_prospects}, admin ${m.administratif}, bruit ${m.bruit}, à trier ${m.a_trier}, pending ${m.pending} — 🔔 due ${m.due}, ⏳ waiting ${m.waiting}`,
     );
   }
   console.log(`   events applied : ${events.length}`);

@@ -68,6 +68,27 @@ describe("describeStatus — mail counters", () => {
     expect(text).toContain("📬 Courrier : clients 2 · admin 1 · bruit 1 · à trier 0 · 1 en cours");
   });
 
+  it("shows the reminders due and the mails waiting — counts only", () => {
+    const status = projectStatus("iris", [
+      {
+        id: 1n,
+        occurredAt: new Date(0),
+        agent: "iris",
+        type: "mail.totals",
+        payload: {
+          clients_prospects: 5,
+          administratif: 0,
+          bruit: 0,
+          a_trier: 0,
+          pending: 0,
+          waiting: 2,
+          due: 3,
+        },
+      },
+    ]);
+    expect(describeStatus(status)).toContain("🔔 3 à relancer · ⏳ 2 en attente de réponse");
+  });
+
   it("says nothing about mail before the first pass", () => {
     expect(describeStatus(initialStatus("iris"))).not.toContain("📬");
   });

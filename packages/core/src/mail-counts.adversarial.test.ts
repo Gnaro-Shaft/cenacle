@@ -35,6 +35,8 @@ describe("mail counters — a full pass", () => {
       bruit: 1,
       a_trier: 1,
       pending: 0,
+      waiting: 0,
+      due: 0,
     });
   });
 
@@ -46,7 +48,24 @@ describe("mail counters — a full pass", () => {
       bruit: 1,
       a_trier: 0,
       pending: 3,
+      waiting: 0,
+      due: 0,
     });
+  });
+
+  it("totals carry the follow-up counters; older totals without them count 0", () => {
+    const status = projectStatus("iris", [
+      ev("mail.totals", {
+        clients_prospects: 3,
+        administratif: 0,
+        bruit: 0,
+        a_trier: 0,
+        pending: 0,
+        waiting: 1,
+        due: 2,
+      }),
+    ]);
+    expect(status.mail).toMatchObject({ waiting: 1, due: 2 });
   });
 
   it("totals from the store set the counters exactly (after retention, say)", () => {
@@ -67,6 +86,8 @@ describe("mail counters — a full pass", () => {
       bruit: 1,
       a_trier: 0,
       pending: 0,
+      waiting: 0,
+      due: 0,
     });
   });
 });
@@ -79,6 +100,19 @@ describe("mail counters — refused", () => {
     ["rules before any fetch", [rules()]],
     ["rules sorting more than pending", [fetched(2), rules()]],
     ["totals with a missing count", [ev("mail.totals", { bruit: 1 })]],
+    [
+      "totals with an invalid follow-up count",
+      [
+        ev("mail.totals", {
+          clients_prospects: 0,
+          administratif: 0,
+          bruit: 0,
+          a_trier: 0,
+          pending: 0,
+          due: "2",
+        }),
+      ],
+    ],
     [
       "negative totals",
       [

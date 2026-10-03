@@ -1,5 +1,11 @@
 export { type Cadre, CadreError, loadCadre, type MailCadre, parseCadre } from "./cadre.ts";
-export { type CollectDeps, type CollectSummary, collectMail, RETENTION_DAYS } from "./collect.ts";
+export {
+  type CollectDeps,
+  type CollectSummary,
+  collectMail,
+  mailTotals,
+  RETENTION_DAYS,
+} from "./collect.ts";
 export { createKeyer, KeyError, type Keyer, keyerFromEnv, messageIds } from "./keys.ts";
 export { cleanForModel, htmlToText, toMailForModel } from "./mail-text.ts";
 export {

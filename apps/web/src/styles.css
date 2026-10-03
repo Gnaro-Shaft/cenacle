@@ -198,6 +198,21 @@ h1 {
   color: var(--accent);
 }
 
+.follow-up {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin: 8px 0 0;
+  font-size: 0.85rem;
+}
+.follow-up .due {
+  color: var(--accent);
+  font-weight: 700;
+}
+.follow-up .waiting {
+  color: var(--muted);
+}
+
 @keyframes breathe {
   50% {
     transform: scale(1.03);

@@ -5,7 +5,7 @@
  * Usage: npm run mail:sort [-- --rules-only]
  */
 import { createLocalModels, localModelConfigFromEnv, sortByModel } from "@cenacle/brain";
-import { countConversations, countFollowUps } from "@cenacle/core";
+import { countConversations } from "@cenacle/core";
 import { connectAsApp, createJournal, createMailStore } from "@cenacle/journal";
 import {
   collectMail,
@@ -14,6 +14,7 @@ import {
   keyerFromEnv,
   loadCadre,
   loadRules,
+  mailTotals,
   readMailsForModel,
   testMailboxConfigFromEnv,
 } from "@cenacle/mail";
@@ -64,7 +65,7 @@ try {
     await journal.append({
       agent: "iris",
       type: "mail.totals",
-      payload: { ...(await store.totals()) },
+      payload: { ...(await mailTotals(store, new Date())) },
     });
     const m = sorted.counts;
     console.log(
@@ -80,8 +81,8 @@ try {
   console.log(
     `  mémoire : clients ${t.clients_prospects}, admin ${t.administratif}, bruit ${t.bruit}, à trier ${t.a_trier}, en attente ${t.pending} — ${summary.unseen} toujours non lus`,
   );
-  const f = countFollowUps(await store.inbox(), await store.sent(), new Date());
-  console.log(`  suivi : ${f.waiting} en attente de réponse, ${f.due} relances dues`);
+  const f = await mailTotals(store, new Date());
+  console.log(`  suivi : ${f.waiting} en attente de réponse, 🔔 ${f.due} relances dues`);
   if (summary.truncated) console.log("… plafond atteint : relancer pour lire la suite");
 } catch (error) {
   console.error(`🛑 ${error instanceof Error ? error.message : String(error)}`);
