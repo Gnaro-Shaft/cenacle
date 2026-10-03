@@ -35,7 +35,8 @@
     "mail:fetch": "node --env-file=.env apps/cli/src/mail-sort.ts --rules-only",
     "mail:sort": "node --env-file=.env apps/cli/src/mail-sort.ts",
     "mail:bench": "node --env-file=.env apps/cli/src/mail-bench.ts",
-    "mail:followup": "node --env-file=.env apps/cli/src/mail-followup.ts"
+    "mail:followup": "node --env-file=.env apps/cli/src/mail-followup.ts",
+    "alert:bench": "node apps/iris/src/bench-main.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

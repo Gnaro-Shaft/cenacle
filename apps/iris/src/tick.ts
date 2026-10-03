@@ -7,7 +7,7 @@
  * about her rhythm comes from the journal, so a restart loses nothing.
  * She never sends a mail: her only outward channel is Telegram, to me.
  */
-import { collectDue, dayStart, isQuiet, recapToSend, TIME_ZONE } from "@cenacle/core";
+import { collectDue, dayStart, isQuiet, recapToSend, TIME_ZONE, zonedParts } from "@cenacle/core";
 import type { Journal, MailStore, StoredEvent } from "@cenacle/journal";
 import { type NewCounts, recap, urgentAlert } from "./messages.ts";
 
@@ -34,13 +34,7 @@ function lastOf(events: readonly StoredEvent[], type: string): StoredEvent | und
 }
 
 function localHour(at: Date): number {
-  return Number(
-    new Intl.DateTimeFormat("en-GB", {
-      timeZone: TIME_ZONE,
-      hour: "2-digit",
-      hourCycle: "h23",
-    }).format(at),
-  );
+  return zonedParts(at.getTime(), TIME_ZONE).h;
 }
 
 async function freshCounts(store: MailStore, since: Date): Promise<NewCounts> {
