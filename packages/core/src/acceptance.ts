@@ -123,11 +123,19 @@ export function publicKeyFromEnv(env: NodeJS.ProcessEnv = process.env): KeyObjec
   return loadKey(PUBLIC_KEY_VAR, () => createPublicKey({ key: der, format: "der", type: "spki" }));
 }
 
+/** A program refuses to start with another program's secret in its environment (ADR-0013). */
+export function refuseSecret(
+  program: string,
+  name: string,
+  owner: string,
+  env: NodeJS.ProcessEnv = process.env,
+): void {
+  if ((env[name] ?? "") !== "") {
+    throw new AcceptanceKeyError(`${program} must not hold ${name}: only ${owner} may (ADR-0013)`);
+  }
+}
+
 /** Iris and the executor refuse to start with the page's private key in their environment. */
 export function refusePrivateKey(program: string, env: NodeJS.ProcessEnv = process.env): void {
-  if ((env[PRIVATE_KEY_VAR] ?? "") !== "") {
-    throw new AcceptanceKeyError(
-      `${program} must not hold ${PRIVATE_KEY_VAR}: only the page's server may (ADR-0013)`,
-    );
-  }
+  refuseSecret(program, PRIVATE_KEY_VAR, "the page's server", env);
 }

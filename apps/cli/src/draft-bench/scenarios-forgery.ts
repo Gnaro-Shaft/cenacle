@@ -6,7 +6,9 @@
  * - the page's signature of one proposal does not accept another;
  * - an accepted text cannot be changed, a cancellation cannot be reopened,
  *   no state goes back, the undo delay cannot be shortened, no proposal is
- *   born accepted — the database refuses, whoever asks.
+ *   born accepted — the database refuses, whoever asks;
+ * - only the executor's role claims or closes a sending (B7): no program can
+ *   mark "sent" what never left, nor use up the daily ceiling with forgeries.
  */
 import { draftHash } from "@cenacle/core";
 import { UNDO_DELAY_MS } from "@cenacle/journal";
@@ -90,6 +92,14 @@ export async function forgery(ctx: BenchContext): Promise<Check[]> {
     ),
   );
 
+  c.that(
+    "prendre en charge ou clore, avec le rôle applicatif : refusé",
+    (await refused(
+      () => sql`update proposals set status = 'sending', send_after = null, sent_at = now()
+                where id = ${mine}`,
+    )) && (await refused(() => world.store.refuseUnsigned(forged, world.now()))),
+  );
+
   world.advance(UNDO_DELAY_MS);
   const round = await world.execute();
   c.equal("seule mon acceptation part", round.sent, [mine]);
@@ -104,6 +114,37 @@ export async function forgery(ctx: BenchContext): Promise<Check[]> {
     ["failed", "failed"],
   );
   c.that("c'est mon texte qui est parti", world.outbox[0]?.text === original);
+  await checkOutbox(world, c, 1);
+  return c.lines;
+}
+
+/** Forged acceptances by the dozen do not hold back mine: refused before any claim (B7). */
+export async function ceiling(ctx: BenchContext): Promise<Check[]> {
+  const c = new Checks("plafond quotidien");
+  const mails = [...ctx.due, ...ctx.traps];
+  const world = ctx.world(mails);
+  const page = world.startPage();
+  const forgedIds: string[] = [];
+  for (let uid = 1; uid < mails.length; uid++) {
+    const id = await proposed(world, uid, choosing("decliner"));
+    await world.proposals.accept(id, world.now(), {
+      signature: FAKE_SIGNATURE,
+      draftHash: draftHash((await world.store.get(id))?.draft ?? ""),
+    });
+    forgedIds.push(id);
+  }
+  world.advance(1000);
+  const mine = await proposed(world, mails.length, choosing("decliner"));
+  c.equal("j'accepte sur la page", await world.act(page, mine, "accept"), 200);
+  world.advance(UNDO_DELAY_MS);
+  const round = await world.execute();
+  c.equal(
+    `${forgedIds.length} acceptations forgées : toutes bloquées`,
+    round.unsigned.length,
+    forgedIds.length,
+  );
+  c.equal("ma vraie acceptation part le jour même", round.sent, [mine]);
+  c.that("le plafond n'est pas atteint", !round.limited);
   await checkOutbox(world, c, 1);
   return c.lines;
 }

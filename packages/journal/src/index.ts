@@ -1,4 +1,4 @@
-export { connectAsApp } from "./connect.ts";
+export { connectAsApp, connectAsExecutor } from "./connect.ts";
 export {
   createJournal,
   InvalidEventError,
@@ -23,6 +23,7 @@ export {
   type StoredInboxItem,
   type Totals,
 } from "./mail-store.ts";
+export { EXECUTOR_PASSWORD_VAR } from "./migrate.ts";
 export {
   createProposalStore,
   type NewProposal,

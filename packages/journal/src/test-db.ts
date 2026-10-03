@@ -5,7 +5,13 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import postgres from "postgres";
-import { migrate, requireEnv, urlsFromEnv } from "./migrate.ts";
+import {
+  EXECUTOR_PASSWORD_VAR,
+  executorUrlFromEnv,
+  migrate,
+  requireEnv,
+  urlsFromEnv,
+} from "./migrate.ts";
 
 export const TEST_DB = "cenacle_test";
 
@@ -26,9 +32,12 @@ function explainConnectionError(error: unknown): string {
   return `Unexpected PostgreSQL error\n${text}`;
 }
 
+/** .env, and .env.executor: roles are shared by the whole cluster, test database included. */
 export function loadEnv(): void {
-  const file = join(import.meta.dirname, "..", "..", "..", ".env");
-  if (existsSync(file)) process.loadEnvFile(file);
+  for (const name of [".env", ".env.executor"]) {
+    const file = join(import.meta.dirname, "..", "..", "..", name);
+    if (existsSync(file)) process.loadEnvFile(file);
+  }
 }
 
 /** Recreates the test database from scratch and migrates it. */
@@ -48,10 +57,17 @@ export async function resetTestDatabase(): Promise<void> {
   await migrate({
     ownerUrl: urlsFromEnv(TEST_DB).ownerUrl,
     appPassword: requireEnv("CENACLE_DB_APP_PASSWORD"),
+    executorPassword: requireEnv(EXECUTOR_PASSWORD_VAR),
   });
 }
 
 export function appConnection() {
   loadEnv();
   return postgres(urlsFromEnv(TEST_DB).appUrl, { max: 2, onnotice: () => {} });
+}
+
+/** The executor's connection to the test database. */
+export function executorConnection() {
+  loadEnv();
+  return postgres(executorUrlFromEnv(TEST_DB), { max: 2, onnotice: () => {} });
 }

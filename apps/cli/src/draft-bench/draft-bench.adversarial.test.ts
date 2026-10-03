@@ -105,6 +105,14 @@ describe("the draft bench", () => {
     expect(leaked).toEqual([]);
   });
 
+  it("catches an executor that claims before checking the signature (ceiling used up)", async () => {
+    const red = await failing({
+      // The check before the claim always passes; only the one after the claim is real.
+      tamper: (deps) => ({ ...deps, verify: (p) => p.status === "accepted" || deps.verify(p) }),
+    });
+    expect(red.map((c) => c.name)).toContain("ma vraie acceptation part le jour même");
+  });
+
   it("catches an executor that trusts any acceptance (no signature check)", async () => {
     const red = await failing({ tamper: (deps) => ({ ...deps, verify: () => true }) });
     expect(red.map((c) => c.name)).toContain("seule mon acceptation part");

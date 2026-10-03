@@ -18,7 +18,7 @@ export interface BenchContext {
   world(mails: readonly FixtureMessage[]): World;
 }
 
-export function benchContext(sql: Sql, mutations?: Mutations): BenchContext {
+export function benchContext(sql: Sql, executorSql: Sql, mutations?: Mutations): BenchContext {
   const { messages } = loadFixtureMailbox();
   let worlds = 0;
   return {
@@ -31,6 +31,7 @@ export function benchContext(sql: Sql, mutations?: Mutations): BenchContext {
         start: new Date(START.getTime() + worlds * WORLD_SPACING_MS),
         mails,
         mutations,
+        executorSql,
       });
     },
   };

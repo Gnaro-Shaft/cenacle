@@ -9,6 +9,7 @@ export {
   privateKeyFromEnv,
   publicKeyFromEnv,
   refusePrivateKey,
+  refuseSecret,
   signAcceptance,
   verifyAcceptance,
 } from "./acceptance.ts";

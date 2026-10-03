@@ -100,6 +100,11 @@ export interface ProposalStore {
   claim(id: string, now: Date): Promise<Proposal>;
   markSent(id: string, now: Date): Promise<Proposal>;
   markFailed(id: string, now: Date): Promise<Proposal>;
+  /**
+   * The executor refuses an acceptance without a valid signature, before any
+   * claim: failed, without a sending time (not counted in the daily ceiling).
+   */
+  refuseUnsigned(id: string, now: Date): Promise<Proposal>;
   /** Sending attempts since a moment (the daily limit). */
   sendsSince(since: Date): Promise<number>;
   /** Wipes the text of proposals closed more than 7 days ago. Returns how many. */
@@ -305,6 +310,16 @@ export function createProposalStore(sql: Sql): ProposalStore {
           where id = ${id} and status = 'sending' returning *`,
         id,
         "marked failed",
+      );
+    },
+
+    async refuseUnsigned(id, now) {
+      return one(
+        await sql<Row[]>`
+          update proposals set status = 'failed', send_after = null, closed_at = ${now}
+          where id = ${id} and status = 'accepted' returning *`,
+        id,
+        "refused as unsigned",
       );
     },
 

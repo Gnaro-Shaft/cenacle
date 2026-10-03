@@ -71,6 +71,7 @@ BEGIN
   IF (OLD.status, NEW.status) NOT IN (
        ('pending', 'accepted'), ('pending', 'refused'), ('pending', 'lapsed'),
        ('accepted', 'cancelled'), ('accepted', 'lapsed'), ('accepted', 'sending'),
+       ('accepted', 'failed'), -- B7: an unsigned acceptance, refused by the executor
        ('sending', 'sent'), ('sending', 'failed')) THEN
     RAISE EXCEPTION 'proposal %: % -> % refused', OLD.id, OLD.status, NEW.status
       USING ERRCODE = 'insufficient_privilege';

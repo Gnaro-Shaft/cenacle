@@ -206,12 +206,16 @@ export function createWorld(
     readonly start: Date;
     readonly mails: readonly FixtureMessage[];
     readonly mutations?: Mutations | undefined;
+    /** The executor's own role (B7): the only one allowed to claim and close a sending. */
+    readonly executorSql: Sql;
   },
 ): World {
   const m = opts.mutations ?? {};
   const store = createProposalStore(sql);
   const journal = createJournal(sql);
   const proposals = createProposals(store, journal);
+  const executorStore = createProposalStore(opts.executorSql);
+  const executorProposals = createProposals(executorStore, createJournal(opts.executorSql));
   const mailbox = new FakeMailbox(opts.uidValidity, opts.mails);
   const outbox: Outgoing[] = [];
   const acceptedByPage = new Map<string, Date>();
@@ -278,9 +282,9 @@ export function createWorld(
     },
     async execute(pause) {
       const real: ExecutorDeps = {
-        store,
-        proposals,
-        journal,
+        store: executorStore,
+        proposals: executorProposals,
+        journal: createJournal(opts.executorSql),
         now,
         mailOf: async (p) => mailbox.followed(p.mailUid, p.mailUidValidity),
         freshSent: async () => [...mailbox.sent],
@@ -305,7 +309,7 @@ export function createWorld(
         copy: async () => {},
         verify: (p) => isAcceptedByPage(publicKey, p),
       };
-      const deps = m.tamper === undefined ? real : m.tamper(real, sql);
+      const deps = m.tamper === undefined ? real : m.tamper(real, opts.executorSql);
       const claim = deps.store.claim;
       return executeDue({
         ...deps,
