@@ -18,6 +18,13 @@ export {
 } from "./agent-status.ts";
 export { conversationIds, countConversations, type Threaded } from "./conversations.ts";
 export {
+  checkDraft,
+  extractFacts,
+  type Fact,
+  type FactCheck,
+  type FactKind,
+} from "./fact-check.ts";
+export {
   CATEGORIES,
   type Category,
   FIXTURE_PATH,

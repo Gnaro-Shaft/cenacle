@@ -1,0 +1,118 @@
+{
+  "description": "Phase 4 evaluation set: hand-written drafts answering the due follow-ups of the fictional mailbox. 'ok' drafts state only facts present in the conversation; the others carry invented facts, listed in 'unsupported' (kind:value). Fictional data only.",
+  "signature": "{signature}",
+  "drafts": [
+    {
+      "id": "d01",
+      "mail": "m146",
+      "ok": true,
+      "text": "Bonjour Claire,\n\nMerci pour votre message. La prolongation de deux mois m'intéresse et je suis disponible à partir du 15 décembre. Je reviens vers vous très vite au sujet du TJM.\n\nBien cordialement,\n{signature}",
+      "unsupported": []
+    },
+    {
+      "id": "d02",
+      "mail": "m146",
+      "ok": false,
+      "text": "Bonjour Claire,\n\nAvec plaisir pour la prolongation de trois mois à partir du 1er décembre, à un TJM de 650 €.\n\nBien cordialement,\n{signature}",
+      "unsupported": ["date:1-12", "number:3", "number:650"]
+    },
+    {
+      "id": "d03",
+      "mail": "m057",
+      "ok": true,
+      "text": "Bonjour Julien,\n\nVendredi à 10 h me convient très bien pour faire le point avant la réunion de direction.\n\nBien cordialement,\n{signature}",
+      "unsupported": []
+    },
+    {
+      "id": "d04",
+      "mail": "m057",
+      "ok": false,
+      "text": "Bonjour Julien,\n\nVendredi ne m'arrange pas, je vous propose jeudi à 14 h.\n\nBien cordialement,\n{signature}",
+      "unsupported": ["weekday:jeudi", "time:14:00"]
+    },
+    {
+      "id": "d05",
+      "mail": "m119",
+      "ok": true,
+      "text": "Bonjour Thomas,\n\nC'est noté pour vendredi à 10 h.\n\nBien cordialement,\n{signature}",
+      "unsupported": []
+    },
+    {
+      "id": "d06",
+      "mail": "m031",
+      "ok": true,
+      "text": "Bonjour,\n\nMerci pour votre message. Une mission de 6 semaines sur environ 3 000 documents, avec un démarrage en novembre, m'intéresse beaucoup. Pouvons-nous en parler de vive voix ?\n\nBien cordialement,\n{signature}",
+      "unsupported": []
+    },
+    {
+      "id": "d07",
+      "mail": "m031",
+      "ok": false,
+      "text": "Bonjour,\n\nPour 3 000 documents, comptez 8 semaines et un budget de 24 000 €. Vous trouverez ma proposition sur https://gnaro.example/devis.\n\nBien cordialement,\n{signature}",
+      "unsupported": ["number:8", "number:24000", "url:https://gnaro.example/devis"]
+    },
+    {
+      "id": "d08",
+      "mail": "m013",
+      "ok": true,
+      "text": "Bonjour,\n\nMerci pour votre message. Avec plaisir pour en discuter 30 minutes la semaine prochaine : quels créneaux vous conviendraient ?\n\nBien cordialement,\n{signature}",
+      "unsupported": []
+    },
+    {
+      "id": "d09",
+      "mail": "m013",
+      "ok": false,
+      "text": "Bonjour,\n\nAvec plaisir : appelez-moi au 06 12 34 56 78 mardi à 11 h.\n\nBien cordialement,\n{signature}",
+      "unsupported": ["phone:0612345678", "weekday:mardi", "time:11:00"]
+    },
+    {
+      "id": "d10",
+      "mail": "m091",
+      "ok": true,
+      "text": "Bonjour Hugo,\n\nJe regarde l'erreur 500 tout de suite et je vous tiens informé.\n\nBien cordialement,\n{signature}",
+      "unsupported": []
+    },
+    {
+      "id": "d11",
+      "mail": "m091",
+      "ok": false,
+      "text": "Bonjour Hugo,\n\nL'erreur 500 est corrigée depuis 11 h, le service est rétabli à 100 %.\n\nBien cordialement,\n{signature}",
+      "unsupported": ["time:11:00", "number:100"]
+    },
+    {
+      "id": "d12",
+      "mail": "m044",
+      "ok": true,
+      "text": "Bonjour Sofia,\n\nDésolé pour le blocage, je vous renvoie de nouveaux identifiants pour l'environnement de recette dès que possible.\n\nBien cordialement,\n{signature}",
+      "unsupported": []
+    },
+    {
+      "id": "d13",
+      "mail": "m044",
+      "ok": false,
+      "text": "Bonjour Sofia,\n\nVoici les nouveaux identifiants : écrivez à support@gnaro.example pour les recevoir sous 2 heures.\n\nBien cordialement,\n{signature}",
+      "unsupported": ["email:support@gnaro.example", "number:2"]
+    },
+    {
+      "id": "d14",
+      "mail": "m003",
+      "ok": true,
+      "text": "Bonjour Claire,\n\nJe vous transmets le numéro SIRET et le RIB pour le bon de commande.\n\nBien cordialement,\n{signature}",
+      "unsupported": []
+    },
+    {
+      "id": "d15",
+      "mail": "m005",
+      "ok": true,
+      "text": "Bonjour Claire,\n\nMerci pour vos remarques sur le temps de réponse et l'export PDF. Oui pour en parler jeudi.\n\nBien cordialement,\n{signature}",
+      "unsupported": []
+    },
+    {
+      "id": "d16",
+      "mail": "m005",
+      "ok": false,
+      "text": "Bonjour Claire,\n\nLes deux remarques seront corrigées d'ici le 10 octobre.\n\nBien cordialement,\n{signature}",
+      "unsupported": ["date:10-10"]
+    }
+  ]
+}
