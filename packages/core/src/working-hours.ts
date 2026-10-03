@@ -5,17 +5,29 @@
 
 const DAY_MS = 24 * 3600 * 1000;
 
+const formatters = new Map<string, Intl.DateTimeFormat>();
+
+/** Creating a formatter is costly: one per time zone, reused. */
+function formatter(timeZone: string): Intl.DateTimeFormat {
+  let f = formatters.get(timeZone);
+  if (f === undefined) {
+    f = new Intl.DateTimeFormat("en-GB", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+    });
+    formatters.set(timeZone, f);
+  }
+  return f;
+}
+
 export function zonedParts(instant: number, timeZone: string) {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(new Date(instant));
+  const parts = formatter(timeZone).formatToParts(new Date(instant));
   const get = (type: string) => Number(parts.find((p) => p.type === type)?.value);
   return {
     y: get("year"),

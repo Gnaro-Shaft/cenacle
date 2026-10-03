@@ -60,4 +60,4 @@ export {
   toStatusMessage,
 } from "./status-message.ts";
 export { hasUrgentTerm, URGENT_TERMS } from "./urgency.ts";
-export { workingHoursBetween, zonedMidnight, zonedTime } from "./working-hours.ts";
+export { workingHoursBetween, zonedMidnight, zonedParts, zonedTime } from "./working-hours.ts";
