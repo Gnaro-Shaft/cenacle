@@ -1,6 +1,6 @@
 # ADR-0013 — Seule la page peut accepter : acceptation signée, états clos définitifs
 
-**Statut** : proposée (2026-10-03) — complète l'ADR-0004
+**Statut** : acceptée (2026-10-03) — complète l'ADR-0004
 
 ## Contexte
 
