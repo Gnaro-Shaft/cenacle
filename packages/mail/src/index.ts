@@ -48,3 +48,20 @@ export {
   type TestMailboxConfig,
   testMailboxConfigFromEnv,
 } from "./test-mailbox.ts";
+export {
+  EXAMPLE_TRAMES_PATH,
+  firstName,
+  LOCAL_TRAMES_PATH,
+  loadTrames,
+  missing,
+  parseTrames,
+  type Rendered,
+  renderTrame,
+  SLOT_KINDS,
+  type Slot,
+  type SlotValues,
+  slotsOf,
+  type Trame,
+  TrameError,
+  type Trames,
+} from "./trames.ts";

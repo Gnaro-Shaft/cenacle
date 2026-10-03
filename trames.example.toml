@@ -1,0 +1,74 @@
+# Cénacle — réponses types (trames), EXEMPLE. Phase 4, B0b.
+#
+# Tes vraies trames et ta signature vont dans trames.local.toml (ignoré par git) :
+# copie ce fichier, corrige les textes à ta façon. Aucune donnée personnelle ici.
+#
+# Les cases entre accolades sont de trois sortes, fixées par le code :
+#   {prenom} {objet}                  remplies par le code depuis le mail reçu ;
+#   {date} {creneau} {sujet}          reprises du fil par Iris, puis vérifiées
+#                                     (un fait absent du fil est refusé) ;
+#   {delai} {creneau_propose} {precision}
+#                                     laissées à TOI : elles restent visibles en
+#                                     rouge, Iris ne les invente jamais.
+# Iris choisit UNE trame dans cette liste fermée, ou rédige librement en
+# dernier recours (brouillon marqué « à relire de près »).
+
+[signature]
+texte = """
+Bien cordialement,
+Prénom Nom — Entreprise (exemple)
+"""
+
+[trames.accuse_reception]
+titre = "Accuser réception et annoncer un délai"
+quand = "Le mail demande quelque chose qui prendra du temps (un document, une réponse argumentée, une vérification)."
+texte = """
+Bonjour {prenom},
+
+Merci pour votre message concernant « {objet} ». Je l'ai bien reçu et je reviens vers vous {delai}.
+"""
+
+[trames.confirmer_creneau]
+titre = "Accepter le rendez-vous proposé"
+quand = "Le mail propose un rendez-vous ou un point à un moment précis."
+texte = """
+Bonjour {prenom},
+
+{creneau} me convient très bien. À bientôt.
+"""
+
+[trames.proposer_creneau]
+titre = "Proposer un échange"
+quand = "Le mail demande un échange ou un rendez-vous sans fixer de moment précis."
+texte = """
+Bonjour {prenom},
+
+Merci pour votre message. Avec plaisir pour en parler : je vous propose {creneau_propose}. Ce créneau vous conviendrait-il ?
+"""
+
+[trames.demander_precision]
+titre = "Demander une précision"
+quand = "Il manque une information pour répondre."
+texte = """
+Bonjour {prenom},
+
+Merci pour votre message concernant « {objet} ». Pour vous répondre au mieux, pourriez-vous me préciser {precision} ?
+"""
+
+[trames.prise_en_charge]
+titre = "Prendre en charge un problème"
+quand = "Le mail signale un problème, un blocage ou une erreur."
+texte = """
+Bonjour {prenom},
+
+Merci de m'avoir prévenu. Je regarde {sujet} dès maintenant et je vous tiens informé(e) très rapidement.
+"""
+
+[trames.decliner]
+titre = "Décliner poliment"
+quand = "Une proposition de mission ou de collaboration à laquelle je ne donnerai pas suite."
+texte = """
+Bonjour {prenom},
+
+Merci pour votre message et pour votre confiance. Je ne suis malheureusement pas en mesure d'y donner suite pour le moment, mais je reste à votre disposition pour une prochaine occasion.
+"""
