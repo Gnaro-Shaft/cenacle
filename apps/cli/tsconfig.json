@@ -21,6 +21,15 @@
     },
     {
       "path": "../../packages/mail"
+    },
+    {
+      "path": "../iris"
+    },
+    {
+      "path": "../server"
+    },
+    {
+      "path": "../executor"
     }
   ]
 }
