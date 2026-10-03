@@ -59,6 +59,9 @@ export async function migrate({ ownerUrl, appPassword }: MigrateOptions): Promis
     // the app still cannot alter the table's structure.
     await sql.unsafe(`REVOKE ALL ON mail_items FROM ${APP_ROLE}`);
     await sql.unsafe(`GRANT SELECT, INSERT, UPDATE, DELETE ON mail_items TO ${APP_ROLE}`);
+    // Proposals are never deleted (their history matters); only their text is wiped.
+    await sql.unsafe(`REVOKE ALL ON proposals FROM ${APP_ROLE}`);
+    await sql.unsafe(`GRANT SELECT, INSERT, UPDATE ON proposals TO ${APP_ROLE}`);
   } finally {
     await sql.end();
   }

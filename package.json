@@ -38,7 +38,8 @@
     "mail:followup": "node --env-file=.env apps/cli/src/mail-followup.ts",
     "alert:bench": "node apps/iris/src/bench-main.ts",
     "draft:check": "node apps/cli/src/draft-check.ts",
-    "trames:demo": "node apps/cli/src/trames-demo.ts"
+    "trames:demo": "node apps/cli/src/trames-demo.ts",
+    "proposal": "node --env-file=.env apps/cli/src/proposal.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

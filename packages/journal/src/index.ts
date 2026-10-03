@@ -23,3 +23,13 @@ export {
   type StoredInboxItem,
   type Totals,
 } from "./mail-store.ts";
+export {
+  createProposalStore,
+  type NewProposal,
+  type Proposal,
+  ProposalError,
+  type ProposalStatus,
+  type ProposalStore,
+  TEXT_RETENTION_DAYS,
+  UNDO_DELAY_MS,
+} from "./proposal-store.ts";

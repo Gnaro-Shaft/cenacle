@@ -57,6 +57,8 @@ const NEUTRAL_EVENT_TYPES: ReadonlySet<string> = new Set([
   "alert.sent",
   "recap.sent",
   "notify.failed",
+  "send.lapsed",
+  "send.cancelled",
 ]);
 
 const PROPOSAL_OUTCOMES: ReadonlySet<string> = new Set([
