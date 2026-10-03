@@ -19,6 +19,16 @@ export function MailCounters({ counts }: { readonly counts: MailCounts }) {
           </div>
         ))}
       </dl>
+      {(counts.due > 0 || counts.waiting > 0) && (
+        <p className="follow-up">
+          {counts.due > 0 && (
+            <span className="due" aria-label={`${counts.due} relance(s) due(s)`}>
+              🔔 {counts.due} à relancer
+            </span>
+          )}
+          {counts.waiting > 0 && <span className="waiting">⏳ {counts.waiting} en attente</span>}
+        </p>
+      )}
       {counts.pending > 0 && <p className="detail">{counts.pending} en cours de tri</p>}
     </div>
   );

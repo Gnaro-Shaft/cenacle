@@ -46,6 +46,9 @@ export function describeStatus(status: AgentStatus): string {
     lines.push(
       `📬 Courrier : clients ${m.clients_prospects} · admin ${m.administratif} · bruit ${m.bruit} · à trier ${m.a_trier}${m.pending > 0 ? ` · ${m.pending} en cours` : ""}`,
     );
+    if (m.due > 0 || m.waiting > 0) {
+      lines.push(`🔔 ${m.due} à relancer · ⏳ ${m.waiting} en attente de réponse`);
+    }
   }
   return lines.join("\n");
 }

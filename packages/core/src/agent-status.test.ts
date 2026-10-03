@@ -70,6 +70,8 @@ describe("projectStatus", () => {
       bruit: 1,
       a_trier: 0,
       pending: 1,
+      waiting: 0,
+      due: 0,
     });
   });
 });

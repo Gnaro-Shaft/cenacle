@@ -9,6 +9,10 @@ import { CATEGORIES, type Category } from "./fixtures.ts";
 export type MailCounts = Readonly<Record<Category, number>> & {
   /** Mails of this pass not sorted yet (left for the model, or waiting for the Mac). */
   readonly pending: number;
+  /** Client/prospect mails waiting for my reply, less than 48 working hours old. */
+  readonly waiting: number;
+  /** Client/prospect mails without my reply after 48 working hours: reminders due. */
+  readonly due: number;
 };
 
 export class MailCountsError extends Error {}
@@ -21,11 +25,23 @@ function count(payload: Readonly<Record<string, unknown>>, key: string): number 
   return value;
 }
 
+/** A count added after the first events existed: absent means 0, invalid is refused. */
+function laterCount(payload: Readonly<Record<string, unknown>>, key: string): number {
+  return payload[key] === undefined ? 0 : count(payload, key);
+}
+
 function isCategory(value: unknown): value is Category {
   return typeof value === "string" && (CATEGORIES as readonly string[]).includes(value);
 }
 
-const EMPTY = { clients_prospects: 0, administratif: 0, bruit: 0, a_trier: 0 } as const;
+const EMPTY = {
+  clients_prospects: 0,
+  administratif: 0,
+  bruit: 0,
+  a_trier: 0,
+  waiting: 0,
+  due: 0,
+} as const;
 
 /**
  * A pass fetched new mails: they are pending until sorted.
@@ -83,5 +99,7 @@ export function applyTotals(payload: Readonly<Record<string, unknown>>): MailCou
     bruit: count(payload, "bruit"),
     a_trier: count(payload, "a_trier"),
     pending: count(payload, "pending"),
+    waiting: laterCount(payload, "waiting"),
+    due: laterCount(payload, "due"),
   };
 }
