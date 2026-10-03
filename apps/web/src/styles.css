@@ -77,6 +77,10 @@ h1 {
   color: #fff;
   font-weight: 700;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
 }
 
 /* The character: original, drawn in CSS. Iris wears a rainbow scarf. */
@@ -242,4 +246,102 @@ h1 {
   .box .gear {
     animation: none;
   }
+}
+
+/* Drafts waiting for me (phase 4, B3). */
+.locked {
+  margin-top: 24px;
+}
+.proposals {
+  margin-top: 32px;
+}
+.proposals h2 {
+  font-size: 1.15rem;
+}
+.message {
+  background: var(--card);
+  border-left: 4px solid var(--muted);
+  padding: 8px 12px;
+}
+.proposal {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 12px 0;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
+}
+.proposal.accepted {
+  opacity: 0.85;
+}
+.proposal header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: baseline;
+}
+.proposal .from,
+.proposal .trame {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.proposal .to {
+  flex-basis: 100%;
+  font-family: ui-monospace, monospace;
+  font-size: 0.9rem;
+}
+.flags {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0;
+}
+.flags .red {
+  color: var(--accent);
+  font-weight: 600;
+  margin: 4px 0;
+}
+.draft-label {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+.proposal textarea,
+.draft-text {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 4px;
+  font: inherit;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--muted);
+  border-radius: 8px;
+  padding: 8px;
+  white-space: pre-wrap;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.proposal button {
+  font: inherit;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--muted);
+  background: var(--card);
+  color: var(--ink);
+  cursor: pointer;
+}
+.proposal button.accept {
+  background: #2e7d4f;
+  border-color: #2e7d4f;
+  color: #fff;
+}
+.proposal button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.countdown {
+  font-weight: 600;
 }

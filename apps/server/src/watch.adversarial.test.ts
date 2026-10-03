@@ -1,6 +1,7 @@
 import type { AgentEvent, AgentMessage } from "@cenacle/core";
 import { describe, expect, it } from "vitest";
 import { createApp } from "./app.ts";
+import { defaultGuardConfig } from "./guard.ts";
 import { watchAgent } from "./watch.ts";
 
 const ev = (id: number, type: string): AgentEvent => ({
@@ -45,18 +46,29 @@ describe("watchAgent — adversarial", () => {
 });
 
 describe("HTTP API — adversarial", () => {
-  const app = createApp(async () => []);
+  const app = createApp({
+    readAfter: async () => [],
+    guard: defaultGuardConfig("t".repeat(43)),
+    proposals: {
+      list: async () => [],
+      edit: async () => {},
+      accept: async () => {},
+      refuse: async () => {},
+      cancel: async () => {},
+    },
+  });
+  const local = { headers: { host: "127.0.0.1:8787" } };
 
   it.each(["Iris", "iris;drop", "..%2f..%2fetc", "a".repeat(40)])(
     "refuses the agent name %s",
     async (name) => {
-      const response = await app.request(`/api/agents/${name}/stream`);
+      const response = await app.request(`/api/agents/${name}/stream`, local);
       expect(response.status).toBe(404);
     },
   );
 
   it("exposes nothing but the declared routes", async () => {
-    expect((await app.request("/api/events")).status).toBe(404);
-    expect((await app.request("/")).status).toBe(404);
+    expect((await app.request("/api/events", local)).status).toBe(404);
+    expect((await app.request("/", local)).status).toBe(404);
   });
 });

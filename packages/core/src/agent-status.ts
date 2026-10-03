@@ -60,6 +60,7 @@ const NEUTRAL_EVENT_TYPES: ReadonlySet<string> = new Set([
   "send.lapsed",
   "send.cancelled",
   "proposal.skipped", // Iris decided not to propose: nothing waits for me
+  "draft.failed", // drafting failed (model away…): the follow-ups wait for the next pass
 ]);
 
 const PROPOSAL_OUTCOMES: ReadonlySet<string> = new Set([

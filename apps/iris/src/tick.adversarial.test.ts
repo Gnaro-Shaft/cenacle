@@ -162,6 +162,41 @@ describe("Iris's rhythm", () => {
   });
 });
 
+describe("drafting in the rhythm (phase 4)", () => {
+  it("drafts after each collection; the recap gives only the number of drafts", async () => {
+    const w = world("2026-10-01T08:58:00+02:00");
+    const drafted: Date[] = [];
+    const deps: TickDeps = {
+      ...w.deps,
+      draft: async () => {
+        drafted.push(w.deps.now());
+      },
+      pendingDrafts: async () => 4,
+    };
+    await tick(deps);
+    w.at("2026-10-01T09:01:00+02:00");
+    await tick(deps);
+    expect(drafted).toHaveLength(1);
+    const recapText = w.sent.find((t) => t.startsWith("📬")) ?? "";
+    expect(recapText).toContain("✏️ 4 brouillons à valider — sur la page");
+  });
+
+  it("a drafting failure is journaled and never stops the alerts", async () => {
+    const w = world("2026-10-01T10:00:00+02:00");
+    await w.receive(true);
+    await tick({
+      ...w.deps,
+      draft: async () => {
+        throw new TypeError("fetch failed: Claire Dubois <claire@client.example>");
+      },
+    });
+    const failed = w.events.find((e) => e.type === "draft.failed");
+    expect(failed?.payload).toEqual({ reason: "TypeError" });
+    expect(w.sent).toContain(urgentAlert(1));
+    expect(JSON.stringify(w.events.map((e) => e.payload))).not.toContain("claire");
+  });
+});
+
 describe("messages — numbers and fixed words only", () => {
   it("never carry an address, a domain or free text", () => {
     const texts = [
@@ -173,6 +208,7 @@ describe("messages — numbers and fixed words only", () => {
         due: 3,
         waiting: 2,
         urgent: 1,
+        drafts: 2,
       }),
       recap({
         hour: 18,

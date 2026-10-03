@@ -17,9 +17,11 @@ export interface RecapInput {
   readonly waiting: number;
   /** Urgent client mails that arrived during quiet hours, never alerted. */
   readonly urgent: number;
+  /** Drafts waiting for my validation (phase 4). */
+  readonly drafts?: number;
 }
 
-export function recap({ hour, fresh, due, waiting, urgent }: RecapInput): string {
+export function recap({ hour, fresh, due, waiting, urgent, drafts = 0 }: RecapInput): string {
   const lines = [`📬 Iris — récap de ${hour} h`];
   const total =
     fresh.clients_prospects + fresh.administratif + fresh.bruit + fresh.a_trier + fresh.pending;
@@ -38,5 +40,8 @@ export function recap({ hour, fresh, due, waiting, urgent }: RecapInput): string
       ? `🔔 ${due} à relancer · ⏳ ${waiting} en attente de réponse`
       : "Aucune réponse en retard.",
   );
+  if (drafts > 0) {
+    lines.push(`✏️ ${drafts} brouillon${drafts > 1 ? "s" : ""} à valider — sur la page`);
+  }
   return lines.join("\n");
 }

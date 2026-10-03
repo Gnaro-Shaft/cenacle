@@ -7,6 +7,7 @@ import { loadCadre } from "./cadre.ts";
 import { createKeyer } from "./keys.ts";
 import { fetchMailRefs } from "./postman.ts";
 import { fixtureForModel, readMailsForModel } from "./reader.ts";
+import { readReplyTargets } from "./reply-target.ts";
 import { loadFixtures, testMailboxConfigFromEnv } from "./test-mailbox.ts";
 
 const envFile = join(import.meta.dirname, "..", "..", "..", ".env");
@@ -45,6 +46,21 @@ describe("reader (GreenMail)", () => {
     const uids = refs.slice(0, 2).map((r) => r.uid);
     expect(await readMailsForModel(mail, password, uids, uidValidity)).toHaveLength(2);
     await expect(readMailsForModel(mail, password, uids, `${uidValidity}9`)).rejects.toThrow(
+      /renumbered/,
+    );
+  });
+
+  it("reads the reply target of each mail from the server: its sender", async () => {
+    const { refs, uidValidity, unseen } = await fetchMailRefs(mail, password, keyer);
+    const uids = refs.slice(0, 3).map((r) => r.uid);
+    const targets = await readReplyTargets(mail, password, uids, uidValidity);
+    uids.forEach((uid, i) => {
+      expect(targets.get(uid)?.to).toBe(
+        messages[i]?.from.address.replace(/@(.*)$/, (_m, d: string) => `@${d.toLowerCase()}`),
+      );
+    });
+    expect((await fetchMailRefs(mail, password, keyer)).unseen).toBe(unseen);
+    await expect(readReplyTargets(mail, password, uids, `${uidValidity}9`)).rejects.toThrow(
       /renumbered/,
     );
   });
