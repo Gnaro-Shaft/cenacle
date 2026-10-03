@@ -18,7 +18,7 @@ export {
   type SentRef,
   splitHeaders,
 } from "./postman.ts";
-export { createProposals, type Proposals } from "./proposals.ts";
+export { createProposals, type Proposals, SKIP_REASONS, type SkipReason } from "./proposals.ts";
 export { fixtureForModel, MAX_SOURCE_BYTES, readMailsForModel } from "./reader.ts";
 export { sentToRfc822, toRfc822 } from "./rfc822.ts";
 export {
@@ -65,4 +65,5 @@ export {
   type Trame,
   TrameError,
   type Trames,
+  takenFromThread,
 } from "./trames.ts";

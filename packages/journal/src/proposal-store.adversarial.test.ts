@@ -109,3 +109,36 @@ describe("proposals — refused transitions", () => {
     await expect(sql`insert into proposals ${sql(row)}`).rejects.toThrow();
   });
 });
+
+describe("proposals — skipped (B2)", () => {
+  const skipFresh = () => {
+    n++;
+    return store.skip({ id: `s-${n}-${Date.now()}`, mailUidValidity: "8", mailUid: 7000 + n }, T0);
+  };
+
+  it("a skipped mail never gets a proposal afterwards", async () => {
+    const s = await skipFresh();
+    expect(s).toMatchObject({ status: "skipped", draft: null, trame: null });
+    await expect(
+      store.create({
+        id: `x-${n}`,
+        mailUidValidity: "8",
+        mailUid: s.mailUid,
+        trame: null,
+        draft: "Bonjour",
+      }),
+    ).rejects.toThrow(ProposalError);
+  });
+
+  it("a skipped row cannot be accepted, edited or sent", async () => {
+    const s = await skipFresh();
+    await expect(store.accept(s.id, T0)).rejects.toThrow(/it is skipped/);
+    await expect(store.edit(s.id, "Bonjour")).rejects.toThrow(/it is skipped/);
+    await expect(store.markSent(s.id, T0)).rejects.toThrow(/it is skipped/);
+  });
+
+  it("the database refuses a skipped row holding a text", async () => {
+    const s = await skipFresh();
+    await expect(sql`update proposals set draft = 'Bonjour' where id = ${s.id}`).rejects.toThrow();
+  });
+});

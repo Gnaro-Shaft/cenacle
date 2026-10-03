@@ -142,13 +142,29 @@ export interface Rendered {
   readonly refused: readonly Slot[];
 }
 
+/** Words of 4 letters or more, lower case, accents removed: what "taken from the thread" means. */
+function wordsOf(text: string): string[] {
+  return text
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((w) => w.length >= 4);
+}
+
+/** Every significant word of a thread value must appear in the conversation. */
+export function takenFromThread(value: string, conversation: readonly string[]): boolean {
+  const known = new Set(conversation.flatMap(wordsOf));
+  return wordsOf(value).every((w) => known.has(w));
+}
+
 /** Marks a slot left for me: visible, in the text, never a guess. */
 export const missing = (slot: Slot) => `{${slot} ?}`;
 
 /**
  * Fills a trame. `values` come from code ({prenom}, {objet}) and from Iris
  * (thread slots); owner slots are always left for me. Every thread value is
- * bounded, single-line, and fact-checked against the conversation.
+ * bounded, single-line, made of words of the conversation, and fact-checked.
  */
 export function renderTrame(
   trame: Trame,
@@ -172,7 +188,10 @@ export function renderTrame(
       toComplete.push(slot);
       continue;
     }
-    if (kind === "thread" && !checkDraft(value, conversation).ok) {
+    if (
+      kind === "thread" &&
+      (!checkDraft(value, conversation).ok || !takenFromThread(value, conversation))
+    ) {
       refused.push(slot);
       toComplete.push(slot);
       continue;

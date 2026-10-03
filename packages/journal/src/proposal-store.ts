@@ -5,7 +5,15 @@
  */
 import type { Sql } from "postgres";
 
-export type ProposalStatus = "pending" | "accepted" | "refused" | "lapsed" | "cancelled" | "sent";
+export type ProposalStatus =
+  | "pending"
+  | "accepted"
+  | "refused"
+  | "lapsed"
+  | "cancelled"
+  | "sent"
+  /** Iris decided not to propose (split vote, no fitting template): no text, closed at once. */
+  | "skipped";
 
 export interface Proposal {
   readonly id: string;
@@ -45,6 +53,11 @@ const SLOT_LEFT = /\{[a-z_]+ \?\}/;
 export interface ProposalStore {
   /** Fails if this mail already had a proposal — ever (one situation = one proposal). */
   create(proposal: NewProposal): Promise<Proposal>;
+  /** Records that Iris will not propose for this mail — once, like a proposal. */
+  skip(
+    input: { readonly id: string; readonly mailUidValidity: string; readonly mailUid: number },
+    now: Date,
+  ): Promise<Proposal>;
   get(id: string): Promise<Proposal | null>;
   /** Whether this mail already had a proposal, whatever became of it. */
   existsFor(mailUidValidity: string, mailUid: number): Promise<boolean>;
@@ -118,6 +131,21 @@ export function createProposalStore(sql: Sql): ProposalStore {
           values (${p.id}, ${p.mailUidValidity}, ${p.mailUid}, 'follow_up_due', ${p.trame}, ${p.draft})
           returning *`;
         return one(rows, p.id, "created");
+      } catch (error) {
+        if (String(error).includes("duplicate key")) {
+          throw new ProposalError(`a proposal already exists for this mail (or this id)`);
+        }
+        throw error;
+      }
+    },
+
+    async skip(p, now) {
+      try {
+        const rows = await sql<Row[]>`
+          insert into proposals (id, mail_uid_validity, mail_uid, reason, status, decided_at, closed_at)
+          values (${p.id}, ${p.mailUidValidity}, ${p.mailUid}, 'follow_up_due', 'skipped', ${now}, ${now})
+          returning *`;
+        return one(rows, p.id, "skipped");
       } catch (error) {
         if (String(error).includes("duplicate key")) {
           throw new ProposalError(`a proposal already exists for this mail (or this id)`);

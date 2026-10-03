@@ -7,6 +7,9 @@ import type { Journal, Proposal, ProposalStore } from "@cenacle/journal";
 
 const AGENT = "iris";
 
+export const SKIP_REASONS = ["split", "no_trame", "unsupported_fact"] as const;
+export type SkipReason = (typeof SKIP_REASONS)[number];
+
 export interface Proposals {
   propose(input: {
     readonly id: string;
@@ -15,6 +18,12 @@ export interface Proposals {
     readonly trame: string | null;
     readonly draft: string;
   }): Promise<Proposal>;
+  /** Iris will not propose for this mail (split vote, no template…): recorded once, no text. */
+  skip(
+    input: { readonly id: string; readonly mailUidValidity: string; readonly mailUid: number },
+    reason: SkipReason,
+    now: Date,
+  ): Promise<Proposal>;
   accept(id: string, now: Date): Promise<Proposal>;
   refuse(id: string, now: Date): Promise<Proposal>;
   /** The situation no longer holds (I already answered). */
@@ -33,6 +42,15 @@ export function createProposals(store: ProposalStore, journal: Journal): Proposa
         agent: AGENT,
         type: "proposal.created",
         payload: { proposalId: p.id },
+      });
+      return p;
+    },
+    async skip(input, reason, now) {
+      const p = await store.skip(input, now);
+      await journal.append({
+        agent: AGENT,
+        type: "proposal.skipped",
+        payload: { proposalId: p.id, reason },
       });
       return p;
     },

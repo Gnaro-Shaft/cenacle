@@ -1,0 +1,20 @@
+{
+  "_doc": "Phase 4, B2 — for each due follow-up of the test mailbox, the template I would pick and the thread values I would copy. Reference for trames:demo and for measuring Iris's vote (draft:vote). Ids are those of trames.example.toml.",
+  "choices": {
+    "m003": { "trame": "accuse_reception", "values": {} },
+    "m005": { "trame": "confirmer_creneau", "values": { "creneau": "jeudi" } },
+    "m010": { "trame": "accuse_reception", "values": {} },
+    "m013": { "trame": "proposer_creneau", "values": {} },
+    "m031": { "trame": "proposer_creneau", "values": {} },
+    "m034": { "trame": "proposer_creneau", "values": {} },
+    "m044": {
+      "trame": "prise_en_charge",
+      "values": { "sujet": "les identifiants de l'environnement de recette" }
+    },
+    "m057": { "trame": "confirmer_creneau", "values": { "creneau": "vendredi à 10 h" } },
+    "m071": { "trame": "confirmer_creneau", "values": { "creneau": "jeudi" } },
+    "m091": { "trame": "prise_en_charge", "values": { "sujet": "l'erreur 500" } },
+    "m119": { "trame": "confirmer_creneau", "values": { "creneau": "vendredi à 10 h" } },
+    "m146": { "trame": "demander_precision", "values": {} }
+  }
+}

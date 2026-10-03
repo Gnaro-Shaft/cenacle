@@ -37,6 +37,26 @@ describe("renderTrame — hostile or invented slot values", () => {
     expect(r.text).toContain("{sujet ?}");
   });
 
+  it.each([
+    ["words absent from the thread", "le mot de passe administrateur"],
+    ["a promise", "votre remboursement intégral"],
+    ["a reworded time", "vendredi matin"],
+  ])("refuses %s in a thread slot, even without any fact", (_label, value) => {
+    const r = renderTrame(priseEnCharge, { prenom: "Hugo", sujet: value }, conversation, signature);
+    expect(r.refused).toEqual(["sujet"]);
+    expect(r.text).not.toContain(value);
+  });
+
+  it("accepts words of the thread, whatever their case or accents", () => {
+    const r = renderTrame(
+      priseEnCharge,
+      { prenom: "Hugo", sujet: "le POINT de Vendredi" },
+      conversation,
+      signature,
+    );
+    expect(r.refused).toEqual([]);
+  });
+
   it("an empty first name is left for me too", () => {
     const r = renderTrame(confirmer, { creneau: "vendredi à 10 h" }, conversation, signature);
     expect(r.text).toContain("Bonjour {prenom ?}");
