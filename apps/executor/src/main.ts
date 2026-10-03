@@ -3,8 +3,9 @@
  * A separate program from Iris: it has no model and can only send what I
  * accepted, after the 2-minute undo delay, to the test server of this
  * machine. Every 10 seconds; /stop on Telegram or Ctrl+C ends it.
+ * It holds the page's public key: it can check an acceptance, never make one.
  */
-import { dayStart } from "@cenacle/core";
+import { dayStart, publicKeyFromEnv, refusePrivateKey } from "@cenacle/core";
 import {
   connectAsApp,
   createJournal,
@@ -17,6 +18,7 @@ import {
   copyToSent,
   createProposals,
   fetchSentRefs,
+  isAcceptedByPage,
   keyerFromEnv,
   loadCadre,
   readReplyContexts,
@@ -26,6 +28,8 @@ import {
 import { executeDue, MAX_SENDS_PER_DAY } from "./execute.ts";
 
 const ROUND_MS = 10_000;
+refusePrivateKey("The executor");
+const acceptKey = publicKeyFromEnv();
 const sql = connectAsApp();
 const journal = createJournal(sql);
 const store = createProposalStore(sql);
@@ -77,10 +81,13 @@ while (!stopping) {
       build: (context, text, date) => buildReply(cadre.address, context, text, date),
       send: (reply) => sendReply(cadre, password, reply),
       copy: (reply) => copyToSent(cadre, password, reply.raw),
+      verify: (p) => isAcceptedByPage(acceptKey, p),
     });
     for (const id of r.sent) console.log(`📤 ${id} envoyé`);
     for (const id of r.failed)
       console.log(`❌ ${id} : échec de l'envoi — non réessayé, voir la page`);
+    for (const id of r.unsigned)
+      console.log(`🛑 ${id} : acceptée sans la signature de la page — non envoyée, voir la page`);
     for (const l of r.lapsed) console.log(`🗑 ${l.id} caduc : ${LAPSE[l.reason]}`);
     const today = dayStart(new Date()).toISOString();
     if (r.limited && limitedDay !== today) {

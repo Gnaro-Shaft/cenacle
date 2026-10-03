@@ -1,5 +1,6 @@
 // The bench is only worth something if it turns red when the guarantees
 // break. Each mutant below removes one of them; the bench must catch it.
+import { draftHash } from "@cenacle/core";
 import { draftFollowUp } from "@cenacle/iris/draft";
 import { ProposalError } from "@cenacle/journal";
 import { describe, expect, it } from "vitest";
@@ -26,11 +27,12 @@ const naiveDrafter: typeof draftFollowUp = async (mail, uidValidity, deps) => {
   return { kind: "proposed", proposalId: p.id, trame: trame.id, toComplete: [], vote };
 };
 
-/** Iris accepts her own proposal: the database cannot tell who accepted. */
+/** Iris accepts her own proposal, with a signature she made up (she has no key). */
 const selfAccepting: typeof draftFollowUp = async (mail, uidValidity, deps) => {
   const outcome = await draftFollowUp(mail, uidValidity, deps);
   if (outcome.kind === "proposed") {
-    await deps.proposals.accept(outcome.proposalId, deps.now()).catch((error: unknown) => {
+    const signed = { signature: "A".repeat(86), draftHash: draftHash("") };
+    await deps.proposals.accept(outcome.proposalId, deps.now(), signed).catch((error: unknown) => {
       if (!(error instanceof ProposalError)) throw error;
     });
   }
@@ -95,8 +97,16 @@ describe("the draft bench", () => {
     expect(red.map((c) => c.name)).toContain("faits inventés arrivés dans une proposition");
   });
 
-  it("catches a send the page never accepted", async () => {
+  it("Iris accepting by herself sends nothing: prevented, not only detected (ADR-0013)", async () => {
     const red = await failing({ draft: selfAccepting });
-    expect(red.some((c) => c.name.endsWith("accepté sur la page"))).toBe(true);
+    const leaked = red.filter(
+      (c) => c.name.endsWith("accepté sur la page") || c.name.includes("envoyé sans"),
+    );
+    expect(leaked).toEqual([]);
+  });
+
+  it("catches an executor that trusts any acceptance (no signature check)", async () => {
+    const red = await failing({ tamper: (deps) => ({ ...deps, verify: () => true }) });
+    expect(red.map((c) => c.name)).toContain("seule mon acceptation part");
   });
 });

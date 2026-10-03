@@ -1,5 +1,13 @@
 /** Test doubles: an in-memory journal and mail store, same contracts as Postgres. */
 
+import {
+  draftHash,
+  generateAcceptanceKeys,
+  PRIVATE_KEY_VAR,
+  PUBLIC_KEY_VAR,
+  privateKeyFromEnv,
+  publicKeyFromEnv,
+} from "@cenacle/core";
 import type {
   InboxItem,
   Journal,
@@ -9,10 +17,12 @@ import type {
   ProposalStatus,
   ProposalStore,
   SentItem,
+  SignedAcceptance,
   StoredEvent,
   StoredInboxItem,
 } from "@cenacle/journal";
 import { ProposalError } from "@cenacle/journal";
+import { isAcceptedByPage, signProposal } from "./acceptance.ts";
 
 export function memoryJournal(): Journal & { events: StoredEvent[] } {
   const events: StoredEvent[] = [];
@@ -168,6 +178,7 @@ export function memoryProposalStore(): ProposalStore {
         sendAfter: null,
         closedAt: null,
         sentAt: null,
+        acceptanceSig: null,
       };
       rows.set(p.id, row);
       return row;
@@ -190,6 +201,7 @@ export function memoryProposalStore(): ProposalStore {
         sendAfter: null,
         closedAt: now,
         sentAt: null,
+        acceptanceSig: null,
       };
       rows.set(p.id, row);
       return row;
@@ -215,11 +227,15 @@ export function memoryProposalStore(): ProposalStore {
     async edit(id, draft) {
       return move(id, ["pending"], { draft });
     },
-    async accept(id, now) {
+    async accept(id, now, signed) {
+      if (draftHash(rows.get(id)?.draft ?? "") !== signed.draftHash) {
+        throw new ProposalError(`proposal ${id}: its text is not the one signed`);
+      }
       return move(id, ["pending"], {
         status: "accepted",
         decidedAt: now,
         sendAfter: new Date(now.getTime() + 120_000),
+        acceptanceSig: signed.signature,
       });
     },
     async refuse(id, now) {
@@ -263,4 +279,33 @@ export function memoryProposalStore(): ProposalStore {
       return 0;
     },
   };
+}
+
+/** A key pair for tests: what the page signs and what the executor checks (ADR-0013). */
+export function testAcceptanceKeys() {
+  const keys = generateAcceptanceKeys();
+  const env = { [PRIVATE_KEY_VAR]: keys.privateKey, [PUBLIC_KEY_VAR]: keys.publicKey };
+  const privateKey = privateKeyFromEnv(env);
+  const publicKey = publicKeyFromEnv(env);
+  return {
+    privateKey,
+    publicKey,
+    signed: (p: Proposal, now: Date): SignedAcceptance => signProposal(privateKey, p, now),
+    verify: (p: Proposal): boolean => isAcceptedByPage(publicKey, p),
+  };
+}
+
+/** One key pair shared by the tests of a run. */
+export const TEST_KEYS = testAcceptanceKeys();
+
+/** What the page hands over when I click "Accepter" on this proposal now. */
+export async function signedNow(
+  store: ProposalStore,
+  id: string,
+  now: Date,
+  keys = TEST_KEYS,
+): Promise<SignedAcceptance> {
+  const p = await store.get(id);
+  if (p === null) throw new ProposalError(`proposal ${id} does not exist`);
+  return keys.signed(p, now);
 }

@@ -9,7 +9,17 @@
  */
 import { createHash } from "node:crypto";
 import type { ThreadSlot, TrameVote } from "@cenacle/brain";
-import type { FixtureMessage, FollowedMail, MailForModel, MyMail } from "@cenacle/core";
+import {
+  type FixtureMessage,
+  type FollowedMail,
+  generateAcceptanceKeys,
+  type MailForModel,
+  type MyMail,
+  PRIVATE_KEY_VAR,
+  PUBLIC_KEY_VAR,
+  privateKeyFromEnv,
+  publicKeyFromEnv,
+} from "@cenacle/core";
 import { type ExecutorDeps, executeDue, type RoundResult } from "@cenacle/executor/execute";
 import { type DraftOutcome, draftFollowUp } from "@cenacle/iris/draft";
 import {
@@ -23,11 +33,13 @@ import {
   createProposals,
   EXAMPLE_TRAMES_PATH,
   fixtureForModel,
+  isAcceptedByPage,
   loadTrames,
   type Proposals,
   type ReplyContext,
   type ReplyTarget,
   replyTargetOf,
+  signProposal,
   type Trames,
 } from "@cenacle/mail";
 import { createApp } from "@cenacle/server/app";
@@ -148,6 +160,8 @@ export interface Page {
 }
 
 export interface World {
+  /** The application role's connection: what any program holding it could do by hand. */
+  readonly sql: Sql;
   readonly store: ProposalStore;
   readonly proposals: Proposals;
   readonly mailbox: FakeMailbox;
@@ -204,6 +218,11 @@ export function createWorld(
   const built = new WeakMap<object, Outgoing>();
   let clock = opts.start.getTime();
   const now = () => new Date(clock);
+  // The page's key pair, as npm run keys:accept makes it.
+  const keys = generateAcceptanceKeys();
+  const env = { [PRIVATE_KEY_VAR]: keys.privateKey, [PUBLIC_KEY_VAR]: keys.publicKey };
+  const privateKey = privateKeyFromEnv(env);
+  const publicKey = publicKeyFromEnv(env);
 
   const service = createProposalsService({
     store,
@@ -221,9 +240,11 @@ export function createWorld(
     },
     trames: TRAMES,
     now,
+    sign: (p, at) => signProposal(privateKey, p, at),
   });
 
   return {
+    sql,
     store,
     proposals,
     mailbox,
@@ -282,6 +303,7 @@ export function createWorld(
           outbox.push(out);
         },
         copy: async () => {},
+        verify: (p) => isAcceptedByPage(publicKey, p),
       };
       const deps = m.tamper === undefined ? real : m.tamper(real, sql);
       const claim = deps.store.claim;

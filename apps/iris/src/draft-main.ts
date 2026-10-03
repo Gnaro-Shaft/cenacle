@@ -6,6 +6,7 @@
  * Usage: npm run iris:draft   (then npm run proposal -- list)
  */
 import { createLocalModels, localModelConfigFromEnv } from "@cenacle/brain";
+import { refusePrivateKey } from "@cenacle/core";
 import {
   connectAsApp,
   createJournal,
@@ -21,6 +22,8 @@ const LABEL = {
   no_trame: "aucune trame ne convient",
   unsupported_fact: "fait non étayé",
 };
+// Iris can never accept: she must not even hold the page's key (ADR-0013).
+refusePrivateKey("Iris");
 const sql = connectAsApp();
 try {
   const r = await draftDueFollowUps(

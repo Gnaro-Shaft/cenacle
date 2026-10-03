@@ -1,4 +1,18 @@
 export {
+  type AcceptanceFields,
+  AcceptanceKeyError,
+  acceptanceMessage,
+  draftHash,
+  generateAcceptanceKeys,
+  PRIVATE_KEY_VAR,
+  PUBLIC_KEY_VAR,
+  privateKeyFromEnv,
+  publicKeyFromEnv,
+  refusePrivateKey,
+  signAcceptance,
+  verifyAcceptance,
+} from "./acceptance.ts";
+export {
   type AgentView,
   INTERNAL_STATES,
   type InternalState,

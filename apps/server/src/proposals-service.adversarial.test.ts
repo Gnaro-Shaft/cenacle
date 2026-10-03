@@ -3,7 +3,7 @@
 // readable recipient or with a slot left.
 import type { MailForModel } from "@cenacle/core";
 import { createProposals, EXAMPLE_TRAMES_PATH, loadTrames, type ReplyTarget } from "@cenacle/mail";
-import { memoryJournal, memoryProposalStore } from "@cenacle/mail/test-helpers";
+import { memoryJournal, memoryProposalStore, TEST_KEYS } from "@cenacle/mail/test-helpers";
 import { describe, expect, it } from "vitest";
 import { cleanDraft, createProposalsService } from "./proposals-service.ts";
 
@@ -27,6 +27,7 @@ function setup(target: ReplyTarget | undefined, validity = "8") {
     readTargets: async () => new Map(target === undefined ? [] : [[7, target]]),
     trames: TRAMES,
     now: () => new Date("2026-10-05T10:00:00Z"),
+    sign: TEST_KEYS.signed,
   });
   const propose = (draft: string) =>
     store.create({
@@ -91,7 +92,10 @@ describe("accepting", () => {
     });
     await propose(SIGNED);
     await service.accept("p-1");
-    expect((await store.get("p-1"))?.status).toBe("accepted");
+    const accepted = await store.get("p-1");
+    expect(accepted?.status).toBe("accepted");
+    // Signed by the page, for this very text: what the executor will check.
+    expect(accepted !== null && TEST_KEYS.verify(accepted)).toBe(true);
   });
 
   it.each([

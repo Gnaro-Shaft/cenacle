@@ -33,6 +33,7 @@ Le banc B5 (`npm run draft:bench`) **détecte** un envoi qui n'a pas été accep
    - la page : la base et la clé privée ;
    - l'exécuteur : la base, SMTP et la clé publique.
    `.env.example` est découpé en conséquence. C'est aussi ce que l'ADR-0004 promettait déjà (« seul l'exécuteur détient les identifiants d'envoi ») et qui n'est pas vrai aujourd'hui.
+   **Mise en œuvre en deux temps (décidé le 03/10)** : en phase 4, Iris, la page et l'exécuteur partagent légitimement le mot de passe de la boîte de test. Seule la clé privée est donc séparée dès B6 (`.env.page`, chargé par le serveur seul). Le découpage complet (DB, IMAP, SMTP par programme) se fera en phase 5, quand les vrais identifiants existeront.
 5. **Tests adversariaux exigés** :
    - une acceptation écrite sans la page n'est pas envoyée ;
    - un texte changé après l'acceptation n'est pas envoyé ;

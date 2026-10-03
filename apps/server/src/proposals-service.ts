@@ -5,10 +5,16 @@
  * mail, never the Reply-To); it is never stored and the page cannot change it.
  * Red flags: slots left for me, facts absent from the thread, a Reply-To
  * elsewhere. Accepting needs a readable recipient and no slot left.
+ * Accepting is signed here (ADR-0013): the executor sends nothing else.
  * Nothing is sent here: the executor (B4) is the only one that sends.
  */
 import { checkDraft, type MailForModel } from "@cenacle/core";
-import { type Proposal, ProposalError, type ProposalStore } from "@cenacle/journal";
+import {
+  type Proposal,
+  ProposalError,
+  type ProposalStore,
+  type SignedAcceptance,
+} from "@cenacle/journal";
 import type { Proposals, ReplyTarget, Trames } from "@cenacle/mail";
 
 /** What the page shows: waiting for me, accepted, being sent, and failed sends. */
@@ -57,6 +63,8 @@ export interface ServiceDeps {
   ) => Promise<Map<number, ReplyTarget>>;
   readonly trames: Trames;
   readonly now: () => Date;
+  /** Signs my acceptance of this proposal's current text (the page's private key, ADR-0013). */
+  readonly sign: (p: Proposal, now: Date) => SignedAcceptance;
 }
 
 const SLOT_LEFT = /\{([a-z_]+) \?\}/g;
@@ -145,7 +153,9 @@ export function createProposalsService(deps: ServiceDeps): ProposalsService {
       if (target.to === null) {
         throw new ProposalError(`proposal ${id}: the sender's address cannot be read safely`);
       }
-      await deps.proposals.accept(id, deps.now());
+      const now = deps.now();
+      // Signed on the text read just now; the database accepts only if it is still that text.
+      await deps.proposals.accept(id, now, deps.sign(p, now));
     },
 
     async refuse(id) {

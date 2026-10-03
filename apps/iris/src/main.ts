@@ -4,6 +4,7 @@
  * on Telegram ends it. It never sends a mail: only Telegram messages to me.
  */
 import { createLocalModels, localModelConfigFromEnv } from "@cenacle/brain";
+import { refusePrivateKey } from "@cenacle/core";
 import {
   connectAsApp,
   createJournal,
@@ -24,6 +25,8 @@ import { draftDueFollowUps } from "./draft-due.ts";
 import { draftingDeps } from "./drafting.ts";
 import { tick } from "./tick.ts";
 
+// Iris can never accept: she must not even hold the page's key (ADR-0013).
+refusePrivateKey("Iris");
 const chatId = Number(process.env.TELEGRAM_ALLOWED_CHAT_ID);
 if (!Number.isSafeInteger(chatId) || chatId === 0) {
   throw new Error("TELEGRAM_ALLOWED_CHAT_ID is missing or not a number (see .env.example)");
