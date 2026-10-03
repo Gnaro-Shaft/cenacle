@@ -1,0 +1,227 @@
+/**
+ * Proposals (phase 4, B1 — ADR-0004). Every transition is a single guarded
+ * UPDATE: if the proposal is not in the expected state (already decided,
+ * double click, replay), nothing changes and the call fails loudly.
+ */
+import type { Sql } from "postgres";
+
+export type ProposalStatus = "pending" | "accepted" | "refused" | "lapsed" | "cancelled" | "sent";
+
+export interface Proposal {
+  readonly id: string;
+  readonly createdAt: Date;
+  readonly mailUidValidity: string;
+  readonly mailUid: number;
+  readonly reason: "follow_up_due";
+  readonly trame: string | null;
+  /** Null once wiped (7 days after closing). */
+  readonly draft: string | null;
+  readonly status: ProposalStatus;
+  readonly decidedAt: Date | null;
+  readonly sendAfter: Date | null;
+  readonly closedAt: Date | null;
+}
+
+export interface NewProposal {
+  readonly id: string;
+  readonly mailUidValidity: string;
+  readonly mailUid: number;
+  readonly trame: string | null;
+  readonly draft: string;
+}
+
+export class ProposalError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ProposalError";
+  }
+}
+
+/** The undo delay between my acceptance and the actual sending (ADR-0004). */
+export const UNDO_DELAY_MS = 2 * 60 * 1000;
+export const TEXT_RETENTION_DAYS = 7;
+const SLOT_LEFT = /\{[a-z_]+ \?\}/;
+
+export interface ProposalStore {
+  /** Fails if this mail already had a proposal — ever (one situation = one proposal). */
+  create(proposal: NewProposal): Promise<Proposal>;
+  get(id: string): Promise<Proposal | null>;
+  /** Whether this mail already had a proposal, whatever became of it. */
+  existsFor(mailUidValidity: string, mailUid: number): Promise<boolean>;
+  pending(): Promise<Proposal[]>;
+  /** I edit the draft before deciding. */
+  edit(id: string, draft: string): Promise<Proposal>;
+  /** I accept: the sending is scheduled after the undo delay. Refused while a slot is left. */
+  accept(id: string, now: Date): Promise<Proposal>;
+  refuse(id: string, now: Date): Promise<Proposal>;
+  /** The situation no longer holds (I already answered): closed, from pending or accepted. */
+  lapse(id: string, now: Date): Promise<Proposal>;
+  /** I undo within the delay. */
+  cancel(id: string, now: Date): Promise<Proposal>;
+  /** Proposals whose undo delay is over: ready for the executor. */
+  dueForSending(now: Date): Promise<Proposal[]>;
+  markSent(id: string, now: Date): Promise<Proposal>;
+  /** Wipes the text of proposals closed more than 7 days ago. Returns how many. */
+  wipeOldTexts(now: Date): Promise<number>;
+}
+
+interface Row {
+  id: string;
+  created_at: Date;
+  mail_uid_validity: string;
+  mail_uid: string;
+  reason: "follow_up_due";
+  trame: string | null;
+  draft: string | null;
+  status: ProposalStatus;
+  decided_at: Date | null;
+  send_after: Date | null;
+  closed_at: Date | null;
+}
+
+const toProposal = (r: Row): Proposal => ({
+  id: r.id,
+  createdAt: r.created_at,
+  mailUidValidity: r.mail_uid_validity,
+  mailUid: Number(r.mail_uid),
+  reason: r.reason,
+  trame: r.trame,
+  draft: r.draft,
+  status: r.status,
+  decidedAt: r.decided_at,
+  sendAfter: r.send_after,
+  closedAt: r.closed_at,
+});
+
+export function createProposalStore(sql: Sql): ProposalStore {
+  async function one(rows: Row[], id: string, what: string): Promise<Proposal> {
+    const [row] = rows;
+    if (row !== undefined) return toProposal(row);
+    const current = await get(id);
+    throw new ProposalError(
+      current === null
+        ? `proposal ${id} does not exist`
+        : `proposal ${id} cannot be ${what}: it is ${current.status}`,
+    );
+  }
+
+  async function get(id: string): Promise<Proposal | null> {
+    const [row] = await sql<Row[]>`select * from proposals where id = ${id}`;
+    return row === undefined ? null : toProposal(row);
+  }
+
+  return {
+    async create(p) {
+      try {
+        const rows = await sql<Row[]>`
+          insert into proposals (id, mail_uid_validity, mail_uid, reason, trame, draft)
+          values (${p.id}, ${p.mailUidValidity}, ${p.mailUid}, 'follow_up_due', ${p.trame}, ${p.draft})
+          returning *`;
+        return one(rows, p.id, "created");
+      } catch (error) {
+        if (String(error).includes("duplicate key")) {
+          throw new ProposalError(`a proposal already exists for this mail (or this id)`);
+        }
+        throw error;
+      }
+    },
+
+    get,
+
+    async existsFor(mailUidValidity, mailUid) {
+      const [row] = await sql`
+        select 1 from proposals where mail_uid_validity = ${mailUidValidity} and mail_uid = ${mailUid}`;
+      return row !== undefined;
+    },
+
+    async pending() {
+      const rows = await sql<
+        Row[]
+      >`select * from proposals where status = 'pending' order by created_at`;
+      return rows.map(toProposal);
+    },
+
+    async edit(id, draft) {
+      return one(
+        await sql<
+          Row[]
+        >`update proposals set draft = ${draft} where id = ${id} and status = 'pending' returning *`,
+        id,
+        "edited",
+      );
+    },
+
+    async accept(id, now) {
+      const current = await get(id);
+      if (
+        current?.draft !== null &&
+        current?.draft !== undefined &&
+        SLOT_LEFT.test(current.draft)
+      ) {
+        throw new ProposalError(`proposal ${id} still has a slot to complete`);
+      }
+      const sendAfter = new Date(now.getTime() + UNDO_DELAY_MS);
+      return one(
+        await sql<Row[]>`
+          update proposals set status = 'accepted', decided_at = ${now}, send_after = ${sendAfter}
+          where id = ${id} and status = 'pending' returning *`,
+        id,
+        "accepted",
+      );
+    },
+
+    async refuse(id, now) {
+      return one(
+        await sql<Row[]>`
+          update proposals set status = 'refused', decided_at = ${now}, closed_at = ${now}
+          where id = ${id} and status = 'pending' returning *`,
+        id,
+        "refused",
+      );
+    },
+
+    async lapse(id, now) {
+      return one(
+        await sql<Row[]>`
+          update proposals set status = 'lapsed', decided_at = coalesce(decided_at, ${now}),
+                 send_after = null, closed_at = ${now}
+          where id = ${id} and status in ('pending', 'accepted') returning *`,
+        id,
+        "lapsed",
+      );
+    },
+
+    async cancel(id, now) {
+      return one(
+        await sql<Row[]>`
+          update proposals set status = 'cancelled', send_after = null, closed_at = ${now}
+          where id = ${id} and status = 'accepted' and send_after > ${now} returning *`,
+        id,
+        "cancelled (the undo delay is over, or it was not accepted)",
+      );
+    },
+
+    async dueForSending(now) {
+      const rows = await sql<Row[]>`
+        select * from proposals where status = 'accepted' and send_after <= ${now} order by send_after`;
+      return rows.map(toProposal);
+    },
+
+    async markSent(id, now) {
+      return one(
+        await sql<Row[]>`
+          update proposals set status = 'sent', send_after = null, closed_at = ${now}
+          where id = ${id} and status = 'accepted' and send_after <= ${now} returning *`,
+        id,
+        "marked sent",
+      );
+    },
+
+    async wipeOldTexts(now) {
+      const cutoff = new Date(now.getTime() - TEXT_RETENTION_DAYS * 24 * 3600 * 1000);
+      const result = await sql`
+        update proposals set draft = null where draft is not null and closed_at < ${cutoff}`;
+      return result.count;
+    },
+  };
+}
