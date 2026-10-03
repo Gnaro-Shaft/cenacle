@@ -2,7 +2,7 @@
  * Proposals by hand (phase 4, B1). From B2 on, Iris proposes by herself.
  * Usage: npm run proposal -- create | list | edit <id> "<texte>" | accept <id> | refuse <id> | cancel <id>
  * `create` drafts an acknowledgement for the first due follow-up without a proposal.
- * Nothing is ever sent here: the executor arrives in B4.
+ * Nothing is ever sent here: only the executor sends (npm run executor).
  */
 import { randomBytes } from "node:crypto";
 import { checkDraft, followUpOf } from "@cenacle/core";
@@ -92,7 +92,7 @@ try {
     case "accept": {
       const p = await proposals.accept(id ?? "", now);
       console.log(
-        `✔ ${p.id} acceptée — envoi possible après ${p.sendAfter?.toLocaleTimeString("fr-FR")} (annulable jusque-là). Rien n'est envoyé avant B4.`,
+        `✔ ${p.id} acceptée — envoi possible après ${p.sendAfter?.toLocaleTimeString("fr-FR")} (annulable jusque-là) — c'est l'exécuteur qui l'envoie (npm run executor).`,
       );
       break;
     }

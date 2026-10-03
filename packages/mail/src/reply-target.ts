@@ -18,6 +18,21 @@ export interface ReplyTarget {
   readonly replyToElsewhere: boolean;
 }
 
+/** What the executor needs to answer in the same thread (B4), read at sending time. */
+export interface ReplyContext extends ReplyTarget {
+  readonly subject: string;
+  /** Message-ID of the mail answered, when valid. */
+  readonly messageId: string | null;
+  /** Its References, valid ids only. */
+  readonly references: readonly string[];
+}
+
+const MESSAGE_ID = /^<[^<>\s]{1,250}>$/;
+export const validMessageId = (raw: string | undefined | null): string | null => {
+  const id = raw?.trim() ?? "";
+  return MESSAGE_ID.test(id) ? id : null;
+};
+
 /** Each domain label starts and ends with a letter or digit. */
 const ADDRESS_RULE =
   /^[A-Za-z0-9._%+-]{1,64}@(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$/;
@@ -63,7 +78,20 @@ export async function readReplyTargets(
   uids: readonly number[],
   expectedUidValidity: string,
 ): Promise<Map<number, ReplyTarget>> {
-  const targets = new Map<number, ReplyTarget>();
+  const contexts = await readReplyContexts(cadre, password, uids, expectedUidValidity);
+  return new Map(
+    [...contexts].map(([uid, c]) => [uid, { uid, to: c.to, replyToElsewhere: c.replyToElsewhere }]),
+  );
+}
+
+/** Same read, with what a reply in the same thread needs. */
+export async function readReplyContexts(
+  cadre: MailCadre,
+  password: string,
+  uids: readonly number[],
+  expectedUidValidity: string,
+): Promise<Map<number, ReplyContext>> {
+  const targets = new Map<number, ReplyContext>();
   if (uids.length === 0) return targets;
   if (!uids.every((uid) => Number.isSafeInteger(uid) && uid > 0)) {
     throw new PostmanError("UIDs must be positive integers");
@@ -89,12 +117,16 @@ export async function readReplyTargets(
           `${cadre.mailbox} was renumbered (UIDVALIDITY ${expectedUidValidity} → ${current}) — run mail:sort again first`,
         );
       }
-      for await (const msg of client.fetch(
-        uids.join(","),
-        { uid: true, envelope: true },
-        { uid: true },
-      )) {
-        targets.set(msg.uid, replyTargetOf(msg.uid, msg.envelope?.from, msg.envelope?.replyTo));
+      const query = { uid: true, envelope: true, headers: ["references"] };
+      for await (const msg of client.fetch(uids.join(","), query, { uid: true })) {
+        const target = replyTargetOf(msg.uid, msg.envelope?.from, msg.envelope?.replyTo);
+        const rawRefs = msg.headers?.toString("utf8").replace(/^references:/i, "") ?? "";
+        targets.set(msg.uid, {
+          ...target,
+          subject: msg.envelope?.subject ?? "",
+          messageId: validMessageId(msg.envelope?.messageId),
+          references: (rawRefs.match(/<[^<>\s]{1,250}>/g) ?? []).slice(-20),
+        });
       }
     } finally {
       lock.release();

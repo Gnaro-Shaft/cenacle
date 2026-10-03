@@ -1,4 +1,11 @@
-export { type Cadre, CadreError, loadCadre, type MailCadre, parseCadre } from "./cadre.ts";
+export {
+  type Cadre,
+  CadreError,
+  loadCadre,
+  type MailCadre,
+  parseCadre,
+  TEST_DOMAIN,
+} from "./cadre.ts";
 export {
   type CollectDeps,
   type CollectSummary,
@@ -20,7 +27,15 @@ export {
 } from "./postman.ts";
 export { createProposals, type Proposals, SKIP_REASONS, type SkipReason } from "./proposals.ts";
 export { fixtureForModel, MAX_SOURCE_BYTES, readMailsForModel } from "./reader.ts";
-export { type ReplyTarget, readReplyTargets, replyTargetOf, safeAddress } from "./reply-target.ts";
+export {
+  type ReplyContext,
+  type ReplyTarget,
+  readReplyContexts,
+  readReplyTargets,
+  replyTargetOf,
+  safeAddress,
+  validMessageId,
+} from "./reply-target.ts";
 export { sentToRfc822, toRfc822 } from "./rfc822.ts";
 export {
   EXAMPLE_RULES_PATH,
@@ -36,6 +51,15 @@ export {
   type SortedRef,
   sortByRules,
 } from "./rules.ts";
+export {
+  allowedRecipient,
+  type BuiltReply,
+  buildReply,
+  copyToSent,
+  replySubject,
+  SendError,
+  sendReply,
+} from "./sender.ts";
 export { addressList, senderAddress, senderDomain } from "./sender-domain.ts";
 export {
   assertTestMailbox,

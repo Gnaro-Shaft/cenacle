@@ -6,7 +6,10 @@
 
 ALTER TABLE proposals DROP CONSTRAINT IF EXISTS proposals_status_check;
 ALTER TABLE proposals ADD CONSTRAINT proposals_status_check
-  CHECK (status IN ('pending', 'accepted', 'refused', 'lapsed', 'cancelled', 'sent', 'skipped'));
+  CHECK (status IN ('pending', 'accepted', 'sending', 'sent', 'failed',
+                    'refused', 'lapsed', 'cancelled', 'skipped'));
+-- (The full list, B4's states included: every migration runs again at each
+-- db:migrate, and this one must not refuse rows written by later ones.)
 
 ALTER TABLE proposals DROP CONSTRAINT IF EXISTS proposals_skipped_empty;
 ALTER TABLE proposals ADD CONSTRAINT proposals_skipped_empty

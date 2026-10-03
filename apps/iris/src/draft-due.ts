@@ -31,6 +31,8 @@ export async function lapseOrphans(deps: DraftDueDeps): Promise<number> {
   const known = new Set((await deps.mails.inbox()).map((m) => m.uid));
   let lapsed = 0;
   for (const p of await deps.store.open()) {
+    // Only what can still be decided: a mail being sent or a failed send is left alone.
+    if (p.status !== "pending" && p.status !== "accepted") continue;
     const here =
       position !== null && p.mailUidValidity === position.uidValidity && known.has(p.mailUid);
     if (here) continue;

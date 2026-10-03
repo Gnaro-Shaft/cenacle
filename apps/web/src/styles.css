@@ -345,3 +345,6 @@ h1 {
 .countdown {
   font-weight: 600;
 }
+.countdown.failed {
+  color: var(--accent);
+}
