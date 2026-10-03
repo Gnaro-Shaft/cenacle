@@ -20,6 +20,7 @@ const ref = (
   messageKey: K(String(uid)),
   threadKeys: [],
   receivedAt,
+  urgentTerm: false,
 });
 const result = <T extends { uid: number }>(
   refs: T[],

@@ -15,6 +15,7 @@ const inbox = (uid: number, at = "2026-09-30T08:00:00.000Z") => ({
   uid,
   receivedAt: at,
   noFollowUp: uid === 3,
+  urgentTerm: uid % 10 === 2,
   senderKey: K("a"),
   messageKey: K(String(uid % 10)),
   threadKeys: [K("f")],
@@ -82,5 +83,22 @@ describe("mail store", () => {
     expect(await store.keepOnly("inbox", [1, 3])).toBe(1);
     expect((await store.inbox()).map((i) => i.uid)).toEqual([1, 3]);
     expect(await store.keepOnly("inbox", [])).toBe(2);
+  });
+
+  it("lists urgent client mails not notified yet, recent ones only, then forgets them", async () => {
+    await store.saveInbox("7", [inbox(1), inbox(2), inbox(2 + 10, "2026-01-01T00:00:00.000Z")]);
+    await store.categorize(2, "clients_prospects", "rule");
+    await store.categorize(1, "clients_prospects", "rule");
+    await store.categorize(12, "clients_prospects", "rule"); // urgent, but too old
+    const since = new Date("2026-09-29T00:00:00Z");
+    expect(await store.urgentToNotify(since)).toEqual([2]);
+    await store.markUrgentNotified([2]);
+    expect(await store.urgentToNotify(since)).toEqual([]);
+  });
+
+  it("does not list an urgent term outside the client category", async () => {
+    await store.saveInbox("7", [inbox(2)]);
+    await store.categorize(2, "bruit", "rule");
+    expect(await store.urgentToNotify(new Date(0))).toEqual([]);
   });
 });

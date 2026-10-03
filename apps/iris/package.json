@@ -1,19 +1,14 @@
 {
-  "name": "@cenacle/mail",
+  "name": "@cenacle/iris",
   "version": "0.0.0",
   "private": true,
   "license": "Apache-2.0",
   "type": "module",
-  "exports": {
-    ".": "./src/index.ts",
-    "./test-helpers": "./src/test-helpers.ts"
-  },
   "dependencies": {
     "@cenacle/brain": "0.0.0",
     "@cenacle/core": "0.0.0",
     "@cenacle/journal": "0.0.0",
-    "imapflow": "2.2.1",
-    "postal-mime": "4.0.2",
-    "smol-toml": "1.9.0"
+    "@cenacle/mail": "0.0.0",
+    "@cenacle/telegram": "0.0.0"
   }
 }

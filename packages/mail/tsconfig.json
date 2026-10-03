@@ -12,6 +12,9 @@
     },
     {
       "path": "../journal"
+    },
+    {
+      "path": "../brain"
     }
   ]
 }

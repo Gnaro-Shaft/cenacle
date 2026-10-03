@@ -17,6 +17,8 @@ export interface InboxItem {
   readonly receivedAt: string;
   /** Its domain never expects a reply by mail: never followed up. */
   readonly noFollowUp: boolean;
+  /** An urgency term was in its subject (the subject is not stored). */
+  readonly urgentTerm: boolean;
   readonly senderKey: string | null;
   readonly messageKey: string | null;
   readonly threadKeys: readonly string[];
@@ -59,6 +61,10 @@ export interface MailStore {
   totals(): Promise<Totals>;
   inbox(): Promise<StoredInboxItem[]>;
   sent(): Promise<SentItem[]>;
+  /** Urgent client mails received since `since` that I was not told about yet. */
+  urgentToNotify(since: Date): Promise<number[]>;
+  /** Records that I was told about these urgent mails (alert or recap). */
+  markUrgentNotified(uids: readonly number[]): Promise<void>;
   /** Retention: deletes every mail that arrived before `cutoff`. Returns the rows deleted. */
   purgeBefore(cutoff: Date): Promise<number>;
 }
@@ -67,6 +73,7 @@ interface Row {
   uid: string;
   at: Date;
   no_follow_up: boolean;
+  urgent_term: boolean;
   category: StoredCategory | null;
   decided_by: DecidedBy | null;
   sender_key: string | null;
@@ -106,8 +113,10 @@ export function createMailStore(sql: Sql): MailStore {
       let added = 0;
       for (const item of items) {
         const result = await sql`
-          insert into mail_items (mailbox, uid_validity, uid, at, no_follow_up, sender_key, message_key, thread_keys)
-          values ('inbox', ${uidValidity}, ${item.uid}, ${item.receivedAt}, ${item.noFollowUp}, ${item.senderKey},
+          insert into mail_items (mailbox, uid_validity, uid, at, no_follow_up, urgent_term, sender_key,
+                                  message_key, thread_keys)
+          values ('inbox', ${uidValidity}, ${item.uid}, ${item.receivedAt}, ${item.noFollowUp},
+                  ${item.urgentTerm}, ${item.senderKey},
                   ${item.messageKey}, ${sql.array([...item.threadKeys])})
           on conflict do nothing`;
         added += result.count;
@@ -154,13 +163,14 @@ export function createMailStore(sql: Sql): MailStore {
 
     async inbox() {
       const rows = await sql<Row[]>`
-        select uid::text, at, no_follow_up, category, decided_by, sender_key, recipient_keys,
+        select uid::text, at, no_follow_up, urgent_term, category, decided_by, sender_key, recipient_keys,
                message_key, thread_keys
         from mail_items where mailbox = 'inbox' order by uid`;
       return rows.map((r) => ({
         uid: Number(r.uid),
         receivedAt: r.at.toISOString(),
         noFollowUp: r.no_follow_up,
+        urgentTerm: r.urgent_term,
         senderKey: r.sender_key,
         messageKey: r.message_key,
         threadKeys: r.thread_keys,
@@ -180,6 +190,22 @@ export function createMailStore(sql: Sql): MailStore {
         messageKey: r.message_key,
         threadKeys: r.thread_keys,
       }));
+    },
+
+    async urgentToNotify(since) {
+      const rows = await sql<{ uid: string }[]>`
+        select uid::text from mail_items
+        where mailbox = 'inbox' and category = 'clients_prospects' and urgent_term
+          and not urgent_notified and at >= ${since}
+        order by uid`;
+      return rows.map((r) => Number(r.uid));
+    },
+
+    async markUrgentNotified(uids) {
+      if (uids.length === 0) return;
+      await sql`
+        update mail_items set urgent_notified = true
+        where mailbox = 'inbox' and uid = any(${sql.array(uids.map(String))}::bigint[])`;
     },
 
     async purgeBefore(cutoff) {

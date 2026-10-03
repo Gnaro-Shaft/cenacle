@@ -76,14 +76,17 @@ export async function collectMail(deps: CollectDeps): Promise<CollectSummary> {
     // Mapped field by field: the domain is used for sorting below, never stored.
     const added = await store.saveInbox(
       inbox.result.uidValidity,
-      inbox.result.refs.map(({ uid, domain, receivedAt, senderKey, messageKey, threadKeys }) => ({
-        uid,
-        receivedAt,
-        noFollowUp: domain !== null && (deps.noFollowUp?.has(domain) ?? false),
-        senderKey,
-        messageKey,
-        threadKeys,
-      })),
+      inbox.result.refs.map(
+        ({ uid, domain, receivedAt, urgentTerm, senderKey, messageKey, threadKeys }) => ({
+          uid,
+          receivedAt,
+          noFollowUp: domain !== null && (deps.noFollowUp?.has(domain) ?? false),
+          urgentTerm,
+          senderKey,
+          messageKey,
+          threadKeys,
+        }),
+      ),
     );
     const sentAdded = await store.saveSent(
       sent.result.uidValidity,

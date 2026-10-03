@@ -25,6 +25,7 @@
     "web": "npm run dev -w @cenacle/web",
     "simulate": "node --env-file=.env apps/cli/src/simulate.ts",
     "bot": "node --env-file=.env apps/telegram/src/main.ts",
+    "iris": "node --env-file=.env apps/iris/src/main.ts",
     "ask": "node --env-file=.env apps/cli/src/ask.ts",
     "probe:thinking": "node --env-file=.env apps/cli/src/probe-thinking.ts",
     "obs:up": "docker compose --profile obs up -d",

@@ -48,7 +48,9 @@ describe("postman — headers only", () => {
   const src = code("postman.ts");
 
   it("fetches a fixed list of headers — no body, no envelope, no source", () => {
-    expect(src).toMatch(/INBOX_HEADERS = \["from", "message-id", "in-reply-to", "references"\]/);
+    expect(src).toMatch(
+      /INBOX_HEADERS = \["from", "subject", "message-id", "in-reply-to", "references"\]/,
+    );
     expect(src).toMatch(/SENT_HEADERS = \["to", "cc", "message-id", "in-reply-to", "references"\]/);
     for (const field of ["source", "bodyParts", "envelope", "bodyStructure"]) {
       expect(src).not.toMatch(new RegExp(`\\b${field}\\s*:`));

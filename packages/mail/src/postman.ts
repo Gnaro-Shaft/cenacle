@@ -9,6 +9,7 @@
  * the sender's domain (inbox) and pseudonymous KEYS of the addresses and
  * thread identifiers (keys.ts). Raw headers are parsed and dropped at once.
  */
+import { hasUrgentTerm } from "@cenacle/core";
 import { ImapFlow } from "imapflow";
 import type { MailCadre } from "./cadre.ts";
 import { type Keyer, messageIds } from "./keys.ts";
@@ -24,6 +25,8 @@ export interface MailRef {
   /** Keys of the mails it answers (In-Reply-To and References). */
   readonly threadKeys: readonly string[];
   readonly receivedAt: string;
+  /** An urgency term is in the subject (ADR-0007). The subject itself is not kept. */
+  readonly urgentTerm: boolean;
 }
 
 /** One of my sent mails, as remembered. */
@@ -65,7 +68,7 @@ export class PostmanError extends Error {
   }
 }
 
-const INBOX_HEADERS = ["from", "message-id", "in-reply-to", "references"];
+const INBOX_HEADERS = ["from", "subject", "message-id", "in-reply-to", "references"];
 const SENT_HEADERS = ["to", "cc", "message-id", "in-reply-to", "references"];
 
 /** Header name → value; a header present twice is ambiguous and kept as null. */
@@ -175,6 +178,32 @@ async function readHeaders(
   }
 }
 
+/** RFC 2047 encoded words (=?UTF-8?B?...?= / ?Q?) → text, for the urgency check only. */
+export function decodeSubject(raw: string | null | undefined): string {
+  if (typeof raw !== "string") return "";
+  return raw
+    .replace(/\?=\s+=\?/g, "?==?") // whitespace between encoded words is not text
+    .replace(
+      /=\?([^?\s]+)\?([BbQq])\?([^?\s]*)\?=/g,
+      (whole, charset: string, kind: string, text: string) => {
+        if (!/^utf-?8$/i.test(charset) && !/^(us-ascii|iso-8859-1|latin1)$/i.test(charset))
+          return whole;
+        const bytes =
+          kind.toUpperCase() === "B"
+            ? Buffer.from(text, "base64")
+            : Buffer.from(
+                text
+                  .replace(/_/g, " ")
+                  .replace(/=([0-9A-Fa-f]{2})/g, (_m, hex: string) =>
+                    String.fromCharCode(Number.parseInt(hex, 16)),
+                  ),
+                "latin1",
+              );
+        return bytes.toString(/^utf-?8$/i.test(charset) ? "utf8" : "latin1");
+      },
+    );
+}
+
 function keysOf(keyer: Keyer, headers: Map<string, string | null>) {
   const own = messageIds(headers.get("message-id"))[0];
   const answered = [
@@ -206,6 +235,7 @@ export async function fetchMailRefs(
         senderKey: sender === null ? null : keyer.address(sender),
         ...keysOf(keyer, headers),
         receivedAt: date,
+        urgentTerm: hasUrgentTerm(decodeSubject(headers.get("subject"))),
       };
     }),
   };

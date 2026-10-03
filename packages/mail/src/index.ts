@@ -8,6 +8,7 @@ export {
 } from "./collect.ts";
 export { createKeyer, KeyError, type Keyer, keyerFromEnv, messageIds } from "./keys.ts";
 export { cleanForModel, htmlToText, toMailForModel } from "./mail-text.ts";
+export { type PassDeps, type PassResult, runMailPass } from "./pass.ts";
 export {
   type FetchResult,
   fetchMailRefs,
