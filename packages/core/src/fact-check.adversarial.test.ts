@@ -17,7 +17,7 @@ const set = JSON.parse(
   readFileSync(join(import.meta.dirname, "..", "..", "..", "fixtures", "drafts.json"), "utf8"),
 ) as { drafts: EvalDraft[] };
 const mails = new Map(loadFixtureMailbox().messages.map((m) => [m.id, m]));
-const SIGNATURE = "Genaro-Cedric Nisus — Gnaro";
+const SIGNATURE = "Camille Exemple (fictif) — Cabinet Exemple";
 
 describe("fact checker on the evaluation set", () => {
   it.each(set.drafts.map((d) => [d.id, d] as const))("%s", (_id, d) => {

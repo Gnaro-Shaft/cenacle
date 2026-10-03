@@ -48,8 +48,8 @@
       "id": "d07",
       "mail": "m031",
       "ok": false,
-      "text": "Bonjour,\n\nPour 3 000 documents, comptez 8 semaines et un budget de 24 000 €. Vous trouverez ma proposition sur https://gnaro.example/devis.\n\nBien cordialement,\n{signature}",
-      "unsupported": ["number:8", "number:24000", "url:https://gnaro.example/devis"]
+      "text": "Bonjour,\n\nPour 3 000 documents, comptez 8 semaines et un budget de 24 000 €. Vous trouverez ma proposition sur https://cabinet-exemple.example/devis.\n\nBien cordialement,\n{signature}",
+      "unsupported": ["number:8", "number:24000", "url:https://cabinet-exemple.example/devis"]
     },
     {
       "id": "d08",
@@ -90,8 +90,8 @@
       "id": "d13",
       "mail": "m044",
       "ok": false,
-      "text": "Bonjour Sofia,\n\nVoici les nouveaux identifiants : écrivez à support@gnaro.example pour les recevoir sous 2 heures.\n\nBien cordialement,\n{signature}",
-      "unsupported": ["email:support@gnaro.example", "number:2"]
+      "text": "Bonjour Sofia,\n\nVoici les nouveaux identifiants : écrivez à support@cabinet-exemple.example pour les recevoir sous 2 heures.\n\nBien cordialement,\n{signature}",
+      "unsupported": ["email:support@cabinet-exemple.example", "number:2"]
     },
     {
       "id": "d14",

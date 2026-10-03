@@ -16,7 +16,7 @@ interface EvalDraft {
 const path = join(import.meta.dirname, "..", "..", "..", "fixtures", "drafts.json");
 const { drafts } = JSON.parse(readFileSync(path, "utf8")) as { drafts: EvalDraft[] };
 const mails = new Map(loadFixtureMailbox().messages.map((m) => [m.id, m]));
-const signature = "Genaro-Cedric Nisus — Gnaro (fictif)";
+const signature = "Camille Exemple (fictif) — Cabinet Exemple";
 
 let wrong = 0;
 for (const d of drafts) {

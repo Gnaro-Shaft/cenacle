@@ -35,7 +35,7 @@ describe("cadre.toml — refused", () => {
     ["an IMAP-injecting mailbox", { ...valid, mailbox: '"INBOX\\r\\nA1 DELETE INBOX"' }],
     ["a typo'd key", { ...valid, max_per_fecth: "500" }],
     ["a password in the file", { ...valid, password: '"hunter2"' }],
-    ["a real sender address", { ...valid, address: '"moi@gnaro.fr"' }],
+    ["a real sender address", { ...valid, address: '"moi@exemple.fr"' }],
     ["a header-injecting address", { ...valid, address: '"a@b.test\\r\\nBcc: x@evil.com"' }],
     ["no SMTP port", { ...valid, smtp_port: "0" }],
   ])("refuses %s", (_label, mail) => {
