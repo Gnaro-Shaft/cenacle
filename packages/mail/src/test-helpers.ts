@@ -199,6 +199,9 @@ export function memoryProposalStore(): ProposalStore {
     async pending() {
       return [...rows.values()].filter((p) => p.status === "pending");
     },
+    async open() {
+      return [...rows.values()].filter((p) => p.status === "pending" || p.status === "accepted");
+    },
     async edit(id, draft) {
       return move(id, ["pending"], { draft });
     },

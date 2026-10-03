@@ -33,6 +33,18 @@ describe("proposal life cycle", () => {
     expect((await store.markSent(p.id, later(UNDO_DELAY_MS))).status).toBe("sent");
   });
 
+  it("lists the open proposals: pending and accepted, never closed ones", async () => {
+    const a = await fresh();
+    const b = await fresh();
+    const c = await fresh();
+    await store.accept(b.id, T0);
+    await store.refuse(c.id, later(9 * 24 * 3600 * 1000));
+    const ids = (await store.open()).map((p) => p.id);
+    expect(ids).toContain(a.id);
+    expect(ids).toContain(b.id);
+    expect(ids).not.toContain(c.id);
+  });
+
   it("knows which mails already had a proposal", async () => {
     const p = await fresh();
     expect(await store.existsFor(p.mailUidValidity, p.mailUid)).toBe(true);

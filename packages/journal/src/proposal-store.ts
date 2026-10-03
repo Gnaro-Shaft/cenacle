@@ -62,6 +62,8 @@ export interface ProposalStore {
   /** Whether this mail already had a proposal, whatever became of it. */
   existsFor(mailUidValidity: string, mailUid: number): Promise<boolean>;
   pending(): Promise<Proposal[]>;
+  /** Waiting for me, or accepted and not sent yet (the page shows both). */
+  open(): Promise<Proposal[]>;
   /** I edit the draft before deciding. */
   edit(id: string, draft: string): Promise<Proposal>;
   /** I accept: the sending is scheduled after the undo delay. Refused while a slot is left. */
@@ -166,6 +168,12 @@ export function createProposalStore(sql: Sql): ProposalStore {
       const rows = await sql<
         Row[]
       >`select * from proposals where status = 'pending' order by created_at`;
+      return rows.map(toProposal);
+    },
+
+    async open() {
+      const rows = await sql<Row[]>`
+        select * from proposals where status in ('pending', 'accepted') order by created_at`;
       return rows.map(toProposal);
     },
 

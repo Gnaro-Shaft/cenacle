@@ -4,7 +4,13 @@
  * on Telegram ends it. It never sends a mail: only Telegram messages to me.
  */
 import { createLocalModels, localModelConfigFromEnv } from "@cenacle/brain";
-import { connectAsApp, createJournal, createMailStore, readAllEvents } from "@cenacle/journal";
+import {
+  connectAsApp,
+  createJournal,
+  createMailStore,
+  createProposalStore,
+  readAllEvents,
+} from "@cenacle/journal";
 import {
   keyerFromEnv,
   loadCadre,
@@ -14,6 +20,8 @@ import {
   testMailboxConfigFromEnv,
 } from "@cenacle/mail";
 import { createTelegramApi } from "@cenacle/telegram/api";
+import { draftDueFollowUps } from "./draft-due.ts";
+import { draftingDeps } from "./drafting.ts";
 import { tick } from "./tick.ts";
 
 const chatId = Number(process.env.TELEGRAM_ALLOWED_CHAT_ID);
@@ -29,6 +37,15 @@ const { mail } = loadCadre();
 const { rules, noFollowUp } = loadRules();
 const { password } = testMailboxConfigFromEnv();
 const local = createLocalModels(localModelConfigFromEnv());
+const proposalStore = createProposalStore(sql);
+const drafting = draftingDeps({
+  local,
+  journal,
+  mails: store,
+  store: proposalStore,
+  cadre: mail,
+  password,
+});
 const startedAt = new Date();
 
 let stopping = false;
@@ -37,7 +54,7 @@ process.on("SIGINT", () => {
 });
 
 console.log(
-  "Iris suit son rythme : relève toutes les 15 min (8 h–20 h en semaine), récaps 9 h / 13 h / 18 h.",
+  "Iris suit son rythme : relève toutes les 15 min (8 h–20 h en semaine), brouillons pour les relances dues, récaps 9 h / 13 h / 18 h.",
 );
 while (!stopping) {
   try {
@@ -61,6 +78,10 @@ while (!stopping) {
       },
       totals: (now) => mailTotals(store, now),
       send: (text) => telegram.sendMessage(chatId, text),
+      draft: async () => {
+        await draftDueFollowUps(drafting);
+      },
+      pendingDrafts: async () => (await proposalStore.pending()).length,
     });
     if (outcome === "stopped") {
       console.log("🛑 Arrêt d'urgence demandé sur Telegram : Iris s'arrête.");

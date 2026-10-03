@@ -3,7 +3,8 @@
  *
  * In order: honour an emergency stop; collect if 15 minutes have passed
  * (8 h–20 h on weekdays); outside quiet hours, alert about new urgent client
- * mails; send the recap of 9 h / 13 h / 18 h once. Everything she remembers
+ * mails; send the recap of 9 h / 13 h / 18 h once. From phase 4, Iris also
+ * drafts replies after each collection — only their number reaches Telegram. Everything she remembers
  * about her rhythm comes from the journal, so a restart loses nothing.
  * She never sends a mail: her only outward channel is Telegram, to me.
  */
@@ -25,6 +26,10 @@ export interface TickDeps {
   /** Totals with the follow-up counters (mailTotals). */
   readonly totals: (now: Date) => Promise<{ readonly waiting: number; readonly due: number }>;
   readonly send: (text: string) => Promise<void>;
+  /** Phase 4, B3: drafts replies for the due follow-ups, after each collection. */
+  readonly draft?: () => Promise<void>;
+  /** Proposals waiting for me (only their number reaches Telegram). */
+  readonly pendingDrafts?: () => Promise<number>;
 }
 
 export type TickOutcome = "stopped" | "done";
@@ -75,6 +80,15 @@ export async function tick(deps: TickDeps): Promise<TickOutcome> {
   const lastFetch = lastOf(events, "mail.fetched");
   if (collectDue(deps.now(), lastFetch?.occurredAt ?? null)) {
     await deps.runPass();
+    if (deps.draft !== undefined) {
+      try {
+        await deps.draft();
+      } catch (error) {
+        // Drafting is a help, not a duty: alerts and recaps go on without it.
+        const reason = error instanceof Error ? error.name : "unknown";
+        await deps.journal.append({ agent: AGENT, type: "draft.failed", payload: { reason } });
+      }
+    }
     events = await deps.events(AGENT);
   }
 
@@ -103,7 +117,15 @@ export async function tick(deps: TickDeps): Promise<TickOutcome> {
     const fresh = await freshCounts(deps.store, since);
     const urgent = await deps.store.urgentToNotify(since);
     const { due, waiting } = await deps.totals(now);
-    const text = recap({ hour: localHour(slot), fresh, due, waiting, urgent: urgent.length });
+    const drafts = (await deps.pendingDrafts?.()) ?? 0;
+    const text = recap({
+      hour: localHour(slot),
+      fresh,
+      due,
+      waiting,
+      urgent: urgent.length,
+      drafts,
+    });
     if (
       await notify(deps, text, "recap.sent", {
         slot: slot.toISOString(),

@@ -43,9 +43,9 @@ export function AgentBox({ agent, title, duty }: Props) {
   return (
     <article className={`box ${visual}`} aria-label={`${title}, ${LABELS[visual]}`}>
       {pending > 0 && (
-        <button type="button" className="bubble" aria-label={`${pending} validation(s) en attente`}>
+        <a className="bubble" href="#brouillons" aria-label={`${pending} brouillon(s) à valider`}>
           {pending}
-        </button>
+        </a>
       )}
       <div className="character" aria-hidden="true">
         <div className="head">
