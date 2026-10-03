@@ -40,6 +40,15 @@ describe("reader (GreenMail)", () => {
     expect(unseen).toBe(messages.length);
   });
 
+  it("refuses to read when the mailbox was renumbered (stale UIDs could name other mails)", async () => {
+    const { refs, uidValidity } = await fetchMailRefs(mail, password, keyer);
+    const uids = refs.slice(0, 2).map((r) => r.uid);
+    expect(await readMailsForModel(mail, password, uids, uidValidity)).toHaveLength(2);
+    await expect(readMailsForModel(mail, password, uids, `${uidValidity}9`)).rejects.toThrow(
+      /renumbered/,
+    );
+  });
+
   it("the HTML trap reaches the model as text, its script dropped", async () => {
     const { refs } = await fetchMailRefs(mail, password, keyer);
     const index = messages.findIndex((m) => m.expected.trap === "injection_cachee_html");

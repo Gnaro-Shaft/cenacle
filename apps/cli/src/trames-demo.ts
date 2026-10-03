@@ -1,28 +1,21 @@
 /**
  * Shows the templates filled for the due follow-ups of the test mailbox.
- * The choice of template and the thread values are written here by hand —
- * from B2 on, Iris makes them. Usage: npm run trames:demo
+ * The choice of template and the thread values are mine (fixtures/trame-choices.json);
+ * Iris's own choices are measured by npm run draft:vote. Usage: npm run trames:demo
  */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { checkDraft, loadFixtureMailbox } from "@cenacle/core";
 import { firstName, loadTrames, renderTrame, type SlotValues } from "@cenacle/mail";
 
-const CHOICES: Record<string, { trame: string; values: SlotValues }> = {
-  m003: { trame: "accuse_reception", values: {} },
-  m005: { trame: "confirmer_creneau", values: { creneau: "jeudi" } },
-  m010: { trame: "accuse_reception", values: {} },
-  m013: { trame: "proposer_creneau", values: {} },
-  m031: { trame: "proposer_creneau", values: {} },
-  m034: { trame: "proposer_creneau", values: {} },
-  m044: {
-    trame: "prise_en_charge",
-    values: { sujet: "les identifiants de l'environnement de recette" },
-  },
-  m057: { trame: "confirmer_creneau", values: { creneau: "vendredi à 10 h" } },
-  m071: { trame: "confirmer_creneau", values: { creneau: "jeudi" } },
-  m091: { trame: "prise_en_charge", values: { sujet: "l'erreur 500" } },
-  m119: { trame: "confirmer_creneau", values: { creneau: "vendredi à 10 h" } },
-  m146: { trame: "demander_precision", values: {} },
-};
+const CHOICES = (
+  JSON.parse(
+    readFileSync(
+      join(import.meta.dirname, "..", "..", "..", "fixtures", "trame-choices.json"),
+      "utf8",
+    ),
+  ) as { choices: Record<string, { trame: string; values: SlotValues }> }
+).choices;
 
 const { trames, signature, example } = loadTrames();
 if (example) console.log("ℹ trames : trames.example.toml (exemple) — pas de trames.local.toml\n");

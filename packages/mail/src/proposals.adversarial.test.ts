@@ -1,74 +1,9 @@
 // The journal of proposals: ids and outcomes only, never the draft; the
 // bubble on Iris's box follows the proposals waiting for me.
 import { projectStatus } from "@cenacle/core";
-import type { Proposal, ProposalStatus, ProposalStore } from "@cenacle/journal";
 import { describe, expect, it } from "vitest";
 import { createProposals } from "./proposals.ts";
-import { memoryJournal } from "./test-helpers.ts";
-
-/** A minimal store with the same transitions as Postgres (the real one has its own tests). */
-function memoryProposalStore(): ProposalStore {
-  const rows = new Map<string, Proposal>();
-  const move = (id: string, from: ProposalStatus[], to: Partial<Proposal>) => {
-    const p = rows.get(id);
-    if (p === undefined || !from.includes(p.status)) throw new Error(`cannot move ${id}`);
-    const next = { ...p, ...to };
-    rows.set(id, next);
-    return next;
-  };
-  return {
-    async create(p) {
-      const row: Proposal = {
-        ...p,
-        createdAt: new Date(),
-        reason: "follow_up_due",
-        status: "pending",
-        decidedAt: null,
-        sendAfter: null,
-        closedAt: null,
-      };
-      rows.set(p.id, row);
-      return row;
-    },
-    async get(id) {
-      return rows.get(id) ?? null;
-    },
-    async existsFor(v, uid) {
-      return [...rows.values()].some((p) => p.mailUidValidity === v && p.mailUid === uid);
-    },
-    async pending() {
-      return [...rows.values()].filter((p) => p.status === "pending");
-    },
-    async edit(id, draft) {
-      return move(id, ["pending"], { draft });
-    },
-    async accept(id, now) {
-      return move(id, ["pending"], {
-        status: "accepted",
-        decidedAt: now,
-        sendAfter: new Date(now.getTime() + 120_000),
-      });
-    },
-    async refuse(id, now) {
-      return move(id, ["pending"], { status: "refused", decidedAt: now, closedAt: now });
-    },
-    async lapse(id, now) {
-      return move(id, ["pending", "accepted"], { status: "lapsed", closedAt: now });
-    },
-    async cancel(id, now) {
-      return move(id, ["accepted"], { status: "cancelled", closedAt: now });
-    },
-    async dueForSending() {
-      return [];
-    },
-    async markSent(id, now) {
-      return move(id, ["accepted"], { status: "sent", closedAt: now });
-    },
-    async wipeOldTexts() {
-      return 0;
-    },
-  };
-}
+import { memoryJournal, memoryProposalStore } from "./test-helpers.ts";
 
 const SECRET = "Bonjour Claire, votre TJM secret";
 const T0 = new Date("2026-10-05T10:00:00Z");

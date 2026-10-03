@@ -45,7 +45,12 @@ try {
       }
       if (target === undefined) throw new Error("aucune relance due sans proposition");
       const { mail } = loadCadre();
-      const [read] = await readMailsForModel(mail, testMailboxConfigFromEnv().password, [target]);
+      const [read] = await readMailsForModel(
+        mail,
+        testMailboxConfigFromEnv().password,
+        [target],
+        position.uidValidity,
+      );
       if (read === undefined) throw new Error(`le mail ${target} n'est plus sur le serveur`);
       const { trames, signature } = loadTrames();
       const trame = trames.get("accuse_reception");

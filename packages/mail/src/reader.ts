@@ -48,6 +48,8 @@ export async function readMailsForModel(
   cadre: MailCadre,
   password: string,
   uids: readonly number[],
+  /** When given, the mailbox must still have this UIDVALIDITY: otherwise the UIDs may name other mails. */
+  expectedUidValidity?: string,
 ): Promise<MailForModel[]> {
   if (uids.length === 0) return [];
   if (uids.length > MAX_MAILS_PER_READ) {
@@ -71,6 +73,12 @@ export async function readMailsForModel(
     try {
       if (client.mailbox === false || !client.mailbox.readOnly) {
         throw new PostmanError(`${cadre.mailbox} was not opened read-only — refusing to read`);
+      }
+      const current = String(client.mailbox.uidValidity);
+      if (expectedUidValidity !== undefined && current !== expectedUidValidity) {
+        throw new PostmanError(
+          `${cadre.mailbox} was renumbered (UIDVALIDITY ${expectedUidValidity} → ${current}): the stored UIDs no longer name the same mails — run mail:sort again first`,
+        );
       }
       const query = { uid: true, source: { maxLength: MAX_SOURCE_BYTES } };
       for await (const msg of client.fetch(uids.join(","), query, { uid: true })) {

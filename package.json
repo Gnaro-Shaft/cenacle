@@ -39,7 +39,9 @@
     "alert:bench": "node apps/iris/src/bench-main.ts",
     "draft:check": "node apps/cli/src/draft-check.ts",
     "trames:demo": "node apps/cli/src/trames-demo.ts",
-    "proposal": "node --env-file=.env apps/cli/src/proposal.ts"
+    "proposal": "node --env-file=.env apps/cli/src/proposal.ts",
+    "iris:draft": "node --env-file=.env apps/iris/src/draft-main.ts",
+    "draft:vote": "node --env-file=.env apps/cli/src/draft-vote.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
