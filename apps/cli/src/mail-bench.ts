@@ -48,7 +48,7 @@ try {
   }
 
   const s = scoreBench(items);
-  console.log("\nAttendu \\ obtenu   " + CATEGORIES.map((c) => c.slice(0, 7).padStart(8)).join(""));
+  console.log(`\nAttendu \\ obtenu   ${CATEGORIES.map((c) => c.slice(0, 7).padStart(8)).join("")}`);
   for (const expected of CATEGORIES) {
     console.log(
       expected.padEnd(19) +
