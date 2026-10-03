@@ -5,7 +5,7 @@
 
 const DAY_MS = 24 * 3600 * 1000;
 
-function zonedParts(instant: number, timeZone: string) {
+export function zonedParts(instant: number, timeZone: string) {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone,
     year: "numeric",
@@ -33,11 +33,23 @@ function offsetAt(instant: number, timeZone: string): number {
   return Date.UTC(p.y, p.m - 1, p.d, p.h, p.min, p.s) - Math.floor(instant / 1000) * 1000;
 }
 
-/** The instant of local midnight of a calendar date (y, m 1-12, d) in the zone. */
-export function zonedMidnight(y: number, m: number, d: number, timeZone: string): number {
-  const guess = Date.UTC(y, m - 1, d);
+/** The instant of a local time (y, m 1-12, d, h, min) in the zone. */
+export function zonedTime(
+  y: number,
+  m: number,
+  d: number,
+  h: number,
+  min: number,
+  timeZone: string,
+): number {
+  const guess = Date.UTC(y, m - 1, d, h, min);
   const first = guess - offsetAt(guess, timeZone);
   return guess - offsetAt(first, timeZone);
+}
+
+/** The instant of local midnight of a calendar date (y, m 1-12, d) in the zone. */
+export function zonedMidnight(y: number, m: number, d: number, timeZone: string): number {
+  return zonedTime(y, m, d, 0, 0, timeZone);
 }
 
 /** Hours between two instants, Saturdays and Sundays (local time) excluded. */

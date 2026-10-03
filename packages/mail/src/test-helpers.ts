@@ -31,15 +31,32 @@ export function memoryJournal(): Journal & { events: StoredEvent[] } {
 }
 
 export function memoryMailStore(): MailStore & {
+  notified: Set<number>;
   inboxRows: Map<number, StoredInboxItem & { uidValidity: string }>;
   sentRows: Map<number, SentItem & { uidValidity: string }>;
 } {
   const inboxRows = new Map<number, StoredInboxItem & { uidValidity: string }>();
   const sentRows = new Map<number, SentItem & { uidValidity: string }>();
   const rowsOf = (mailbox: "inbox" | "sent") => (mailbox === "inbox" ? inboxRows : sentRows);
+  const notified = new Set<number>();
   return {
+    notified,
     inboxRows,
     sentRows,
+    async urgentToNotify(since) {
+      return [...inboxRows.values()]
+        .filter(
+          (r) =>
+            r.category === "clients_prospects" &&
+            r.urgentTerm &&
+            !notified.has(r.uid) &&
+            Date.parse(r.receivedAt) >= since.getTime(),
+        )
+        .map((r) => r.uid);
+    },
+    async markUrgentNotified(uids) {
+      for (const uid of uids) notified.add(uid);
+    },
     async position(mailbox) {
       const rows = [...rowsOf(mailbox).values()];
       const last = rows.at(-1);

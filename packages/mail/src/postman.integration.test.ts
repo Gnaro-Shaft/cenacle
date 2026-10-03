@@ -46,6 +46,7 @@ describe("postman (GreenMail)", () => {
         "senderKey",
         "threadKeys",
         "uid",
+        "urgentTerm",
       ]);
     }
   });
@@ -77,6 +78,8 @@ describe("postman (GreenMail)", () => {
       const r = refs[i];
       expect(r?.senderKey, m.id).toBe(keyer.address(m.from.address));
       expect(r?.messageKey, m.id).toBe(idKey(m.id));
+      // Encoded subjects are decoded before the urgency check.
+      expect(r?.urgentTerm, m.id).toBe(m.expected.urgent || ["m056", "m100"].includes(m.id));
       expect(r?.receivedAt, m.id).toBe(greenMailDate(new Date(m.date).toISOString()));
     });
     const index = messages.findIndex((m) => m.id === "m005");

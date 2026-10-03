@@ -3,13 +3,13 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { splitHeaders } from "./postman.ts";
+import { decodeSubject, splitHeaders } from "./postman.ts";
 import { senderDomain } from "./sender-domain.ts";
 
 const source = readFileSync(join(import.meta.dirname, "postman.ts"), "utf8");
 
 describe("postman — what it remembers", () => {
-  it("MailRef holds a UID, a domain, keys and a date — no address, no subject", () => {
+  it("MailRef holds a UID, a domain, keys, a date and an urgency flag — no address, no subject", () => {
     const block = /export interface MailRef \{([^}]*)\}/.exec(source)?.[1] ?? "";
     const fields = [...block.matchAll(/readonly (\w+):/g)].map((m) => m[1]);
     expect(fields).toEqual([
@@ -19,6 +19,7 @@ describe("postman — what it remembers", () => {
       "messageKey",
       "threadKeys",
       "receivedAt",
+      "urgentTerm",
     ]);
   });
 
@@ -40,5 +41,19 @@ describe("splitHeaders", () => {
     const h = splitHeaders("From: <boss@client.example>\r\nFrom: <evil@attacker.test>\r\n");
     expect(h.get("from")).toBeNull();
     expect(senderDomain(h.get("from"))).toBeNull();
+  });
+});
+
+describe("decodeSubject", () => {
+  it("decodes UTF-8 encoded words, base64 and quoted-printable", () => {
+    const b = `=?UTF-8?B?${Buffer.from("Dès que possible").toString("base64")}?=`;
+    expect(decodeSubject(b)).toBe("Dès que possible");
+    expect(decodeSubject("=?utf-8?Q?URGENCE_=E2=80=94_donn=C3=A9es?=")).toBe("URGENCE — données");
+  });
+
+  it("leaves unknown charsets and garbage as they are, without throwing", () => {
+    expect(decodeSubject("=?x-unknown?B?AAAA?=")).toBe("=?x-unknown?B?AAAA?=");
+    expect(() => decodeSubject("=?UTF-8?B?%%%?=")).not.toThrow();
+    expect(decodeSubject(null)).toBe("");
   });
 });

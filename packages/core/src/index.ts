@@ -44,9 +44,20 @@ export {
 export { type MailCounts, MailCountsError } from "./mail-counts.ts";
 export { type MailForModel, MODEL_FIELD_MAX, MODEL_TEXT_MAX } from "./mail-for-model.ts";
 export {
+  COLLECT_EVERY_MINUTES,
+  collectDue,
+  dayStart,
+  isQuiet,
+  latestRecapSlot,
+  RECAP_HOURS,
+  recapToSend,
+  TIME_ZONE,
+} from "./schedule.ts";
+export {
   type AgentMessage,
   type ProblemMessage,
   type StatusMessage,
   toStatusMessage,
 } from "./status-message.ts";
-export { workingHoursBetween, zonedMidnight } from "./working-hours.ts";
+export { hasUrgentTerm, URGENT_TERMS } from "./urgency.ts";
+export { workingHoursBetween, zonedMidnight, zonedTime } from "./working-hours.ts";
