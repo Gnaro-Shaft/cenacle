@@ -30,7 +30,9 @@ describe("proposal life cycle", () => {
       expect.objectContaining({ id: p.id }),
     );
     expect((await store.dueForSending(later(UNDO_DELAY_MS))).map((x) => x.id)).toContain(p.id);
-    expect((await store.markSent(p.id, later(UNDO_DELAY_MS))).status).toBe("sent");
+    const claimed = await store.claim(p.id, later(UNDO_DELAY_MS));
+    expect(claimed).toMatchObject({ status: "sending", sentAt: later(UNDO_DELAY_MS) });
+    expect((await store.markSent(p.id, later(UNDO_DELAY_MS + 1000))).status).toBe("sent");
   });
 
   it("lists the open proposals: pending and accepted, never closed ones", async () => {

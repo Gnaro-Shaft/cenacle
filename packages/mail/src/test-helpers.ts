@@ -1,4 +1,5 @@
 /** Test doubles: an in-memory journal and mail store, same contracts as Postgres. */
+
 import type {
   InboxItem,
   Journal,
@@ -11,6 +12,7 @@ import type {
   StoredEvent,
   StoredInboxItem,
 } from "@cenacle/journal";
+import { ProposalError } from "@cenacle/journal";
 
 export function memoryJournal(): Journal & { events: StoredEvent[] } {
   const events: StoredEvent[] = [];
@@ -165,6 +167,7 @@ export function memoryProposalStore(): ProposalStore {
         decidedAt: null,
         sendAfter: null,
         closedAt: null,
+        sentAt: null,
       };
       rows.set(p.id, row);
       return row;
@@ -186,6 +189,7 @@ export function memoryProposalStore(): ProposalStore {
         decidedAt: now,
         sendAfter: null,
         closedAt: now,
+        sentAt: null,
       };
       rows.set(p.id, row);
       return row;
@@ -200,7 +204,13 @@ export function memoryProposalStore(): ProposalStore {
       return [...rows.values()].filter((p) => p.status === "pending");
     },
     async open() {
-      return [...rows.values()].filter((p) => p.status === "pending" || p.status === "accepted");
+      return [...rows.values()].filter(
+        (p) =>
+          p.status === "pending" ||
+          p.status === "accepted" ||
+          p.status === "sending" ||
+          (p.status === "failed" && p.draft !== null),
+      );
     },
     async edit(id, draft) {
       return move(id, ["pending"], { draft });
@@ -221,11 +231,33 @@ export function memoryProposalStore(): ProposalStore {
     async cancel(id, now) {
       return move(id, ["accepted"], { status: "cancelled", closedAt: now });
     },
-    async dueForSending() {
-      return [];
+    async dueForSending(now) {
+      return [...rows.values()].filter(
+        (p) => p.status === "accepted" && (p.sendAfter?.getTime() ?? Infinity) <= now.getTime(),
+      );
+    },
+    async claim(id, now) {
+      const p = rows.get(id);
+      if (
+        p === undefined ||
+        p.status !== "accepted" ||
+        (p.sendAfter?.getTime() ?? Infinity) > now.getTime()
+      )
+        throw new ProposalError(
+          `proposal ${id} cannot be claimed: it is ${p?.status ?? "missing"}`,
+        );
+      return move(id, ["accepted"], { status: "sending", sendAfter: null, sentAt: now });
     },
     async markSent(id, now) {
-      return move(id, ["accepted"], { status: "sent", closedAt: now });
+      return move(id, ["sending"], { status: "sent", closedAt: now });
+    },
+    async markFailed(id, now) {
+      return move(id, ["sending"], { status: "failed", closedAt: now });
+    },
+    async sendsSince(since) {
+      return [...rows.values()].filter(
+        (p) => p.sentAt !== null && p.sentAt.getTime() >= since.getTime(),
+      ).length;
     },
     async wipeOldTexts() {
       return 0;

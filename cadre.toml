@@ -12,3 +12,7 @@ mailbox = "INBOX"
 sent_mailbox = "Sent"
 # Most mails read in one pass; a bigger backlog is read over several passes.
 max_per_fetch = 500
+# Phase 4: the executor sends my accepted replies through the same test server
+# (GreenMail, this machine only), from this fictional address.
+smtp_port = 3025
+address = "test-cenacle@cenacle.test"

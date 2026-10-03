@@ -41,7 +41,8 @@
     "trames:demo": "node apps/cli/src/trames-demo.ts",
     "proposal": "node --env-file=.env apps/cli/src/proposal.ts",
     "iris:draft": "node --env-file=.env apps/iris/src/draft-main.ts",
-    "draft:vote": "node --env-file=.env apps/cli/src/draft-vote.ts"
+    "draft:vote": "node --env-file=.env apps/cli/src/draft-vote.ts",
+    "executor": "node --env-file=.env apps/executor/src/main.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

@@ -2,7 +2,7 @@
 
 export interface ProposalView {
   readonly id: string;
-  readonly status: "pending" | "accepted";
+  readonly status: "pending" | "accepted" | "sending" | "failed";
   readonly trame: string | null;
   readonly draft: string;
   readonly createdAt: string;

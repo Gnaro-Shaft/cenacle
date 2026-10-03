@@ -18,6 +18,10 @@ export interface MailCadre {
   /** Where my sent mails are (read-only too): tells Iris I answered. */
   readonly sentMailbox: string;
   readonly maxPerFetch: number;
+  /** Phase 4: the SMTP port of the same loopback test server (the executor only). */
+  readonly smtpPort: number;
+  /** My address, as the sender of the replies. A reserved test domain until phase 5. */
+  readonly address: string;
 }
 
 export interface Cadre {
@@ -33,7 +37,18 @@ export class CadreError extends Error {
 
 const LOOPBACK: ReadonlySet<string> = new Set(["127.0.0.1", "localhost", "::1"]);
 export const MAX_PER_FETCH_LIMIT = 5000;
-const MAIL_KEYS = ["host", "port", "user", "mailbox", "sent_mailbox", "max_per_fetch"] as const;
+const MAIL_KEYS = [
+  "host",
+  "port",
+  "user",
+  "mailbox",
+  "sent_mailbox",
+  "max_per_fetch",
+  "smtp_port",
+  "address",
+] as const;
+/** Domains reserved for tests (RFC 2606): nobody real can receive a mail there. */
+export const TEST_DOMAIN = /\.(test|example|invalid|localhost)$/i;
 
 function isTable(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -63,6 +78,15 @@ function integer(table: Record<string, unknown>, key: string, min: number, max: 
   return n;
 }
 
+function testAddress(address: string): string {
+  if (!TEST_DOMAIN.test(address)) {
+    throw new CadreError(
+      `mail.address "${address}" refused: phase 4 sends from a test domain only`,
+    );
+  }
+  return address;
+}
+
 /** Validates already-parsed TOML. Exported for tests. */
 export function toCadre(raw: unknown): Cadre {
   if (!isTable(raw)) throw new CadreError("not a table");
@@ -85,6 +109,8 @@ export function toCadre(raw: unknown): Cadre {
       mailbox: text(mail, "mailbox", /^[A-Za-z0-9 ._/-]{1,128}$/),
       sentMailbox: text(mail, "sent_mailbox", /^[A-Za-z0-9 ._/-]{1,128}$/),
       maxPerFetch: integer(mail, "max_per_fetch", 1, MAX_PER_FETCH_LIMIT),
+      smtpPort: integer(mail, "smtp_port", 1, 65535),
+      address: testAddress(text(mail, "address", /^[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,190}$/)),
     },
   };
 }

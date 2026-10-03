@@ -9,6 +9,8 @@ const valid = {
   mailbox: '"INBOX"',
   sent_mailbox: '"Sent"',
   max_per_fetch: "500",
+  smtp_port: "3025",
+  address: '"test-cenacle@cenacle.test"',
 };
 const toml = (mail: Record<string, string>, extra = "") =>
   `${extra}[mail]\n${Object.entries(mail)
@@ -33,6 +35,9 @@ describe("cadre.toml — refused", () => {
     ["an IMAP-injecting mailbox", { ...valid, mailbox: '"INBOX\\r\\nA1 DELETE INBOX"' }],
     ["a typo'd key", { ...valid, max_per_fecth: "500" }],
     ["a password in the file", { ...valid, password: '"hunter2"' }],
+    ["a real sender address", { ...valid, address: '"moi@gnaro.fr"' }],
+    ["a header-injecting address", { ...valid, address: '"a@b.test\\r\\nBcc: x@evil.com"' }],
+    ["no SMTP port", { ...valid, smtp_port: "0" }],
   ])("refuses %s", (_label, mail) => {
     expect(() => parseCadre(toml(mail))).toThrow(CadreError);
   });

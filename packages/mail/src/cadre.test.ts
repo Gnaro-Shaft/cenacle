@@ -10,6 +10,8 @@ describe("cadre.toml", () => {
       mailbox: "INBOX",
       sentMailbox: "Sent",
       maxPerFetch: 500,
+      smtpPort: 3025,
+      address: "test-cenacle@cenacle.test",
     });
   });
 });

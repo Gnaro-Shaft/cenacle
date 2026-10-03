@@ -8,6 +8,9 @@ import type { Sql } from "postgres";
 export type ProposalStatus =
   | "pending"
   | "accepted"
+  /** Claimed by the executor, being sent (B4). Never retried by itself. */
+  | "sending"
+  | "failed"
   | "refused"
   | "lapsed"
   | "cancelled"
@@ -28,6 +31,8 @@ export interface Proposal {
   readonly decidedAt: Date | null;
   readonly sendAfter: Date | null;
   readonly closedAt: Date | null;
+  /** When the executor claimed it (sending, sent or failed). */
+  readonly sentAt: Date | null;
 }
 
 export interface NewProposal {
@@ -62,7 +67,7 @@ export interface ProposalStore {
   /** Whether this mail already had a proposal, whatever became of it. */
   existsFor(mailUidValidity: string, mailUid: number): Promise<boolean>;
   pending(): Promise<Proposal[]>;
-  /** Waiting for me, or accepted and not sent yet (the page shows both). */
+  /** What the page shows: waiting for me, accepted, being sent, and failed sends (until their text is wiped). */
   open(): Promise<Proposal[]>;
   /** I edit the draft before deciding. */
   edit(id: string, draft: string): Promise<Proposal>;
@@ -75,7 +80,16 @@ export interface ProposalStore {
   cancel(id: string, now: Date): Promise<Proposal>;
   /** Proposals whose undo delay is over: ready for the executor. */
   dueForSending(now: Date): Promise<Proposal[]>;
+  /**
+   * The executor takes an accepted proposal whose undo delay is over, BEFORE
+   * talking to the mail server. Atomic: of two executors, one wins, the other
+   * gets an error. Once claimed, it can only become sent or failed.
+   */
+  claim(id: string, now: Date): Promise<Proposal>;
   markSent(id: string, now: Date): Promise<Proposal>;
+  markFailed(id: string, now: Date): Promise<Proposal>;
+  /** Sending attempts since a moment (the daily limit). */
+  sendsSince(since: Date): Promise<number>;
   /** Wipes the text of proposals closed more than 7 days ago. Returns how many. */
   wipeOldTexts(now: Date): Promise<number>;
 }
@@ -92,6 +106,7 @@ interface Row {
   decided_at: Date | null;
   send_after: Date | null;
   closed_at: Date | null;
+  sent_at: Date | null;
 }
 
 const toProposal = (r: Row): Proposal => ({
@@ -106,6 +121,7 @@ const toProposal = (r: Row): Proposal => ({
   decidedAt: r.decided_at,
   sendAfter: r.send_after,
   closedAt: r.closed_at,
+  sentAt: r.sent_at,
 });
 
 export function createProposalStore(sql: Sql): ProposalStore {
@@ -173,7 +189,9 @@ export function createProposalStore(sql: Sql): ProposalStore {
 
     async open() {
       const rows = await sql<Row[]>`
-        select * from proposals where status in ('pending', 'accepted') order by created_at`;
+        select * from proposals
+        where status in ('pending', 'accepted', 'sending') or (status = 'failed' and draft is not null)
+        order by created_at`;
       return rows.map(toProposal);
     },
 
@@ -243,14 +261,40 @@ export function createProposalStore(sql: Sql): ProposalStore {
       return rows.map(toProposal);
     },
 
+    async claim(id, now) {
+      return one(
+        await sql<Row[]>`
+          update proposals set status = 'sending', send_after = null, sent_at = ${now}
+          where id = ${id} and status = 'accepted' and send_after <= ${now} returning *`,
+        id,
+        "claimed for sending (not accepted, or the undo delay is not over)",
+      );
+    },
+
     async markSent(id, now) {
       return one(
         await sql<Row[]>`
-          update proposals set status = 'sent', send_after = null, closed_at = ${now}
-          where id = ${id} and status = 'accepted' and send_after <= ${now} returning *`,
+          update proposals set status = 'sent', closed_at = ${now}
+          where id = ${id} and status = 'sending' returning *`,
         id,
         "marked sent",
       );
+    },
+
+    async markFailed(id, now) {
+      return one(
+        await sql<Row[]>`
+          update proposals set status = 'failed', closed_at = ${now}
+          where id = ${id} and status = 'sending' returning *`,
+        id,
+        "marked failed",
+      );
+    },
+
+    async sendsSince(since) {
+      const [row] = await sql<{ n: string }[]>`
+        select count(*) as n from proposals where sent_at >= ${since}`;
+      return Number(row?.n ?? 0);
     },
 
     async wipeOldTexts(now) {

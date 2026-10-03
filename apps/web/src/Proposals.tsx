@@ -47,6 +47,23 @@ function Card({
     }
   };
 
+  if (p.status === "sending" || p.status === "failed") {
+    return (
+      <article className={`proposal ${p.status}`} aria-label={`Brouillon ${p.id}`}>
+        <header>
+          <strong>{p.mail?.subject ?? "(mail introuvable)"}</strong>
+          <span className="to">À : {p.mail?.to ?? "—"}</span>
+        </header>
+        <pre className="draft-text">{p.draft}</pre>
+        <p className={p.status === "failed" ? "countdown failed" : "countdown"}>
+          {p.status === "sending"
+            ? "📤 Envoi en cours…"
+            : "❌ L'envoi a échoué. Il n'est jamais réessayé tout seul : réponds depuis ta messagerie si besoin."}
+        </p>
+      </article>
+    );
+  }
+
   if (p.status === "accepted") {
     const left = Math.max(0, Math.ceil((Date.parse(p.sendAfter ?? "") - now) / 1000));
     return (
@@ -59,7 +76,7 @@ function Card({
         <p className="countdown">
           {left > 0
             ? `✅ Accepté — annulable encore ${Math.floor(left / 60)} min ${String(left % 60).padStart(2, "0")} s`
-            : "✅ Accepté — en attente de l'exécuteur (étape B4)"}
+            : "✅ Accepté — l'exécuteur l'envoie à son prochain passage (npm run executor)"}
         </p>
         {left > 0 && (
           <button

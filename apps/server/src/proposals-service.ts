@@ -11,9 +11,13 @@ import { checkDraft, type MailForModel } from "@cenacle/core";
 import { type Proposal, ProposalError, type ProposalStore } from "@cenacle/journal";
 import type { Proposals, ReplyTarget, Trames } from "@cenacle/mail";
 
+/** What the page shows: waiting for me, accepted, being sent, and failed sends. */
+export type ShownStatus = "pending" | "accepted" | "sending" | "failed";
+const SHOWN: readonly string[] = ["pending", "accepted", "sending", "failed"];
+
 export interface ProposalView {
   readonly id: string;
-  readonly status: "pending" | "accepted";
+  readonly status: ShownStatus;
   readonly trame: string | null;
   readonly draft: string;
   readonly createdAt: string;
@@ -87,8 +91,8 @@ export function createProposalsService(deps: ServiceDeps): ProposalsService {
   return {
     async list() {
       const open = (await deps.store.open()).filter(
-        (p): p is Proposal & { status: "pending" | "accepted"; draft: string } =>
-          (p.status === "pending" || p.status === "accepted") && p.draft !== null,
+        (p): p is Proposal & { status: ShownStatus; draft: string } =>
+          SHOWN.includes(p.status) && p.draft !== null,
       );
       const validity = await deps.uidValidity();
       const here = open.filter((p) => p.mailUidValidity === validity).map((p) => p.mailUid);
