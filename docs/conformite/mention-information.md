@@ -1,4 +1,6 @@
-# Mention d'information — Cénacle (à publier avant l'ouverture)
+# Mention d'information — Cénacle
+
+> **Publiée le 4 octobre 2026** dans les mentions légales du site, et **vérifiée en ligne** le même jour (section « Mon assistant de messagerie », entre « Mon assistant de travail » et « Questions sur les articles » ; « Dernière mise à jour : 4 octobre 2026 »). À l'ouverture du traitement, `cadre.toml` portera `mention_publiee = 2026-10-04` : rien de ce qui est arrivé avant ce jour ne sera lu.
 
 > Jalon C4 de la phase 5. Rédigé par Claude le 2026-10-04 ; ce n'est pas un avis
 > juridique. **La publication est le geste du responsable**, dans les mentions
