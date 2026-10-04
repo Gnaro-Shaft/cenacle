@@ -48,6 +48,7 @@
     "floor:bench": "node apps/cli/src/floor-bench.ts",
     "personne": "node --env-file=.env --env-file-if-exists=.env.mail apps/cli/src/personne.ts",
     "mesure:rangement": "node --env-file=.env --env-file-if-exists=.env.mail apps/cli/src/mesure-rangement.ts",
+    "regles:domaines": "node --env-file=.env --env-file-if-exists=.env.mail apps/cli/src/regles-domaines.ts",
     "mesure:fuites": "node --env-file=.env --env-file-if-exists=.env.mail apps/cli/src/mesure-fuites.ts",
     "secrets:split": "node apps/cli/src/secrets-split.ts",
     "secrets:backup": "node apps/cli/src/secrets-backup.ts backup",
