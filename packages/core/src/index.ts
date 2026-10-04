@@ -28,6 +28,7 @@ export {
   type AgentStatus,
   applyEvent,
   initialStatus,
+  isKnownEventType,
   ProjectionError,
   projectStatus,
 } from "./agent-status.ts";
