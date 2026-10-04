@@ -1,0 +1,29 @@
+# Phase 5 — La vraie boîte
+
+**Objectif** : Iris travaille sur ma vraie boîte professionnelle. Elle trie, suit et propose des réponses, que je valide une à une.
+**Critère de sortie** : sur ma vraie boîte, les mesures de la phase 4 tiennent : aucun envoi sans mon acceptation, aucun fait inventé, aucune fuite. Chaque donnée réelle est couverte par un traitement déclaré, informé et purgé.
+
+**Ordre juridique avant ordre technique** (ADR-0009). Aucun mail réel n'est lu avant que les jalons C0 à C4 soient faits.
+
+Un jalon = une branche + une pull request, CI verte obligatoire.
+
+| Jalon | Contenu | Démonstration |
+|---|---|---|
+| **C0 — Registres** | Registre des traitements, registre IA, examen et AIPD légère, procédure en cas de violation (`docs/conformite/`) | Documents relus et validés par le responsable |
+| **C1 — Le cadre exécutable** | Traitements déclarés dans un fichier que le code applique (ADR-0009) : une source non couverte n'est pas lue, une mention manquante fait échouer le démarrage, chaque table a sa durée et sa purge | Démarrage refusé sans traitement ; purge éprouvée |
+| **C2 — Plancher article 9** | Liste fermée et déterministe ; un mail écarté n'est jamais lu par le modèle | Banc : 0 mail sensible donné au modèle |
+| **C3 — Droits des personnes** | Exporter et effacer ce qu'Iris détient sur une adresse (par sa clé HMAC) | Export, puis effacement vérifié en base et dans les sauvegardes |
+| **C4 — Mention révisée** | La mention publiée sur le site couvre Cénacle : lecture du contenu par un modèle local, brouillons, envois validés, aide de l'IA | Mention vérifiée en ligne, pas supposée |
+| **S1 — Secrets et séparation** | Un fichier d'environnement par programme ; identifiants de messagerie ; sauvegarde des secrets | Chaque programme refuse les secrets des autres |
+| **S2 — Sentinelle** (ADR-0002) | Petit VPS en Europe, sans aucun contenu | Une panne du Mac est signalée |
+| **M1 — Vraie boîte de test** (ADR-0010) | Une adresse de test de mon domaine : TLS obligatoire, certificat vérifié, envoi limité à mes propres adresses | Phase 4 rejouée sur un vrai serveur |
+| **M2 — Vraie boîte, lecture seule** | Tri et suivi sur la vraie boîte, sans brouillon ni envoi | Mesures publiées (classement, « À trier », fuites) |
+| **M3 — Brouillons et envois réels** | Brouillons et envois sur la vraie boîte | Critère de sortie de la phase |
+
+## Décisions (04/10)
+
+- **La boîte** : ma boîte professionnelle, hébergée chez OVH en France ; aucun transfert hors UE, et OVH en était déjà le sous-traitant. Les adresses et l'hôte réels restent hors du dépôt (`.env`, `*.local.toml`).
+- **Legion** lit déjà cette boîte (domaines seulement, aucun modèle). **Cénacle le remplacera à terme**, quand tout fonctionnera. D'ici là les deux coexistent, chacun avec son traitement et sa mention.
+- **AIPD** : légère, sur le modèle de celle de Myriade.
+- **Aide de l'IA** : elle est signalée dans les mentions du site ; à vérifier en C4, et à étendre à Cénacle.
+- **Ordre** : registres et cadre d'abord, puis la sentinelle avant toute vraie boîte (ADR-0002), puis une vraie boîte de test sur mon domaine (ADR-0010).
