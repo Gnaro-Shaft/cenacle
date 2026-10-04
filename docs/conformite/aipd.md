@@ -40,7 +40,7 @@
 - **Impacts** : divulgation du contenu de brouillons (propos de correspondants), de la liste des mails en attente ; usage du mot de passe de la boîte.
 - **Sources** : vol ou compromission du Mac ; programme compromis sur le Mac ; fuite d'un secret.
 - **Mesures** : FileVault ; programmes, base et services liés à `127.0.0.1` ; page protégée par un jeton tiré à chaque démarrage, origine et nom d'hôte vérifiés ; rôles séparés en base, signatures de la page (ADR-0013) ; aucun contenu dans le journal, les traces ni Telegram.
-- **Faiblesses** : un seul compte macOS (ADR-0013) ; secrets de tous les programmes dans un même `.env` jusqu'à S1 ; aucune sauvegarde chiffrée des secrets aujourd'hui.
+- **Faiblesses** : un seul compte macOS (ADR-0013). Corrigé en S1 : chaque programme ne charge que ses secrets et refuse ceux des autres (en particulier le mot de passe du propriétaire de la base, que tous recevaient jusque-là) ; secrets sauvegardés chiffrés.
 - **Gravité : importante. Vraisemblance : limitée.**
 
 ### R2 — Modification non désirée : une réponse erronée part chez un tiers
@@ -74,7 +74,7 @@
 | 2 | ~~Plancher article 9, déterministe, avant le modèle~~ **fait le 2026-10-04** | R4 | C2 |
 | 3 | ~~Export et effacement par adresse~~ **fait le 2026-10-04** | Droits | C3 |
 | 4 | Mention révisée et publiée, vérifiée en ligne | Information | C4 |
-| 5 | Un fichier d'environnement par programme ; sauvegarde chiffrée des secrets (`CENACLE_MAIL_KEY`, clés de la page, mot de passe de l'exécuteur) | R1 | S1 |
+| 5 | ~~Un fichier d'environnement par programme ; sauvegarde chiffrée des secrets~~ **fait le 2026-10-04** ; reste la liste d'opposition à protéger d'une perte de la base | R1 | S1 |
 | 6 | Sentinelle sans contenu (ADR-0002) | Disponibilité | S2 |
 | 7 | Revoir cette AIPD avant M3 (premiers envois réels), puis au plus tard le 2027-10-04 | Tous | — |
 

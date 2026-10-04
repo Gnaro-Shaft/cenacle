@@ -76,6 +76,16 @@ export {
   TIME_ZONE,
 } from "./schedule.ts";
 export {
+  FAMILIES,
+  familyOf,
+  refuseForeignSecrets,
+  SECRET_FAMILIES,
+  type SecretFamily,
+  SecretPlacementError,
+  type SplitPlan,
+  splitEnv,
+} from "./secrets.ts";
+export {
   assertNotSensitive,
   revealsSpecialCategory,
   SensitiveMailError,
@@ -88,4 +98,5 @@ export {
   toStatusMessage,
 } from "./status-message.ts";
 export { hasUrgentTerm, URGENT_TERMS } from "./urgency.ts";
+export { MIN_PASSPHRASE, openSecrets, sealSecrets, VaultError } from "./vault.ts";
 export { workingHoursBetween, zonedMidnight, zonedParts, zonedTime } from "./working-hours.ts";

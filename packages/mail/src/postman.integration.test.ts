@@ -8,8 +8,11 @@ import { createKeyer } from "./keys.ts";
 import { fetchMailRefs, fetchSentRefs } from "./postman.ts";
 import { loadFixtures, testMailboxConfigFromEnv } from "./test-mailbox.ts";
 
-const envFile = join(import.meta.dirname, "..", "..", "..", ".env");
-if (existsSync(envFile)) process.loadEnvFile(envFile);
+// .env, and the mailbox secrets of .env.mail (S1).
+for (const name of [".env", ".env.mail"]) {
+  const envFile = join(import.meta.dirname, "..", "..", "..", name);
+  if (existsSync(envFile)) process.loadEnvFile(envFile);
+}
 const { password } = testMailboxConfigFromEnv();
 const { mail } = loadCadre();
 const { messages } = loadFixtureMailbox();

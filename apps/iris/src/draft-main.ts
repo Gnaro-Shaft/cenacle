@@ -6,13 +6,12 @@
  * Usage: npm run iris:draft   (then npm run proposal -- list)
  */
 import { createLocalModels, localModelConfigFromEnv } from "@cenacle/brain";
-import { refusePrivateKey, refuseSecret } from "@cenacle/core";
+import { refuseForeignSecrets } from "@cenacle/core";
 import {
   connectAsApp,
   createJournal,
   createMailStore,
   createProposalStore,
-  EXECUTOR_PASSWORD_VAR,
 } from "@cenacle/journal";
 import { loadCadre, testMailboxConfigFromEnv } from "@cenacle/mail";
 import { draftDueFollowUps } from "./draft-due.ts";
@@ -25,8 +24,7 @@ const LABEL = {
   set_aside: "écarté du modèle, à toi de répondre",
 };
 // Iris can never accept: she must not even hold the page's key (ADR-0013).
-refusePrivateKey("Iris");
-refuseSecret("Iris", EXECUTOR_PASSWORD_VAR, "the executor");
+refuseForeignSecrets("Iris", ["mail"]);
 const sql = connectAsApp();
 try {
   const r = await draftDueFollowUps(

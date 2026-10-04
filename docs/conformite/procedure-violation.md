@@ -25,7 +25,7 @@ Le délai court à partir du moment où l'on **a connaissance** de la violation.
 
 **Dans l'heure — contenir**
 1. Arrêter les envois : `/stop` sur Telegram, ou arrêter les programmes (`npm run executor`, `npm run iris`, `npm run server` : Ctrl+C).
-2. Changer le mot de passe de la boîte chez OVH. Il ne doit plus fonctionner depuis le Mac tant que l'enquête n'est pas finie.
+2. Changer le mot de passe de la boîte chez OVH (`.env.mail`). Il ne doit plus fonctionner depuis le Mac tant que l'enquête n'est pas finie. Si le mot de passe du propriétaire de la base a pu fuir (`.env.owner`), le changer aussi : il permet de défaire toutes les protections de la base.
 3. Selon le secret en cause :
    - clé de la page : `rm .env.page && npm run keys:accept`, puis mettre la nouvelle clé publique dans `.env` (les acceptations pas encore envoyées échouent : c'est voulu) ;
    - mot de passe de l'exécuteur : en tirer un nouveau dans `.env.executor`, puis `npm run db:migrate` ;

@@ -2,7 +2,7 @@
  * Iris on Telegram. Usage: npm run bot
  * Long polling: the Mac calls Telegram, Telegram never calls the Mac.
  */
-import { projectStatus } from "@cenacle/core";
+import { projectStatus, refuseForeignSecrets } from "@cenacle/core";
 import { connectAsApp, createJournal, readAllEvents } from "@cenacle/journal";
 import { createTelegramApi } from "./api.ts";
 import { handleUpdate } from "./handler.ts";
@@ -12,6 +12,8 @@ if (!Number.isSafeInteger(allowedChatId) || allowedChatId === 0) {
   throw new Error("TELEGRAM_ALLOWED_CHAT_ID is missing or not a number (see .env.example)");
 }
 const api = createTelegramApi(process.env.TELEGRAM_BOT_TOKEN ?? "");
+// The bot holds its token, and nothing of the mailbox, the page or the database owner (S1).
+refuseForeignSecrets("The Telegram bot", ["telegram"]);
 const journal = createJournal(connectAsApp());
 
 async function readStatus(agent: string) {

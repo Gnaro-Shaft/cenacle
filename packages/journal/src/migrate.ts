@@ -109,7 +109,8 @@ export async function migrate({
   return applied;
 }
 
-function ownerUrlFromEnv(database: string): string {
+/** The owner's connection: migrations and tests only (.env.owner, S1). */
+export function ownerUrlFromEnv(database: string): string {
   const host = process.env.CENACLE_DB_HOST ?? "127.0.0.1";
   const port = process.env.CENACLE_DB_PORT ?? "55432";
   const password = encodeURIComponent(requireEnv("CENACLE_DB_OWNER_PASSWORD"));
@@ -124,14 +125,18 @@ export function executorUrlFromEnv(database: string): string {
   return `postgres://${EXECUTOR_ROLE}:${password}@${host}:${port}/${database}`;
 }
 
-export function urlsFromEnv(database: string): { ownerUrl: string; appUrl: string } {
-  const host = process.env.CENACLE_DB_HOST ?? "127.0.0.1";
-  const port = process.env.CENACLE_DB_PORT ?? "55432";
-  const appPassword = encodeURIComponent(requireEnv("CENACLE_DB_APP_PASSWORD"));
-  return {
-    ownerUrl: ownerUrlFromEnv(database),
-    appUrl: `postgres://${APP_ROLE}:${appPassword}@${host}:${port}/${database}`,
-  };
+/**
+ * The application's connection. Never asks for the owner's password: the
+ * programs must run without it (S1) — only the migrations and the tests hold it.
+ */
+export function appUrlFromEnv(database: string, env: NodeJS.ProcessEnv = process.env): string {
+  const host = env.CENACLE_DB_HOST ?? "127.0.0.1";
+  const port = env.CENACLE_DB_PORT ?? "55432";
+  const raw = env.CENACLE_DB_APP_PASSWORD ?? "";
+  if (raw === "") {
+    throw new Error("Missing environment variable CENACLE_DB_APP_PASSWORD (see .env.example)");
+  }
+  return `postgres://${APP_ROLE}:${encodeURIComponent(raw)}@${host}:${port}/${database}`;
 }
 
 if (import.meta.main) {

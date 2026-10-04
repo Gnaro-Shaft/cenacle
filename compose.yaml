@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: cenacle_owner
-      POSTGRES_PASSWORD: ${CENACLE_DB_OWNER_PASSWORD:?set CENACLE_DB_OWNER_PASSWORD in .env}
+      POSTGRES_PASSWORD: ${CENACLE_DB_OWNER_PASSWORD:?set CENACLE_DB_OWNER_PASSWORD in .env.owner}
       POSTGRES_DB: cenacle
     ports:
       - "127.0.0.1:${CENACLE_DB_PORT:-55432}:5432"
@@ -25,7 +25,7 @@ services:
       GREENMAIL_OPTS: >-
         -Dgreenmail.setup.test.smtp -Dgreenmail.setup.test.imap
         -Dgreenmail.hostname=0.0.0.0
-        -Dgreenmail.users=test-cenacle:${CENACLE_TEST_MAIL_PASSWORD:?set CENACLE_TEST_MAIL_PASSWORD in .env}@cenacle.test
+        -Dgreenmail.users=test-cenacle:${CENACLE_TEST_MAIL_PASSWORD:?set CENACLE_TEST_MAIL_PASSWORD in .env.mail}@cenacle.test
     ports:
       - "127.0.0.1:3025:3025" # SMTP
       - "127.0.0.1:3143:3143" # IMAP
@@ -48,7 +48,7 @@ services:
     restart: unless-stopped
     depends_on: [tempo]
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env.obs}
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_AUTH_ANONYMOUS_ENABLED: "false"
       # No telemetry, no update checks, no downloaded plugins.
