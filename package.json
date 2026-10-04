@@ -42,7 +42,8 @@
     "proposal": "node --env-file=.env apps/cli/src/proposal.ts",
     "iris:draft": "node --env-file=.env apps/iris/src/draft-main.ts",
     "draft:vote": "node --env-file=.env apps/cli/src/draft-vote.ts",
-    "executor": "node --env-file=.env apps/executor/src/main.ts"
+    "executor": "node --env-file=.env apps/executor/src/main.ts",
+    "draft:bench": "node apps/cli/src/draft-bench.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

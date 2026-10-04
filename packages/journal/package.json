@@ -5,7 +5,8 @@
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./test-db": "./src/test-db.ts"
   },
   "dependencies": {
     "postgres": "3.4.9"

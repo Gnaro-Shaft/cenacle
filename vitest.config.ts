@@ -6,16 +6,22 @@ export default defineConfig({
       {
         test: {
           name: "unit",
-          // Every package and app except the journal, whose tests need a database,
-          // and integration tests, which need the local services.
+          // Every package and app except what needs a database (the journal, the
+          // draft bench) and integration tests, which need the local services.
           include: ["packages/!(journal)/src/**/*.test.ts", "apps/*/src/**/*.test.ts"],
-          exclude: ["**/*.integration.test.ts", "**/node_modules/**"],
+          exclude: [
+            "**/*.integration.test.ts",
+            "apps/cli/src/draft-bench/**",
+            "**/node_modules/**",
+          ],
         },
       },
       {
         test: {
           name: "db",
-          include: ["packages/journal/src/**/*.test.ts"],
+          include: ["packages/journal/src/**/*.test.ts", "apps/cli/src/draft-bench/**/*.test.ts"],
+          // The draft bench recreates the test database at each run: one file at a time.
+          testTimeout: 60_000,
           globalSetup: ["packages/journal/src/global-setup.ts"],
           fileParallelism: false,
         },

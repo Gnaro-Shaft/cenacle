@@ -10,5 +10,8 @@
     "@cenacle/journal": "0.0.0",
     "@cenacle/mail": "0.0.0",
     "@cenacle/telegram": "0.0.0"
+  },
+  "exports": {
+    "./draft": "./src/draft.ts"
   }
 }
