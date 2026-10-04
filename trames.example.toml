@@ -16,10 +16,10 @@
 [signature]
 texte = """
 Bien cordialement,
-Genaro-Cédric Nisus
-Gnaro — Ingénieur IA
-07 61 08 36 83 · contact@gnaro.fr
-linkedin.com/in/gcnisus · gnaro.fr
+Camille Exemple (fictif)
+Cabinet Exemple — Ingénieur IA
+01 99 00 12 34 · contact@cabinet-exemple.example
+cabinet-exemple.example
 """
 
 [trames.accuse_reception]

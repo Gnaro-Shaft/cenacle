@@ -70,7 +70,7 @@ describe("buildReply", () => {
 
 describe("allowedRecipient — phase 4 reaches nobody real", () => {
   it.each([
-    "moi@gnaro.fr",
+    "moi@exemple.fr",
     "client@gmail.com",
     "a@client.example.com",
     null,
