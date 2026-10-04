@@ -11,10 +11,10 @@ import {
   keyerFromEnv,
   loadCadre,
   loadRules,
+  mailPassword,
   mailTotals,
   readingStartsAt,
   runMailPass,
-  testMailboxConfigFromEnv,
 } from "@cenacle/mail";
 
 const rulesOnly = process.argv.includes("--rules-only");
@@ -35,7 +35,7 @@ try {
     retentionDays: conservation.memoireJours,
     opposedKeys: () => createPeople(sql).opposedKeys(),
     notBefore: readingStartsAt(cadre),
-    password: testMailboxConfigFromEnv().password,
+    password: mailPassword(cadre),
     rules,
     noFollowUp,
     local: rulesOnly ? null : createLocalModels(localModelConfigFromEnv()),

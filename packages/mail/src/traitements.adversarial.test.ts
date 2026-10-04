@@ -32,9 +32,9 @@ describe("real mailboxes need an open processing", () => {
     expect(() => parse(m + CONSERVATION)).toThrow(/no open processing covers it, it is not read/);
   });
 
-  it("with a processing, a remote server still waits for TLS (M1)", () => {
+  it("with a processing, a remote server still needs its closed list of recipients (M1)", () => {
     const m = mail("imap.mail.example", "moi@entreprise.example");
-    expect(() => parse(m + CONSERVATION + T01())).toThrow(/needs TLS/);
+    expect(() => parse(m + CONSERVATION + T01())).toThrow(/\[envoi\] destinataires/);
   });
 
   it("a processing for another source does not cover this one", () => {
@@ -107,7 +107,51 @@ describe("from when a real mailbox may be read (C4)", () => {
     expect(at("2026-01-15", "2026-02-01")).toBe("2026-01-14T23:00:00.000Z");
   });
 
+  it("no limit for a processing without third parties (tiers = false): nobody to inform", () => {
+    const noThirdParties = T01("", "mention_publiee = 2026-09-30").replace(
+      "tiers = true",
+      "tiers = false",
+    );
+    expect(readingStartsAt(parse(FICTIONAL + CONSERVATION + noThirdParties))).toBeNull();
+  });
+
   it("no limit for a mailbox no processing covers (the fictional one)", () => {
     expect(readingStartsAt(parse(FICTIONAL + CONSERVATION))).toBeNull();
+  });
+});
+
+describe("a real test mailbox (M1)", () => {
+  const T08 = T01().replace('"T-01"', '"T-08"').replace("tiers = true", "tiers = false");
+  const real = (extra: string) =>
+    parse(
+      mail("ssl0.mail.example", "test-cenacle@entreprise.example") + CONSERVATION + T08 + extra,
+    );
+
+  it("a remote server covered by a processing is accepted, with its closed list of recipients", () => {
+    const cadre = real('[envoi]\ndestinataires = ["Moi@Entreprise.example"]\n');
+    expect(cadre.mail.recipients).toEqual(["moi@entreprise.example"]);
+    expect(cadre.mail.test).toBe(false);
+  });
+
+  it.each([
+    ["no [envoi] list", ""],
+    ["an empty list", "[envoi]\ndestinataires = []\n"],
+    ["a malformed address", '[envoi]\ndestinataires = ["pas une adresse"]\n'],
+    ["an unknown key", '[envoi]\ndestinataires = ["moi@entreprise.example"]\ntous = true\n'],
+  ])("refuses %s", (_label, extra) => {
+    expect(() => real(extra)).toThrow(CadreError);
+  });
+
+  it("only a box marked test = true may receive fixtures", () => {
+    const marked = parse(
+      mail("ssl0.mail.example", "test-cenacle@entreprise.example").replace(
+        "[mail]\n",
+        "[mail]\ntest = true\n",
+      ) +
+        CONSERVATION +
+        T08 +
+        '[envoi]\ndestinataires = ["moi@entreprise.example"]\n',
+    );
+    expect(marked.mail.test).toBe(true);
   });
 });

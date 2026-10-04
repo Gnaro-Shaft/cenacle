@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { countConversations, loadFixtureMailbox, loadFixtureSent } from "@cenacle/core";
 import { beforeAll, describe, expect, it } from "vitest";
-import { loadCadre } from "./cadre.ts";
+import { CADRE_PATH, loadCadre } from "./cadre.ts";
 import { createKeyer } from "./keys.ts";
 import { fetchMailRefs, fetchSentRefs } from "./postman.ts";
 import { loadFixtures, testMailboxConfigFromEnv } from "./test-mailbox.ts";
@@ -14,7 +14,8 @@ for (const name of [".env", ".env.mail"]) {
   if (existsSync(envFile)) process.loadEnvFile(envFile);
 }
 const { password } = testMailboxConfigFromEnv();
-const { mail } = loadCadre();
+// Always the fictional GreenMail box, even when a cadre.local.toml points at a real one.
+const { mail } = loadCadre(CADRE_PATH);
 const { messages } = loadFixtureMailbox();
 const sentFixtures = loadFixtureSent();
 const keyer = createKeyer("5".repeat(64));

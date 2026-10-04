@@ -16,6 +16,7 @@ import { ImapFlow } from "imapflow";
 import { createTransport } from "nodemailer";
 import MailComposer from "nodemailer/lib/mail-composer";
 import { type MailCadre, TEST_DOMAIN } from "./cadre.ts";
+import { imapOptions, smtpOptions } from "./connection.ts";
 import { type ReplyContext, safeAddress, validMessageId } from "./reply-target.ts";
 
 export class SendError extends Error {
@@ -44,12 +45,23 @@ export function replySubject(subject: string): string {
   return base.slice(0, MAX_SUBJECT);
 }
 
-/** The recipient, re-checked here: one plain address, on a test domain in phase 4. */
-export function allowedRecipient(to: string | null): string {
+/**
+ * The recipient, re-checked here: one plain address, and either on my closed
+ * list ([envoi] destinataires of a real box, M1-M2) or, for the fictional box
+ * (null), on a reserved test domain.
+ */
+export function allowedRecipient(
+  to: string | null,
+  recipients: readonly string[] | null = null,
+): string {
   const address = safeAddress(to ?? undefined);
   if (address === null) throw new SendError("no readable recipient");
-  if (!TEST_DOMAIN.test(address)) {
-    throw new SendError("phase 4 sends to test domains only (.test, .example)");
+  if (recipients === null) {
+    if (!TEST_DOMAIN.test(address)) {
+      throw new SendError("the fictional box sends to test domains only (.test, .example)");
+    }
+  } else if (!recipients.includes(address.toLowerCase())) {
+    throw new SendError("not on the closed list of recipients ([envoi] destinataires)");
   }
   return address;
 }
@@ -64,8 +76,10 @@ export async function buildReply(
   context: ReplyContext,
   text: string,
   date: Date,
+  /** [envoi] destinataires of the box; null (the default) allows reserved test domains only. */
+  recipients: readonly string[] | null = null,
 ): Promise<BuiltReply> {
-  const to = allowedRecipient(context.to);
+  const to = allowedRecipient(context.to, recipients);
   const parent = validMessageId(context.messageId);
   const references = [...context.references, ...(parent === null ? [] : [parent])].slice(-20);
   const domain = from.slice(from.lastIndexOf("@") + 1);
@@ -92,15 +106,7 @@ export async function sendReply(
   password: string,
   reply: BuiltReply,
 ): Promise<void> {
-  const transport = createTransport({
-    host: cadre.host, // loopback only: the cadre refuses any other host
-    port: cadre.smtpPort,
-    secure: false,
-    ignoreTLS: true, // loopback test server; TLS in phase 5
-    auth: { user: cadre.user, pass: password },
-    connectionTimeout: 10_000,
-    socketTimeout: 20_000,
-  });
+  const transport = createTransport(smtpOptions(cadre, password));
   try {
     await transport.sendMail({ envelope: { from: cadre.address, to: [reply.to] }, raw: reply.raw });
   } finally {
@@ -110,13 +116,7 @@ export async function sendReply(
 
 /** The executor's only write to the mailbox: a copy in Sent, marked read. */
 export async function copyToSent(cadre: MailCadre, password: string, raw: Buffer): Promise<void> {
-  const client = new ImapFlow({
-    host: cadre.host,
-    port: cadre.port,
-    secure: false,
-    auth: { user: cadre.user, pass: password },
-    logger: false,
-  });
+  const client = new ImapFlow(imapOptions(cadre, password));
   await client.connect();
   try {
     await client.append(cadre.sentMailbox, raw, ["\\Seen"]);

@@ -1,0 +1,41 @@
+# Cénacle — the REAL configuration (phase 5, M1). Copy to cadre.local.toml
+# (git-ignored): it then replaces cadre.toml. Placeholders only here: never a
+# real host, account or address in the repository.
+#
+# A real server is always reached over TLS, with its certificate checked
+# (packages/mail/src/connection.ts): IMAPS on 993, SMTP on 465 (or STARTTLS,
+# required, on another port). The password goes to .env.mail
+# (CENACLE_MAIL_PASSWORD), never here.
+
+[mail]
+# A real TEST mailbox (M1): the only kind `npm run mail:load` may fill.
+test = true
+source = "boite-test-reelle"
+host = "<imap-and-smtp-host-of-your-provider>"
+port = 993
+user = "<account, not an alias>"
+mailbox = "INBOX"
+sent_mailbox = "<Sent folder name of your provider>"
+max_per_fetch = 500
+smtp_port = 465
+address = "<the account's address>"
+
+# Until M3, replies go to these addresses only — your own.
+[envoi]
+destinataires = ["<one of your own addresses>"]
+
+[conservation]
+memoire_jours = 90
+texte_brouillon_jours = 7
+propositions_jours = 90
+journal_jours = 180
+
+# The processing that covers this mailbox (docs/conformite/registre-traitements.md).
+[[traitement]]
+identifiant = "T-08"
+finalite = "Éprouver Cénacle sur un vrai serveur, avec une boîte de test qui ne reçoit que mes propres mails et des mails fictifs."
+base_legale = "interet-legitime"
+categories = ["UID", "date d'arrivée", "case", "clés HMAC"]
+sources = ["boite-test-reelle"]
+tiers = false
+mention_publiee = 2026-10-04

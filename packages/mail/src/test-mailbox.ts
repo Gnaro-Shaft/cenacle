@@ -2,10 +2,13 @@
  * Loads the fictional fixtures into the TEST mail server (GreenMail).
  *
  * This is the only code allowed to write into a mailbox, so it refuses any
- * server that is not on this machine: it must never touch a real mailbox.
+ * server that is not on this machine — unless the real mailbox is explicitly
+ * marked as a test one (`test = true` in cadre.local.toml, M1). It must never
+ * touch a production mailbox.
  */
 import type { FixtureMessage, FixtureSentFolder } from "@cenacle/core";
 import { ImapFlow } from "imapflow";
+import { imapOptions } from "./connection.ts";
 import { sentToRfc822, toRfc822 } from "./rfc822.ts";
 
 export interface TestMailboxConfig {
@@ -13,6 +16,8 @@ export interface TestMailboxConfig {
   readonly port: number;
   readonly user: string;
   readonly password: string;
+  /** A real mailbox marked `test = true` in the cadre (M1); false or absent otherwise. */
+  readonly markedTest?: boolean;
 }
 
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "::1"]);
@@ -25,9 +30,9 @@ export class NotATestMailboxError extends Error {
 }
 
 export function assertTestMailbox(config: TestMailboxConfig): void {
-  if (!LOOPBACK.has(config.host)) {
+  if (!LOOPBACK.has(config.host) && config.markedTest !== true) {
     throw new NotATestMailboxError(
-      `Refusing to write to ${config.host}: the test mailbox must run on this machine`,
+      `Refusing to write to ${config.host}: not on this machine, and not marked as a test mailbox`,
     );
   }
 }
@@ -45,13 +50,7 @@ export function testMailboxConfigFromEnv(env = process.env): TestMailboxConfig {
 
 export function connectTestMailbox(config: TestMailboxConfig): ImapFlow {
   assertTestMailbox(config);
-  return new ImapFlow({
-    host: config.host,
-    port: config.port,
-    secure: false, // GreenMail on loopback; a real mailbox will require TLS (phase 5)
-    auth: { user: config.user, pass: config.password },
-    logger: false,
-  });
+  return new ImapFlow(imapOptions(config, config.password));
 }
 
 export interface MailboxCounts {

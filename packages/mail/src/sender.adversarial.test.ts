@@ -91,3 +91,21 @@ describe("allowedRecipient — phase 4 reaches nobody real", () => {
     expect(allowedRecipient(to)).toBe(to);
   });
 });
+
+describe("the closed list of recipients of a real box (M1)", () => {
+  it("allows only my own addresses, whatever the page accepted", () => {
+    expect(allowedRecipient("moi@entreprise.example", ["moi@entreprise.example"])).toBe(
+      "moi@entreprise.example",
+    );
+    expect(() => allowedRecipient("client@client.example", ["moi@entreprise.example"])).toThrow(
+      SendError,
+    );
+    expect(() => allowedRecipient("someone@test.test", ["moi@entreprise.example"])).toThrow(
+      /closed list/,
+    );
+  });
+
+  it("the fictional box still sends to reserved test domains only", () => {
+    expect(() => allowedRecipient("client@gmail.com")).toThrow(/test domains only/);
+  });
+});

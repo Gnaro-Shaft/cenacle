@@ -19,9 +19,9 @@ import {
   firstName,
   loadCadre,
   loadTrames,
+  mailPassword,
   readMailsForModel,
   renderTrame,
-  testMailboxConfigFromEnv,
 } from "@cenacle/mail";
 
 const [command, id, text] = process.argv.slice(2);
@@ -49,7 +49,7 @@ try {
       const { mail } = loadCadre();
       const [read] = await readMailsForModel(
         mail,
-        testMailboxConfigFromEnv().password,
+        mailPassword(loadCadre()),
         [target],
         position.uidValidity,
       );
