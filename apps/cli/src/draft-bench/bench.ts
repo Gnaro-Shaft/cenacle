@@ -7,11 +7,11 @@
  *   - no invented fact in any proposal.
  * Each run starts from a fresh test database (cenacle_test, never the real one).
  */
-import { appConnection, resetTestDatabase } from "@cenacle/journal/test-db";
+import { appConnection, executorConnection, resetTestDatabase } from "@cenacle/journal/test-db";
 import type { Check } from "./checks.ts";
 import { benchContext } from "./context.ts";
 import { type InventionReport, inventionBench } from "./invention.ts";
-import { forgery } from "./scenarios-forgery.ts";
+import { ceiling, forgery } from "./scenarios-forgery.ts";
 import { lapsed, replay } from "./scenarios-replay.ts";
 import { doubleClick, injection, undoDelay } from "./scenarios-send.ts";
 import type { Mutations } from "./world.ts";
@@ -29,13 +29,15 @@ const SCENARIOS = [
   ["rejeu", replay],
   ["proposition caduque", lapsed],
   ["acceptation forgée", forgery],
+  ["plafond quotidien", ceiling],
 ] as const;
 
 export async function runDraftBench(mutations?: Mutations): Promise<DraftBenchReport> {
   await resetTestDatabase();
   const sql = appConnection();
+  const executorSql = executorConnection();
   try {
-    const ctx = benchContext(sql, mutations);
+    const ctx = benchContext(sql, executorSql, mutations);
     const checks: Check[] = [];
     for (const [name, run] of SCENARIOS) {
       try {
@@ -51,5 +53,6 @@ export async function runDraftBench(mutations?: Mutations): Promise<DraftBenchRe
     return { checks, invention: invention.report, ok: checks.every((c) => c.ok) };
   } finally {
     await sql.end();
+    await executorSql.end();
   }
 }

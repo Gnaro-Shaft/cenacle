@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { afterAll, describe, expect, it } from "vitest";
 import { createProposalStore, UNDO_DELAY_MS } from "./proposal-store.ts";
-import { appConnection } from "./test-db.ts";
+import { appConnection, executorConnection } from "./test-db.ts";
 
 /** What the page would hand over: the database checks the form and the text, not the key. */
 const signedFor = (draft: string | null) => ({
@@ -13,7 +13,13 @@ const signedFor = (draft: string | null) => ({
 
 const sql = appConnection();
 const store = createProposalStore(sql);
-afterAll(() => sql.end());
+// Claiming and closing a sending: the executor's role only (B7).
+const execSql = executorConnection();
+const executor = createProposalStore(execSql);
+afterAll(async () => {
+  await sql.end();
+  await execSql.end();
+});
 
 let n = 0;
 const fresh = (draft = "Bonjour Julien,\n\nVendredi à 10 h me convient.") => {
@@ -39,9 +45,9 @@ describe("proposal life cycle", () => {
       expect.objectContaining({ id: p.id }),
     );
     expect((await store.dueForSending(later(UNDO_DELAY_MS))).map((x) => x.id)).toContain(p.id);
-    const claimed = await store.claim(p.id, later(UNDO_DELAY_MS));
+    const claimed = await executor.claim(p.id, later(UNDO_DELAY_MS));
     expect(claimed).toMatchObject({ status: "sending", sentAt: later(UNDO_DELAY_MS) });
-    expect((await store.markSent(p.id, later(UNDO_DELAY_MS + 1000))).status).toBe("sent");
+    expect((await executor.markSent(p.id, later(UNDO_DELAY_MS + 1000))).status).toBe("sent");
   });
 
   it("lists the open proposals: pending and accepted, never closed ones", async () => {

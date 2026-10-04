@@ -4,12 +4,13 @@
  * prints to use the validation page. Signs my acceptances with the private
  * key of .env.page, loaded by this program only (ADR-0013).
  */
-import { privateKeyFromEnv } from "@cenacle/core";
+import { privateKeyFromEnv, refuseSecret } from "@cenacle/core";
 import {
   connectAsApp,
   createJournal,
   createMailStore,
   createProposalStore,
+  EXECUTOR_PASSWORD_VAR,
 } from "@cenacle/journal";
 import {
   createProposals,
@@ -34,6 +35,7 @@ const store = createProposalStore(sql);
 const mails = createMailStore(sql);
 const { mail } = loadCadre();
 const { password } = testMailboxConfigFromEnv();
+refuseSecret("The page's server", EXECUTOR_PASSWORD_VAR, "the executor");
 const token = newToken();
 const acceptKey = privateKeyFromEnv();
 

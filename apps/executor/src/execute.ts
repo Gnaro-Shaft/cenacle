@@ -6,8 +6,10 @@
  *   Sent folder: if I answered meanwhile, the proposal lapses);
  * - the recipient is read again from the server (the sender, never stored);
  * - at most 20 sending attempts a day;
- * - the row it claimed carries the page's signature of this very text
- *   (ADR-0013): otherwise it is not sent, but failed, journaled and shown.
+ * - the page's signature of this very text (ADR-0013), checked BEFORE the
+ *   claim — an unsigned acceptance is refused without a sending time, so
+ *   forged acceptances cannot use up the daily ceiling — and again on the
+ *   row claimed. Unsigned: never sent; failed, journaled and shown.
  * It claims a proposal before talking to the mail server, so a mail is sent
  * at most once: a failure is shown to me and never retried by itself.
  */
@@ -65,6 +67,19 @@ export async function executeDue(deps: ExecutorDeps): Promise<RoundResult> {
     if ((await deps.store.sendsSince(dayStart(now))) >= MAX_SENDS_PER_DAY) {
       return { sent, failed, unsigned, lapsed, limited: true };
     }
+    const journalUnsigned = async () => {
+      await deps.journal.append({
+        agent: AGENT,
+        type: "send.unsigned",
+        payload: { proposalId: p.id },
+      });
+      unsigned.push(p.id);
+    };
+    if (!deps.verify(p)) {
+      await deps.store.refuseUnsigned(p.id, now);
+      await journalUnsigned();
+      continue;
+    }
     const lapse = async (reason: LapseReason) => {
       await deps.proposals.lapse(p.id, now);
       lapsed.push({ id: p.id, reason });
@@ -98,12 +113,7 @@ export async function executeDue(deps: ExecutorDeps): Promise<RoundResult> {
     // Checked on the row just claimed, whose text the database now keeps frozen.
     if (!deps.verify(claimed)) {
       await deps.store.markFailed(p.id, deps.now());
-      await deps.journal.append({
-        agent: AGENT,
-        type: "send.unsigned",
-        payload: { proposalId: p.id },
-      });
-      unsigned.push(p.id);
+      await journalUnsigned();
       continue;
     }
     let reply: BuiltReply;

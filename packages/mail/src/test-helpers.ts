@@ -270,6 +270,9 @@ export function memoryProposalStore(): ProposalStore {
     async markFailed(id, now) {
       return move(id, ["sending"], { status: "failed", closedAt: now });
     },
+    async refuseUnsigned(id, now) {
+      return move(id, ["accepted"], { status: "failed", sendAfter: null, closedAt: now });
+    },
     async sendsSince(since) {
       return [...rows.values()].filter(
         (p) => p.sentAt !== null && p.sentAt.getTime() >= since.getTime(),

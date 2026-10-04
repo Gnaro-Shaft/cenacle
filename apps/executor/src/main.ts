@@ -7,7 +7,7 @@
  */
 import { dayStart, publicKeyFromEnv, refusePrivateKey } from "@cenacle/core";
 import {
-  connectAsApp,
+  connectAsExecutor,
   createJournal,
   createMailStore,
   createProposalStore,
@@ -30,7 +30,8 @@ import { executeDue, MAX_SENDS_PER_DAY } from "./execute.ts";
 const ROUND_MS = 10_000;
 refusePrivateKey("The executor");
 const acceptKey = publicKeyFromEnv();
-const sql = connectAsApp();
+// Its own database role: the only one allowed to claim and close a sending (B7).
+const sql = connectAsExecutor();
 const journal = createJournal(sql);
 const store = createProposalStore(sql);
 const mails = createMailStore(sql);

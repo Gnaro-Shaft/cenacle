@@ -34,7 +34,8 @@ Le banc B5 (`npm run draft:bench`) **détecte** un envoi qui n'a pas été accep
    - l'exécuteur : la base, SMTP et la clé publique.
    `.env.example` est découpé en conséquence. C'est aussi ce que l'ADR-0004 promettait déjà (« seul l'exécuteur détient les identifiants d'envoi ») et qui n'est pas vrai aujourd'hui.
    **Mise en œuvre en deux temps (décidé le 03/10)** : en phase 4, Iris, la page et l'exécuteur partagent légitimement le mot de passe de la boîte de test. Seule la clé privée est donc séparée dès B6 (`.env.page`, chargé par le serveur seul). Le découpage complet (DB, IMAP, SMTP par programme) se fera en phase 5, quand les vrais identifiants existeront.
-5. **Tests adversariaux exigés** :
+5. **Seul l'exécuteur envoie (complément, B7, décidé le 03/10).** Un rôle en base `cenacle_executor`, dont le mot de passe est dans `.env.executor` (chargé par l'exécuteur et les migrations seulement), est le seul à pouvoir prendre une proposition en charge et clore un envoi (« envoyée », « échouée »). Un autre programme ne peut donc plus afficher « envoyée » pour un mail qui n'est jamais parti. L'exécuteur vérifie aussi la signature **avant** la prise en charge : une acceptation forgée est refusée sans heure d'envoi, si bien que de fausses acceptations ne peuvent plus épuiser le plafond quotidien. Iris et la page refusent de démarrer avec ce mot de passe. Les autres transitions (rendre caduque, refuser, annuler) restent ouvertes au rôle applicatif : elles ne peuvent qu'empêcher un envoi.
+6. **Tests adversariaux exigés** :
    - une acceptation écrite sans la page n'est pas envoyée ;
    - un texte changé après l'acceptation n'est pas envoyé ;
    - la signature d'une proposition, recopiée sur une autre, est refusée ;
@@ -52,7 +53,7 @@ Le banc B5 (`npm run draft:bench`) **détecte** un envoi qui n'a pas été accep
 
 ## Alternatives écartées
 
-- **Des rôles séparés en base** (une fonction `SECURITY DEFINER` par transition, et un rôle par programme qui n'a le droit d'exécuter que les siennes). C'est aussi fort pour savoir « qui » accepte, à condition que les mots de passe soient séparés. Mais cela ne lie pas le texte accepté, cela demande de réécrire le magasin de propositions en fonctions SQL, et le propriétaire de la base (migrations) garde tout pouvoir. C'est un complément possible plus tard, pas la mesure principale.
+- **Des rôles séparés en base** (une fonction `SECURITY DEFINER` par transition, et un rôle par programme qui n'a le droit d'exécuter que les siennes). C'est aussi fort pour savoir « qui » accepte, à condition que les mots de passe soient séparés. Mais cela ne lie pas le texte accepté, cela demande de réécrire le magasin de propositions en fonctions SQL, et le propriétaire de la base (migrations) garde tout pouvoir. C'est un complément possible plus tard, pas la mesure principale. *Le complément a été ajouté en B7 pour l'exécuteur seul (point 5 de la décision).*
 - **Une signature HMAC partagée** entre la page et l'exécuteur. L'exécuteur, détenant la clé, pourrait fabriquer une acceptation. Ed25519 ne coûte rien de plus (`node:crypto`) et ne donne à l'exécuteur que le pouvoir de vérifier.
 - **Une clé tirée à chaque démarrage de la page**, comme le jeton. L'exécuteur devrait apprendre chaque nouvelle clé publique par la base, où Iris pourrait glisser la sienne.
 - **Le statu quo, avec la détection par le banc.** Le banc mesure le code du dépôt, pas ce qui tourne réellement, et constater après coup un envoi déjà parti ne protège personne.
