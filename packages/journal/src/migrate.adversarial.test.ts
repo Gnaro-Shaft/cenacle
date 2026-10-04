@@ -3,7 +3,13 @@
 // (B7's failed-without-sending-time rows broke 007 on a real database.)
 import { createHash } from "node:crypto";
 import { afterAll, describe, expect, it } from "vitest";
-import { EXECUTOR_PASSWORD_VAR, migrate, requireEnv, urlsFromEnv } from "./migrate.ts";
+import {
+  appUrlFromEnv,
+  EXECUTOR_PASSWORD_VAR,
+  migrate,
+  ownerUrlFromEnv,
+  requireEnv,
+} from "./migrate.ts";
 import { createProposalStore } from "./proposal-store.ts";
 import { createPurges } from "./purges.ts";
 import { appConnection, executorConnection, TEST_DB } from "./test-db.ts";
@@ -56,12 +62,21 @@ describe("migrations run again on a populated database", () => {
 
     await expect(
       migrate({
-        ownerUrl: urlsFromEnv(TEST_DB).ownerUrl,
+        ownerUrl: ownerUrlFromEnv(TEST_DB),
         appPassword: requireEnv("CENACLE_DB_APP_PASSWORD"),
         executorPassword: requireEnv(EXECUTOR_PASSWORD_VAR),
       }),
     ).resolves.toContain("010_purges.sql");
     expect((await store.get(unsigned.id))?.status).toBe("failed");
     expect((await store.get(accepted.id))?.status).toBe("accepted");
+  });
+});
+
+describe("the programs connect without the owner's password (S1)", () => {
+  it("the application's connection needs only its own password", () => {
+    const env = { CENACLE_DB_APP_PASSWORD: "app_only_password_000", CENACLE_DB_PORT: "55432" };
+    expect(appUrlFromEnv("cenacle", env)).toContain("cenacle_app:");
+    expect(appUrlFromEnv("cenacle", env)).not.toContain("owner");
+    expect(() => appUrlFromEnv("cenacle", {})).toThrow(/CENACLE_DB_APP_PASSWORD/);
   });
 });

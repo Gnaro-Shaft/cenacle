@@ -6,11 +6,12 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import postgres from "postgres";
 import {
+  appUrlFromEnv,
   EXECUTOR_PASSWORD_VAR,
   executorUrlFromEnv,
   migrate,
+  ownerUrlFromEnv,
   requireEnv,
-  urlsFromEnv,
 } from "./migrate.ts";
 
 export const TEST_DB = "cenacle_test";
@@ -32,9 +33,12 @@ function explainConnectionError(error: unknown): string {
   return `Unexpected PostgreSQL error\n${text}`;
 }
 
-/** .env, and .env.executor: roles are shared by the whole cluster, test database included. */
+/**
+ * .env, the owner's password (.env.owner) and the executor's (.env.executor):
+ * the tests create the test database, and roles are shared by the whole cluster.
+ */
 export function loadEnv(): void {
-  for (const name of [".env", ".env.executor"]) {
+  for (const name of [".env", ".env.owner", ".env.executor"]) {
     const file = join(import.meta.dirname, "..", "..", "..", name);
     if (existsSync(file)) process.loadEnvFile(file);
   }
@@ -44,7 +48,7 @@ export function loadEnv(): void {
 export async function resetTestDatabase(): Promise<void> {
   loadEnv();
   requireEnv("CENACLE_DB_OWNER_PASSWORD");
-  const { ownerUrl } = urlsFromEnv("postgres");
+  const ownerUrl = ownerUrlFromEnv("postgres");
   const admin = postgres(ownerUrl, { max: 1, onnotice: () => {} });
   try {
     await admin.unsafe(`DROP DATABASE IF EXISTS ${TEST_DB} WITH (FORCE)`);
@@ -55,7 +59,7 @@ export async function resetTestDatabase(): Promise<void> {
     await admin.end();
   }
   await migrate({
-    ownerUrl: urlsFromEnv(TEST_DB).ownerUrl,
+    ownerUrl: ownerUrlFromEnv(TEST_DB),
     appPassword: requireEnv("CENACLE_DB_APP_PASSWORD"),
     executorPassword: requireEnv(EXECUTOR_PASSWORD_VAR),
   });
@@ -63,7 +67,7 @@ export async function resetTestDatabase(): Promise<void> {
 
 export function appConnection() {
   loadEnv();
-  return postgres(urlsFromEnv(TEST_DB).appUrl, { max: 2, onnotice: () => {} });
+  return postgres(appUrlFromEnv(TEST_DB), { max: 2, onnotice: () => {} });
 }
 
 /** The executor's connection to the test database. */

@@ -5,7 +5,7 @@
  * machine. Every 10 seconds; /stop on Telegram or Ctrl+C ends it.
  * It holds the page's public key: it can check an acceptance, never make one.
  */
-import { dayStart, publicKeyFromEnv, refusePrivateKey } from "@cenacle/core";
+import { dayStart, publicKeyFromEnv, refuseForeignSecrets } from "@cenacle/core";
 import {
   connectAsExecutor,
   createJournal,
@@ -28,7 +28,7 @@ import {
 import { executeDue, MAX_SENDS_PER_DAY } from "./execute.ts";
 
 const ROUND_MS = 10_000;
-refusePrivateKey("The executor");
+refuseForeignSecrets("The executor", ["mail", "executor"]);
 const acceptKey = publicKeyFromEnv();
 // Its own database role: the only one allowed to claim and close a sending (B7).
 const sql = connectAsExecutor();

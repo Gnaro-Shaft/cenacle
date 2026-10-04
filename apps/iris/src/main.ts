@@ -4,7 +4,7 @@
  * on Telegram ends it. It never sends a mail: only Telegram messages to me.
  */
 import { createLocalModels, localModelConfigFromEnv } from "@cenacle/brain";
-import { refusePrivateKey, refuseSecret } from "@cenacle/core";
+import { refuseForeignSecrets } from "@cenacle/core";
 import {
   connectAsApp,
   createJournal,
@@ -12,7 +12,6 @@ import {
   createPeople,
   createProposalStore,
   createPurges,
-  EXECUTOR_PASSWORD_VAR,
   readAllEvents,
 } from "@cenacle/journal";
 import {
@@ -30,8 +29,7 @@ import { purgeDue } from "./purge.ts";
 import { tick } from "./tick.ts";
 
 // Iris can never accept: she must not even hold the page's key (ADR-0013).
-refusePrivateKey("Iris");
-refuseSecret("Iris", EXECUTOR_PASSWORD_VAR, "the executor");
+refuseForeignSecrets("Iris", ["mail", "telegram"]);
 const chatId = Number(process.env.TELEGRAM_ALLOWED_CHAT_ID);
 if (!Number.isSafeInteger(chatId) || chatId === 0) {
   throw new Error("TELEGRAM_ALLOWED_CHAT_ID is missing or not a number (see .env.example)");
