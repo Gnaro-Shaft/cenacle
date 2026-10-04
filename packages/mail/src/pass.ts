@@ -7,6 +7,7 @@ import { type LocalModels, type ModelSort, sortByModel } from "@cenacle/brain";
 import type { Journal, MailStore } from "@cenacle/journal";
 import type { MailCadre } from "./cadre.ts";
 import { type CollectSummary, collectMail, mailTotals } from "./collect.ts";
+import { keptFromModel } from "./floor.ts";
 import type { Keyer } from "./keys.ts";
 import { fetchMailRefs, fetchSentRefs } from "./postman.ts";
 import { readMailsForModel } from "./reader.ts";
@@ -47,7 +48,19 @@ export async function runMailPass(deps: PassDeps): Promise<PassResult> {
   });
   if (local === null || collected.uncategorized.length === 0) return { collected, model: null };
 
-  const mails = await readMailsForModel(cadre, password, collected.uncategorized);
+  const read = await readMailsForModel(cadre, password, collected.uncategorized);
+  // C2: the article 9 floor (and empty or unreadable mails) — never given to the
+  // model, put in "À trier" for me, with one mark that does not say why.
+  const setAside = read.filter(keptFromModel);
+  for (const mail of setAside) await store.categorize(mail.uid, "a_trier", "set_aside");
+  if (setAside.length > 0) {
+    await journal.append({
+      agent: "iris",
+      type: "mail.set_aside",
+      payload: { count: setAside.length },
+    });
+  }
+  const mails = read.filter((m) => !keptFromModel(m));
   const model = await sortByModel(mails, {
     journal,
     local,

@@ -58,8 +58,8 @@
 ### R4 — Données sensibles lues par le modèle
 
 - **Impacts** : une donnée de l'article 9 (santé, opinions…) contenue dans un mail est lue par le modèle local.
-- **Mesures** : traitement local, rien n'est stocké du contenu ; **plancher déterministe à coder avant l'ouverture (C2)**.
-- **Gravité : importante. Vraisemblance : limitée**, une fois C2 en place.
+- **Mesures** : traitement local, rien n'est stocké du contenu ; **plancher déterministe** (C2, fait le 2026-10-04) : un mail qui semble révéler une catégorie particulière n'est jamais donné au modèle, et le modèle refuse lui-même un tel mail ; la raison d'un écartement n'est jamais conservée. Banc : 18 sur 18 écartés. Limite : liste non exhaustive.
+- **Gravité : importante. Vraisemblance : limitée.**
 
 ### R5 — Disparition des données
 
@@ -71,7 +71,7 @@
 | # | Action | Risque | Jalon |
 |---|---|---|---|
 | 1 | Cadre exécutable, et durées et purges pour toutes les tables (propositions, journal) | Durées | C1 |
-| 2 | Plancher article 9, déterministe, avant le modèle | R4 | C2 |
+| 2 | ~~Plancher article 9, déterministe, avant le modèle~~ **fait le 2026-10-04** | R4 | C2 |
 | 3 | Export et effacement par adresse | Droits | C3 |
 | 4 | Mention révisée et publiée, vérifiée en ligne | Information | C4 |
 | 5 | Un fichier d'environnement par programme ; sauvegarde chiffrée des secrets (`CENACLE_MAIL_KEY`, clés de la page, mot de passe de l'exécuteur) | R1 | S1 |

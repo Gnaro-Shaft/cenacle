@@ -62,7 +62,7 @@ export function memoryMailStore(): MailStore & {
       return [...inboxRows.values()]
         .filter(
           (r) =>
-            r.category === "clients_prospects" &&
+            (r.category === "clients_prospects" || r.decidedBy === "set_aside") &&
             r.urgentTerm &&
             !notified.has(r.uid) &&
             Date.parse(r.receivedAt) >= since.getTime(),

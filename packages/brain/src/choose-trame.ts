@@ -9,7 +9,7 @@
  * too, with the same effect.
  */
 import { randomBytes } from "node:crypto";
-import type { MailForModel } from "@cenacle/core";
+import { assertNotSensitive, type MailForModel } from "@cenacle/core";
 import type { LocalModels } from "./local-model.ts";
 import { askLocalOnce, required } from "./one-shot.ts";
 
@@ -90,6 +90,7 @@ export async function chooseTrame(
   options: readonly TrameOption[],
   opts: ChooseOptions,
 ): Promise<TrameVote> {
+  assertNotSensitive(mail); // C2: the article 9 floor, second line of defence
   if (options.length === 0) throw new Error("no template to choose from");
   const ids = options.map((o) => o.id);
   const orders = rotations(options);

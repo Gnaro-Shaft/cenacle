@@ -7,7 +7,13 @@
 import { readFileSync } from "node:fs";
 import { classifyMail, createLocalModels, localModelConfigFromEnv } from "@cenacle/brain";
 import { CATEGORIES, loadFixtureMailbox } from "@cenacle/core";
-import { EXAMPLE_RULES_PATH, fixtureForModel, parseRules, sortByRules } from "@cenacle/mail";
+import {
+  EXAMPLE_RULES_PATH,
+  fixtureForModel,
+  keptFromModel,
+  parseRules,
+  sortByRules,
+} from "@cenacle/mail";
 import { type BenchItem, scoreBench } from "./bench-score.ts";
 
 const all = process.argv.includes("--all");
@@ -32,7 +38,11 @@ try {
     if (view === undefined) continue;
     const fixture = messages[view.uid - 1];
     if (fixture === undefined) continue;
-    const result = await classifyMail(view, { local });
+    // C2: as in production, a mail the floor sets aside goes to "À trier", unread by the model.
+    const setAside = keptFromModel(view);
+    const result = setAside
+      ? { category: "a_trier" as const, valid: true, durationMs: 0 }
+      : await classifyMail(view, { local });
     items.push({
       id: fixture.id,
       expected: fixture.expected.category,
@@ -43,7 +53,7 @@ try {
     });
     const mark = result.category === fixture.expected.category ? "✓" : "✗";
     process.stdout.write(
-      `${mark} ${fixture.id} ${fixture.expected.category} → ${result.category}${result.valid ? "" : " (réponse invalide)"}${fixture.expected.trap ? ` [piège ${fixture.expected.trap}]` : ""}\n`,
+      `${mark} ${fixture.id} ${fixture.expected.category} → ${result.category}${setAside ? " (écarté du modèle)" : ""}${result.valid ? "" : " (réponse invalide)"}${fixture.expected.trap ? ` [piège ${fixture.expected.trap}]` : ""}\n`,
     );
   }
 

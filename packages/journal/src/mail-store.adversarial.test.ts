@@ -1,6 +1,7 @@
 // The table itself refuses what the code should never write: an address in
 // clear where a key belongs, an unknown category, a half-set decision.
 import { afterAll, describe, expect, it } from "vitest";
+import { createMailStore } from "./mail-store.ts";
 import { appConnection } from "./test-db.ts";
 
 const sql = appConnection();
@@ -24,6 +25,10 @@ describe("mail_items — refused rows", () => {
     ["an unknown mailbox", { mailbox: "drafts" }],
     ["a non-numeric UIDVALIDITY", { uid_validity: "1; drop table events" }],
     ["a zero UID", { uid: 0 }],
+    [
+      "a set-aside mail anywhere but « À trier » (C2)",
+      { category: "clients_prospects", decided_by: "set_aside" },
+    ],
   ])("refuses %s", async (_label, columns) => {
     await expect(insert(columns)).rejects.toThrow();
   });
@@ -33,5 +38,31 @@ describe("mail_items — refused rows", () => {
       /owner|permission/,
     );
     await expect(sql`drop table mail_items`).rejects.toThrow(/owner|permission/);
+  });
+});
+
+describe("mail_items — set aside by the article 9 floor (C2)", () => {
+  it("a set-aside urgent mail still gets its alert: never lost silently", async () => {
+    const store = createMailStore(sql);
+    const since = new Date(Date.now() - 60_000);
+    // The test database is shared: keep the mailbox numbering already there, if any.
+    const validity = (await store.position("inbox"))?.uidValidity ?? "424242";
+    await store.saveInbox(validity, [
+      {
+        uid: 4242,
+        receivedAt: new Date().toISOString(),
+        noFollowUp: false,
+        urgentTerm: true,
+        senderKey: "c".repeat(64),
+        messageKey: "d".repeat(64),
+        threadKeys: [],
+      },
+    ]);
+    await store.categorize(4242, "a_trier", "set_aside");
+    expect(await store.urgentToNotify(since)).toContain(4242);
+    const [row] = await sql<{ decided_by: string }[]>`
+      select decided_by from mail_items where uid = 4242 and uid_validity = ${validity}`;
+    // One mark for every reason: nothing says why.
+    expect(row?.decided_by).toBe("set_aside");
   });
 });

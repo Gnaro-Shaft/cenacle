@@ -9,7 +9,8 @@ import type { Sql } from "postgres";
 
 export const CATEGORY_VALUES = ["clients_prospects", "administratif", "bruit", "a_trier"] as const;
 export type StoredCategory = (typeof CATEGORY_VALUES)[number];
-export type DecidedBy = "rule" | "unreadable" | "model";
+/** "set_aside": kept from the model (article 9 floor, empty or unreadable) — never why (C2). */
+export type DecidedBy = "rule" | "unreadable" | "model" | "set_aside";
 export type Mailbox = "inbox" | "sent";
 
 export interface InboxItem {
@@ -195,7 +196,9 @@ export function createMailStore(sql: Sql): MailStore {
     async urgentToNotify(since) {
       const rows = await sql<{ uid: string }[]>`
         select uid::text from mail_items
-        where mailbox = 'inbox' and category = 'clients_prospects' and urgent_term
+        -- A set-aside mail may be an urgent client's (C2): never lose its alert silently.
+        where mailbox = 'inbox' and (category = 'clients_prospects' or decided_by = 'set_aside')
+          and urgent_term
           and not urgent_notified and at >= ${since}
         order by uid`;
       return rows.map((r) => Number(r.uid));
