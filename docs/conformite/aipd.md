@@ -10,7 +10,7 @@
 ## 1. Contexte
 
 **Responsable** : Gnaro (EURL), pour l'usage professionnel de son dirigeant.
-**Machines** : le Mac (programmes, base PostgreSQL, tous liés à `127.0.0.1`) et la machine du modèle local, jointe par son adresse sur le tailnet. **À confirmer** : s'il s'agit du même Mac ou d'une autre machine à la maison ; dans le second cas, le contenu des mails transite chiffré sur le tailnet jusqu'à elle, et elle doit figurer ici et au registre. La boîte reste chez OVH (France).
+**Machines** : le Mac seul : programmes, base PostgreSQL et services liés à `127.0.0.1`, et le modèle local, sur le même Mac (joint par son nom sur le tailnet, confirmé le 2026-10-04 : le contenu ne quitte pas la machine). La boîte reste chez OVH (France).
 
 **Traitements couverts** (détail : `registre-traitements.md`) : T-01 relève et rangement, T-02 suivi et alertes, T-03 brouillons, T-04 envois acceptés, T-05 journal, T-06 traces sans contenu.
 
@@ -23,7 +23,7 @@
 | Principe | Mise en œuvre | Suffisant ? |
 |---|---|---|
 | Finalités déterminées | Une par traitement, au registre ; une source n'est lue que déclarée | **Partiel** : le cadre exécutable est à coder (C1) |
-| Base légale | Intérêt légitime, à valider traitement par traitement | À valider |
+| Base légale | Intérêt légitime, validé le 2026-10-04 pour T-01 à T-06 | Oui |
 | Minimisation | Ni objet ni corps stockés ; clés HMAC au lieu des adresses ; le modèle ne voit qu'un mail à la fois | Oui |
 | Exactitude | Vérificateur de faits sans IA ; cases douteuses laissées vides et visibles ; relecture humaine de chaque brouillon | Oui, avec les limites du registre IA |
 | Durées | 90 jours (mémoire), 7 jours (texte des brouillons), 7 jours (traces) | **Partiel** : lignes de propositions et journal sans purge (C1) |
@@ -82,5 +82,6 @@
 
 Risques résiduels jugés **acceptables** sous réserve des actions 1 à 6, réalisées **avant** toute lecture d'une vraie boîte, si le responsable de traitement le valide.
 
-- Validé par : _à compléter_ — le : _à compléter_
+- Validé par : le dirigeant de Gnaro (EURL), responsable de traitement — le : 2026-10-04
+  (validation donnée en session de travail ; actions 1 à 6 à réaliser avant toute lecture d'une vraie boîte).
 - Avis du DPO : sans objet (pas de DPO désigné).
