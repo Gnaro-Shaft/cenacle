@@ -9,7 +9,7 @@
 import { ImapFlow } from "imapflow";
 import type { MailCadre } from "./cadre.ts";
 import { imapOptions } from "./connection.ts";
-import { PostmanError } from "./postman.ts";
+import { decodeSubject, PostmanError, splitHeaders } from "./postman.ts";
 
 export interface ReplyTarget {
   readonly uid: number;
@@ -17,6 +17,26 @@ export interface ReplyTarget {
   readonly to: string | null;
   /** The mail asks to be answered at another address (ignored, shown in red). */
   readonly replyToElsewhere: boolean;
+}
+
+const strictUtf8 = new TextDecoder("utf-8", { fatal: true });
+
+/**
+ * The subject of the mail answered. A raw 8-bit UTF-8 subject (no RFC 2047
+ * encoding, common in practice) is read by the IMAP envelope as Latin-1
+ * ("Point d'Ã©tape"): it is decoded again here from the raw header bytes
+ * (given as a latin1 string, one char per byte). When those bytes are not
+ * valid UTF-8 (a real Latin-1 subject), or the header is missing or doubled,
+ * the envelope is kept: it is right then.
+ */
+export function subjectOf(rawLatin1: string | null | undefined, envelope: string | undefined) {
+  const fallback = envelope ?? "";
+  if (typeof rawLatin1 !== "string" || !/[\x80-\xff]/.test(rawLatin1)) return fallback;
+  try {
+    return decodeSubject(strictUtf8.decode(Buffer.from(rawLatin1, "latin1")));
+  } catch {
+    return fallback;
+  }
 }
 
 /** What the executor needs to answer in the same thread (B4), read at sending time. */
@@ -112,13 +132,15 @@ export async function readReplyContexts(
           `${cadre.mailbox} was renumbered (UIDVALIDITY ${expectedUidValidity} → ${current}) — run mail:sort again first`,
         );
       }
-      const query = { uid: true, envelope: true, headers: ["references"] };
+      const query = { uid: true, envelope: true, headers: ["references", "subject"] };
       for await (const msg of client.fetch(uids.join(","), query, { uid: true })) {
         const target = replyTargetOf(msg.uid, msg.envelope?.from, msg.envelope?.replyTo);
-        const rawRefs = msg.headers?.toString("utf8").replace(/^references:/i, "") ?? "";
+        // Bytes kept as they are (latin1 is one char per byte); the subject decides its charset.
+        const headers = splitHeaders(msg.headers?.toString("latin1") ?? "");
+        const rawRefs = headers.get("references") ?? "";
         targets.set(msg.uid, {
           ...target,
-          subject: msg.envelope?.subject ?? "",
+          subject: subjectOf(headers.get("subject"), msg.envelope?.subject),
           messageId: validMessageId(msg.envelope?.messageId),
           references: (rawRefs.match(/<[^<>\s]{1,250}>/g) ?? []).slice(-20),
         });

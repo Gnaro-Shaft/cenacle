@@ -33,9 +33,14 @@ export const AI_ASSISTED_VALUE = "draft-by-local-model; reviewed-and-accepted-by
 
 /** Control characters (CR, LF, NUL…) become spaces: a subject is one header line. */
 function withoutControls(text: string): string {
-  return [...text]
-    .map((c) => (c.charCodeAt(0) < 0x20 || c.charCodeAt(0) === 0x7f ? " " : c))
-    .join("");
+  return (
+    [...text]
+      // C0, DEL and C1 (U+0080-U+009F, NEL among them: a line break for some readers).
+      .map((c) =>
+        c.charCodeAt(0) < 0x20 || (c.charCodeAt(0) >= 0x7f && c.charCodeAt(0) <= 0x9f) ? " " : c,
+      )
+      .join("")
+  );
 }
 
 /** "Re: <subject>", control characters removed, bounded. */
