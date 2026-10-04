@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { loadCadre } from "./cadre.ts";
+import { CADRE_PATH, loadCadre } from "./cadre.ts";
 
 describe("cadre.toml", () => {
   it("the versioned file is valid and points at the test mailbox", () => {
-    const cadre = loadCadre();
+    const cadre = loadCadre(CADRE_PATH);
     expect(cadre.mail).toEqual({
       source: "boite-test",
       host: "127.0.0.1",
@@ -20,7 +20,7 @@ describe("cadre.toml", () => {
   });
 
   it("declares the retentions, and no open processing while only the test mailbox is read", () => {
-    const cadre = loadCadre();
+    const cadre = loadCadre(CADRE_PATH);
     expect(cadre.conservation).toEqual({
       memoireJours: 90,
       texteBrouillonJours: 7,
