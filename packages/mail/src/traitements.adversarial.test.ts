@@ -2,7 +2,7 @@
 // without an open processing, a processing without its published notice stops
 // Cénacle, and the retentions cannot be missing, absurd or inconsistent.
 import { describe, expect, it } from "vitest";
-import { CadreError, parseCadre } from "./cadre.ts";
+import { CadreError, parseCadre, readingStartsAt } from "./cadre.ts";
 
 const TODAY = "2026-10-04";
 const CONSERVATION =
@@ -92,5 +92,22 @@ describe("retentions", () => {
 
   it("refuses an unknown retention key", () => {
     expect(() => parse(`${FICTIONAL}${CONSERVATION}brouillons_jours = 7\n`)).toThrow(/unknown key/);
+  });
+});
+
+describe("from when a real mailbox may be read (C4)", () => {
+  // The mailbox named by a processing (here the fictional one, covered by T-01).
+  const at = (mention: string, today: string) =>
+    readingStartsAt(
+      parseCadre(FICTIONAL + CONSERVATION + T01("", `mention_publiee = ${mention}`), today),
+    )?.toISOString();
+
+  it("midnight, Paris time, of the day the notice was published (summer and winter)", () => {
+    expect(at("2026-09-30", TODAY)).toBe("2026-09-29T22:00:00.000Z");
+    expect(at("2026-01-15", "2026-02-01")).toBe("2026-01-14T23:00:00.000Z");
+  });
+
+  it("no limit for a mailbox no processing covers (the fictional one)", () => {
+    expect(readingStartsAt(parse(FICTIONAL + CONSERVATION))).toBeNull();
   });
 });

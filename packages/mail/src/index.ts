@@ -5,6 +5,7 @@ export {
   loadCadre,
   type MailCadre,
   parseCadre,
+  readingStartsAt,
   TEST_DOMAIN,
 } from "./cadre.ts";
 export {

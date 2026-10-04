@@ -47,6 +47,7 @@ function setup(inbox: (afterUid: number) => MailRef[], sent: SentRef[] = [], val
     rules,
     retentionDays: 90,
     opposedKeys: new Set(),
+    notBefore: null,
     clock: () => NOW,
     fetchInbox: async (afterUid) => {
       asked.push(afterUid);
@@ -202,5 +203,43 @@ describe("the opposition list (C3)", () => {
     await collectMail(withList);
     expect((await store.inbox()).map((i) => i.uid)).toEqual([1]);
     expect(JSON.stringify(await store.inbox())).not.toContain(K("b"));
+  });
+});
+
+describe("nothing from before the information notice (C4)", () => {
+  it("received and sent mails dated before the notice are not read; the rest is", async () => {
+    const { deps, store } = setup(
+      () => [
+        ref(1, "client.example", "2026-09-29T21:59:59.000Z"),
+        ref(2, "client.example", "2026-09-29T22:00:00.000Z"),
+      ],
+      [
+        {
+          uid: 1,
+          sentAt: "2026-09-29T08:00:00.000Z",
+          recipientKeys: [K("a")],
+          messageKey: K("c"),
+          threadKeys: [],
+        },
+        {
+          uid: 2,
+          sentAt: "2026-09-30T08:00:00.000Z",
+          recipientKeys: [K("a")],
+          messageKey: K("d"),
+          threadKeys: [],
+        },
+      ],
+    );
+    // Notice published on 30 September: from midnight, Paris time (22:00 UTC the day before).
+    const summary = await collectMail({ ...deps, notBefore: new Date("2026-09-29T22:00:00.000Z") });
+    expect((await store.inbox()).map((i) => i.uid)).toEqual([2]);
+    expect((await store.sent()).map((s) => s.uid)).toEqual([2]);
+    expect(summary.count).toBe(1);
+  });
+
+  it("no limit for the fictional test mailbox", async () => {
+    const { deps, store } = setup(() => [ref(1, "client.example", "2020-01-01T00:00:00.000Z")]);
+    await collectMail({ ...deps, retentionDays: 10_000, notBefore: null });
+    expect((await store.inbox()).map((i) => i.uid)).toEqual([1]);
   });
 });

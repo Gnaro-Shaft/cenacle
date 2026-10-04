@@ -12,6 +12,7 @@ import {
   loadCadre,
   loadRules,
   mailTotals,
+  readingStartsAt,
   runMailPass,
   testMailboxConfigFromEnv,
 } from "@cenacle/mail";
@@ -20,7 +21,8 @@ const rulesOnly = process.argv.includes("--rules-only");
 const sql = connectAsApp();
 try {
   const store = createMailStore(sql);
-  const { mail, conservation } = loadCadre();
+  const cadre = loadCadre();
+  const { mail, conservation } = cadre;
   const { rules, noFollowUp, example } = loadRules();
   if (example) {
     console.log("ℹ règles : regles.example.toml (domaines fictifs) — pas de regles.local.toml");
@@ -32,6 +34,7 @@ try {
     cadre: mail,
     retentionDays: conservation.memoireJours,
     opposedKeys: () => createPeople(sql).opposedKeys(),
+    notBefore: readingStartsAt(cadre),
     password: testMailboxConfigFromEnv().password,
     rules,
     noFollowUp,

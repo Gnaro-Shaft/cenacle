@@ -39,6 +39,8 @@ export interface CollectDeps {
   readonly retentionDays: number;
   /** People who asked to be erased or objected (C3): their mails are never remembered. */
   readonly opposedKeys: ReadonlySet<string>;
+  /** C4: mails (received or sent) before the notice was published are not read; null: no limit. */
+  readonly notBefore: Date | null;
   /** Domains that never expect a reply by mail ([sans_suivi]). */
   readonly noFollowUp?: ReadonlySet<string>;
   readonly clock?: () => Date;
@@ -79,9 +81,13 @@ export async function collectMail(deps: CollectDeps): Promise<CollectSummary> {
     // C3: an opposed person's mails are not remembered, sorted nor read; in my
     // sent mails, only their key is left out (the other recipients stay).
     const opposed = deps.opposedKeys;
+    // C4: nothing from before the information notice; null for the fictional box.
+    const since = deps.notBefore?.getTime() ?? Number.NEGATIVE_INFINITY;
     const inboxRefs = inbox.result.refs.filter(
-      (r) => r.senderKey === null || !opposed.has(r.senderKey),
+      (r) =>
+        (r.senderKey === null || !opposed.has(r.senderKey)) && Date.parse(r.receivedAt) >= since,
     );
+    const sentRefs = sent.result.refs.filter((r) => Date.parse(r.sentAt) >= since);
     // Mapped field by field: the domain is used for sorting below, never stored.
     const added = await store.saveInbox(
       inbox.result.uidValidity,
@@ -99,7 +105,7 @@ export async function collectMail(deps: CollectDeps): Promise<CollectSummary> {
     );
     const sentAdded = await store.saveSent(
       sent.result.uidValidity,
-      sent.result.refs.map(({ uid, sentAt, recipientKeys, messageKey, threadKeys }) => ({
+      sentRefs.map(({ uid, sentAt, recipientKeys, messageKey, threadKeys }) => ({
         uid,
         sentAt,
         recipientKeys: recipientKeys.filter((k) => !opposed.has(k)),
