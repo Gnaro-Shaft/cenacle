@@ -39,6 +39,8 @@ Le VPS ne doit joindre **aucune** machine de chez moi. Dans la console Tailscale
 
 Avant d'appliquer, vérifier qu'aucune règle large (`"src": ["*"]`, `"dst": ["*:*"]`) ne laisse le VPS joindre le reste du réseau.
 
+La règle par défaut d'une nouvelle politique Tailscale (`"src": ["*"], "dst": ["*"], "ip": ["*"]`) **laisse le VPS joindre toutes les machines** (constaté le 2026-10-05 : le port SSH du Mac répondait). La corriger en remplaçant `"*"` par `"autogroup:member"` dans `src` seulement : une machine étiquetée n'est plus membre, elle ne peut plus ouvrir de connexion, et les machines des utilisateurs gardent leurs accès. Contrôle, depuis le VPS : `nc -z -w 4 <adresse Tailscale du Mac> 22` doit échouer.
+
 ## Vérifier
 
 - Couper Iris : au bout de 10 minutes, une alerte arrive ; la relancer : un message de retour.
