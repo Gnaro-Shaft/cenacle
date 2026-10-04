@@ -35,6 +35,9 @@ const HELP = [
 export function describeStatus(status: AgentStatus): string {
   const lines = [`Iris : ${LABELS[status.view.visual]}`];
   if (status.view.note === "waiting_for_mac") lines.push("En attente du Mac.");
+  if (status.view.note === "purge_failed") {
+    lines.push("⚠ Purge en échec : les durées de conservation ne sont pas tenues.");
+  }
   lines.push(
     status.pendingApprovals === 0
       ? "Rien à valider."

@@ -11,6 +11,7 @@ const LABELS: Record<VisualState | "offline", string> = {
 
 const NOTES: Record<ViewNote, string> = {
   waiting_for_mac: "en attente du Mac",
+  purge_failed: "purge en échec : les durées de conservation ne sont pas tenues",
 };
 
 interface Props {

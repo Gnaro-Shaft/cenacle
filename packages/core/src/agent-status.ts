@@ -35,6 +35,11 @@ export interface AgentStatus {
   readonly pendingProposalIds: readonly string[];
   /** The mails Iris remembers, per category; null before the first pass. */
   readonly mail: MailCounts | null;
+  /**
+   * The last purge failed: retentions are not kept (C1). Shown as sick until
+   * a purge succeeds — a GDPR failure must be seen, not only journaled.
+   */
+  readonly purgeFailing: boolean;
   /** Id of the last event applied; the next one must be greater. */
   readonly lastEventId: bigint | null;
 }
@@ -65,7 +70,33 @@ const NEUTRAL_EVENT_TYPES: ReadonlySet<string> = new Set([
   "send.failed", // the mail server refused it: shown to me, never retried
   "send.copy_failed", // sent, but the copy in Sent failed
   "send.limit_reached", // 20 attempts today: the rest waits for tomorrow
+  "send.unsigned", // an acceptance without a valid page signature: refused, never sent (B7)
+  "mail.set_aside", // summary (C2): the counts are set again by mail.totals at the end of the pass
+  "person.exported", // the rights of a person (C3): counts only
+  "person.erased",
+  "person.withdrawn",
+  "stop.requested", // the emergency stop (/stop), read by the executor
+  "telegram.rejected", // a message from someone else than me, ignored
+  "dev.memory.wiped", // the test box memory, emptied once by hand before the real box (M2)
 ]);
+
+/** Event types the projection reads itself (the switch below). */
+const HANDLED_EVENT_TYPES: ReadonlySet<string> = new Set([
+  "state.changed",
+  "proposal.created",
+  "proposal.closed",
+  "mail.fetched",
+  "mail.sorted_by_rules",
+  "mail.model_sorted",
+  "mail.totals",
+  "purge.done",
+  "purge.failed",
+]);
+
+/** Every event type the projection knows: anything else makes it fail (rule 3). */
+export function isKnownEventType(type: string): boolean {
+  return HANDLED_EVENT_TYPES.has(type) || NEUTRAL_EVENT_TYPES.has(type);
+}
 
 const PROPOSAL_OUTCOMES: ReadonlySet<string> = new Set([
   "accepted",
@@ -84,8 +115,14 @@ export function initialStatus(agent: string): AgentStatus {
     pendingApprovals: 0,
     pendingProposalIds: [],
     mail: null,
+    purgeFailing: false,
     lastEventId: null,
   };
+}
+
+/** A failed purge outranks the internal state: it is a real problem. */
+function viewOf(internal: InternalState, purgeFailing: boolean): AgentView {
+  return purgeFailing ? { visual: "sick", note: "purge_failed" } : toView(internal);
 }
 
 function proposalId(event: AgentEvent): string {
@@ -123,7 +160,12 @@ export function applyEvent(status: AgentStatus, event: AgentEvent): AgentStatus 
       if (!isInternalState(to)) {
         throw new ProjectionError(event, `unknown target state ${JSON.stringify(to)}`);
       }
-      return { ...next, internal: to, view: toView(to), since: event.occurredAt };
+      return {
+        ...next,
+        internal: to,
+        view: viewOf(to, next.purgeFailing),
+        since: event.occurredAt,
+      };
     }
     case "proposal.created": {
       const id = proposalId(event);
@@ -146,6 +188,10 @@ export function applyEvent(status: AgentStatus, event: AgentEvent): AgentStatus 
         next.pendingProposalIds.filter((pending) => pending !== id),
       );
     }
+    case "purge.failed":
+      return { ...next, purgeFailing: true, view: viewOf(next.internal, true) };
+    case "purge.done":
+      return { ...next, purgeFailing: false, view: viewOf(next.internal, false) };
     case "mail.fetched":
     case "mail.sorted_by_rules":
     case "mail.model_sorted":
