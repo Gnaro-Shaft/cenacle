@@ -1,0 +1,30 @@
+# The sentinel (phase 5, S2 — ADR-0002). Hardened: its own throwaway user, no
+# write access anywhere, no privilege to gain, no network but what it needs.
+[Unit]
+Description=Cénacle sentinel (heartbeats of the Mac, alerts on Telegram)
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+EnvironmentFile=/etc/cenacle-sentinel.env
+ExecStart=/usr/bin/node /opt/cenacle-sentinel/src/main.ts
+Restart=always
+RestartSec=10
+DynamicUser=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=no
+CapabilityBoundingSet=
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

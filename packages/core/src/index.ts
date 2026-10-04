@@ -63,6 +63,13 @@ export {
   followUpOf,
   type MyMail,
 } from "./follow-up.ts";
+export {
+  createHeartbeat,
+  type Heartbeat,
+  heartbeatFromEnv,
+  SENTINEL_TOKEN_VAR,
+  SENTINEL_URL_VAR,
+} from "./heartbeat.ts";
 export { type MailCounts, MailCountsError } from "./mail-counts.ts";
 export { type MailForModel, MODEL_FIELD_MAX, MODEL_TEXT_MAX } from "./mail-for-model.ts";
 export {

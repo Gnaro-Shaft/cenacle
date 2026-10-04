@@ -4,7 +4,7 @@
  * on Telegram ends it. It never sends a mail: only Telegram messages to me.
  */
 import { createLocalModels, localModelConfigFromEnv } from "@cenacle/brain";
-import { refuseForeignSecrets } from "@cenacle/core";
+import { heartbeatFromEnv, refuseForeignSecrets } from "@cenacle/core";
 import {
   connectAsApp,
   createJournal,
@@ -29,7 +29,7 @@ import { purgeDue } from "./purge.ts";
 import { tick } from "./tick.ts";
 
 // Iris can never accept: she must not even hold the page's key (ADR-0013).
-refuseForeignSecrets("Iris", ["mail", "telegram"]);
+refuseForeignSecrets("Iris", ["mail", "telegram", "sentinel"]);
 const chatId = Number(process.env.TELEGRAM_ALLOWED_CHAT_ID);
 if (!Number.isSafeInteger(chatId) || chatId === 0) {
   throw new Error("TELEGRAM_ALLOWED_CHAT_ID is missing or not a number (see .env.example)");
@@ -53,6 +53,13 @@ const drafting = draftingDeps({
   password,
 });
 const startedAt = new Date();
+// S2: the sentinel hears Iris every minute; its silence is the alert.
+const sentinel = heartbeatFromEnv("iris");
+let sentinelDown = false;
+if (sentinel === null)
+  console.log(
+    "ℹ Sentinelle non configurée (CENACLE_SENTINEL_URL absent) : aucun battement envoyé.",
+  );
 
 let stopping = false;
 process.on("SIGINT", () => {
@@ -90,6 +97,16 @@ while (!stopping) {
         await draftDueFollowUps(drafting);
       },
       pendingDrafts: async () => (await proposalStore.pending()).length,
+      heartbeat: async () => {
+        if (sentinel === null) return;
+        const ok = await sentinel.beat();
+        if (!ok && !sentinelDown)
+          console.error(
+            "⚠ Sentinelle injoignable : battement non reçu (on réessaie chaque minute)",
+          );
+        if (ok && sentinelDown) console.log("✔ Sentinelle de nouveau jointe");
+        sentinelDown = !ok;
+      },
       purge: async () => {
         await purgeDue({
           now: () => new Date(),

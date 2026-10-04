@@ -5,7 +5,7 @@
  * machine. Every 10 seconds; /stop on Telegram or Ctrl+C ends it.
  * It holds the page's public key: it can check an acceptance, never make one.
  */
-import { dayStart, publicKeyFromEnv, refuseForeignSecrets } from "@cenacle/core";
+import { dayStart, heartbeatFromEnv, publicKeyFromEnv, refuseForeignSecrets } from "@cenacle/core";
 import {
   connectAsExecutor,
   createJournal,
@@ -28,7 +28,7 @@ import {
 import { executeDue, MAX_SENDS_PER_DAY } from "./execute.ts";
 
 const ROUND_MS = 10_000;
-refuseForeignSecrets("The executor", ["mail", "executor"]);
+refuseForeignSecrets("The executor", ["mail", "executor", "sentinel"]);
 const acceptKey = publicKeyFromEnv();
 // Its own database role: the only one allowed to claim and close a sending (B7).
 const sql = connectAsExecutor();
@@ -39,6 +39,14 @@ const keyer = keyerFromEnv();
 const { mail: cadre } = loadCadre();
 const { password } = testMailboxConfigFromEnv();
 const startedAt = new Date();
+// S2: the sentinel hears the executor once a minute at most.
+const sentinel = heartbeatFromEnv("executor");
+let lastBeat = 0;
+let sentinelDown = false;
+if (sentinel === null)
+  console.log(
+    "ℹ Sentinelle non configurée (CENACLE_SENTINEL_URL absent) : aucun battement envoyé.",
+  );
 const LAPSE = {
   gone: "le mail n'est plus là",
   answered: "tu as déjà répondu",
@@ -62,6 +70,12 @@ while (!stopping) {
     if (stop !== undefined && stop.occurredAt.getTime() > startedAt.getTime()) {
       console.log("🛑 Arrêt d'urgence demandé sur Telegram : l'exécuteur s'arrête.");
       break;
+    }
+    if (sentinel !== null && Date.now() - lastBeat >= 60_000) {
+      lastBeat = Date.now();
+      const ok = await sentinel.beat();
+      if (!ok && !sentinelDown) console.error("⚠ Sentinelle injoignable : battement non reçu");
+      sentinelDown = !ok;
     }
     const r = await executeDue({
       store,

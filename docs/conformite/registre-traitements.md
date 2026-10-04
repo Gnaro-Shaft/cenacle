@@ -29,6 +29,7 @@ Rédigé par Claude le 2026-10-04, sur le modèle des registres de Myriade et de
 | **OVH** | Hébergement de la boîte pro (IMAP, SMTP) | La boîte elle-même | France | Déjà sous-traitant de l'activité avant Cénacle ; Cénacle n'en ajoute aucun |
 | **Telegram** | Compteurs, alertes et commandes (`/etat`, `/stop`) avec moi seul (ADR-0006) | Mes commandes et des compteurs ; **aucune donnée de tiers** (vérifié par le banc des alertes, phase 3 : 0 contenu dans Telegram) | Hors UE | Ne reçoit aucune donnée des correspondants. À revoir si un message devait un jour en contenir : il ne le doit pas |
 | **Modèle local** (LM Studio, sur le même Mac) | Rangement, choix de trame, recopie de cases | Objet et texte d'un mail, le temps d'un appel | Mac | **Aucun fournisseur d'IA** ne reçoit de contenu (ADR-0003) : si le modèle local est indisponible, on attend |
+| **VPS de la sentinelle** (S2) | Entendre les battements du Mac et me prévenir d'une panne | **Aucune donnée de personne** : un nom de programme et une heure, rien d'autre (refusé sinon) | Europe (choix du VPS au déploiement) | Ne parle jamais au Mac ; un bot Telegram à lui, pour que le jeton du bot principal ne quitte pas le Mac |
 | **Tailscale** | Nom réseau par lequel les programmes joignent le modèle, sur le même Mac | **Aucun contenu** : le trafic ne quitte pas la machine ; le service de coordination ne voit que des métadonnées de connexion | Hors UE | Ne voit pas les mails |
 
 Aucun transfert hors UE de données des correspondants : le contenu ne sort pas de mes machines.

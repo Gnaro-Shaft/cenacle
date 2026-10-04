@@ -22,6 +22,8 @@ export const SECRET_FAMILIES = {
   page: { file: ".env.page", vars: [PRIVATE_KEY_VAR] },
   /** The executor's database role (B7). */
   executor: { file: ".env.executor", vars: ["CENACLE_DB_EXECUTOR_PASSWORD"] },
+  /** Shared with the sentinel (S2): Iris and the executor send their heartbeats with it. */
+  sentinel: { file: ".env.sentinel", vars: ["CENACLE_SENTINEL_TOKEN"] },
 } as const;
 
 export type SecretFamily = keyof typeof SECRET_FAMILIES;
