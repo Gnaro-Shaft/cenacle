@@ -20,7 +20,7 @@ const rulesOnly = process.argv.includes("--rules-only");
 const sql = connectAsApp();
 try {
   const store = createMailStore(sql);
-  const { mail } = loadCadre();
+  const { mail, conservation } = loadCadre();
   const { rules, noFollowUp, example } = loadRules();
   if (example) {
     console.log("ℹ règles : regles.example.toml (domaines fictifs) — pas de regles.local.toml");
@@ -30,6 +30,7 @@ try {
     store,
     keyer: keyerFromEnv(),
     cadre: mail,
+    retentionDays: conservation.memoireJours,
     password: testMailboxConfigFromEnv().password,
     rules,
     noFollowUp,

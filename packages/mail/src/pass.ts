@@ -17,6 +17,8 @@ export interface PassDeps {
   readonly store: MailStore;
   readonly keyer: Keyer;
   readonly cadre: MailCadre;
+  /** How long a mail is remembered, in days ([conservation] of cadre.toml). */
+  readonly retentionDays: number;
   readonly password: string;
   readonly rules: Rules;
   readonly noFollowUp: ReadonlySet<string>;
@@ -37,6 +39,7 @@ export async function runMailPass(deps: PassDeps): Promise<PassResult> {
     journal,
     store,
     rules: deps.rules,
+    retentionDays: deps.retentionDays,
     noFollowUp: deps.noFollowUp,
     clock,
     fetchInbox: (afterUid) => fetchMailRefs(cadre, password, keyer, { afterUid }),

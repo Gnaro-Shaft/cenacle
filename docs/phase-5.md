@@ -10,7 +10,7 @@ Un jalon = une branche + une pull request, CI verte obligatoire.
 | Jalon | Contenu | Démonstration |
 |---|---|---|
 | **C0 — Registres** | Registre des traitements, registre IA, examen et AIPD légère, procédure en cas de violation (`docs/conformite/`) | Documents relus et validés par le responsable |
-| **C1 — Le cadre exécutable** | Traitements déclarés dans un fichier que le code applique (ADR-0009) : une source non couverte n'est pas lue, une mention manquante fait échouer le démarrage, chaque table a sa durée et sa purge | Démarrage refusé sans traitement ; purge éprouvée |
+| **C1 — Le cadre exécutable** | Traitements déclarés dans `cadre.toml` (ADR-0009) : une boîte réelle sans traitement ouvert n'est pas lue, une mention sans date fait échouer le démarrage ; durées dans `[conservation]` (mémoire 90 j, texte des brouillons 7 j, propositions closes 90 j, journal 180 j), purge quotidienne par Iris, par des fonctions en base qui laissent une trace | Démarrage refusé sans traitement ; purges éprouvées en base |
 | **C2 — Plancher article 9** | Liste fermée et déterministe ; un mail écarté n'est jamais lu par le modèle | Banc : 0 mail sensible donné au modèle |
 | **C3 — Droits des personnes** | Exporter et effacer ce qu'Iris détient sur une adresse (par sa clé HMAC) | Export, puis effacement vérifié en base et dans les sauvegardes |
 | **C4 — Mention révisée** | La mention publiée sur le site couvre Cénacle : lecture du contenu par un modèle local, brouillons, envois validés, aide de l'IA | Mention vérifiée en ligne, pas supposée |

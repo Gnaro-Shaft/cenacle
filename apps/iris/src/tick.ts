@@ -30,6 +30,8 @@ export interface TickDeps {
   readonly draft?: () => Promise<void>;
   /** Proposals waiting for me (only their number reaches Telegram). */
   readonly pendingDrafts?: () => Promise<number>;
+  /** Phase 5, C1: applies the retentions of cadre.toml, once a day (purge.ts). */
+  readonly purge?: () => Promise<void>;
 }
 
 export type TickOutcome = "stopped" | "done";
@@ -75,6 +77,13 @@ async function notify(
 export async function tick(deps: TickDeps): Promise<TickOutcome> {
   const stop = lastOf(await deps.events("cenacle"), "stop.requested");
   if (stop !== undefined && stop.occurredAt.getTime() > deps.startedAt.getTime()) return "stopped";
+  if (deps.purge !== undefined) {
+    try {
+      await deps.purge();
+    } catch {
+      // Already journaled as purge.failed; alerts and recaps go on, the next beat retries.
+    }
+  }
 
   let events = await deps.events(AGENT);
   const lastFetch = lastOf(events, "mail.fetched");

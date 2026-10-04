@@ -90,8 +90,8 @@ describe("proposal life cycle", () => {
   it("wipes the text 7 days after closing, keeps the history", async () => {
     const p = await fresh();
     await store.refuse(p.id, T0);
-    expect(await store.wipeOldTexts(later(6 * 24 * 3600 * 1000))).toBe(0);
-    expect(await store.wipeOldTexts(later(8 * 24 * 3600 * 1000))).toBeGreaterThanOrEqual(1);
+    expect(await store.wipeOldTexts(later(6 * 24 * 3600 * 1000), 7)).toBe(0);
+    expect(await store.wipeOldTexts(later(8 * 24 * 3600 * 1000), 7)).toBeGreaterThanOrEqual(1);
     const wiped = await store.get(p.id);
     expect(wiped?.draft).toBeNull();
     expect(wiped?.status).toBe("refused");

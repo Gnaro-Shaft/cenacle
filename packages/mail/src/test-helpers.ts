@@ -278,7 +278,7 @@ export function memoryProposalStore(): ProposalStore {
         (p) => p.sentAt !== null && p.sentAt.getTime() >= since.getTime(),
       ).length;
     },
-    async wipeOldTexts() {
+    async wipeOldTexts(_now, _days) {
       return 0;
     },
   };

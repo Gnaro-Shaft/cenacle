@@ -61,7 +61,6 @@ export class ProposalError extends Error {
 
 /** The undo delay between my acceptance and the actual sending (ADR-0004). */
 export const UNDO_DELAY_MS = 2 * 60 * 1000;
-export const TEXT_RETENTION_DAYS = 7;
 const SLOT_LEFT = /\{[a-z_]+ \?\}/;
 
 export interface ProposalStore {
@@ -107,8 +106,8 @@ export interface ProposalStore {
   refuseUnsigned(id: string, now: Date): Promise<Proposal>;
   /** Sending attempts since a moment (the daily limit). */
   sendsSince(since: Date): Promise<number>;
-  /** Wipes the text of proposals closed more than 7 days ago. Returns how many. */
-  wipeOldTexts(now: Date): Promise<number>;
+  /** Wipes the text of proposals closed more than `days` ago (cadre.toml). Returns how many. */
+  wipeOldTexts(now: Date, days: number): Promise<number>;
 }
 
 interface Row {
@@ -329,8 +328,8 @@ export function createProposalStore(sql: Sql): ProposalStore {
       return Number(row?.n ?? 0);
     },
 
-    async wipeOldTexts(now) {
-      const cutoff = new Date(now.getTime() - TEXT_RETENTION_DAYS * 24 * 3600 * 1000);
+    async wipeOldTexts(now, days) {
+      const cutoff = new Date(now.getTime() - days * 24 * 3600 * 1000);
       const result = await sql`
         update proposals set draft = null where draft is not null and closed_at < ${cutoff}`;
       return result.count;

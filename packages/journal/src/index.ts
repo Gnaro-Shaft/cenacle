@@ -32,6 +32,6 @@ export {
   type ProposalStatus,
   type ProposalStore,
   type SignedAcceptance,
-  TEXT_RETENTION_DAYS,
   UNDO_DELAY_MS,
 } from "./proposal-store.ts";
+export { createPurges, type Purges } from "./purges.ts";

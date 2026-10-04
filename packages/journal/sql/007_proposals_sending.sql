@@ -30,7 +30,12 @@ ALTER TABLE proposals ADD CONSTRAINT proposals_sending_ready
 
 -- When the executor claimed it: the daily limit counts attempts, sent or not.
 ALTER TABLE proposals ADD COLUMN IF NOT EXISTS sent_at TIMESTAMPTZ;
+-- (The final rule, B7's included: every migration runs again at each
+-- db:migrate, and this one must not refuse rows written by later ones — a
+-- failed proposal refused as unsigned has no sending time. See 009.)
 ALTER TABLE proposals DROP CONSTRAINT IF EXISTS proposals_sent_at;
 ALTER TABLE proposals ADD CONSTRAINT proposals_sent_at
-  CHECK ((sent_at IS NOT NULL) = (status IN ('sending', 'sent', 'failed')));
+  CHECK ((status IN ('sending', 'sent') AND sent_at IS NOT NULL)
+         OR status = 'failed'
+         OR (status NOT IN ('sending', 'sent', 'failed') AND sent_at IS NULL));
 CREATE INDEX IF NOT EXISTS proposals_sent_at ON proposals (sent_at);

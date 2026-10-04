@@ -12,7 +12,6 @@ export {
   type CollectSummary,
   collectMail,
   mailTotals,
-  RETENTION_DAYS,
 } from "./collect.ts";
 export { createKeyer, KeyError, type Keyer, keyerFromEnv, messageIds } from "./keys.ts";
 export { cleanForModel, htmlToText, toMailForModel } from "./mail-text.ts";
@@ -75,6 +74,16 @@ export {
   type TestMailboxConfig,
   testMailboxConfigFromEnv,
 } from "./test-mailbox.ts";
+export {
+  type Conservation,
+  coveringTraitement,
+  LEGAL_BASES,
+  type LegalBasis,
+  parseConservation,
+  parseTraitements,
+  type Traitement,
+  TraitementError,
+} from "./traitements.ts";
 export {
   EXAMPLE_TRAMES_PATH,
   firstName,

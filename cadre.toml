@@ -2,6 +2,10 @@
 # password, a real address, an IP or a tailnet name here (they live in .env).
 
 [mail]
+# The source this mailbox is, as the processings below name it (ADR-0009).
+# The fictional test mailbox of this machine needs no processing: it holds no
+# personal data. Any other mailbox is read only if an open processing covers it.
+source = "boite-test"
 # Phase 2: the fictional test mailbox (GreenMail) only — any host that is not
 # this machine is refused by the code until phase 5.
 host = "127.0.0.1"
@@ -16,3 +20,31 @@ max_per_fetch = 500
 # (GreenMail, this machine only), from this fictional address.
 smtp_port = 3025
 address = "test-cenacle@cenacle.test"
+
+# How long each store keeps what it keeps, in days (phase 5, C1). The purges
+# read these values; nothing else in the code decides a retention.
+[conservation]
+# What Iris remembers of a mail (keys, dates, category), after its arrival.
+memoire_jours = 90
+# The text of a proposal, after it is closed.
+texte_brouillon_jours = 7
+# A closed proposal's row (status, dates, no text left), after it is closed.
+propositions_jours = 90
+# Journal events (facts, never content). Must exceed memoire_jours: a proposal
+# stays open at most as long as its mail is remembered, and keeps its events.
+journal_jours = 180
+
+# The OPEN processings, and only them (ADR-0009). None today: only the
+# fictional mailbox is read. A processing opens once its information notice is
+# published, with that date — verified online, not assumed:
+#
+# [[traitement]]
+# identifiant = "T-01"
+# finalite = "Ranger chaque mail de la boîte pro dans une case."
+# base_legale = "interet-legitime"
+# categories = ["UID", "date d'arrivée", "case", "clés HMAC"]
+# sources = ["boite-pro"]
+# tiers = true
+# mention_publiee = 2026-10-31
+#
+# The written register: docs/conformite/registre-traitements.md. Both agree.

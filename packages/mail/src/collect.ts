@@ -3,7 +3,7 @@
  *
  * Each pass reads only what is new since the last one (inbox and Sent),
  * remembers it (keys only), sorts the new mails the rules know, and applies
- * the retention period. The journal gets facts, not content (charter): counts
+ * the retention period of cadre.toml ([conservation], memoire_jours). The journal gets facts, not content (charter): counts
  * and durations — never a UID, a domain or a key.
  */
 import { countFollowUps } from "@cenacle/core";
@@ -12,7 +12,6 @@ import type { FetchResult, MailRef, SentRef } from "./postman.ts";
 import { type RuleSort, type Rules, sortByRules } from "./rules.ts";
 
 const AGENT = "iris";
-export const RETENTION_DAYS = 90;
 const DAY_MS = 24 * 3600 * 1000;
 
 export interface CollectSummary {
@@ -36,6 +35,8 @@ export interface CollectDeps {
   readonly fetchInbox: (afterUid: number) => Promise<FetchResult<MailRef>>;
   readonly fetchSent: (afterUid: number) => Promise<FetchResult<SentRef>>;
   readonly rules: Rules;
+  /** How long a mail is remembered after its arrival, in days (cadre.toml). */
+  readonly retentionDays: number;
   /** Domains that never expect a reply by mail ([sans_suivi]). */
   readonly noFollowUp?: ReadonlySet<string>;
   readonly clock?: () => Date;
@@ -123,7 +124,7 @@ export async function collectMail(deps: CollectDeps): Promise<CollectSummary> {
     const gone =
       (await store.keepOnly("inbox", inbox.result.present)) +
       (await store.keepOnly("sent", sent.result.present));
-    const cutoff = new Date(clock().getTime() - RETENTION_DAYS * DAY_MS);
+    const cutoff = new Date(clock().getTime() - deps.retentionDays * DAY_MS);
     const purged = (await store.purgeBefore(cutoff)) + inbox.forgotten + sent.forgotten + gone;
     await journal.append({
       agent: AGENT,
