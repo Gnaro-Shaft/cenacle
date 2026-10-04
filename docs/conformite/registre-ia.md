@@ -23,7 +23,7 @@ Rédigé par Claude le 2026-10-04. **Validé par le responsable le 2026-10-04.**
 
 - **Le texte autour des cases est le mien** : une proposition est une de mes trames, dont seules des cases courtes sont remplies par le code ou recopiées du fil. Je relis, je corrige, et **rien ne part sans mon acceptation signée** sur la page (ADR-0004, ADR-0013).
 - **Le cas visé par l'art. 50(4)** (texte publié pour informer le public sur des questions d'intérêt public) ne correspond pas à une correspondance privée relue par son auteur. À faire confirmer.
-- **Décision du 04/10** : l'aide de l'IA est signalée dans les mentions du site, et elle sera étendue à Cénacle en C4. Un éventuel marquage dans le mail lui-même (en-tête lisible par machine, par exemple) est **à trancher en C4**.
+- **Décision du 04/10** : l'aide de l'IA est signalée dans les mentions du site (paragraphe « Mon assistant de messagerie », C4), et chaque réponse envoyée porte l'en-tête lisible par machine `X-AI-Assisted: draft-by-local-model; reviewed-and-accepted-by-sender`.
 - **Sur la page**, une proposition est montrée comme une proposition, avec ses alertes : faits absents du fil, cases à compléter, Reply-To ailleurs.
 
 ## Limites connues (littératie IA, art. 4)

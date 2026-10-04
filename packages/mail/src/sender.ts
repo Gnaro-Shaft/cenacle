@@ -7,6 +7,9 @@
  * - Plain text only; the subject and thread ids come from the server, cleaned.
  * - The server is the loopback test server of the cadre (refused otherwise).
  * - A copy goes to my Sent folder, marked read: Iris then sees I answered.
+ * - A header says, for machines, that the reply was prepared with a local AI
+ *   and reviewed and accepted by its sender (AI Act transparency; the
+ *   information notice says it to people).
  */
 import { randomUUID } from "node:crypto";
 import { ImapFlow } from "imapflow";
@@ -23,6 +26,9 @@ export class SendError extends Error {
 }
 
 const MAX_SUBJECT = 200;
+/** Machine-readable mark of AI assistance (decided 04/10, C4). Fixed: nothing of the mail goes in it. */
+export const AI_ASSISTED_HEADER = "X-AI-Assisted";
+export const AI_ASSISTED_VALUE = "draft-by-local-model; reviewed-and-accepted-by-sender";
 
 /** Control characters (CR, LF, NUL…) become spaces: a subject is one header line. */
 function withoutControls(text: string): string {
@@ -72,6 +78,7 @@ export async function buildReply(
     messageId: `<${randomUUID()}@${domain}>`,
     ...(parent === null ? {} : { inReplyTo: parent }),
     ...(references.length === 0 ? {} : { references }),
+    headers: { [AI_ASSISTED_HEADER]: AI_ASSISTED_VALUE },
     disableFileAccess: true,
     disableUrlAccess: true,
   })
