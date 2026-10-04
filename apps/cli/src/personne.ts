@@ -1,0 +1,90 @@
+/**
+ * The rights of a person Iris reads about (phase 5, C3 — GDPR art. 15-21).
+ * Usage:
+ *   npm run personne -- export --out <fichier.json>   what Iris holds (access, portability)
+ *   npm run personne -- efface                         erase, and ignore their mails from now on
+ *   npm run personne -- retire                         they withdraw their objection
+ * The address is asked at the prompt, never passed as an argument: it would
+ * stay in the shell history. The export file is written for me only, never
+ * over an existing file. Every action is journaled as counts, never who.
+ */
+import { writeFileSync } from "node:fs";
+import { stdin, stdout } from "node:process";
+import { createInterface } from "node:readline/promises";
+import { connectAsApp, createJournal, createPeople } from "@cenacle/journal";
+import { keyerFromEnv } from "@cenacle/mail";
+
+const [action, flag, out] = process.argv.slice(2);
+const USAGE = "usage : personne export --out <fichier.json> | efface | retire";
+
+// One reader for every answer, read line after line: a second interface would
+// lose what was already typed (or piped) for it, and stop without a word.
+const rl = createInterface({ input: stdin, output: stdout });
+const lines = rl[Symbol.asyncIterator]();
+async function ask(question: string): Promise<string> {
+  stdout.write(question);
+  const answer = await lines.next();
+  if (answer.done === true) throw new Error("réponse manquante : rien n'a été fait");
+  return String(answer.value).trim();
+}
+
+const sql = connectAsApp();
+try {
+  if (!["export", "efface", "retire"].includes(action ?? "")) throw new Error(USAGE);
+  if (action === "export" && (flag !== "--out" || out === undefined)) throw new Error(USAGE);
+  const address = await ask("Adresse de la personne : ");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) throw new Error("adresse illisible");
+  const key = keyerFromEnv().address(address);
+  const people = createPeople(sql);
+  const journal = createJournal(sql);
+
+  if (action === "export") {
+    const held = await people.holdings(key);
+    const document = {
+      exporte_le: new Date().toISOString(),
+      responsable: "Gnaro (EURL)",
+      ce_que_cenacle_detient: held,
+      ce_qui_n_est_pas_inclus: [
+        "L'objet et le corps des mails : Cénacle ne les conserve jamais, il les relit dans la boîte quand il en a besoin.",
+        "Votre adresse en clair : Cénacle ne garde qu'une clé dérivée (HMAC), d'où cette recherche.",
+        "Les mails eux-mêmes : ils sont dans la boîte de messagerie, hors de Cénacle.",
+      ],
+    };
+    writeFileSync(out ?? "", `${JSON.stringify(document, null, 2)}\n`, { mode: 0o600, flag: "wx" });
+    await journal.append({
+      agent: "cenacle",
+      type: "person.exported",
+      payload: {
+        received: held.received.length,
+        sentTo: held.sentTo.length,
+        proposals: held.proposals.length,
+      },
+    });
+    console.log(
+      `✔ export écrit (lisible par toi seul) : ${held.received.length} mails reçus, ${held.sentTo.length} mails envoyés, ${held.proposals.length} propositions${held.opposed ? ", sur la liste d'opposition" : ""}`,
+    );
+  } else if (action === "efface") {
+    const confirm = await ask("Tout effacer et ignorer ses mails désormais ? Tape EFFACER : ");
+    if (confirm !== "EFFACER") throw new Error("rien n'a été effacé");
+    const erased = await people.erase(key);
+    await journal.append({ agent: "cenacle", type: "person.erased", payload: { ...erased } });
+    console.log(
+      `✔ effacé : ${erased.received} mails reçus, ${erased.proposals} propositions ; retiré de ${erased.sentTo} mails envoyés. Ses mails seront ignorés désormais.`,
+    );
+  } else {
+    const was = await people.withdraw(key);
+    await journal.append({ agent: "cenacle", type: "person.withdrawn", payload: { was } });
+    console.log(
+      was
+        ? "✔ retirée de la liste d'opposition : ses prochains mails seront de nouveau lus"
+        : "ℹ cette adresse n'était pas sur la liste d'opposition",
+    );
+  }
+} catch (error) {
+  // The message only: it never quotes the address.
+  console.error(`🛑 ${error instanceof Error ? error.message : String(error)}`);
+  process.exitCode = 1;
+} finally {
+  rl.close();
+  await sql.end();
+}

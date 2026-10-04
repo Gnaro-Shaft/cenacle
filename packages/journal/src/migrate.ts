@@ -88,6 +88,12 @@ export async function migrate({
     // Purges that really erase (C1): through these two functions only, never directly.
     await sql.unsafe(`GRANT EXECUTE ON FUNCTION purge_proposals(TIMESTAMPTZ) TO ${APP_ROLE}`);
     await sql.unsafe(`GRANT EXECUTE ON FUNCTION purge_events(TIMESTAMPTZ) TO ${APP_ROLE}`);
+    // People's rights (C3): the opposition list, and erasing a person's proposals.
+    await sql.unsafe(`REVOKE ALL ON opposed_keys FROM ${APP_ROLE}`);
+    await sql.unsafe(`GRANT SELECT, INSERT, DELETE ON opposed_keys TO ${APP_ROLE}`);
+    await sql.unsafe(
+      `GRANT EXECUTE ON FUNCTION erase_proposals_for(TEXT, BIGINT[]) TO ${APP_ROLE}`,
+    );
     // The executor reads what Iris remembers, journals, and moves proposals
     // (claim, sent, failed — refused to every other role by the database).
     await loginRole(sql, EXECUTOR_ROLE, executorPassword, EXECUTOR_PASSWORD_VAR);
