@@ -45,6 +45,7 @@ function setup(inbox: (afterUid: number) => MailRef[], sent: SentRef[] = [], val
     journal,
     store,
     rules,
+    retentionDays: 90,
     clock: () => NOW,
     fetchInbox: async (afterUid) => {
       asked.push(afterUid);

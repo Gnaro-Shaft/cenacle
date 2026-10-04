@@ -10,6 +10,7 @@ import {
   createJournal,
   createMailStore,
   createProposalStore,
+  createPurges,
   EXECUTOR_PASSWORD_VAR,
   readAllEvents,
 } from "@cenacle/journal";
@@ -24,6 +25,7 @@ import {
 import { createTelegramApi } from "@cenacle/telegram/api";
 import { draftDueFollowUps } from "./draft-due.ts";
 import { draftingDeps } from "./drafting.ts";
+import { purgeDue } from "./purge.ts";
 import { tick } from "./tick.ts";
 
 // Iris can never accept: she must not even hold the page's key (ADR-0013).
@@ -38,7 +40,7 @@ const sql = connectAsApp();
 const journal = createJournal(sql);
 const store = createMailStore(sql);
 const keyer = keyerFromEnv();
-const { mail } = loadCadre();
+const { mail, conservation } = loadCadre();
 const { rules, noFollowUp } = loadRules();
 const { password } = testMailboxConfigFromEnv();
 const local = createLocalModels(localModelConfigFromEnv());
@@ -75,6 +77,7 @@ while (!stopping) {
           store,
           keyer,
           cadre: mail,
+          retentionDays: conservation.memoireJours,
           password,
           rules,
           noFollowUp,
@@ -87,6 +90,16 @@ while (!stopping) {
         await draftDueFollowUps(drafting);
       },
       pendingDrafts: async () => (await proposalStore.pending()).length,
+      purge: async () => {
+        await purgeDue({
+          now: () => new Date(),
+          journal,
+          events: () => readAllEvents(journal, "iris"),
+          conservation,
+          wipeTexts: (now, days) => proposalStore.wipeOldTexts(now, days),
+          purges: createPurges(sql),
+        });
+      },
     });
     if (outcome === "stopped") {
       console.log("🛑 Arrêt d'urgence demandé sur Telegram : Iris s'arrête.");

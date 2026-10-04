@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { CadreError, parseCadre } from "./cadre.ts";
 
 const valid = {
+  source: '"boite-test"',
   host: '"127.0.0.1"',
   port: "3143",
   user: '"test-cenacle"',
@@ -12,10 +13,12 @@ const valid = {
   smtp_port: "3025",
   address: '"test-cenacle@cenacle.test"',
 };
+const CONSERVATION =
+  "[conservation]\nmemoire_jours = 90\ntexte_brouillon_jours = 7\npropositions_jours = 90\njournal_jours = 180\n";
 const toml = (mail: Record<string, string>, extra = "") =>
   `${extra}[mail]\n${Object.entries(mail)
     .map(([k, v]) => `${k} = ${v}`)
-    .join("\n")}\n`;
+    .join("\n")}\n${CONSERVATION}`;
 
 describe("cadre.toml — refused", () => {
   it("accepts the reference values", () => {

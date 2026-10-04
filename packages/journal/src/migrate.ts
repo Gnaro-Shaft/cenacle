@@ -85,6 +85,9 @@ export async function migrate({
     // Proposals are never deleted (their history matters); only their text is wiped.
     await sql.unsafe(`REVOKE ALL ON proposals FROM ${APP_ROLE}`);
     await sql.unsafe(`GRANT SELECT, INSERT, UPDATE ON proposals TO ${APP_ROLE}`);
+    // Purges that really erase (C1): through these two functions only, never directly.
+    await sql.unsafe(`GRANT EXECUTE ON FUNCTION purge_proposals(TIMESTAMPTZ) TO ${APP_ROLE}`);
+    await sql.unsafe(`GRANT EXECUTE ON FUNCTION purge_events(TIMESTAMPTZ) TO ${APP_ROLE}`);
     // The executor reads what Iris remembers, journals, and moves proposals
     // (claim, sent, failed — refused to every other role by the database).
     await loginRole(sql, EXECUTOR_ROLE, executorPassword, EXECUTOR_PASSWORD_VAR);

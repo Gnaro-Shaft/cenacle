@@ -3,7 +3,9 @@ import { loadCadre } from "./cadre.ts";
 
 describe("cadre.toml", () => {
   it("the versioned file is valid and points at the test mailbox", () => {
-    expect(loadCadre().mail).toEqual({
+    const cadre = loadCadre();
+    expect(cadre.mail).toEqual({
+      source: "boite-test",
       host: "127.0.0.1",
       port: 3143,
       user: "test-cenacle",
@@ -13,5 +15,16 @@ describe("cadre.toml", () => {
       smtpPort: 3025,
       address: "test-cenacle@cenacle.test",
     });
+  });
+
+  it("declares the retentions, and no open processing while only the test mailbox is read", () => {
+    const cadre = loadCadre();
+    expect(cadre.conservation).toEqual({
+      memoireJours: 90,
+      texteBrouillonJours: 7,
+      propositionsJours: 90,
+      journalJours: 180,
+    });
+    expect(cadre.traitements).toEqual([]);
   });
 });
