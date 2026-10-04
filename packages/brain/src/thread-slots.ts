@@ -5,7 +5,7 @@
  * its characters, that each word comes from the thread, and its facts.
  */
 import { randomBytes } from "node:crypto";
-import type { MailForModel } from "@cenacle/core";
+import { assertNotSensitive, type MailForModel } from "@cenacle/core";
 import type { LocalModels } from "./local-model.ts";
 import { askLocalOnce, required } from "./one-shot.ts";
 
@@ -63,6 +63,7 @@ export async function extractThreadSlots(
   slots: readonly ThreadSlot[],
   opts: SlotOptions,
 ): Promise<Partial<Record<ThreadSlot, string>>> {
+  assertNotSensitive(mail); // C2: the article 9 floor, second line of defence
   const ask =
     opts.ask ??
     ((prompt: string) =>

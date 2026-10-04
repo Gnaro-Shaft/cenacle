@@ -14,7 +14,7 @@ import {
   localModelConfigFromEnv,
 } from "@cenacle/brain";
 import { checkDraft, loadFixtureMailbox } from "@cenacle/core";
-import { firstName, fixtureForModel, loadTrames, renderTrame } from "@cenacle/mail";
+import { firstName, fixtureForModel, keptFromModel, loadTrames, renderTrame } from "@cenacle/mail";
 
 const REFERENCE = (
   JSON.parse(
@@ -43,6 +43,10 @@ for (const [i, m] of messages.entries()) {
   if (m.expected.followUp !== "due") continue;
   const mail = fixtureForModel(i + 1, m);
   const mine = REFERENCE[m.id]?.trame ?? "?";
+  if (keptFromModel(mail)) {
+    console.log(`· ${m.id} écarté du modèle (plancher article 9) — rien n'est proposé`);
+    continue;
+  }
   const vote = await chooseTrame(mail, options, { local });
   const tally = Object.entries(vote.votes)
     .map(([k, v]) => `${k}×${v}`)

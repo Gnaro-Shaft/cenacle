@@ -5,7 +5,7 @@
  * Iris waits: the pass stops, the mails not yet sorted stay where they are,
  * and nothing is sent anywhere else (ADR-0003).
  */
-import type { Category, MailForModel } from "@cenacle/core";
+import { assertNotSensitive, type Category, type MailForModel } from "@cenacle/core";
 import type { Journal } from "@cenacle/journal";
 import { type Classification, type ClassifyOptions, classifyMail } from "./classify.ts";
 import { ModelUnavailableError } from "./iris.ts";
@@ -32,6 +32,8 @@ export async function sortByModel(
   deps: SortByModelDeps,
 ): Promise<ModelSort> {
   const { journal, classify = classifyMail } = deps;
+  // Second line of defence (C2): refused before anything is routed or journaled.
+  for (const mail of mails) assertNotSensitive(mail);
   const counts = { clients_prospects: 0, administratif: 0, bruit: 0, a_trier: 0, invalid: 0 };
   const classified: Classification[] = [];
   const started = Date.now();

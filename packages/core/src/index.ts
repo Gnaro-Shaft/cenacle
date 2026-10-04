@@ -76,6 +76,12 @@ export {
   TIME_ZONE,
 } from "./schedule.ts";
 export {
+  assertNotSensitive,
+  revealsSpecialCategory,
+  SensitiveMailError,
+  sensitiveCategory,
+} from "./sensitive.ts";
+export {
   type AgentMessage,
   type ProblemMessage,
   type StatusMessage,

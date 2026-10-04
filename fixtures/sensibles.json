@@ -1,0 +1,257 @@
+{
+  "note": "Mails fictifs révélant une catégorie particulière (RGPD art. 9 et 10) : tous doivent être écartés avant le modèle (phase 5, C2). Personnes, sociétés et domaines inventés.",
+  "messages": [
+    {
+      "id": "s01",
+      "from": {
+        "name": "Correspondant fictif",
+        "address": "contact1@exemple-sensible.example"
+      },
+      "subject": "Arrêt de travail",
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\nJe vous informe que je suis en arrêt maladie jusqu'à vendredi, le livrable aura un peu de retard.\n\nCamille",
+      "expected": {
+        "category": "sante"
+      },
+      "note": "mot entier, accent"
+    },
+    {
+      "id": "s02",
+      "from": {
+        "name": "Correspondant fictif",
+        "address": "contact2@exemple-sensible.example"
+      },
+      "subject": "Rendez-vous reporté",
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\nJe dois décaler notre point : j'ai un rendez-vous à l'HÔPITAL jeudi matin.\n\nLéa",
+      "expected": {
+        "category": "sante"
+      },
+      "note": "majuscules et accent"
+    },
+    {
+      "id": "s03",
+      "from": {
+        "name": "Correspondant fictif",
+        "address": "contact3@exemple-sensible.example"
+      },
+      "subject": "Question sur la mission",
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\nPetite précision : mon médecin m'a prescrit un nouveau médicament, je serai moins disponible le matin.\n\nMarc",
+      "expected": {
+        "category": "sante"
+      },
+      "note": "racine médicament"
+    },
+    {
+      "id": "s04",
+      "from": {
+        "name": "Correspondant fictif",
+        "address": "contact4@exemple-sensible.example"
+      },
+      "subject": "Disponibilités",
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\nJe vous préviens que je suis enceinte et que ma grossesse m'oblige à réduire mes horaires.\n\nNadia",
+      "expected": {
+        "category": "sante"
+      },
+      "note": "grossesse"
+    },
+    {
+      "id": "s05",
+      "from": {
+        "name": "Correspondant fictif",
+        "address": "contact5@exemple-sensible.example"
+      },
+      "subject": "Absence",
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\nJe serai absent demain : réunion du syndicat au siège.\n\nPaul",
+      "expected": {
+        "category": "opinions"
+      },
+      "note": "appartenance syndicale"
+    },
+    {
+      "id": "s06",
+      "from": {
+        "name": "Correspondant fictif",
+        "address": "contact6@exemple-sensible.example"
+      },
+      "subject": "Mouvement social",
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\nAvec la grève de jeudi, la livraison passe à lundi.\n\nYanis",
+      "expected": {
+        "category": "opinions"
+      },
+      "note": "grève, accent"
+    },
+    {
+      "id": "s07",
+      "from": {
+        "name": "Correspondant fictif",
+        "address": "contact7@exemple-sensible.example"
+      },
+      "subject": "Congés",
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\nJe ne travaille pas le vendredi, jour de prière à la mosquée.\n\nSamir",
+      "expected": {
+        "category": "convictions"
+      },
+      "note": "conviction religieuse"
+    },
+    {
+      "id": "s08",
+      "from": {
+        "name": "Correspondant fictif",
+        "address": "contact8@exemple-sensible.example"
+      },
+      "subject": "Planning de décembre",
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\nLe baptême de ma fille tombe le 14, je serai injoignable ce week-end-là.\n\nHugo",
+      "expected": {
+        "category": "convictions"
+      },
+      "note": "baptême"
+    },
+    {
+      "id": "s09",
+      "from": {
+        "name": "Correspondant fictif",
+        "address": "contact9@exemple-sensible.example"
+      },
+      "subject": "Dossier administratif",
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\nMon titre de séjour est en cours, ma demande d'asile est toujours à l'étude : je ne peux pas encore signer.\n\nAmina",
+      "expected": {
+        "category": "origine"
+      },
+      "note": "asile"
+    },
+    {
+      "id": "s10",
+      "from": {
+        "name": "Correspondant fictif",
+        "address": "contact10@exemple-sensible.example"
+      },
+      "subject": "Recrutement",
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\nPour le poste, pouvez-vous nous transmettre un extrait de casier judiciaire ?\n\nService RH",
+      "expected": {
+        "category": "condamnations"
+      },
+      "note": "casier judiciaire"
+    },
+    {
+      "id": "s11",
+      "from": {
+        "name": "Correspondant fictif",
+        "address": "contact11@exemple-sensible.example"
+      },
+      "subject": "Point d'étape",
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\nAprès sa condamnation, notre ancien associé n'a plus accès aux dossiers.\n\nÉric",
+      "expected": {
+        "category": "condamnations"
+      },
+      "note": "racine condamn"
+    },
+    {
+      "id": "s12",
+      "from": {
+        "name": "Correspondant fictif",
+        "address": "contact12@exemple-sensible.example"
+      },
+      "subject": "Mon état de santé",
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\nTout va bien pour la suite du projet.\n\nJulie",
+      "expected": {
+        "category": "sante"
+      },
+      "note": "sensible dans l'objet seulement"
+    },
+    {
+      "id": "s13",
+      "from": {
+        "name": "Correspondant fictif",
+        "address": "contact13@exemple-sensible.example"
+      },
+      "subject": "Message",
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\nJe vous écris pour mon s a n t é : rien de grave, mais je ralentis cette semaine.\n\nOmar",
+      "expected": {
+        "category": "sante"
+      },
+      "note": "lettres espacées"
+    },
+    {
+      "id": "s14",
+      "from": {
+        "name": "Correspondant fictif",
+        "address": "contact14@exemple-sensible.example"
+      },
+      "subject": "Info",
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\nPour rappel, la visite M.É.D.I.C.A.L.E du personnel a lieu mardi.\n\nRH",
+      "expected": {
+        "category": "sante"
+      },
+      "note": "lettres pointées"
+    },
+    {
+      "id": "s15",
+      "from": {
+        "name": "Correspondant fictif",
+        "address": "contact15@exemple-sensible.example"
+      },
+      "subject": "Bilan",
+      "contentType": "text/html",
+      "body": "<html><body><p>Bonjour,</p><p>Résultats de mon <b>diagnostic</b> reçus, je reprends lundi.</p></body></html>",
+      "expected": {
+        "category": "sante"
+      },
+      "note": "corps HTML"
+    },
+    {
+      "id": "s16",
+      "from": {
+        "name": "Correspondant fictif",
+        "address": "contact16@exemple-sensible.example"
+      },
+      "subject": "Test génétique",
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\nJ'ai reçu mes résultats d'ADN, rien à voir avec le projet mais je voulais vous en parler.\n\nSarah",
+      "expected": {
+        "category": "genetique-biometrie"
+      },
+      "note": "ADN"
+    },
+    {
+      "id": "s17",
+      "from": {
+        "name": "Correspondant fictif",
+        "address": "contact17@exemple-sensible.example"
+      },
+      "subject": "Soirée",
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\nJe vous invite à la soirée de l'association LGBT que je préside.\n\nAlex",
+      "expected": {
+        "category": "vie-sexuelle"
+      },
+      "note": "orientation"
+    },
+    {
+      "id": "s18",
+      "from": {
+        "name": "Correspondant fictif",
+        "address": "contact18@exemple-sensible.example"
+      },
+      "subject": "Retard",
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\nSuite à mon burn-out, je reprends à mi-temps.\n\nInès",
+      "expected": {
+        "category": "sante"
+      },
+      "note": "mot coupé par un tiret (burn-out)"
+    }
+  ]
+}

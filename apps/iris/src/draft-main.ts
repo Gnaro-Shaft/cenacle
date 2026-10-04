@@ -22,6 +22,7 @@ const LABEL = {
   split: "vote partagé",
   no_trame: "aucune trame ne convient",
   unsupported_fact: "fait non étayé",
+  set_aside: "écarté du modèle, à toi de répondre",
 };
 // Iris can never accept: she must not even hold the page's key (ADR-0013).
 refusePrivateKey("Iris");

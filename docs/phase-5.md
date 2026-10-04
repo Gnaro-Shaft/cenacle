@@ -11,7 +11,7 @@ Un jalon = une branche + une pull request, CI verte obligatoire.
 |---|---|---|
 | **C0 — Registres** | Registre des traitements, registre IA, examen et AIPD légère, procédure en cas de violation (`docs/conformite/`) | Documents relus et validés par le responsable |
 | **C1 — Le cadre exécutable** | Traitements déclarés dans `cadre.toml` (ADR-0009) : une boîte réelle sans traitement ouvert n'est pas lue, une mention sans date fait échouer le démarrage ; durées dans `[conservation]` (mémoire 90 j, texte des brouillons 7 j, propositions closes 90 j, journal 180 j), purge quotidienne par Iris, par des fonctions en base qui laissent une trace | Démarrage refusé sans traitement ; purges éprouvées en base |
-| **C2 — Plancher article 9** | Liste fermée et déterministe ; un mail écarté n'est jamais lu par le modèle | Banc : 0 mail sensible donné au modèle |
+| **C2 — Plancher article 9** | Liste fermée et déterministe, sans IA ; un mail écarté n'est jamais lu par le modèle (deux lignes : avant l'appel, et dans le modèle lui-même) ; marque unique « écarté » qui ne dit pas pourquoi ; l'alerte urgente est gardée | `npm run floor:bench` : 18/18 sensibles écartés, 2/147 ordinaires écartés à tort |
 | **C3 — Droits des personnes** | Exporter et effacer ce qu'Iris détient sur une adresse (par sa clé HMAC) | Export, puis effacement vérifié en base et dans les sauvegardes |
 | **C4 — Mention révisée** | La mention publiée sur le site couvre Cénacle : lecture du contenu par un modèle local, brouillons, envois validés, aide de l'IA | Mention vérifiée en ligne, pas supposée |
 | **S1 — Secrets et séparation** | Un fichier d'environnement par programme ; identifiants de messagerie ; sauvegarde des secrets | Chaque programme refuse les secrets des autres |

@@ -7,7 +7,8 @@ import type { Journal, Proposal, ProposalStore, SignedAcceptance } from "@cenacl
 
 const AGENT = "iris";
 
-export const SKIP_REASONS = ["split", "no_trame", "unsupported_fact"] as const;
+/** "set_aside" (C2): kept from the model — article 9 floor, empty or unreadable; never why. */
+export const SKIP_REASONS = ["split", "no_trame", "unsupported_fact", "set_aside"] as const;
 export type SkipReason = (typeof SKIP_REASONS)[number];
 
 export interface Proposals {

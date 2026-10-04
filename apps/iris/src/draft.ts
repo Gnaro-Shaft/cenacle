@@ -20,6 +20,7 @@ import {
 import { checkDraft, type MailForModel } from "@cenacle/core";
 import {
   firstName,
+  keptFromModel,
   type Proposals,
   renderTrame,
   type SkipReason,
@@ -55,6 +56,9 @@ export type DraftOutcome =
       readonly vote: TrameVote;
     };
 
+/** No vote took place. */
+const votedNothing: TrameVote = { choice: null, votes: {}, rounds: 0, needed: 0 };
+
 export async function draftFollowUp(
   mail: MailForModel,
   mailUidValidity: string,
@@ -67,6 +71,8 @@ export async function draftFollowUp(
     return { kind: "skipped", proposalId: p.id, reason, vote };
   };
 
+  // C2: a mail the article 9 floor sets aside is never shown to the model; the follow-up stays mine.
+  if (keptFromModel(mail)) return skip("set_aside", votedNothing);
   const options = [...trames.values()].map((t) => ({ id: t.id, quand: t.quand }));
   const vote = await deps.vote(mail, options);
   if (vote.choice === null) return skip("split", vote);

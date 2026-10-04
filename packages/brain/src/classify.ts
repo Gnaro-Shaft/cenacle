@@ -8,7 +8,7 @@
  * has no tool, no network, no way to act (ADR-0005).
  */
 import { randomBytes } from "node:crypto";
-import { CATEGORIES, type Category, type MailForModel } from "@cenacle/core";
+import { assertNotSensitive, CATEGORIES, type Category, type MailForModel } from "@cenacle/core";
 import { Agent } from "@earendil-works/pi-agent-core";
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 import { ModelUnavailableError } from "./iris.ts";
@@ -77,6 +77,8 @@ export async function classifyMail(
   mail: MailForModel,
   options: ClassifyOptions,
 ): Promise<Classification> {
+  // Second line of defence (C2): a mail the article 9 floor sets aside never reaches the model.
+  assertNotSensitive(mail);
   // Mail content goes to the local model, full stop: the router must agree.
   if (route({ dataClass: "mail_content" }, { euApiConfigured: false }) !== "local") {
     throw new Error("mail content may only reach the local model");

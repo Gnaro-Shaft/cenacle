@@ -32,4 +32,4 @@ Rédigé par Claude le 2026-10-04. **Validé par le responsable le 2026-10-04.**
 - **Choix de la trame** : 3 mails sur 12 n'ont pas eu la trame que j'aurais choisie, ou aucune. Une proposition peut donc tomber à côté : elle se refuse d'un clic.
 - **Recopie** : le vérificateur de faits attrape les nombres, dates, heures, montants, liens et adresses. Il ne juge ni le ton ni la pertinence : c'est à moi de relire.
 - **Injection** : un mail peut contenir des consignes cachées. Le modèle n'a aucun outil, et un mail ne peut ni accepter ni envoyer ; le banc l'éprouve sur 11 pièges (0 envoi).
-- **Données sensibles** : tant que le plancher de l'article 9 (C2) n'est pas codé, un mail sensible serait lu par le modèle local. Aucune vraie boîte n'est ouverte avant.
+- **Données sensibles** (C2) : un plancher déterministe écarte avant le modèle les mails qui semblent révéler une catégorie particulière ; les points d'entrée du modèle refusent eux-mêmes un tel mail (deuxième ligne). La liste n'est pas exhaustive : un mot absent ou une tournure détournée peut passer. On préfère écarter à tort : 2 mails ordinaires sur 147 l'ont été sur le banc.
