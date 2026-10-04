@@ -4,7 +4,9 @@
 [mail]
 # The source this mailbox is, as the processings below name it (ADR-0009).
 # The fictional test mailbox of this machine needs no processing: it holds no
-# personal data. Any other mailbox is read only if an open processing covers it.
+# personal data. Any other mailbox is read only if an open processing covers it,
+# and is read-only (M2): sorted and followed, never drafted for nor sent from —
+# unless marked `test = true` (a real test box, M1).
 source = "boite-test"
 # Phase 2: the fictional test mailbox (GreenMail) only — any host that is not
 # this machine is refused by the code until phase 5.

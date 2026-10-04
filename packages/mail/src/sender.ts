@@ -15,7 +15,7 @@ import { randomUUID } from "node:crypto";
 import { ImapFlow } from "imapflow";
 import { createTransport } from "nodemailer";
 import MailComposer from "nodemailer/lib/mail-composer";
-import { type MailCadre, TEST_DOMAIN } from "./cadre.ts";
+import { type MailCadre, refuseReadOnly, TEST_DOMAIN } from "./cadre.ts";
 import { imapOptions, smtpOptions } from "./connection.ts";
 import { type ReplyContext, safeAddress, validMessageId } from "./reply-target.ts";
 
@@ -111,6 +111,7 @@ export async function sendReply(
   password: string,
   reply: BuiltReply,
 ): Promise<void> {
+  refuseReadOnly(cadre, "Sending a reply");
   const transport = createTransport(smtpOptions(cadre, password));
   try {
     await transport.sendMail({ envelope: { from: cadre.address, to: [reply.to] }, raw: reply.raw });
@@ -121,6 +122,7 @@ export async function sendReply(
 
 /** The executor's only write to the mailbox: a copy in Sent, marked read. */
 export async function copyToSent(cadre: MailCadre, password: string, raw: Buffer): Promise<void> {
+  refuseReadOnly(cadre, "Copying a reply to Sent");
   const client = new ImapFlow(imapOptions(cadre, password));
   await client.connect();
   try {

@@ -22,6 +22,7 @@ import {
   keyerFromEnv,
   loadCadre,
   mailPassword,
+  ReadOnlyMailboxError,
   readReplyContexts,
   sendReply,
 } from "@cenacle/mail";
@@ -29,6 +30,11 @@ import { executeDue, MAX_SENDS_PER_DAY } from "./execute.ts";
 
 const ROUND_MS = 10_000;
 refuseForeignSecrets("The executor", ["mail", "executor", "sentinel"]);
+// M2: a real box is read-only — the executor does not even start (sendReply refuses too).
+if (loadCadre().mail.readOnly) {
+  console.error(`🛑 ${new ReadOnlyMailboxError("Starting the executor").message}`);
+  process.exit(1);
+}
 const acceptKey = publicKeyFromEnv();
 // Its own database role: the only one allowed to claim and close a sending (B7).
 const sql = connectAsExecutor();

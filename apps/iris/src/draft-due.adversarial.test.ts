@@ -1,7 +1,12 @@
 // A proposal whose mail is gone (renumbered mailbox, mail deleted) cannot be
 // accepted: it is closed as lapsed, never left stuck on the page.
 import type { TrameVote } from "@cenacle/brain";
-import { createProposals, EXAMPLE_TRAMES_PATH, loadTrames } from "@cenacle/mail";
+import {
+  createProposals,
+  EXAMPLE_TRAMES_PATH,
+  loadTrames,
+  ReadOnlyMailboxError,
+} from "@cenacle/mail";
 import {
   memoryJournal,
   memoryMailStore,
@@ -10,6 +15,7 @@ import {
 } from "@cenacle/mail/test-helpers";
 import { describe, expect, it } from "vitest";
 import { type DraftDueDeps, lapseOrphans } from "./draft-due.ts";
+import { draftingDeps } from "./drafting.ts";
 
 const K = (c: string) => c.repeat(64);
 
@@ -81,5 +87,23 @@ describe("lapseOrphans", () => {
     expect(await lapseOrphans(deps)).toBe(1);
     expect((await store.get("p-acc"))?.status).toBe("lapsed");
     expect(journal.events.map((e) => e.type)).toContain("send.lapsed");
+  });
+});
+
+// M2: a real box is never drafted for — even if the daemon's wiring were wrong.
+describe("drafting on a read-only mailbox", () => {
+  it("is refused before anything is read or asked of the model", () => {
+    const untouched = new Proxy({}, { get: () => expect.unreachable("touched") }) as never;
+    const cadre = { readOnly: true } as never;
+    expect(() =>
+      draftingDeps({
+        local: untouched,
+        journal: untouched,
+        mails: untouched,
+        store: untouched,
+        cadre,
+        password: "pw",
+      }),
+    ).toThrow(ReadOnlyMailboxError);
   });
 });

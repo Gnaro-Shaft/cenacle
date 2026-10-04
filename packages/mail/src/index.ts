@@ -7,7 +7,9 @@ export {
   type MailCadre,
   mailPassword,
   parseCadre,
+  ReadOnlyMailboxError,
   readingStartsAt,
+  refuseReadOnly,
   TEST_DOMAIN,
 } from "./cadre.ts";
 export {
@@ -20,6 +22,21 @@ export { imapOptions, isLoopback, smtpOptions } from "./connection.ts";
 export { keptFromModel } from "./floor.ts";
 export { createKeyer, KeyError, type Keyer, keyerFromEnv, messageIds } from "./keys.ts";
 export { cleanForModel, htmlToText, toMailForModel } from "./mail-text.ts";
+export {
+  type Decider,
+  findLeaks,
+  forTerminal,
+  type Haystack,
+  type Leak,
+  MIN_NEEDLE,
+  measureSorting,
+  type Needle,
+  type NeedleKind,
+  type SortingMeasure,
+  searchable,
+  skeleton,
+  type Verdict,
+} from "./measure.ts";
 export { type PassDeps, type PassResult, runMailPass } from "./pass.ts";
 export {
   type FetchResult,
