@@ -30,7 +30,8 @@ export default defineConfig({
         test: {
           name: "services",
           include: ["**/src/**/*.integration.test.ts"],
-          exclude: ["**/node_modules/**"],
+          // .claude/worktrees: other sessions' checkouts — their tests are not this tree's.
+          exclude: ["**/node_modules/**", ".claude/**"],
           fileParallelism: false,
           // Loading 146 mails into a cold GreenMail can take several seconds.
           testTimeout: 30_000,
