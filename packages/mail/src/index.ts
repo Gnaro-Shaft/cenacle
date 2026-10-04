@@ -16,6 +16,7 @@ export {
   collectMail,
   mailTotals,
 } from "./collect.ts";
+export { imapOptions, isLoopback, smtpOptions } from "./connection.ts";
 export { keptFromModel } from "./floor.ts";
 export { createKeyer, KeyError, type Keyer, keyerFromEnv, messageIds } from "./keys.ts";
 export { cleanForModel, htmlToText, toMailForModel } from "./mail-text.ts";
