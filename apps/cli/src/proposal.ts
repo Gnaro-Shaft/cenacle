@@ -1,7 +1,9 @@
 /**
  * Proposals by hand (phase 4, B1). From B2 on, Iris proposes by herself.
- * Usage: npm run proposal -- create | list | edit <id> "<texte>" | accept <id> | refuse <id> | cancel <id>
+ * Usage: npm run proposal -- create | list | edit <id> "<texte>" | refuse <id> | cancel <id>
  * `create` drafts an acknowledgement for the first due follow-up without a proposal.
+ * No `accept`: only the page accepts, with its signature (ADR-0013). Refusing
+ * and cancelling stay here: they can only prevent a sending.
  * Nothing is ever sent here: only the executor sends (npm run executor).
  */
 import { randomBytes } from "node:crypto";
@@ -78,6 +80,7 @@ try {
       );
       if (r.toComplete.length > 0)
         console.log(`   ✏️  à compléter avant d'accepter : ${r.toComplete.join(", ")}`);
+      console.log("   Pour l'accepter : la page (npm run server).");
       break;
     }
     case "list":
@@ -89,13 +92,8 @@ try {
       await store.edit(id, text.replace(/\\n/g, "\n"));
       console.log(`✔ ${id} modifiée`);
       break;
-    case "accept": {
-      const p = await proposals.accept(id ?? "", now);
-      console.log(
-        `✔ ${p.id} acceptée — envoi possible après ${p.sendAfter?.toLocaleTimeString("fr-FR")} (annulable jusque-là) — c'est l'exécuteur qui l'envoie (npm run executor).`,
-      );
-      break;
-    }
+    case "accept":
+      throw new Error("accepter se fait sur la page seulement (npm run server), elle seule signe");
     case "refuse":
       await proposals.refuse(id ?? "", now);
       console.log(`✔ ${id} refusée — elle ne reviendra pas pour ce mail`);
@@ -105,7 +103,7 @@ try {
       console.log(`✔ ${id} annulée`);
       break;
     default:
-      throw new Error("commande : create | list | edit | accept | refuse | cancel");
+      throw new Error("commande : create | list | edit | refuse | cancel");
   }
 } catch (error) {
   console.error(`🛑 ${error instanceof Error ? error.message : String(error)}`);

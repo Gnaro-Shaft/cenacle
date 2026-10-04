@@ -2,7 +2,8 @@
  * The draft bench (phase 4, B5): the exit criterion of phase 4, measured on
  * the real table, page API, drafting and executor — no model, no mail server.
  *   - no path to sending without my acceptance on the page (injection,
- *     double click, replay, undo delay, slots, lapsed proposals);
+ *     double click, replay, undo delay, slots, lapsed proposals, forged
+ *     acceptances — ADR-0013);
  *   - no invented fact in any proposal.
  * Each run starts from a fresh test database (cenacle_test, never the real one).
  */
@@ -10,6 +11,7 @@ import { appConnection, resetTestDatabase } from "@cenacle/journal/test-db";
 import type { Check } from "./checks.ts";
 import { benchContext } from "./context.ts";
 import { type InventionReport, inventionBench } from "./invention.ts";
+import { forgery } from "./scenarios-forgery.ts";
 import { lapsed, replay } from "./scenarios-replay.ts";
 import { doubleClick, injection, undoDelay } from "./scenarios-send.ts";
 import type { Mutations } from "./world.ts";
@@ -26,6 +28,7 @@ const SCENARIOS = [
   ["délai et cases", undoDelay],
   ["rejeu", replay],
   ["proposition caduque", lapsed],
+  ["acceptation forgée", forgery],
 ] as const;
 
 export async function runDraftBench(mutations?: Mutations): Promise<DraftBenchReport> {

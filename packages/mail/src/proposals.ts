@@ -3,7 +3,7 @@
  * cycle; this module journals each step — ids and outcomes, never the draft.
  * The bubble on Iris's box counts the proposals waiting for me.
  */
-import type { Journal, Proposal, ProposalStore } from "@cenacle/journal";
+import type { Journal, Proposal, ProposalStore, SignedAcceptance } from "@cenacle/journal";
 
 const AGENT = "iris";
 
@@ -24,7 +24,8 @@ export interface Proposals {
     reason: SkipReason,
     now: Date,
   ): Promise<Proposal>;
-  accept(id: string, now: Date): Promise<Proposal>;
+  /** Only the page calls it, with its signature (ADR-0013). */
+  accept(id: string, now: Date, signed: SignedAcceptance): Promise<Proposal>;
   refuse(id: string, now: Date): Promise<Proposal>;
   /** The situation no longer holds (I already answered). */
   lapse(id: string, now: Date): Promise<Proposal>;
@@ -54,8 +55,8 @@ export function createProposals(store: ProposalStore, journal: Journal): Proposa
       });
       return p;
     },
-    async accept(id, now) {
-      const p = await store.accept(id, now);
+    async accept(id, now, signed) {
+      const p = await store.accept(id, now, signed);
       await closed(id, "accepted");
       return p;
     },

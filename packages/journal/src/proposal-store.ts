@@ -33,6 +33,15 @@ export interface Proposal {
   readonly closedAt: Date | null;
   /** When the executor claimed it (sending, sent or failed). */
   readonly sentAt: Date | null;
+  /** The page's signature of my acceptance (ADR-0013); null until accepted. */
+  readonly acceptanceSig: string | null;
+}
+
+/** My acceptance as the page signed it: the signature, and the hash of the text it covers. */
+export interface SignedAcceptance {
+  readonly signature: string;
+  /** SHA-256 (hex) of the text signed: the acceptance fails if the text is no longer this one. */
+  readonly draftHash: string;
 }
 
 export interface NewProposal {
@@ -71,8 +80,11 @@ export interface ProposalStore {
   open(): Promise<Proposal[]>;
   /** I edit the draft before deciding. */
   edit(id: string, draft: string): Promise<Proposal>;
-  /** I accept: the sending is scheduled after the undo delay. Refused while a slot is left. */
-  accept(id: string, now: Date): Promise<Proposal>;
+  /**
+   * I accept, on the page: the sending is scheduled after the undo delay.
+   * Refused while a slot is left, or if the text is not the one signed.
+   */
+  accept(id: string, now: Date, signed: SignedAcceptance): Promise<Proposal>;
   refuse(id: string, now: Date): Promise<Proposal>;
   /** The situation no longer holds (I already answered): closed, from pending or accepted. */
   lapse(id: string, now: Date): Promise<Proposal>;
@@ -107,6 +119,7 @@ interface Row {
   send_after: Date | null;
   closed_at: Date | null;
   sent_at: Date | null;
+  acceptance_sig: string | null;
 }
 
 const toProposal = (r: Row): Proposal => ({
@@ -122,6 +135,7 @@ const toProposal = (r: Row): Proposal => ({
   sendAfter: r.send_after,
   closedAt: r.closed_at,
   sentAt: r.sent_at,
+  acceptanceSig: r.acceptance_sig,
 });
 
 export function createProposalStore(sql: Sql): ProposalStore {
@@ -205,7 +219,7 @@ export function createProposalStore(sql: Sql): ProposalStore {
       );
     },
 
-    async accept(id, now) {
+    async accept(id, now, signed) {
       const current = await get(id);
       if (
         current?.draft !== null &&
@@ -217,10 +231,13 @@ export function createProposalStore(sql: Sql): ProposalStore {
       const sendAfter = new Date(now.getTime() + UNDO_DELAY_MS);
       return one(
         await sql<Row[]>`
-          update proposals set status = 'accepted', decided_at = ${now}, send_after = ${sendAfter}
-          where id = ${id} and status = 'pending' returning *`,
+          update proposals set status = 'accepted', decided_at = ${now}, send_after = ${sendAfter},
+                 acceptance_sig = ${signed.signature}
+          where id = ${id} and status = 'pending'
+            and encode(sha256(convert_to(draft, 'UTF8')), 'hex') = ${signed.draftHash}
+          returning *`,
         id,
-        "accepted",
+        "accepted (or its text is not the one signed)",
       );
     },
 
