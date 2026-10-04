@@ -135,3 +135,27 @@ describe("erasure", () => {
     ).rejects.toThrow();
   });
 });
+
+describe("the opposition list in the encrypted backup", () => {
+  it("is read back whole, and written back without duplicates", async () => {
+    const w = await world();
+    await people.erase(w.A);
+    const backup = await people.opposition();
+    const mine = backup.find((e) => e.key === w.A);
+    expect(mine?.since).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    // Lost, then restored from the backup: back on the list, once.
+    await people.withdraw(w.A);
+    expect(await people.restoreOpposition(backup)).toBeGreaterThanOrEqual(1);
+    expect((await people.opposedKeys()).has(w.A)).toBe(true);
+    expect(await people.restoreOpposition(backup)).toBe(0);
+  });
+
+  it("refuses something that is not a key or has no date", async () => {
+    await expect(
+      people.restoreOpposition([{ key: "alice@client.example", since: "2026-10-04T10:00:00Z" }]),
+    ).rejects.toThrow(/not a key/);
+    await expect(people.restoreOpposition([{ key: hex("7"), since: "hier" }])).rejects.toThrow(
+      /valid date/,
+    );
+  });
+});

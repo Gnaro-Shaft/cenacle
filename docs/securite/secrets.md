@@ -50,6 +50,8 @@ Ce que la perte coûterait sans sauvegarde :
 - La clé privée de la page : les acceptations pas encore envoyées échouent ; en tirer une nouvelle (`npm run keys:accept`).
 - Les mots de passe de la base : se remettent par une migration ; celui de la boîte, chez l'hébergeur.
 
-## La base de Cénacle n'est pas sauvegardée (décidé le 04/10)
+## La base de Cénacle n'est pas sauvegardée (décidé le 04/10), sauf la liste d'opposition
 
-La mémoire des mails se relit depuis la boîte, l'historique des propositions est purgé à 90 jours, le journal ne contient aucune donnée de personne. Ne pas sauvegarder la base évite d'avoir à faire suivre les purges et les effacements (C1, C3) dans des copies. La liste d'opposition, elle, ne doit pas se perdre : elle est dans la base. **À reconsidérer** si la base devenait la seule trace d'une opposition (elle l'est) : voir les points ouverts du registre.
+La mémoire des mails se relit depuis la boîte, l'historique des propositions est purgé à 90 jours, le journal ne contient aucune donnée de personne. Ne pas sauvegarder la base évite d'avoir à faire suivre les purges et les effacements (C1, C3) dans des copies.
+
+**La liste d'opposition fait exception** : sa perte ferait relire des personnes qui ont demandé l'effacement. Elle part dans la même archive chiffrée que les secrets (ses clés ne servent à rien sans `CENACLE_MAIL_KEY`, qui part avec elles) : `secrets:backup` la lit dans la base, et refuse de sauvegarder si la base est injoignable — une archive sans elle aurait l'air complète. `secrets:restore` la réinscrit (sans doublon) ; pour une installation neuve, une fois la base migrée : `npm run secrets:restore -- --from <fichier> --opposition-seule`. Après chaque effacement, `npm run personne` rappelle de refaire la sauvegarde. Une opposition retirée après la dernière sauvegarde reviendrait à la restauration : l'erreur va dans le sens le plus protecteur.

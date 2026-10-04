@@ -45,6 +45,16 @@ export interface People {
   opposedKeys(): Promise<ReadonlySet<string>>;
   /** The person withdraws their objection. Returns whether they were on the list. */
   withdraw(key: string): Promise<boolean>;
+  /** The whole opposition list, for the encrypted backup (keys and dates only). */
+  opposition(): Promise<OppositionEntry[]>;
+  /** Writes back a backed-up list; keys already there are left as they are. Returns how many were added. */
+  restoreOpposition(entries: readonly OppositionEntry[]): Promise<number>;
+}
+
+export interface OppositionEntry {
+  readonly key: string;
+  /** ISO time of the request. */
+  readonly since: string;
 }
 
 interface MailRow {
@@ -140,6 +150,26 @@ export function createPeople(sql: Sql): People {
     async opposedKeys() {
       const rows = await sql<{ key: string }[]>`select key from opposed_keys`;
       return new Set(rows.map((r) => r.key));
+    },
+
+    async opposition() {
+      const rows = await sql<{ key: string; since: Date }[]>`
+        select key, since from opposed_keys order by since`;
+      return rows.map((r) => ({ key: r.key, since: r.since.toISOString() }));
+    },
+
+    async restoreOpposition(entries) {
+      let added = 0;
+      for (const e of entries) {
+        const key = checked(e.key);
+        const since = new Date(e.since);
+        if (Number.isNaN(since.getTime()))
+          throw new Error("a backed-up opposition has no valid date");
+        const result = await sql`
+          insert into opposed_keys (key, since) values (${key}, ${since}) on conflict (key) do nothing`;
+        added += result.count;
+      }
+      return added;
     },
 
     async withdraw(raw) {
