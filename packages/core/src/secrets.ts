@@ -14,7 +14,10 @@ export const SECRET_FAMILIES = {
   /** The database owner: migrations and tests only. */
   owner: { file: ".env.owner", vars: ["CENACLE_DB_OWNER_PASSWORD"] },
   /** The mailbox password and the HMAC key of addresses. */
-  mail: { file: ".env.mail", vars: ["CENACLE_TEST_MAIL_PASSWORD", "CENACLE_MAIL_KEY"] },
+  mail: {
+    file: ".env.mail",
+    vars: ["CENACLE_TEST_MAIL_PASSWORD", "CENACLE_MAIL_PASSWORD", "CENACLE_MAIL_KEY"],
+  },
   telegram: { file: ".env.telegram", vars: ["TELEGRAM_BOT_TOKEN"] },
   /** Grafana's admin, for Docker Compose only. */
   obs: { file: ".env.obs", vars: ["GRAFANA_ADMIN_PASSWORD"] },

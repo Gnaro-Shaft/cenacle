@@ -4,7 +4,7 @@
  * Deny by default: an unknown key, a wrong type or an out-of-range value is
  * an error, never ignored — a typo must not silently fall back to a default.
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { TIME_ZONE, zonedMidnight } from "@cenacle/core";
 import { parse } from "smol-toml";
@@ -18,6 +18,8 @@ import {
 } from "./traitements.ts";
 
 export const CADRE_PATH = join(import.meta.dirname, "..", "..", "..", "cadre.toml");
+/** The real configuration (host, account, addresses), git-ignored: replaces cadre.toml when present. */
+export const LOCAL_CADRE_PATH = join(import.meta.dirname, "..", "..", "..", "cadre.local.toml");
 
 export interface MailCadre {
   /** The source this mailbox is, as the processings name it (ADR-0009). */
@@ -31,8 +33,15 @@ export interface MailCadre {
   readonly maxPerFetch: number;
   /** Phase 4: the SMTP port of the same loopback test server (the executor only). */
   readonly smtpPort: number;
-  /** My address, as the sender of the replies. A reserved test domain until phase 5. */
+  /** My address, as the sender of the replies (a reserved test domain for the fictional box). */
   readonly address: string;
+  /** A test mailbox (fictional, or a real one marked `test = true`): the only kind fixtures may be loaded into. */
+  readonly test: boolean;
+  /**
+   * The only addresses a reply may go to ([envoi] destinataires, M1-M2): my own.
+   * Null for the fictional box: reserved test domains only.
+   */
+  readonly recipients: readonly string[] | null;
 }
 
 export interface Cadre {
@@ -52,6 +61,7 @@ export class CadreError extends Error {
 const LOOPBACK: ReadonlySet<string> = new Set(["127.0.0.1", "localhost", "::1"]);
 export const MAX_PER_FETCH_LIMIT = 5000;
 const MAIL_KEYS = [
+  "test",
   "source",
   "host",
   "port",
@@ -133,10 +143,32 @@ export function readingStartsAt(cadre: Cadre): Date | null {
   return new Date(zonedMidnight(y, m, d, TIME_ZONE));
 }
 
+const PLAIN_ADDRESS = /^[A-Za-z0-9._%+-]{1,64}@(?:[A-Za-z0-9-]{1,63}\.)+[A-Za-z]{2,63}$/;
+
+/** [envoi] destinataires: a non-empty list of plain addresses, required for a real box. */
+function closedRecipients(raw: unknown): string[] {
+  if (!isTable(raw)) {
+    throw new CadreError(
+      "a real mailbox needs [envoi] destinataires: the only addresses a reply may go to",
+    );
+  }
+  onlyKeys(raw, ["destinataires"], "[envoi]");
+  const list = raw.destinataires;
+  if (!Array.isArray(list) || list.length === 0 || list.length > 20) {
+    throw new CadreError("envoi.destinataires must list 1 to 20 addresses");
+  }
+  return list.map((a) => {
+    if (typeof a !== "string" || !PLAIN_ADDRESS.test(a)) {
+      throw new CadreError(`envoi.destinataires: invalid address ${JSON.stringify(a)}`);
+    }
+    return a.toLowerCase();
+  });
+}
+
 /** Validates already-parsed TOML. Exported for tests. */
 export function toCadre(raw: unknown, today = localToday()): Cadre {
   if (!isTable(raw)) throw new CadreError("not a table");
-  onlyKeys(raw, ["mail", "conservation", "traitement"], "the file");
+  onlyKeys(raw, ["mail", "conservation", "traitement", "envoi"], "the file");
   const { conservation, traitements } = register(raw, today);
   const mail = raw.mail;
   if (!isTable(mail)) throw new CadreError("missing [mail] section");
@@ -153,11 +185,11 @@ export function toCadre(raw: unknown, today = localToday()): Cadre {
       `mail source "${source}" is a real mailbox: no open processing covers it, it is not read`,
     );
   }
-  if (!LOOPBACK.has(host)) {
-    throw new CadreError(
-      `mail.host "${host}" refused: a real server needs TLS and a checked certificate (phase 5, M1)`,
-    );
-  }
+  // A real server is always reached over TLS with its certificate checked (connection.ts).
+  // A real box sends only to a closed list of my own addresses until M3.
+  const recipients = fictional ? null : closedRecipients(raw.envoi);
+  const test = mail.test ?? false;
+  if (typeof test !== "boolean") throw new CadreError("mail.test must be true or false");
   return {
     conservation,
     traitements,
@@ -170,7 +202,9 @@ export function toCadre(raw: unknown, today = localToday()): Cadre {
       sentMailbox: text(mail, "sent_mailbox", /^[A-Za-z0-9 ._/-]{1,128}$/),
       maxPerFetch: integer(mail, "max_per_fetch", 1, MAX_PER_FETCH_LIMIT),
       smtpPort: integer(mail, "smtp_port", 1, 65535),
-      address: testAddress(address),
+      address: fictional ? testAddress(address) : address,
+      test: fictional || test,
+      recipients,
     },
   };
 }
@@ -185,6 +219,17 @@ export function parseCadre(source: string, today = localToday()): Cadre {
   return toCadre(raw, today);
 }
 
-export function loadCadre(path = CADRE_PATH): Cadre {
+export function loadCadre(
+  path = existsSync(LOCAL_CADRE_PATH) ? LOCAL_CADRE_PATH : CADRE_PATH,
+): Cadre {
   return parseCadre(readFileSync(path, "utf8"));
+}
+
+/** The mailbox password: the fictional box's, or the real one's (both in .env.mail). */
+export function mailPassword(cadre: Cadre, env: NodeJS.ProcessEnv = process.env): string {
+  const name =
+    cadre.mail.recipients === null ? "CENACLE_TEST_MAIL_PASSWORD" : "CENACLE_MAIL_PASSWORD";
+  const value = env[name] ?? "";
+  if (value === "") throw new CadreError(`${name} is missing (.env.mail)`);
+  return value;
 }

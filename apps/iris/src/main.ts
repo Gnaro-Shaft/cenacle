@@ -18,10 +18,10 @@ import {
   keyerFromEnv,
   loadCadre,
   loadRules,
+  mailPassword,
   mailTotals,
   readingStartsAt,
   runMailPass,
-  testMailboxConfigFromEnv,
 } from "@cenacle/mail";
 import { createTelegramApi } from "@cenacle/telegram/api";
 import { draftDueFollowUps } from "./draft-due.ts";
@@ -43,7 +43,7 @@ const keyer = keyerFromEnv();
 const cadre = loadCadre();
 const { mail, conservation } = cadre;
 const { rules, noFollowUp } = loadRules();
-const { password } = testMailboxConfigFromEnv();
+const password = mailPassword(cadre);
 const local = createLocalModels(localModelConfigFromEnv());
 const proposalStore = createProposalStore(sql);
 const drafting = draftingDeps({

@@ -15,10 +15,10 @@ import {
   createProposals,
   loadCadre,
   loadTrames,
+  mailPassword,
   readMailsForModel,
   readReplyTargets,
   signProposal,
-  testMailboxConfigFromEnv,
 } from "@cenacle/mail";
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
@@ -32,8 +32,9 @@ const sql = connectAsApp();
 const journal = createJournal(sql);
 const store = createProposalStore(sql);
 const mails = createMailStore(sql);
-const { mail } = loadCadre();
-const { password } = testMailboxConfigFromEnv();
+const cadre = loadCadre();
+const { mail } = cadre;
+const password = mailPassword(cadre);
 refuseForeignSecrets("The page's server", ["mail", "page"]);
 const token = newToken();
 const acceptKey = privateKeyFromEnv();

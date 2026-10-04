@@ -21,9 +21,9 @@ import {
   isAcceptedByPage,
   keyerFromEnv,
   loadCadre,
+  mailPassword,
   readReplyContexts,
   sendReply,
-  testMailboxConfigFromEnv,
 } from "@cenacle/mail";
 import { executeDue, MAX_SENDS_PER_DAY } from "./execute.ts";
 
@@ -37,7 +37,7 @@ const store = createProposalStore(sql);
 const mails = createMailStore(sql);
 const keyer = keyerFromEnv();
 const { mail: cadre } = loadCadre();
-const { password } = testMailboxConfigFromEnv();
+const password = mailPassword(loadCadre());
 const startedAt = new Date();
 // S2: the sentinel hears the executor once a minute at most.
 const sentinel = heartbeatFromEnv("executor");
@@ -93,7 +93,8 @@ while (!stopping) {
       ],
       context: async (p) =>
         (await readReplyContexts(cadre, password, [p.mailUid], p.mailUidValidity)).get(p.mailUid),
-      build: (context, text, date) => buildReply(cadre.address, context, text, date),
+      build: (context, text, date) =>
+        buildReply(cadre.address, context, text, date, cadre.recipients),
       send: (reply) => sendReply(cadre, password, reply),
       copy: (reply) => copyToSent(cadre, password, reply.raw),
       verify: (p) => isAcceptedByPage(acceptKey, p),

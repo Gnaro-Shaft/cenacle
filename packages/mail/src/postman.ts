@@ -12,6 +12,7 @@
 import { hasUrgentTerm } from "@cenacle/core";
 import { ImapFlow } from "imapflow";
 import type { MailCadre } from "./cadre.ts";
+import { imapOptions } from "./connection.ts";
 import { type Keyer, messageIds } from "./keys.ts";
 import { addressList, senderAddress, senderDomain } from "./sender-domain.ts";
 
@@ -112,13 +113,7 @@ async function readHeaders(
   }
   if (password.length === 0) throw new PostmanError("empty mailbox password");
 
-  const client = new ImapFlow({
-    host: cadre.host,
-    port: cadre.port,
-    secure: false, // loopback test mailbox only (cadre refuses any other host); TLS in phase 5
-    auth: { user: cadre.user, pass: password },
-    logger: false,
-  });
+  const client = new ImapFlow(imapOptions(cadre, password));
   await client.connect();
   try {
     const unseenBefore = await unseenCount(client, mailbox);

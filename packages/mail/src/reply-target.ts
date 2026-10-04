@@ -8,6 +8,7 @@
  */
 import { ImapFlow } from "imapflow";
 import type { MailCadre } from "./cadre.ts";
+import { imapOptions } from "./connection.ts";
 import { PostmanError } from "./postman.ts";
 
 export interface ReplyTarget {
@@ -96,13 +97,7 @@ export async function readReplyContexts(
   if (!uids.every((uid) => Number.isSafeInteger(uid) && uid > 0)) {
     throw new PostmanError("UIDs must be positive integers");
   }
-  const client = new ImapFlow({
-    host: cadre.host,
-    port: cadre.port,
-    secure: false, // loopback test mailbox only (cadre refuses any other host); TLS in phase 5
-    auth: { user: cadre.user, pass: password },
-    logger: false,
-  });
+  const client = new ImapFlow(imapOptions(cadre, password));
   await client.connect();
   try {
     const unseenBefore = await unseenCount(client, cadre.mailbox);

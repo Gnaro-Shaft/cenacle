@@ -14,6 +14,8 @@ describe("cadre.toml", () => {
       maxPerFetch: 500,
       smtpPort: 3025,
       address: "test-cenacle@cenacle.test",
+      test: true,
+      recipients: null,
     });
   });
 

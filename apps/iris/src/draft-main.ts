@@ -13,7 +13,7 @@ import {
   createMailStore,
   createProposalStore,
 } from "@cenacle/journal";
-import { loadCadre, testMailboxConfigFromEnv } from "@cenacle/mail";
+import { loadCadre, mailPassword } from "@cenacle/mail";
 import { draftDueFollowUps } from "./draft-due.ts";
 import { draftingDeps } from "./drafting.ts";
 
@@ -34,7 +34,7 @@ try {
       mails: createMailStore(sql),
       store: createProposalStore(sql),
       cadre: loadCadre().mail,
-      password: testMailboxConfigFromEnv().password,
+      password: mailPassword(loadCadre()),
     }),
   );
   if (r.lapsed > 0) {

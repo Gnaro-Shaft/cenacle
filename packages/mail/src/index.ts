@@ -2,8 +2,10 @@ export { isAcceptedByPage, signProposal } from "./acceptance.ts";
 export {
   type Cadre,
   CadreError,
+  LOCAL_CADRE_PATH,
   loadCadre,
   type MailCadre,
+  mailPassword,
   parseCadre,
   readingStartsAt,
   TEST_DOMAIN,
