@@ -75,7 +75,7 @@
 | 3 | ~~Export et effacement par adresse~~ **fait le 2026-10-04** | Droits | C3 |
 | 4 | Mention révisée et publiée, vérifiée en ligne | Information | C4 |
 | 5 | ~~Un fichier d'environnement par programme ; sauvegarde chiffrée des secrets~~ **fait le 2026-10-04** ; reste la liste d'opposition à protéger d'une perte de la base | R1 | S1 |
-| 6 | Sentinelle sans contenu (ADR-0002) | Disponibilité | S2 |
+| 6 | Sentinelle sans contenu (ADR-0002) — **code prêt le 2026-10-04**, à déployer | Disponibilité | S2 |
 | 7 | Revoir cette AIPD avant M3 (premiers envois réels), puis au plus tard le 2027-10-04 | Tous | — |
 
 ## 5. Validation
