@@ -71,6 +71,10 @@ try {
     console.log(
       `✔ effacé : ${erased.received} mails reçus, ${erased.proposals} propositions ; retiré de ${erased.sentTo} mails envoyés. Ses mails seront ignorés désormais.`,
     );
+    // The list is backed up with the secrets: an opposition newer than the last backup would be lost with the base.
+    console.log(
+      "ℹ refais la sauvegarde chiffrée pour y inclure cette opposition : npm run secrets:backup -- --out <fichier>",
+    );
   } else {
     const was = await people.withdraw(key);
     await journal.append({ agent: "cenacle", type: "person.withdrawn", payload: { was } });

@@ -24,7 +24,13 @@ export {
   type Totals,
 } from "./mail-store.ts";
 export { EXECUTOR_PASSWORD_VAR } from "./migrate.ts";
-export { createPeople, type Erasure, type Holdings, type People } from "./people.ts";
+export {
+  createPeople,
+  type Erasure,
+  type Holdings,
+  type OppositionEntry,
+  type People,
+} from "./people.ts";
 export {
   createProposalStore,
   type NewProposal,
