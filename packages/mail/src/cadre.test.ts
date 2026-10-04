@@ -16,6 +16,7 @@ describe("cadre.toml", () => {
       address: "test-cenacle@cenacle.test",
       test: true,
       recipients: null,
+      readOnly: false,
     });
   });
 

@@ -2,7 +2,13 @@
 import { randomBytes } from "node:crypto";
 import { chooseTrame, extractThreadSlots, type LocalModels } from "@cenacle/brain";
 import type { Journal, MailStore, ProposalStore } from "@cenacle/journal";
-import { createProposals, loadTrames, type MailCadre, readMailsForModel } from "@cenacle/mail";
+import {
+  createProposals,
+  loadTrames,
+  type MailCadre,
+  readMailsForModel,
+  refuseReadOnly,
+} from "@cenacle/mail";
 import type { DraftDueDeps } from "./draft-due.ts";
 
 export function draftingDeps(w: {
@@ -13,6 +19,8 @@ export function draftingDeps(w: {
   readonly cadre: MailCadre;
   readonly password: string;
 }): DraftDueDeps {
+  // M2: a real box is sorted and followed, never drafted for.
+  refuseReadOnly(w.cadre, "Drafting replies");
   return {
     mails: w.mails,
     store: w.store,

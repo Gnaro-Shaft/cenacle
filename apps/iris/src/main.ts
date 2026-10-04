@@ -46,14 +46,17 @@ const { rules, noFollowUp } = loadRules();
 const password = mailPassword(cadre);
 const local = createLocalModels(localModelConfigFromEnv());
 const proposalStore = createProposalStore(sql);
-const drafting = draftingDeps({
-  local,
-  journal,
-  mails: store,
-  store: proposalStore,
-  cadre: mail,
-  password,
-});
+// M2: on a real box, no draft at all — Iris sorts, follows and alerts.
+const drafting = mail.readOnly
+  ? null
+  : draftingDeps({
+      local,
+      journal,
+      mails: store,
+      store: proposalStore,
+      cadre: mail,
+      password,
+    });
 const startedAt = new Date();
 // S2: the sentinel hears Iris every minute; its silence is the alert.
 const sentinel = heartbeatFromEnv("iris");
@@ -69,7 +72,11 @@ process.on("SIGINT", () => {
 });
 
 console.log(
-  "Iris suit son rythme : relève toutes les 15 min (8 h–20 h en semaine), brouillons pour les relances dues, récaps 9 h / 13 h / 18 h.",
+  `Iris suit son rythme : relève toutes les 15 min (8 h–20 h en semaine), ${
+    drafting === null
+      ? "sans aucun brouillon (vraie boîte, lecture seule)"
+      : "brouillons pour les relances dues"
+  }, récaps 9 h / 13 h / 18 h.`,
 );
 while (!stopping) {
   try {
@@ -96,9 +103,13 @@ while (!stopping) {
       },
       totals: (now) => mailTotals(store, now),
       send: (text) => telegram.sendMessage(chatId, text),
-      draft: async () => {
-        await draftDueFollowUps(drafting);
-      },
+      ...(drafting === null
+        ? {}
+        : {
+            draft: async () => {
+              await draftDueFollowUps(drafting);
+            },
+          }),
       pendingDrafts: async () => (await proposalStore.pending()).length,
       heartbeat: async () => {
         if (sentinel === null) return;

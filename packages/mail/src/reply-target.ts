@@ -42,6 +42,8 @@ export function subjectOf(rawLatin1: string | null | undefined, envelope: string
 /** What the executor needs to answer in the same thread (B4), read at sending time. */
 export interface ReplyContext extends ReplyTarget {
   readonly subject: string;
+  /** The sender's display name, read in memory (shown to me by the M2 measures, never stored). */
+  readonly fromName?: string;
   /** Message-ID of the mail answered, when valid. */
   readonly messageId: string | null;
   /** Its References, valid ids only. */
@@ -141,6 +143,7 @@ export async function readReplyContexts(
         targets.set(msg.uid, {
           ...target,
           subject: subjectOf(headers.get("subject"), msg.envelope?.subject),
+          fromName: msg.envelope?.from?.length === 1 ? (msg.envelope.from[0]?.name ?? "") : "",
           messageId: validMessageId(msg.envelope?.messageId),
           references: (rawRefs.match(/<[^<>\s]{1,250}>/g) ?? []).slice(-20),
         });

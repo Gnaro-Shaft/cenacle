@@ -42,6 +42,11 @@ export interface MailCadre {
    * Null for the fictional box: reserved test domains only.
    */
   readonly recipients: readonly string[] | null;
+  /**
+   * A real mailbox not marked `test = true` (phase 5, M2): sorted and followed,
+   * never drafted for nor sent from. Lifting it is M3's decision, not a default.
+   */
+  readonly readOnly: boolean;
 }
 
 export interface Cadre {
@@ -49,6 +54,19 @@ export interface Cadre {
   readonly conservation: Conservation;
   /** The open processings (phase 5, C1). None while only the fictional mailbox is read. */
   readonly traitements: readonly Traitement[];
+}
+
+/** Something that writes or drafts was asked of a read-only mailbox (M2). */
+export class ReadOnlyMailboxError extends Error {
+  constructor(what: string) {
+    super(`${what} refused: this mailbox is read-only (a real box, M2 — no draft, no sending)`);
+    this.name = "ReadOnlyMailboxError";
+  }
+}
+
+/** The second line of the M2 lock: each writer checks it itself. */
+export function refuseReadOnly(mail: Pick<MailCadre, "readOnly">, what: string): void {
+  if (mail.readOnly !== false) throw new ReadOnlyMailboxError(what);
 }
 
 export class CadreError extends Error {
@@ -207,6 +225,7 @@ export function toCadre(raw: unknown, today = localToday()): Cadre {
       address: fictional ? testAddress(address) : address,
       test: fictional || test,
       recipients,
+      readOnly: !fictional && !test,
     },
   };
 }

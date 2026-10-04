@@ -28,7 +28,7 @@ Rédigé par Claude le 2026-10-04. **Validé par le responsable le 2026-10-04.**
 
 ## Limites connues (littératie IA, art. 4)
 
-- **Rangement** : le modèle peut se tromper de case. « À trier » recueille ses doutes. Le taux de bon classement sur la vraie boîte sera mesuré et publié en M2.
+- **Rangement** : le modèle peut se tromper de case. « À trier » recueille ses doutes. Le taux de bon classement sur la vraie boîte sera mesuré et publié en M2 (`npm run mesure:rangement` : je juge chaque mail rangé, seuls les compteurs sont publiés, dans `docs/mesures/m2.md`). En M2, IA-02 et IA-03 ne tournent pas sur la vraie boîte : le code y interdit tout brouillon.
 - **Choix de la trame** : 3 mails sur 12 n'ont pas eu la trame que j'aurais choisie, ou aucune. Une proposition peut donc tomber à côté : elle se refuse d'un clic.
 - **Recopie** : le vérificateur de faits attrape les nombres, dates, heures, montants, liens et adresses. Il ne juge ni le ton ni la pertinence : c'est à moi de relire.
 - **Injection** : un mail peut contenir des consignes cachées. Le modèle n'a aucun outil, et un mail ne peut ni accepter ni envoyer ; le banc l'éprouve sur 11 pièges (0 envoi).
