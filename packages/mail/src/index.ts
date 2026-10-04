@@ -19,7 +19,15 @@ export {
   mailTotals,
 } from "./collect.ts";
 export { imapOptions, isLoopback, smtpOptions } from "./connection.ts";
+export {
+  type Census,
+  censusDomains,
+  type DomainCount,
+  MASS_MARKET,
+  type SentHeaders,
+} from "./domain-census.ts";
 export { keptFromModel } from "./floor.ts";
+export { headersSince } from "./header-scan.ts";
 export { createKeyer, KeyError, type Keyer, keyerFromEnv, messageIds } from "./keys.ts";
 export { cleanForModel, htmlToText, toMailForModel } from "./mail-text.ts";
 export {
