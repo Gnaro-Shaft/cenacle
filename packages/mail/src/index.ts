@@ -1,3 +1,4 @@
+export { isAcceptedByPage, signProposal } from "./acceptance.ts";
 export {
   type Cadre,
   CadreError,

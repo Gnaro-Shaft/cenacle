@@ -4,7 +4,13 @@
 import type { FollowedMail, MyMail } from "@cenacle/core";
 import type { BuiltReply, ReplyContext } from "@cenacle/mail";
 import { createProposals } from "@cenacle/mail";
-import { memoryJournal, memoryProposalStore } from "@cenacle/mail/test-helpers";
+import {
+  memoryJournal,
+  memoryProposalStore,
+  signedNow,
+  TEST_KEYS,
+  testAcceptanceKeys,
+} from "@cenacle/mail/test-helpers";
 import { describe, expect, it } from "vitest";
 import { type ExecutorDeps, executeDue, MAX_SENDS_PER_DAY } from "./execute.ts";
 
@@ -55,6 +61,7 @@ function world(
       if (!copyUp) throw new Error("IMAP down");
       copies.push(reply);
     },
+    verify: TEST_KEYS.verify,
   };
   let n = 0;
   const accepted = async (draft = SECRET) => {
@@ -66,7 +73,7 @@ function world(
       trame: null,
       draft,
     });
-    await store.accept(p.id, T0);
+    await store.accept(p.id, T0, await signedNow(store, p.id, T0));
     return p.id;
   };
   return {
@@ -130,6 +137,28 @@ describe("the executor sends only what I accepted, after the delay", () => {
     await w.store.cancel(c, T0);
     await executeDue(w.deps);
     expect(w.outbox).toEqual([]);
+  });
+});
+
+describe("only what the page signed (ADR-0013)", () => {
+  it("an acceptance signed by another key, or for another text, is never sent", async () => {
+    const w = world();
+    const other = testAcceptanceKeys();
+    const forged = await w.store.create({
+      id: "p-forged",
+      mailUidValidity: "9",
+      mailUid: 60,
+      trame: null,
+      draft: SECRET,
+    });
+    await w.store.accept(forged.id, T0, other.signed(forged, T0));
+    const r = await executeDue(w.deps);
+    expect(r.unsigned).toEqual(["p-forged"]);
+    expect(r.sent).toEqual([]);
+    expect(w.outbox).toEqual([]);
+    expect((await w.store.get("p-forged"))?.status).toBe("failed");
+    expect(w.journal.events.map((e) => e.type)).toContain("send.unsigned");
+    expect(JSON.stringify(w.journal.events.map((e) => e.payload))).not.toContain("Claire");
   });
 });
 

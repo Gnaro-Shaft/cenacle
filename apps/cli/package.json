@@ -9,6 +9,9 @@
     "@cenacle/journal": "0.0.0",
     "@cenacle/brain": "0.0.0",
     "@cenacle/observability": "0.0.0",
-    "@cenacle/mail": "0.0.0"
+    "@cenacle/mail": "0.0.0",
+    "@cenacle/iris": "0.0.0",
+    "@cenacle/server": "0.0.0",
+    "@cenacle/executor": "0.0.0"
   }
 }

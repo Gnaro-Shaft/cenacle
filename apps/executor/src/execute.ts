@@ -5,7 +5,11 @@
  * - the mail is still there and still waits for my answer (fresh read of my
  *   Sent folder: if I answered meanwhile, the proposal lapses);
  * - the recipient is read again from the server (the sender, never stored);
- * - at most 20 sending attempts a day.
+ * - at most 20 sending attempts a day;
+ * - the page's signature of this very text (ADR-0013), checked BEFORE the
+ *   claim — an unsigned acceptance is refused without a sending time, so
+ *   forged acceptances cannot use up the daily ceiling — and again on the
+ *   row claimed. Unsigned: never sent; failed, journaled and shown.
  * It claims a proposal before talking to the mail server, so a mail is sent
  * at most once: a failure is shown to me and never retried by itself.
  */
@@ -31,6 +35,8 @@ export interface ExecutorDeps {
   readonly build: (context: ReplyContext, text: string, date: Date) => Promise<BuiltReply>;
   readonly send: (reply: BuiltReply) => Promise<void>;
   readonly copy: (reply: BuiltReply) => Promise<void>;
+  /** Whether this exact row was accepted on the page (its signature, the public key). */
+  readonly verify: (p: Proposal) => boolean;
 }
 
 export type LapseReason = "gone" | "answered" | "no_recipient";
@@ -38,6 +44,8 @@ export type LapseReason = "gone" | "answered" | "no_recipient";
 export interface RoundResult {
   readonly sent: readonly string[];
   readonly failed: readonly string[];
+  /** Accepted without a valid signature of the page: never sent. */
+  readonly unsigned: readonly string[];
   readonly lapsed: readonly { readonly id: string; readonly reason: LapseReason }[];
   /** The daily limit stopped this round. */
   readonly limited: boolean;
@@ -48,15 +56,29 @@ const errorName = (error: unknown) => (error instanceof Error ? error.name : "un
 export async function executeDue(deps: ExecutorDeps): Promise<RoundResult> {
   const sent: string[] = [];
   const failed: string[] = [];
+  const unsigned: string[] = [];
   const lapsed: { id: string; reason: LapseReason }[] = [];
   const due = await deps.store.dueForSending(deps.now());
-  if (due.length === 0) return { sent, failed, lapsed, limited: false };
+  if (due.length === 0) return { sent, failed, unsigned, lapsed, limited: false };
   const mine = await deps.freshSent();
 
   for (const p of due) {
     const now = deps.now();
     if ((await deps.store.sendsSince(dayStart(now))) >= MAX_SENDS_PER_DAY) {
-      return { sent, failed, lapsed, limited: true };
+      return { sent, failed, unsigned, lapsed, limited: true };
+    }
+    const journalUnsigned = async () => {
+      await deps.journal.append({
+        agent: AGENT,
+        type: "send.unsigned",
+        payload: { proposalId: p.id },
+      });
+      unsigned.push(p.id);
+    };
+    if (!deps.verify(p)) {
+      await deps.store.refuseUnsigned(p.id, now);
+      await journalUnsigned();
+      continue;
     }
     const lapse = async (reason: LapseReason) => {
       await deps.proposals.lapse(p.id, now);
@@ -81,15 +103,22 @@ export async function executeDue(deps: ExecutorDeps): Promise<RoundResult> {
       continue;
     }
 
+    let claimed: Proposal;
     try {
-      await deps.store.claim(p.id, now);
+      claimed = await deps.store.claim(p.id, now);
     } catch (error) {
       if (error instanceof ProposalError) continue; // another executor took it, or I cancelled just now
       throw error;
     }
+    // Checked on the row just claimed, whose text the database now keeps frozen.
+    if (!deps.verify(claimed)) {
+      await deps.store.markFailed(p.id, deps.now());
+      await journalUnsigned();
+      continue;
+    }
     let reply: BuiltReply;
     try {
-      reply = await deps.build(context, p.draft ?? "", now);
+      reply = await deps.build(context, claimed.draft ?? "", now);
       await deps.send(reply);
     } catch (error) {
       await deps.store.markFailed(p.id, deps.now());
@@ -115,5 +144,5 @@ export async function executeDue(deps: ExecutorDeps): Promise<RoundResult> {
       });
     }
   }
-  return { sent, failed, lapsed, limited: false };
+  return { sent, failed, unsigned, lapsed, limited: false };
 }

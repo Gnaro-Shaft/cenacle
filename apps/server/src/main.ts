@@ -1,13 +1,16 @@
 /**
  * Starts the API on 127.0.0.1 only. Usage: npm run server
  * A new token is drawn at each start and shown once here: open the link it
- * prints to use the validation page.
+ * prints to use the validation page. Signs my acceptances with the private
+ * key of .env.page, loaded by this program only (ADR-0013).
  */
+import { privateKeyFromEnv, refuseSecret } from "@cenacle/core";
 import {
   connectAsApp,
   createJournal,
   createMailStore,
   createProposalStore,
+  EXECUTOR_PASSWORD_VAR,
 } from "@cenacle/journal";
 import {
   createProposals,
@@ -15,6 +18,7 @@ import {
   loadTrames,
   readMailsForModel,
   readReplyTargets,
+  signProposal,
   testMailboxConfigFromEnv,
 } from "@cenacle/mail";
 import { serve } from "@hono/node-server";
@@ -31,7 +35,9 @@ const store = createProposalStore(sql);
 const mails = createMailStore(sql);
 const { mail } = loadCadre();
 const { password } = testMailboxConfigFromEnv();
+refuseSecret("The page's server", EXECUTOR_PASSWORD_VAR, "the executor");
 const token = newToken();
+const acceptKey = privateKeyFromEnv();
 
 const app = createApp({
   readAfter: (agent, afterId) => journal.read({ agent, afterId, limit: 1000 }),
@@ -44,6 +50,7 @@ const app = createApp({
     readTargets: (uids, v) => readReplyTargets(mail, password, uids, v),
     trames: loadTrames(),
     now: () => new Date(),
+    sign: (p, now) => signProposal(acceptKey, p, now),
   }),
 });
 

@@ -19,9 +19,9 @@
     "test": "vitest run",
     "check": "npm run lint && npm run typecheck && npm run test",
     "db:up": "docker compose up -d --wait",
-    "db:migrate": "node --env-file=.env packages/journal/src/migrate.ts",
+    "db:migrate": "node --env-file=.env --env-file-if-exists=.env.executor packages/journal/src/migrate.ts",
     "status": "node --env-file=.env apps/cli/src/status.ts",
-    "server": "node --env-file=.env apps/server/src/main.ts",
+    "server": "node --env-file=.env --env-file-if-exists=.env.page apps/server/src/main.ts",
     "web": "npm run dev -w @cenacle/web",
     "simulate": "node --env-file=.env apps/cli/src/simulate.ts",
     "bot": "node --env-file=.env apps/telegram/src/main.ts",
@@ -42,7 +42,9 @@
     "proposal": "node --env-file=.env apps/cli/src/proposal.ts",
     "iris:draft": "node --env-file=.env apps/iris/src/draft-main.ts",
     "draft:vote": "node --env-file=.env apps/cli/src/draft-vote.ts",
-    "executor": "node --env-file=.env apps/executor/src/main.ts"
+    "executor": "node --env-file=.env --env-file-if-exists=.env.executor apps/executor/src/main.ts",
+    "draft:bench": "node apps/cli/src/draft-bench.ts",
+    "keys:accept": "node apps/cli/src/accept-keys.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
