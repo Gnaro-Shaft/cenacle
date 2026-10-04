@@ -107,6 +107,14 @@ describe("from when a real mailbox may be read (C4)", () => {
     expect(at("2026-01-15", "2026-02-01")).toBe("2026-01-14T23:00:00.000Z");
   });
 
+  it("no limit for a processing without third parties (tiers = false): nobody to inform", () => {
+    const noThirdParties = T01("", "mention_publiee = 2026-09-30").replace(
+      "tiers = true",
+      "tiers = false",
+    );
+    expect(readingStartsAt(parse(FICTIONAL + CONSERVATION + noThirdParties))).toBeNull();
+  });
+
   it("no limit for a mailbox no processing covers (the fictional one)", () => {
     expect(readingStartsAt(parse(FICTIONAL + CONSERVATION))).toBeNull();
   });

@@ -134,11 +134,13 @@ function register(raw: Record<string, unknown>, today: string) {
  * From when the mailbox may be read (phase 5, C4): midnight, Paris time, of
  * the day the information notice of its processing was published. Nobody
  * could be informed of a processing that did not exist yet: what arrived
- * before is not read. Null for the fictional test mailbox (no processing).
+ * before is not read. Null for the fictional test mailbox (no processing),
+ * and for a processing without third parties' data (`tiers = false`, like the
+ * real test box T-08): there is nobody to inform.
  */
 export function readingStartsAt(cadre: Cadre): Date | null {
   const treatment = coveringTraitement(cadre.mail.source, cadre.traitements);
-  if (treatment === undefined) return null;
+  if (treatment === undefined || !treatment.tiers) return null;
   const [y = 0, m = 0, d = 0] = treatment.mentionPubliee.split("-").map(Number);
   return new Date(zonedMidnight(y, m, d, TIME_ZONE));
 }
