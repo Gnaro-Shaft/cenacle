@@ -1,4 +1,16 @@
 export { isAcceptedByPage, signProposal } from "./acceptance.ts";
+export { type AuthResults, type MethodResult, parseAuthResults } from "./auth-results.ts";
+export { MAX_SURVEYED, type ScanResult, scanAuthHeaders } from "./auth-scan.ts";
+export {
+  authShape,
+  type MailAuthShape,
+  OUTCOMES,
+  type Outcome,
+  type ServerSummary,
+  SURVEYED_METHODS,
+  type Survey,
+  summarize,
+} from "./auth-survey.ts";
 export {
   type Cadre,
   CadreError,
@@ -37,6 +49,7 @@ export {
   skeleton,
   type Verdict,
 } from "./measure.ts";
+export { type HeaderField, orderedHeaders } from "./ordered-headers.ts";
 export { type PassDeps, type PassResult, runMailPass } from "./pass.ts";
 export {
   type FetchResult,

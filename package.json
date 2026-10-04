@@ -36,6 +36,7 @@
     "mail:sort": "node --env-file=.env --env-file-if-exists=.env.mail apps/cli/src/mail-sort.ts",
     "mail:bench": "node --env-file=.env --env-file-if-exists=.env.mail apps/cli/src/mail-bench.ts",
     "mail:followup": "node --env-file=.env --env-file-if-exists=.env.mail apps/cli/src/mail-followup.ts",
+    "mail:auth-survey": "node --env-file=.env --env-file-if-exists=.env.mail apps/cli/src/mail-auth-survey.ts",
     "alert:bench": "node apps/iris/src/bench-main.ts",
     "draft:check": "node apps/cli/src/draft-check.ts",
     "trames:demo": "node apps/cli/src/trames-demo.ts",

@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const READ_ONLY_MODULES = ["postman.ts", "reader.ts"];
+const READ_ONLY_MODULES = ["postman.ts", "reader.ts", "auth-scan.ts"];
 const WRITING_CALLS = [
   "append",
   "messageDelete",
@@ -41,6 +41,19 @@ describe.each(READ_ONLY_MODULES)("%s — read-only by construction", (file) => {
 
   it("checks the unread count did not change", () => {
     expect(src).toMatch(/unseen !== unseenBefore/);
+  });
+});
+
+describe("auth-scan — headers only", () => {
+  it("fetches the survey's fixed headers — no body, no envelope, no source", () => {
+    const src = code("auth-scan.ts");
+    expect(src).toMatch(/headers: SURVEY_HEADERS/);
+    for (const field of ["source", "bodyParts", "envelope", "bodyStructure"]) {
+      expect(src).not.toMatch(new RegExp(`\\b${field}\\s*:`));
+    }
+    expect(code("auth-survey.ts")).toMatch(
+      /SURVEY_HEADERS = \[\s*"from",\s*"received",\s*"authentication-results",\s*"arc-authentication-results",\s*"received-spf",?\s*\]/,
+    );
   });
 });
 
