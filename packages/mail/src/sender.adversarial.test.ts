@@ -28,6 +28,14 @@ describe("buildReply", () => {
     expect(h).not.toMatch(/^(Cc|Bcc):/im);
   });
 
+  it("says, for machines, that it was prepared with a local AI and accepted by its sender (C4)", async () => {
+    const r = await buildReply(FROM, CONTEXT, "Bonjour Claire,\n\nJeudi me convient.", DATE);
+    expect(headersOf(r.raw)).toMatch(
+      // Header names are case-insensitive (RFC 5322): the composer writes X-Ai-Assisted.
+      /^X-AI-Assisted: draft-by-local-model; reviewed-and-accepted-by-sender$/im,
+    );
+  });
+
   it("a subject cannot add a header", async () => {
     const r = await buildReply(
       FROM,

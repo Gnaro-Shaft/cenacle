@@ -1,4 +1,6 @@
-# Mention d'information — Cénacle (à publier avant l'ouverture)
+# Mention d'information — Cénacle
+
+> **Publiée le 4 octobre 2026** dans les mentions légales du site, et **vérifiée en ligne** le même jour (section « Mon assistant de messagerie », entre « Mon assistant de travail » et « Questions sur les articles » ; « Dernière mise à jour : 4 octobre 2026 »). À l'ouverture du traitement, `cadre.toml` portera `mention_publiee = 2026-10-04` : rien de ce qui est arrivé avant ce jour ne sera lu.
 
 > Jalon C4 de la phase 5. Rédigé par Claude le 2026-10-04 ; ce n'est pas un avis
 > juridique. **La publication est le geste du responsable**, dans les mentions
@@ -39,7 +41,7 @@ Pour trier ma boîte professionnelle et préparer mes réponses, j'utilise un se
 
 **Ce qu'il me propose.** Quand un message de client ou de prospect attend ma réponse depuis 48 heures ouvrées, il peut me proposer un brouillon : une de mes réponses types, dont quelques mots sont repris de votre message (par exemple le créneau que vous proposez). Il ne rédige pas le reste, et il ne peut pas inventer un fait : un nombre, une date, un montant, un lien ou une adresse absents de votre message sont refusés par une vérification qui n'utilise pas l'intelligence artificielle.
 
-**Ce qu'il fait seul, et ce qu'il ne fait pas.** Il n'envoie rien sans moi. Je relis chaque brouillon, je le corrige, et je l'accepte ou le refuse. Une réponse acceptée part depuis ma boîte, à votre seule adresse, après un délai de deux minutes pendant lequel je peux encore l'annuler. Il ne prend aucune décision vous concernant et ne dresse aucun profil.
+**Ce qu'il fait seul, et ce qu'il ne fait pas.** Il n'envoie rien sans moi. Je relis chaque brouillon, je le corrige, et je l'accepte ou le refuse. Une réponse acceptée part depuis ma boîte, à votre seule adresse, après un délai de deux minutes pendant lequel je peux encore l'annuler. Elle porte un en-tête technique (`X-AI-Assisted`) qui indique qu'elle a été préparée avec l'aide de l'intelligence artificielle, puis relue et acceptée par moi. Il ne prend aucune décision vous concernant et ne dresse aucun profil.
 
 **Les données sensibles.** Un message qui semble révéler une donnée sensible (santé, opinions, convictions, appartenance syndicale, origine, vie sexuelle, données génétiques ou biométriques, condamnations) n'est jamais lu par l'intelligence artificielle. Il m'est laissé, à trier moi-même, et aucun brouillon n'est proposé. Le motif n'est pas enregistré. Ce filtre repose sur une liste de mots : il réduit le risque, sans pouvoir l'annuler.
 
@@ -56,5 +58,5 @@ Ce paragraphe date du _[date de publication]_. L'assistant ne lit que les messag
 ## À trancher avant publication
 
 1. ~~**Les messages reçus avant la publication.**~~ **Fait le 2026-10-04** : la relève ignore tout message reçu, et tout message envoyé, avant minuit (heure de Paris) du jour inscrit dans `mention_publiee` (`readingStartsAt`). La dernière phrase du paragraphe est donc tenue par le code.
-2. **Le marquage dans le mail lui-même** (registre IA) : la mention signale l'aide de l'IA. Un en-tête lisible par machine dans chaque réponse envoyée serait en plus. À trancher (je ne le crois pas exigé pour une correspondance relue et acceptée par son auteur, mais c'est à faire confirmer).
-3. **La relecture par un juriste**, si tu en as un, avant publication.
+2. ~~**Le marquage dans le mail lui-même**~~ **Décidé le 2026-10-04** : chaque réponse envoyée porte l'en-tête `X-AI-Assisted: draft-by-local-model; reviewed-and-accepted-by-sender`, lisible par machine, invisible pour le lecteur ; la mention le dit.
+3. **La relecture par un juriste** : pas de juriste disponible ; le responsable choisit de publier en l'état (2026-10-04). Ce texte n'est pas un avis juridique.
