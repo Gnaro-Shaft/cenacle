@@ -28,8 +28,8 @@
 | Exactitude | Vérificateur de faits sans IA ; cases douteuses laissées vides et visibles ; relecture humaine de chaque brouillon | Oui, avec les limites du registre IA |
 | Durées | 90 jours (mémoire), 7 jours (texte des brouillons), 7 jours (traces) | **Partiel** : lignes de propositions et journal sans purge (C1) |
 | Information | Mention publique sur le site, qui couvre aujourd'hui Legion (domaines seulement) | **Non** : à réviser pour Cénacle avant l'ouverture (C4) |
-| Accès, rectification, effacement | — | **Non** : export et effacement par adresse à coder (C3) |
-| Opposition, limitation | Couper la source ; une règle de rangement peut écarter un expéditeur | Partiel (C1, C3) |
+| Accès, rectification, effacement | `npm run personne` : export JSON, effacement, liste d'opposition qui le fait tenir (C3) | Oui |
+| Opposition, limitation | Liste d'opposition : les mails de la personne ne sont plus lus ; couper la source | Oui |
 
 ## 3. Risques
 
@@ -72,7 +72,7 @@
 |---|---|---|---|
 | 1 | Cadre exécutable, et durées et purges pour toutes les tables (propositions, journal) | Durées | C1 |
 | 2 | ~~Plancher article 9, déterministe, avant le modèle~~ **fait le 2026-10-04** | R4 | C2 |
-| 3 | Export et effacement par adresse | Droits | C3 |
+| 3 | ~~Export et effacement par adresse~~ **fait le 2026-10-04** | Droits | C3 |
 | 4 | Mention révisée et publiée, vérifiée en ligne | Information | C4 |
 | 5 | Un fichier d'environnement par programme ; sauvegarde chiffrée des secrets (`CENACLE_MAIL_KEY`, clés de la page, mot de passe de l'exécuteur) | R1 | S1 |
 | 6 | Sentinelle sans contenu (ADR-0002) | Disponibilité | S2 |

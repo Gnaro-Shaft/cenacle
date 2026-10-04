@@ -20,6 +20,8 @@ export interface PassDeps {
   readonly cadre: MailCadre;
   /** How long a mail is remembered, in days ([conservation] of cadre.toml). */
   readonly retentionDays: number;
+  /** The opposition list (C3), read at each pass. */
+  readonly opposedKeys: () => Promise<ReadonlySet<string>>;
   readonly password: string;
   readonly rules: Rules;
   readonly noFollowUp: ReadonlySet<string>;
@@ -41,6 +43,7 @@ export async function runMailPass(deps: PassDeps): Promise<PassResult> {
     store,
     rules: deps.rules,
     retentionDays: deps.retentionDays,
+    opposedKeys: await deps.opposedKeys(),
     noFollowUp: deps.noFollowUp,
     clock,
     fetchInbox: (afterUid) => fetchMailRefs(cadre, password, keyer, { afterUid }),

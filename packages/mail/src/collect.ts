@@ -37,6 +37,8 @@ export interface CollectDeps {
   readonly rules: Rules;
   /** How long a mail is remembered after its arrival, in days (cadre.toml). */
   readonly retentionDays: number;
+  /** People who asked to be erased or objected (C3): their mails are never remembered. */
+  readonly opposedKeys: ReadonlySet<string>;
   /** Domains that never expect a reply by mail ([sans_suivi]). */
   readonly noFollowUp?: ReadonlySet<string>;
   readonly clock?: () => Date;
@@ -74,10 +76,16 @@ export async function collectMail(deps: CollectDeps): Promise<CollectSummary> {
   try {
     const inbox = await readNew(store, "inbox", deps.fetchInbox);
     const sent = await readNew(store, "sent", deps.fetchSent);
+    // C3: an opposed person's mails are not remembered, sorted nor read; in my
+    // sent mails, only their key is left out (the other recipients stay).
+    const opposed = deps.opposedKeys;
+    const inboxRefs = inbox.result.refs.filter(
+      (r) => r.senderKey === null || !opposed.has(r.senderKey),
+    );
     // Mapped field by field: the domain is used for sorting below, never stored.
     const added = await store.saveInbox(
       inbox.result.uidValidity,
-      inbox.result.refs.map(
+      inboxRefs.map(
         ({ uid, domain, receivedAt, urgentTerm, senderKey, messageKey, threadKeys }) => ({
           uid,
           receivedAt,
@@ -94,7 +102,7 @@ export async function collectMail(deps: CollectDeps): Promise<CollectSummary> {
       sent.result.refs.map(({ uid, sentAt, recipientKeys, messageKey, threadKeys }) => ({
         uid,
         sentAt,
-        recipientKeys,
+        recipientKeys: recipientKeys.filter((k) => !opposed.has(k)),
         messageKey,
         threadKeys,
       })),
@@ -110,7 +118,7 @@ export async function collectMail(deps: CollectDeps): Promise<CollectSummary> {
       },
     });
 
-    const ruleSort = sortByRules(inbox.result.refs, rules);
+    const ruleSort = sortByRules(inboxRefs, rules);
     for (const { uid, category, decidedBy } of ruleSort.sorted) {
       await store.categorize(uid, category, decidedBy);
     }

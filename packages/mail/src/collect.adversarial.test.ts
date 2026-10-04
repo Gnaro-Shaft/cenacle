@@ -46,6 +46,7 @@ function setup(inbox: (afterUid: number) => MailRef[], sent: SentRef[] = [], val
     store,
     rules,
     retentionDays: 90,
+    opposedKeys: new Set(),
     clock: () => NOW,
     fetchInbox: async (afterUid) => {
       asked.push(afterUid);
@@ -168,5 +169,38 @@ describe("collectMail", () => {
       ["state.changed", { to: "error" }],
     ]);
     expect(projectStatus("iris", journal.events).view.visual).toBe("sick");
+  });
+});
+
+describe("the opposition list (C3)", () => {
+  const opposedRef = (uid: number): MailRef => ({
+    ...ref(uid, "client.example"),
+    senderKey: K("b"),
+  });
+  const sentTo = (uid: number, recipientKeys: string[]): SentRef => ({
+    uid,
+    sentAt: "2026-09-30T09:00:00.000Z",
+    recipientKeys,
+    messageKey: K("c"),
+    threadKeys: [],
+  });
+
+  it("an opposed person's mails are never remembered nor sorted, even after a renumbering", async () => {
+    let validity = "1";
+    const { deps, store } = setup(
+      (after) => [ref(1, "client.example"), opposedRef(2)].filter((r) => r.uid > after),
+      [sentTo(1, [K("a"), K("b")])],
+      () => validity,
+    );
+    const withList = { ...deps, opposedKeys: new Set([K("b")]) };
+    const first = await collectMail(withList);
+    expect((await store.inbox()).map((i) => i.uid)).toEqual([1]);
+    expect(first.ruleSort.counts.clients_prospects).toBe(1);
+    // In my sent mail to both, only their key leaves: the other recipient stays.
+    expect((await store.sent()).map((s) => s.recipientKeys)).toEqual([[K("a")]]);
+    validity = "2"; // the server renumbers: everything is read again from the start
+    await collectMail(withList);
+    expect((await store.inbox()).map((i) => i.uid)).toEqual([1]);
+    expect(JSON.stringify(await store.inbox())).not.toContain(K("b"));
   });
 });

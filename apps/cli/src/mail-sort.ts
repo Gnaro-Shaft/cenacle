@@ -6,7 +6,7 @@
  */
 import { createLocalModels, localModelConfigFromEnv } from "@cenacle/brain";
 import { countConversations } from "@cenacle/core";
-import { connectAsApp, createJournal, createMailStore } from "@cenacle/journal";
+import { connectAsApp, createJournal, createMailStore, createPeople } from "@cenacle/journal";
 import {
   keyerFromEnv,
   loadCadre,
@@ -31,6 +31,7 @@ try {
     keyer: keyerFromEnv(),
     cadre: mail,
     retentionDays: conservation.memoireJours,
+    opposedKeys: () => createPeople(sql).opposedKeys(),
     password: testMailboxConfigFromEnv().password,
     rules,
     noFollowUp,

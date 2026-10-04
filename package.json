@@ -45,7 +45,8 @@
     "executor": "node --env-file=.env --env-file-if-exists=.env.executor apps/executor/src/main.ts",
     "draft:bench": "node apps/cli/src/draft-bench.ts",
     "keys:accept": "node apps/cli/src/accept-keys.ts",
-    "floor:bench": "node apps/cli/src/floor-bench.ts"
+    "floor:bench": "node apps/cli/src/floor-bench.ts",
+    "personne": "node --env-file=.env apps/cli/src/personne.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
