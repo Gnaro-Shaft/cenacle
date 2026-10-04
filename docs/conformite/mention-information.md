@@ -55,6 +55,6 @@ Ce paragraphe date du _[date de publication]_. L'assistant ne lit que les messag
 
 ## À trancher avant publication
 
-1. **Les messages reçus avant la publication.** La dernière phrase engage l'assistant à ne lire que les messages reçus **après** la publication, comme le fait déjà l'outil de suivi (« vous ne pouviez pas être informé d'un traitement qui n'existait pas encore »). Aujourd'hui, la première relève de Cénacle lirait toute la boîte (dans la limite des 90 jours). Tenir cet engagement demande **un petit changement de code** : la relève ignorerait tout message arrivé avant la date `mention_publiee` du traitement. Je propose de le faire avant M2.
+1. ~~**Les messages reçus avant la publication.**~~ **Fait le 2026-10-04** : la relève ignore tout message reçu, et tout message envoyé, avant minuit (heure de Paris) du jour inscrit dans `mention_publiee` (`readingStartsAt`). La dernière phrase du paragraphe est donc tenue par le code.
 2. **Le marquage dans le mail lui-même** (registre IA) : la mention signale l'aide de l'IA. Un en-tête lisible par machine dans chaque réponse envoyée serait en plus. À trancher (je ne le crois pas exigé pour une correspondance relue et acceptée par son auteur, mais c'est à faire confirmer).
 3. **La relecture par un juriste**, si tu en as un, avant publication.

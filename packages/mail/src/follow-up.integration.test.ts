@@ -45,6 +45,7 @@ describe("follow-up on the test mailbox (GreenMail)", () => {
       noFollowUp,
       retentionDays: 90,
       opposedKeys: new Set(),
+      notBefore: null,
       clock: () => new Date(box.followUp.now),
       fetchInbox: (afterUid) => fetchMailRefs(mail, password, keyer, { afterUid }),
       fetchSent: (afterUid) => fetchSentRefs(mail, password, keyer, { afterUid }),

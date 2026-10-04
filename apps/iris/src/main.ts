@@ -19,6 +19,7 @@ import {
   loadCadre,
   loadRules,
   mailTotals,
+  readingStartsAt,
   runMailPass,
   testMailboxConfigFromEnv,
 } from "@cenacle/mail";
@@ -39,7 +40,8 @@ const sql = connectAsApp();
 const journal = createJournal(sql);
 const store = createMailStore(sql);
 const keyer = keyerFromEnv();
-const { mail, conservation } = loadCadre();
+const cadre = loadCadre();
+const { mail, conservation } = cadre;
 const { rules, noFollowUp } = loadRules();
 const { password } = testMailboxConfigFromEnv();
 const local = createLocalModels(localModelConfigFromEnv());
@@ -85,6 +87,7 @@ while (!stopping) {
           cadre: mail,
           retentionDays: conservation.memoireJours,
           opposedKeys: () => createPeople(sql).opposedKeys(),
+          notBefore: readingStartsAt(cadre),
           password,
           rules,
           noFollowUp,

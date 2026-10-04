@@ -6,7 +6,7 @@
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { TIME_ZONE } from "@cenacle/core";
+import { TIME_ZONE, zonedMidnight } from "@cenacle/core";
 import { parse } from "smol-toml";
 import {
   type Conservation,
@@ -118,6 +118,19 @@ function register(raw: Record<string, unknown>, today: string) {
     }
     throw error;
   }
+}
+
+/**
+ * From when the mailbox may be read (phase 5, C4): midnight, Paris time, of
+ * the day the information notice of its processing was published. Nobody
+ * could be informed of a processing that did not exist yet: what arrived
+ * before is not read. Null for the fictional test mailbox (no processing).
+ */
+export function readingStartsAt(cadre: Cadre): Date | null {
+  const treatment = coveringTraitement(cadre.mail.source, cadre.traitements);
+  if (treatment === undefined) return null;
+  const [y = 0, m = 0, d = 0] = treatment.mentionPubliee.split("-").map(Number);
+  return new Date(zonedMidnight(y, m, d, TIME_ZONE));
 }
 
 /** Validates already-parsed TOML. Exported for tests. */
