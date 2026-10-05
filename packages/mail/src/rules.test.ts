@@ -21,9 +21,9 @@ describe("rules", () => {
     const rules = parseRules('[bruit]\ndomains = ["news.example"]\n');
     const result = sortByRules(
       [
-        { uid: 1, domain: "news.example" },
-        { uid: 2, domain: "other.example" },
-        { uid: 3, domain: null },
+        { uid: 1, domain: "news.example", auth: "authenticated" as const },
+        { uid: 2, domain: "other.example", auth: "authenticated" as const },
+        { uid: 3, domain: null, auth: "missing" as const },
       ],
       rules,
     );
@@ -31,7 +31,7 @@ describe("rules", () => {
       { uid: 1, category: "bruit", decidedBy: "rule" },
       { uid: 3, category: "a_trier", decidedBy: "unreadable" },
     ]);
-    expect(result.remaining).toEqual([{ uid: 2, domain: "other.example" }]);
+    expect(result.remaining).toEqual([{ uid: 2, domain: "other.example", auth: "authenticated" }]);
     expect(result.counts).toEqual({
       clients_prospects: 0,
       administratif: 0,
@@ -47,6 +47,7 @@ describe("rules", () => {
     const refs = messages.map((m, i) => ({
       uid: i + 1,
       domain: m.from.address.split("@")[1]?.toLowerCase() ?? null,
+      auth: "authenticated" as const,
     }));
     const { sorted, counts } = sortByRules(refs, rules);
     for (const { uid, category } of sorted) {

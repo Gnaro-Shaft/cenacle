@@ -10,7 +10,8 @@ const CONSERVATION =
   "[conservation]\nmemoire_jours = 90\ntexte_brouillon_jours = 7\npropositions_jours = 90\njournal_jours = 180\n";
 const mail = (host: string, address: string, extra = "") =>
   `[mail]\n${extra}source = "boite-pro"\nhost = "${host}"\nport = 993\nuser = "moi"\n` +
-  `mailbox = "INBOX"\nsent_mailbox = "Sent"\nmax_per_fetch = 500\nsmtp_port = 465\naddress = "${address}"\n`;
+  `mailbox = "INBOX"\nsent_mailbox = "Sent"\nmax_per_fetch = 500\nsmtp_port = 465\naddress = "${address}"\n` +
+  `authserv_id = "mx.box.test"\nrang_attendu = 5\n`;
 const T01 =
   `[[traitement]]\nidentifiant = "T-01"\nfinalite = "Ranger la boîte pro."\n` +
   `base_legale = "interet-legitime"\ncategories = ["UID", "clés HMAC"]\n` +

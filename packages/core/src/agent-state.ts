@@ -19,7 +19,7 @@ export type InternalState = (typeof INTERNAL_STATES)[number];
 export type VisualState = "resting" | "working" | "sick";
 
 /** Notes are codes, not sentences: the page owns the wording (and the language). */
-export type ViewNote = "waiting_for_mac" | "purge_failed";
+export type ViewNote = "waiting_for_mac" | "purge_failed" | "auth_missing";
 
 export interface AgentView {
   readonly visual: VisualState;

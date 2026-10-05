@@ -16,6 +16,7 @@ const inbox = (uid: number, at = "2026-09-30T08:00:00.000Z") => ({
   receivedAt: at,
   noFollowUp: uid === 3,
   urgentTerm: uid % 10 === 2,
+  senderAuthenticated: true,
   senderKey: K("a"),
   messageKey: K(String(uid % 10)),
   threadKeys: [K("f")],

@@ -38,6 +38,9 @@ export function describeStatus(status: AgentStatus): string {
   if (status.view.note === "purge_failed") {
     lines.push("⚠ Purge en échec : les durées de conservation ne sont pas tenues.");
   }
+  if (status.view.note === "auth_missing") {
+    lines.push("⚠ Authentification des expéditeurs introuvable : aucun mail n'est rangé client.");
+  }
   lines.push(
     status.pendingApprovals === 0
       ? "Rien à valider."

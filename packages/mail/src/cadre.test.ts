@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CADRE_PATH, loadCadre } from "./cadre.ts";
+import { FIXTURE_AUTHSERV_ID } from "./rfc822.ts";
 
 describe("cadre.toml", () => {
   it("the versioned file is valid and points at the test mailbox", () => {
@@ -17,6 +18,7 @@ describe("cadre.toml", () => {
       test: true,
       recipients: null,
       readOnly: false,
+      trustedServer: { authservId: FIXTURE_AUTHSERV_ID, receivedAbove: 0 },
     });
   });
 

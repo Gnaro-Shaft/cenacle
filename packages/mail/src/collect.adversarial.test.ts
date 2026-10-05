@@ -21,6 +21,7 @@ const ref = (
   threadKeys: [],
   receivedAt,
   urgentTerm: false,
+  auth: "authenticated",
 });
 const result = <T extends { uid: number }>(
   refs: T[],
@@ -85,6 +86,7 @@ describe("collectMail", () => {
       "state.changed",
       "mail.fetched",
       "mail.sorted_by_rules",
+      "mail.sender_auth",
       "mail.totals",
       "state.changed",
     ]);

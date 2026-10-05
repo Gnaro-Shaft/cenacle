@@ -29,6 +29,7 @@ const BY: Readonly<Record<Decider, string>> = {
   model: "modèle",
   unreadable: "illisible",
   set_aside: "écarté du modèle",
+  unauthenticated: "client non authentifié",
 };
 const pct = (r: number | null) => (r === null ? "—" : `${Math.round(r * 1000) / 10} %`);
 

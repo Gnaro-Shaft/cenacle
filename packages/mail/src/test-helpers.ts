@@ -64,6 +64,7 @@ export function memoryMailStore(): MailStore & {
           (r) =>
             (r.category === "clients_prospects" || r.decidedBy === "set_aside") &&
             r.urgentTerm &&
+            r.senderAuthenticated &&
             !notified.has(r.uid) &&
             Date.parse(r.receivedAt) >= since.getTime(),
         )

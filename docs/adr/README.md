@@ -18,5 +18,6 @@ Elles sont rédigées en français (le code et le README sont en anglais).
 | [0011](0011-depot-public.md) | Un dépôt public se pense dès le premier commit | Acceptée |
 | [0012](0012-memoire-du-courrier.md) | Ce qu'Iris retient d'un mail : des clés, pas des adresses, 90 jours | Acceptée |
 | [0013](0013-qui-accepte.md) | Seule la page peut accepter : acceptation signée, états clos définitifs | Acceptée |
+| [0014](0014-authentification-expediteur.md) | Un « client » doit être authentifié par notre propre serveur | Acceptée |
 
 Les règles dures qui s'appliquent à tout le code sont dans [`../charte.md`](../charte.md).

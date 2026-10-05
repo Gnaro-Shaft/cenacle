@@ -77,3 +77,40 @@ describe("projectStatus — adversarial", () => {
     expect(performance.now() - started).toBeLessThan(500);
   });
 });
+
+// ADR-0014: losing the authentication evidence is shown, never guessed.
+describe("projectStatus — sender authentication", () => {
+  it.each([
+    ["no counts", {}],
+    ["a missing trusted count", { mails: 2 }],
+    ["a negative count", { mails: 2, trusted: -1 }],
+    ["a float count", { mails: 2.5, trusted: 1 }],
+    ["a string count", { mails: "2", trusted: 1 }],
+    ["more trusted headers than mails", { mails: 1, trusted: 2 }],
+  ])("refuses %s", (_label, payload) => {
+    expect(() => projectStatus("iris", [ev(1, "mail.sender_auth", payload)])).toThrow(
+      ProjectionError,
+    );
+  });
+
+  it("no trusted header in a pass with mails: sick; a later trusted one heals", () => {
+    const sick = projectStatus("iris", [ev(1, "mail.sender_auth", { mails: 3, trusted: 0 })]);
+    expect(sick.view).toEqual({ visual: "sick", note: "auth_missing" });
+    const stillSick = applyEvent(sick, ev(2, "state.changed", { to: "reading" }));
+    expect(stillSick.view.note).toBe("auth_missing");
+    const healed = applyEvent(stillSick, ev(3, "mail.sender_auth", { mails: 1, trusted: 1 }));
+    expect(healed.view).toEqual({ visual: "working", note: null });
+  });
+
+  it("a failed purge is shown first, and stays once authentication heals", () => {
+    const both = projectStatus("iris", [
+      ev(1, "purge.failed"),
+      ev(2, "mail.sender_auth", { mails: 1, trusted: 0 }),
+    ]);
+    expect(both.view.note).toBe("purge_failed");
+    const purgeOnly = applyEvent(both, ev(3, "mail.sender_auth", { mails: 1, trusted: 1 }));
+    expect(purgeOnly.view.note).toBe("purge_failed");
+    const authOnly = applyEvent(both, ev(3, "purge.done"));
+    expect(authOnly.view.note).toBe("auth_missing");
+  });
+});
