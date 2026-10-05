@@ -18,7 +18,6 @@ import { type Journal, type Proposal, ProposalError, type ProposalStore } from "
 import type { BuiltReply, Proposals, ReplyContext } from "@cenacle/mail";
 
 const AGENT = "iris";
-export const MAX_SENDS_PER_DAY = 20;
 
 export interface ExecutorDeps {
   readonly store: ProposalStore;
@@ -37,9 +36,15 @@ export interface ExecutorDeps {
   readonly copy: (reply: BuiltReply) => Promise<void>;
   /** Whether this exact row was accepted on the page (its signature, the public key). */
   readonly verify: (p: Proposal) => boolean;
+  /** Sends a day at most (the box's: 20 for a test box, 5 by default for a real one). */
+  readonly maxPerDay: number;
+  /** The box's undo delay, checked again here (the page sets it): 10 min on a real box. */
+  readonly undoMs: number;
+  /** M3: the sender is authenticated, asked again before sending (ADR-0015). */
+  readonly authenticated: (p: Proposal) => Promise<boolean>;
 }
 
-export type LapseReason = "gone" | "answered" | "no_recipient";
+export type LapseReason = "gone" | "answered" | "no_recipient" | "unauthenticated";
 
 export interface RoundResult {
   readonly sent: readonly string[];
@@ -64,7 +69,7 @@ export async function executeDue(deps: ExecutorDeps): Promise<RoundResult> {
 
   for (const p of due) {
     const now = deps.now();
-    if ((await deps.store.sendsSince(dayStart(now))) >= MAX_SENDS_PER_DAY) {
+    if ((await deps.store.sendsSince(dayStart(now))) >= deps.maxPerDay) {
       return { sent, failed, unsigned, lapsed, limited: true };
     }
     const journalUnsigned = async () => {
@@ -75,6 +80,8 @@ export async function executeDue(deps: ExecutorDeps): Promise<RoundResult> {
       });
       unsigned.push(p.id);
     };
+    // The undo delay of the box, again: a page set to a shorter one does not shorten it.
+    if (p.decidedAt === null || now.getTime() - p.decidedAt.getTime() < deps.undoMs) continue;
     if (!deps.verify(p)) {
       await deps.store.refuseUnsigned(p.id, now);
       await journalUnsigned();
@@ -100,6 +107,10 @@ export async function executeDue(deps: ExecutorDeps): Promise<RoundResult> {
     }
     if (context.to === null) {
       await lapse("no_recipient");
+      continue;
+    }
+    if (!(await deps.authenticated(p))) {
+      await lapse("unauthenticated");
       continue;
     }
 

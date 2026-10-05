@@ -83,7 +83,8 @@ export interface ProposalStore {
    * I accept, on the page: the sending is scheduled after the undo delay.
    * Refused while a slot is left, or if the text is not the one signed.
    */
-  accept(id: string, now: Date, signed: SignedAcceptance): Promise<Proposal>;
+  /** `undoMs`: the box's undo delay (10 min on a real box, M3); never under UNDO_DELAY_MS. */
+  accept(id: string, now: Date, signed: SignedAcceptance, undoMs?: number): Promise<Proposal>;
   refuse(id: string, now: Date): Promise<Proposal>;
   /** The situation no longer holds (I already answered): closed, from pending or accepted. */
   lapse(id: string, now: Date): Promise<Proposal>;
@@ -223,7 +224,10 @@ export function createProposalStore(sql: Sql): ProposalStore {
       );
     },
 
-    async accept(id, now, signed) {
+    async accept(id, now, signed, undoMs = UNDO_DELAY_MS) {
+      if (!Number.isFinite(undoMs) || undoMs < UNDO_DELAY_MS) {
+        throw new ProposalError(`proposal ${id}: the undo delay cannot be under 2 minutes`);
+      }
       const current = await get(id);
       if (
         current?.draft !== null &&
@@ -232,7 +236,7 @@ export function createProposalStore(sql: Sql): ProposalStore {
       ) {
         throw new ProposalError(`proposal ${id} still has a slot to complete`);
       }
-      const sendAfter = new Date(now.getTime() + UNDO_DELAY_MS);
+      const sendAfter = new Date(now.getTime() + undoMs);
       return one(
         await sql<Row[]>`
           update proposals set status = 'accepted', decided_at = ${now}, send_after = ${sendAfter},

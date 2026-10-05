@@ -51,6 +51,8 @@ const app = createApp({
     trames: loadTrames(),
     now: () => new Date(),
     sign: (p, now) => signProposal(acceptKey, p, now),
+    undoMs: mail.undoMs,
+    sending: mail.sending,
   }),
 });
 

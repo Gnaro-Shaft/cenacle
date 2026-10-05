@@ -20,6 +20,7 @@ function setup() {
   const store = memoryProposalStore();
   const asked: string[] = [];
   const deps = {
+    authenticated: async () => true,
     trames: TRAMES,
     proposals: createProposals(store, journal),
     vote: async () => {
@@ -57,5 +58,40 @@ describe("drafting behind the article 9 floor", () => {
     expect(keptFromModel(base)).toBe(false);
     await draftFollowUp(base, "1", w.deps);
     expect(w.asked[0]).toBe("vote");
+  });
+});
+
+// M3 (ADR-0015): on a real box, a sender that is not authenticated never gets
+// a draft — a forged From in a client's name must not get a reply built from its thread.
+describe("drafting for an unauthenticated sender", () => {
+  it("skipped before the model is asked, and the reason is journaled", async () => {
+    const w = setup();
+    const asked: { uid: number; validity: string }[] = [];
+    const deps = {
+      ...w.deps,
+      authenticated: async (uid: number, validity: string) => {
+        asked.push({ uid, validity });
+        return false;
+      },
+    };
+    const outcome = await draftFollowUp(base, "42", deps);
+    expect(outcome).toMatchObject({ kind: "skipped", reason: "unauthenticated" });
+    expect(asked).toEqual([{ uid: base.uid, validity: "42" }]);
+    expect(w.asked).toEqual([]);
+    expect((await w.store.get("p-floor"))?.status).toBe("skipped");
+    expect(JSON.stringify(w.journal.events.map((e) => e.payload))).toContain("unauthenticated");
+  });
+
+  it("a check that throws drafts nothing either", async () => {
+    const w = setup();
+    const deps = {
+      ...w.deps,
+      authenticated: async () => {
+        throw new Error("auth unreadable");
+      },
+    };
+    await expect(draftFollowUp(base, "1", deps)).rejects.toThrow();
+    expect(w.asked).toEqual([]);
+    expect(await w.store.get("p-floor")).toBeNull();
   });
 });

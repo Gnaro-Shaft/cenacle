@@ -30,6 +30,8 @@ import {
 } from "@cenacle/mail";
 
 export interface DraftDeps {
+  /** M3: on a real box, only an authenticated sender gets a draft (ADR-0015). */
+  readonly authenticated: (uid: number, uidValidity: string) => Promise<boolean>;
   readonly trames: Trames;
   readonly proposals: Proposals;
   readonly vote: (mail: MailForModel, options: readonly TrameOption[]) => Promise<TrameVote>;
@@ -71,6 +73,10 @@ export async function draftFollowUp(
     return { kind: "skipped", proposalId: p.id, reason, vote };
   };
 
+  // M3: a forged From in a client's name never gets a reply built from its thread.
+  if (!(await deps.authenticated(mail.uid, mailUidValidity))) {
+    return skip("unauthenticated", votedNothing);
+  }
   // C2: a mail the article 9 floor sets aside is never shown to the model; the follow-up stays mine.
   if (keptFromModel(mail)) return skip("set_aside", votedNothing);
   const options = [...trames.values()].map((t) => ({ id: t.id, quand: t.quand }));

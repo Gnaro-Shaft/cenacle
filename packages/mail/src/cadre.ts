@@ -8,6 +8,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { TIME_ZONE, zonedMidnight } from "@cenacle/core";
 import { parse } from "smol-toml";
+import { type Opening, OpeningError, parseOpening } from "./opening.ts";
 import type { TrustedServer } from "./sender-auth.ts";
 import {
   type Conservation,
@@ -22,7 +23,7 @@ export const CADRE_PATH = join(import.meta.dirname, "..", "..", "..", "cadre.tom
 /** The real configuration (host, account, addresses), git-ignored: replaces cadre.toml when present. */
 export const LOCAL_CADRE_PATH = join(import.meta.dirname, "..", "..", "..", "cadre.local.toml");
 
-export interface MailCadre {
+export interface MailBox {
   /** The source this mailbox is, as the processings name it (ADR-0009). */
   readonly source: string;
   readonly host: string;
@@ -39,21 +40,18 @@ export interface MailCadre {
   /** A test mailbox (fictional, or a real one marked `test = true`): the only kind fixtures may be loaded into. */
   readonly test: boolean;
   /**
-   * The only addresses a reply may go to ([envoi] destinataires, M1-M2): my own.
-   * Null for the fictional box: reserved test domains only.
-   */
-  readonly recipients: readonly string[] | null;
-  /**
-   * A real mailbox not marked `test = true` (phase 5, M2): sorted and followed,
-   * never drafted for nor sent from. Lifting it is M3's decision, not a default.
-   */
-  readonly readOnly: boolean;
-  /**
    * The only Authentication-Results believed (ADR-0014): our receiving server's
    * name ([mail] authserv_id) and where it puts its header ([mail] rang_attendu).
    */
   readonly trustedServer: TrustedServer;
 }
+
+/**
+ * A mailbox: where it is, and what it may do beyond reading (opening.ts,
+ * ADR-0015) — drafts, where a reply may go, how many a day, the undo delay,
+ * whether a sender must be authenticated.
+ */
+export type MailCadre = MailBox & Opening;
 
 export interface Cadre {
   readonly mail: MailCadre;
@@ -62,17 +60,24 @@ export interface Cadre {
   readonly traitements: readonly Traitement[];
 }
 
-/** Something that writes or drafts was asked of a read-only mailbox (M2). */
+/** Drafting or sending was asked of a mailbox not opened for it (M2, M3). */
 export class ReadOnlyMailboxError extends Error {
   constructor(what: string) {
-    super(`${what} refused: this mailbox is read-only (a real box, M2 — no draft, no sending)`);
+    super(`${what} refused: this mailbox is not opened for it (a real box — see [ouverture], M3)`);
     this.name = "ReadOnlyMailboxError";
   }
 }
 
-/** The second line of the M2 lock: each writer checks it itself. */
-export function refuseReadOnly(mail: Pick<MailCadre, "readOnly">, what: string): void {
-  if (mail.readOnly !== false) throw new ReadOnlyMailboxError(what);
+/** Each drafter checks it itself: only an explicit true lets through. */
+export function refuseDrafts(mail: Pick<MailCadre, "drafts">, what: string): void {
+  if (mail.drafts !== true) throw new ReadOnlyMailboxError(what);
+}
+
+/** Each sender checks it itself: no sending mode, no sending. */
+export function refuseSending(mail: Pick<MailCadre, "sending">, what: string): void {
+  if (!["test-domains", "closed", "correspondents"].includes(mail.sending)) {
+    throw new ReadOnlyMailboxError(what);
+  }
 }
 
 export class CadreError extends Error {
@@ -176,32 +181,10 @@ export function readingStartsAt(cadre: Cadre): Date | null {
 /** A server name, as the first word of an Authentication-Results header (RFC 8601). */
 const AUTHSERV_ID = /^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,251}[A-Za-z0-9])?$/;
 
-const PLAIN_ADDRESS = /^[A-Za-z0-9._%+-]{1,64}@(?:[A-Za-z0-9-]{1,63}\.)+[A-Za-z]{2,63}$/;
-
-/** [envoi] destinataires: a non-empty list of plain addresses, required for a real box. */
-function closedRecipients(raw: unknown): string[] {
-  if (!isTable(raw)) {
-    throw new CadreError(
-      "a real mailbox needs [envoi] destinataires: the only addresses a reply may go to",
-    );
-  }
-  onlyKeys(raw, ["destinataires"], "[envoi]");
-  const list = raw.destinataires;
-  if (!Array.isArray(list) || list.length === 0 || list.length > 20) {
-    throw new CadreError("envoi.destinataires must list 1 to 20 addresses");
-  }
-  return list.map((a) => {
-    if (typeof a !== "string" || !PLAIN_ADDRESS.test(a)) {
-      throw new CadreError(`envoi.destinataires: invalid address ${JSON.stringify(a)}`);
-    }
-    return a.toLowerCase();
-  });
-}
-
 /** Validates already-parsed TOML. Exported for tests. */
 export function toCadre(raw: unknown, today = localToday()): Cadre {
   if (!isTable(raw)) throw new CadreError("not a table");
-  onlyKeys(raw, ["mail", "conservation", "traitement", "envoi"], "the file");
+  onlyKeys(raw, ["mail", "conservation", "traitement", "envoi", "ouverture"], "the file");
   const { conservation, traitements } = register(raw, today);
   const mail = raw.mail;
   if (!isTable(mail)) throw new CadreError("missing [mail] section");
@@ -219,10 +202,16 @@ export function toCadre(raw: unknown, today = localToday()): Cadre {
     );
   }
   // A real server is always reached over TLS with its certificate checked (connection.ts).
-  // A real box sends only to a closed list of my own addresses until M3.
-  const recipients = fictional ? null : closedRecipients(raw.envoi);
   const test = mail.test ?? false;
   if (typeof test !== "boolean") throw new CadreError("mail.test must be true or false");
+  let opening: Opening;
+  try {
+    opening = parseOpening(raw, { fictional, test }, today);
+  } catch (error) {
+    if (error instanceof OpeningError)
+      throw new CadreError(error.message.replace(/^cadre\.toml: /, ""));
+    throw error;
+  }
   return {
     conservation,
     traitements,
@@ -237,8 +226,7 @@ export function toCadre(raw: unknown, today = localToday()): Cadre {
       smtpPort: integer(mail, "smtp_port", 1, 65535),
       address: fictional ? testAddress(address) : address,
       test: fictional || test,
-      recipients,
-      readOnly: !fictional && !test,
+      ...opening,
       trustedServer: {
         authservId: text(mail, "authserv_id", AUTHSERV_ID).toLowerCase(),
         receivedAbove: integer(mail, "rang_attendu", 0, MAX_RECEIVED_ABOVE),

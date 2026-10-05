@@ -17,7 +17,13 @@ describe("cadre.toml", () => {
       address: "test-cenacle@cenacle.test",
       test: true,
       recipients: null,
-      readOnly: false,
+      drafts: true,
+      sending: "test-domains",
+      maxPerDay: 20,
+      undoMs: 2 * 60_000,
+      authRequired: false,
+      draftsSince: null,
+      sendingSince: null,
       trustedServer: { authservId: FIXTURE_AUTHSERV_ID, receivedAbove: 0 },
     });
   });

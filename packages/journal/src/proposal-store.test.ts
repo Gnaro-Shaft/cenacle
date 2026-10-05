@@ -50,6 +50,21 @@ describe("proposal life cycle", () => {
     expect((await executor.markSent(p.id, later(UNDO_DELAY_MS + 1000))).status).toBe("sent");
   });
 
+  it("a real box (M3): a 10-minute undo delay, kept by the base", async () => {
+    const p = await fresh();
+    const accepted = await store.accept(p.id, T0, signedFor(p.draft), 10 * 60_000);
+    expect(accepted.sendAfter).toEqual(later(10 * 60_000));
+    expect(await store.dueForSending(later(10 * 60_000 - 1))).not.toContainEqual(
+      expect.objectContaining({ id: p.id }),
+    );
+  });
+
+  it("an undo delay under 2 minutes is refused", async () => {
+    const p = await fresh();
+    await expect(store.accept(p.id, T0, signedFor(p.draft), 60_000)).rejects.toThrow(/undo delay/);
+    expect((await store.get(p.id))?.status).toBe("pending");
+  });
+
   it("lists the open proposals: pending and accepted, never closed ones", async () => {
     const a = await fresh();
     const b = await fresh();

@@ -22,6 +22,7 @@ function setup(choice: string | null, copied: Record<string, string> = {}) {
   const store = memoryProposalStore();
   let n = 0;
   const deps: DraftDeps = {
+    authenticated: async () => true,
     trames: TRAMES,
     proposals: createProposals(store, journal),
     vote: async () => voted(choice),

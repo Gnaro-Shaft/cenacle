@@ -92,20 +92,52 @@ describe("allowedRecipient — phase 4 reaches nobody real", () => {
   });
 });
 
-describe("the closed list of recipients of a real box (M1)", () => {
+describe("the closed list of recipients of a real box (M1, and M3 with drafts only)", () => {
+  const closed = { sending: "closed", recipients: ["moi@entreprise.example"] } as const;
+
   it("allows only my own addresses, whatever the page accepted", () => {
-    expect(allowedRecipient("moi@entreprise.example", ["moi@entreprise.example"])).toBe(
-      "moi@entreprise.example",
-    );
-    expect(() => allowedRecipient("client@client.example", ["moi@entreprise.example"])).toThrow(
-      SendError,
-    );
-    expect(() => allowedRecipient("someone@test.test", ["moi@entreprise.example"])).toThrow(
-      /closed list/,
-    );
+    expect(allowedRecipient("moi@entreprise.example", closed)).toBe("moi@entreprise.example");
+    expect(allowedRecipient("MOI@Entreprise.example", closed)).toBe("MOI@entreprise.example");
+    expect(() => allowedRecipient("client@client.example", closed)).toThrow(SendError);
+    expect(() => allowedRecipient("someone@test.test", closed)).toThrow(/closed list/);
+  });
+
+  it("a closed mode without its list sends to nobody", () => {
+    expect(() =>
+      allowedRecipient("moi@entreprise.example", { sending: "closed", recipients: null }),
+    ).toThrow(/closed list/);
   });
 
   it("the fictional box still sends to reserved test domains only", () => {
     expect(() => allowedRecipient("client@gmail.com")).toThrow(/test domains only/);
+  });
+});
+
+describe("sending modes (M3)", () => {
+  const correspondents = {
+    sending: "correspondents",
+    recipients: ["moi@entreprise.example"],
+  } as const;
+
+  it("envoi opened: the correspondent read from the server, one plain address", () => {
+    expect(allowedRecipient("client@client.fr", correspondents)).toBe("client@client.fr");
+  });
+
+  it.each([null, "", "a@b.fr, c@d.fr", "a@b.fr\r\nBcc: x@y.fr", "Claire <claire@client.fr>"])(
+    "envoi opened still refuses %j",
+    (to) => {
+      expect(() => allowedRecipient(to, correspondents)).toThrow(SendError);
+    },
+  );
+
+  it("a read-only box sends to nobody, not even my own address", () => {
+    const none = { sending: "none", recipients: ["moi@entreprise.example"] } as const;
+    expect(() => allowedRecipient("moi@entreprise.example", none)).toThrow(/sends nothing/);
+  });
+
+  it("an unknown mode sends to nobody", () => {
+    expect(() => allowedRecipient("moi@entreprise.example", { sending: "all" } as never)).toThrow(
+      SendError,
+    );
   });
 });

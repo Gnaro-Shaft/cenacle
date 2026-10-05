@@ -12,7 +12,9 @@ import {
   testAcceptanceKeys,
 } from "@cenacle/mail/test-helpers";
 import { describe, expect, it } from "vitest";
-import { type ExecutorDeps, executeDue, MAX_SENDS_PER_DAY } from "./execute.ts";
+import { type ExecutorDeps, executeDue } from "./execute.ts";
+
+const TEST_MAX_PER_DAY = 20;
 
 const T0 = new Date("2026-10-05T10:00:00+02:00");
 const AFTER = new Date(T0.getTime() + 120_000);
@@ -36,7 +38,14 @@ const CONTEXT: ReplyContext = {
 const SECRET = "Bonjour Claire, votre TJM est de 650 €";
 
 function world(
-  opts: { sent?: MyMail[]; mail?: FollowedMail | null; context?: ReplyContext | undefined } = {},
+  opts: {
+    sent?: MyMail[];
+    mail?: FollowedMail | null;
+    context?: ReplyContext | undefined;
+    maxPerDay?: number;
+    undoMs?: number;
+    authenticated?: boolean;
+  } = {},
 ) {
   const store = memoryProposalStore();
   const journal = memoryJournal();
@@ -63,6 +72,9 @@ function world(
       copies.push(reply);
     },
     verify: TEST_KEYS.verify,
+    maxPerDay: opts.maxPerDay ?? TEST_MAX_PER_DAY,
+    undoMs: opts.undoMs ?? 120_000,
+    authenticated: async () => opts.authenticated ?? true,
   };
   let n = 0;
   const accepted = async (draft = SECRET) => {
@@ -215,12 +227,12 @@ describe("failures: said, never retried, never duplicated", () => {
     expect(w.outbox).toHaveLength(5);
   });
 
-  it(`at most ${MAX_SENDS_PER_DAY} attempts a day; the rest waits`, async () => {
+  it(`at most ${TEST_MAX_PER_DAY} attempts a day; the rest waits`, async () => {
     const w = world();
-    for (let i = 0; i < MAX_SENDS_PER_DAY + 3; i++) await w.accepted();
+    for (let i = 0; i < TEST_MAX_PER_DAY + 3; i++) await w.accepted();
     const r = await executeDue(w.deps);
     expect(r.limited).toBe(true);
-    expect(w.outbox).toHaveLength(MAX_SENDS_PER_DAY);
+    expect(w.outbox).toHaveLength(TEST_MAX_PER_DAY);
     expect(await w.store.dueForSending(AFTER)).toHaveLength(3);
   });
 
@@ -236,5 +248,47 @@ describe("failures: said, never retried, never duplicated", () => {
     for (const secret of ["Claire", "650", "client.example", "ECONNREFUSED", "3025"]) {
       expect(logged).not.toContain(secret);
     }
+  });
+});
+
+// M3 (ADR-0015): on a real box, the executor checks again what the page and
+// Iris decided — the sender's authentication, its own daily limit, its undo delay.
+describe("executeDue — a real box (M3)", () => {
+  it("an unauthenticated sender: the accepted reply lapses, never sent", async () => {
+    const w = world({ authenticated: false });
+    const id = await w.accepted();
+    const r = await executeDue(w.deps);
+    expect(w.outbox).toEqual([]);
+    expect(r.lapsed).toEqual([{ id, reason: "unauthenticated" }]);
+    expect((await w.store.get(id))?.status).toBe("lapsed");
+  });
+
+  it("5 a day on a real box: the sixth waits for tomorrow", async () => {
+    const w = world({ maxPerDay: 5 });
+    for (let i = 0; i < 7; i++) await w.accepted();
+    const r = await executeDue(w.deps);
+    expect(r.limited).toBe(true);
+    expect(w.outbox).toHaveLength(5);
+  });
+
+  it("a 10-minute undo delay is kept even if the row says 2 minutes", async () => {
+    // The page of a test box set send_after at +2 min; the executor of a real box waits 10.
+    const w = world({ undoMs: 10 * 60_000 });
+    const id = await w.accepted();
+    await executeDue(w.deps); // T0 + 2 min: due for the row, not for the executor
+    expect(w.outbox).toEqual([]);
+    expect((await w.store.get(id))?.status).toBe("accepted");
+    w.at(new Date(T0.getTime() + 10 * 60_000));
+    await executeDue(w.deps);
+    expect(w.outbox).toHaveLength(1);
+  });
+
+  it("an acceptance cancelled within the 10 minutes is never sent", async () => {
+    const w = world({ undoMs: 10 * 60_000 });
+    const id = await w.accepted();
+    await w.store.cancel(id, new Date(T0.getTime() + 5 * 60_000));
+    w.at(new Date(T0.getTime() + 11 * 60_000));
+    await executeDue(w.deps);
+    expect(w.outbox).toEqual([]);
   });
 });

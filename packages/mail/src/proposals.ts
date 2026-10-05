@@ -8,7 +8,14 @@ import type { Journal, Proposal, ProposalStore, SignedAcceptance } from "@cenacl
 const AGENT = "iris";
 
 /** "set_aside" (C2): kept from the model — article 9 floor, empty or unreadable; never why. */
-export const SKIP_REASONS = ["split", "no_trame", "unsupported_fact", "set_aside"] as const;
+export const SKIP_REASONS = [
+  "split",
+  "no_trame",
+  "unsupported_fact",
+  "set_aside",
+  // M3: a real box drafts only for an authenticated sender (ADR-0015).
+  "unauthenticated",
+] as const;
 export type SkipReason = (typeof SKIP_REASONS)[number];
 
 export interface Proposals {
@@ -26,7 +33,7 @@ export interface Proposals {
     now: Date,
   ): Promise<Proposal>;
   /** Only the page calls it, with its signature (ADR-0013). */
-  accept(id: string, now: Date, signed: SignedAcceptance): Promise<Proposal>;
+  accept(id: string, now: Date, signed: SignedAcceptance, undoMs?: number): Promise<Proposal>;
   refuse(id: string, now: Date): Promise<Proposal>;
   /** The situation no longer holds (I already answered). */
   lapse(id: string, now: Date): Promise<Proposal>;
@@ -56,8 +63,8 @@ export function createProposals(store: ProposalStore, journal: Journal): Proposa
       });
       return p;
     },
-    async accept(id, now, signed) {
-      const p = await store.accept(id, now, signed);
+    async accept(id, now, signed, undoMs) {
+      const p = await store.accept(id, now, signed, undoMs);
       await closed(id, "accepted");
       return p;
     },
