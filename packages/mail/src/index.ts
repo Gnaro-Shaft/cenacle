@@ -40,7 +40,12 @@ export {
   MASS_MARKET,
   type SentHeaders,
 } from "./domain-census.ts";
-export { noTrustRuleYet, type SenderAuthCheck, senderAuthFor } from "./draft-auth.ts";
+export {
+  type SenderAuthCheck,
+  senderAuthFor,
+  storedVerdict,
+  type VerdictMemory,
+} from "./draft-auth.ts";
 export { keptFromModel } from "./floor.ts";
 export { headersSince } from "./header-scan.ts";
 export { createKeyer, KeyError, type Keyer, keyerFromEnv, messageIds } from "./keys.ts";

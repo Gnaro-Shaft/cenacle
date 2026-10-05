@@ -3,7 +3,7 @@
 // Each writer checks the opening again itself, before any connection.
 import { describe, expect, it } from "vitest";
 import { parseCadre, ReadOnlyMailboxError, refuseDrafts, refuseSending } from "./cadre.ts";
-import { noTrustRuleYet, senderAuthFor } from "./draft-auth.ts";
+import { senderAuthFor, storedVerdict, type VerdictMemory } from "./draft-auth.ts";
 import { copyToSent, sendReply } from "./sender.ts";
 
 const TODAY = "2026-10-20";
@@ -178,17 +178,56 @@ describe("each writer refuses by itself", () => {
   });
 });
 
-describe("sender authentication on a real box (fails closed until wired to ADR-0014's verdict)", () => {
-  it("no trust rule yet: nobody is authenticated", async () => {
-    expect(await noTrustRuleYet(1, "1")).toBe(false);
-    expect(await senderAuthFor(open("brouillons = 2026-10-18\n").mail)(1, "1")).toBe(false);
+describe("sender authentication on a real box: ADR-0014's verdict, kept with the mail", () => {
+  const memory = (
+    validity: string | null,
+    mails: { uid: number; senderAuthenticated: boolean }[],
+  ): VerdictMemory => ({
+    position: async () => (validity === null ? null : { uidValidity: validity }),
+    inbox: async () => mails,
+  });
+  const box = memory("9", [
+    { uid: 1, senderAuthenticated: true },
+    { uid: 2, senderAuthenticated: false },
+  ]);
+  const opened = open("brouillons = 2026-10-18\n").mail;
+
+  it("an authenticated sender: yes", async () => {
+    expect(await senderAuthFor(opened, storedVerdict(box))(1, "9")).toBe(true);
   });
 
-  it("a test box does not ask", async () => {
-    expect(await senderAuthFor(real("test = true\n").mail)(1, "1")).toBe(true);
+  it.each([
+    ["not authenticated", 2, "9", box],
+    ["a mail Iris does not remember", 3, "9", box],
+    ["a renumbered box (another UIDVALIDITY)", 1, "8", box],
+    ["a box Iris knows nothing of", 1, "9", memory(null, [])],
+  ] as const)("%s: no", async (_label, uid, validity, mem) => {
+    expect(await senderAuthFor(opened, storedVerdict(mem))(uid, validity)).toBe(false);
   });
 
-  it("a cadre without the field is asked (only an explicit false skips it)", async () => {
-    expect(await senderAuthFor({} as never)(1, "1")).toBe(false);
+  it("a verdict that is not exactly true is no", async () => {
+    const odd = memory("9", [{ uid: 1, senderAuthenticated: "true" as never }]);
+    expect(await storedVerdict(odd)(1, "9")).toBe(false);
+  });
+
+  it("a memory that fails: the check fails, it never says yes", async () => {
+    const broken: VerdictMemory = {
+      position: async () => ({ uidValidity: "9" }),
+      inbox: async () => {
+        throw new Error("base down");
+      },
+    };
+    await expect(storedVerdict(broken)(1, "9")).rejects.toThrow("base down");
+  });
+
+  it("a test box does not ask, whatever the memory says", async () => {
+    const never = memory("9", []);
+    expect(await senderAuthFor(real("test = true\n").mail, storedVerdict(never))(1, "9")).toBe(
+      true,
+    );
+  });
+
+  it("a cadre without the field asks (only an explicit false skips it)", async () => {
+    expect(await senderAuthFor({} as never, storedVerdict(box))(2, "9")).toBe(false);
   });
 });

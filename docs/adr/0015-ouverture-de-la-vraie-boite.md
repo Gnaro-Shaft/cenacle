@@ -27,7 +27,7 @@ Deux conditions fixées le 05/10 doivent être remplies avant d'ouvrir : les mes
    - `[ouverture]` n'a pas de sens pour la boîte fictive ni pour une vraie boîte de test (déjà ouvertes) : refusée.
    - Le premier cran me montre de vrais brouillons sur mon vrai courrier sans que rien ne parte chez un correspondant.
 2. **Le vrai correspondant, et lui seul.** Une fois `envoi` ouvert, une réponse ne va qu'à l'expéditeur du mail, relu sur le serveur au moment de l'envoi, une seule adresse simple (inchangé depuis la phase 4). Avant, elle ne va qu'à ma liste fermée (`[envoi] destinataires`).
-3. **Pas de brouillon pour un expéditeur non authentifié.** Sur une vraie boîte, Iris demande avant tout vote du modèle si l'expéditeur est authentifié ; l'exécuteur le redemande avant d'envoyer, et laisse sinon la proposition devenir caduque. **Tant que cette question n'est pas branchée sur le verdict de l'ADR-0014** (`mail_items.sender_authenticated`), **la réponse est non** : une boîte ouverte aux brouillons n'en reçoit aucun. Le mail est présenté « à toi de répondre ». La boîte fictive et les vraies boîtes de test ne le demandent pas : leurs mails sont fictifs ou les miens.
+3. **Pas de brouillon pour un expéditeur non authentifié.** Sur une vraie boîte, Iris demande avant tout vote du modèle si l'expéditeur est authentifié ; l'exécuteur le redemande avant d'envoyer, et laisse sinon la proposition devenir caduque. **La réponse est le verdict de l'ADR-0014**, calculé à la relève d'après l'en-tête de notre propre serveur et gardé avec le mail (`mail_items.sender_authenticated`) : oui seulement pour un mail qu'Iris connaît, sous le même `UIDVALIDITY`, marqué authentifié ; non pour tout le reste (mail inconnu, boîte renumérotée, mail retenu avant que le verdict existe). Branché le 2026-10-05. Le mail est présenté « à toi de répondre ». La boîte fictive et les vraies boîtes de test ne le demandent pas : leurs mails sont fictifs ou les miens.
 4. **Des limites propres à la vraie boîte** :
    - **5 envois par jour** par défaut (`[envoi] max_par_jour`, de 1 à 20), au lieu de 20 ;
    - **10 minutes pour changer d'avis** après une acceptation, au lieu de 2. Le serveur de la page fixe le délai ; l'exécuteur le revérifie lui-même. La base garde son plancher de 2 minutes, pour toutes les boîtes, car elle ne sait pas de quelle boîte vient une proposition.
@@ -38,7 +38,7 @@ Deux conditions fixées le 05/10 doivent être remplies avant d'ouvrir : les mes
 
 - L'ouverture est un acte écrit, daté, relu : elle ne peut pas venir d'une valeur par défaut, d'une faute de frappe ni d'une clé oubliée.
 - Le code de M3 peut être livré et éprouvé avant d'ouvrir : sans `[ouverture]`, rien ne change pour la boîte pro.
-- Tant que la rédaction n'est pas branchée sur le verdict de l'ADR-0014, M3 ne peut pas produire de brouillon sur la vraie boîte, même ouverte : c'est voulu.
+- Une fois les brouillons ouverts, seuls les expéditeurs que notre serveur a authentifiés en recevront ; l'exécuteur le revérifie avant d'envoyer, et le motif d'une caducité dit « expéditeur non authentifié ».
 - 10 minutes de délai rendent l'envoi un peu plus lent ; c'est le prix d'une réponse qu'on ne rattrape pas.
 
 ## Options écartées
