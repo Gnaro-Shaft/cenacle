@@ -40,6 +40,7 @@ export {
   MASS_MARKET,
   type SentHeaders,
 } from "./domain-census.ts";
+export { noTrustRuleYet, type SenderAuthCheck, senderAuthFor } from "./draft-auth.ts";
 export { keptFromModel } from "./floor.ts";
 export { headersSince } from "./header-scan.ts";
 export { createKeyer, KeyError, type Keyer, keyerFromEnv, messageIds } from "./keys.ts";
@@ -117,7 +118,6 @@ export {
   sendReply,
   TEST_DOMAINS_ONLY,
 } from "./sender.ts";
-export { noTrustRuleYet, type SenderAuthCheck, senderAuthFor } from "./sender-auth.ts";
 export { addressList, senderAddress, senderDomain } from "./sender-domain.ts";
 export {
   assertTestMailbox,

@@ -37,7 +37,9 @@ describe("rules — look-alike senders", () => {
     "cl1ent.example",
     "xclient.example",
   ])("does not give %s the client rule", (domain) => {
-    expect(sortByRules([{ uid: 1, domain }], rules).remaining).toHaveLength(1);
+    expect(
+      sortByRules([{ uid: 1, domain, auth: "authenticated" as const }], rules).remaining,
+    ).toHaveLength(1);
   });
 
   it("the fixtures' spoofed host does not pass for the real one", () => {
@@ -49,7 +51,9 @@ describe("rules — look-alike senders", () => {
     const spoof = messages.find((m) => m.expected.trap === "usurpation_domaine");
     const domain = spoof?.from.address.split("@")[1] ?? "";
     expect(domain).toMatch(/\.attaquant\.test$/);
-    expect(sortByRules([{ uid: 1, domain }], example).remaining).toHaveLength(1);
+    expect(
+      sortByRules([{ uid: 1, domain, auth: "authenticated" as const }], example).remaining,
+    ).toHaveLength(1);
   });
 
   it("no trap mail outside the legitimate client one is decided by a rule", () => {
@@ -61,6 +65,7 @@ describe("rules — look-alike senders", () => {
     const refs = messages.map((m, i) => ({
       uid: i + 1,
       domain: m.from.address.split("@")[1] ?? null,
+      auth: "authenticated" as const,
     }));
     const { sorted } = sortByRules(refs, example);
     const trapped = sorted

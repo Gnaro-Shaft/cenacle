@@ -10,6 +10,7 @@ import { countFollowUps } from "@cenacle/core";
 import type { Journal, Mailbox, MailStore, Totals } from "@cenacle/journal";
 import type { FetchResult, MailRef, SentRef } from "./postman.ts";
 import { type RuleSort, type Rules, sortByRules } from "./rules.ts";
+import { AUTH_VERDICTS, type AuthVerdict, hasTrustedHeader } from "./sender-auth.ts";
 
 const AGENT = "iris";
 const DAY_MS = 24 * 3600 * 1000;
@@ -56,6 +57,24 @@ export async function mailTotals(
   return { ...(await store.totals()), waiting: followUps.waiting, due: followUps.due };
 }
 
+/**
+ * How many new mails got each authentication verdict (ADR-0014), and how many
+ * carried our server's header where expected: none at all in a pass with mails
+ * means the evidence is gone (provider change?) — Iris shows sick.
+ */
+export function authCounts(refs: readonly { readonly auth: AuthVerdict }[]) {
+  const counts = Object.fromEntries(AUTH_VERDICTS.map((v) => [v, 0])) as Record<
+    AuthVerdict,
+    number
+  >;
+  for (const ref of refs) counts[ref.auth]++;
+  return {
+    mails: refs.length,
+    trusted: refs.filter((r) => hasTrustedHeader(r.auth)).length,
+    ...counts,
+  };
+}
+
 /** Reads what is new; if the server renumbered the mailbox, forgets it and reads it all. */
 async function readNew<T>(
   store: MailStore,
@@ -92,11 +111,12 @@ export async function collectMail(deps: CollectDeps): Promise<CollectSummary> {
     const added = await store.saveInbox(
       inbox.result.uidValidity,
       inboxRefs.map(
-        ({ uid, domain, receivedAt, urgentTerm, senderKey, messageKey, threadKeys }) => ({
+        ({ uid, domain, receivedAt, urgentTerm, auth, senderKey, messageKey, threadKeys }) => ({
           uid,
           receivedAt,
           noFollowUp: domain !== null && (deps.noFollowUp?.has(domain) ?? false),
           urgentTerm,
+          senderAuthenticated: auth === "authenticated",
           senderKey,
           messageKey,
           threadKeys,
@@ -133,6 +153,13 @@ export async function collectMail(deps: CollectDeps): Promise<CollectSummary> {
       type: "mail.sorted_by_rules",
       payload: { ...ruleSort.counts },
     });
+    if (inboxRefs.length > 0) {
+      await journal.append({
+        agent: AGENT,
+        type: "mail.sender_auth",
+        payload: authCounts(inboxRefs),
+      });
+    }
 
     // Deleted or moved on the server: forgotten here too (no reminder for a mail that is gone).
     const gone =

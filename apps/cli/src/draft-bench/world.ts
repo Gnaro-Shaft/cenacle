@@ -141,6 +141,7 @@ export class FakeMailbox {
     return {
       category: "clients_prospects",
       noFollowUp: false,
+      senderAuthenticated: true,
       senderKey: key(m.from.address),
       messageKey: key(m.id),
       receivedAt: RECEIVED,

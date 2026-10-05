@@ -23,6 +23,12 @@ max_per_fetch = 500
 # (GreenMail, this machine only), from this fictional address.
 smtp_port = 3025
 address = "test-cenacle@cenacle.test"
+# Sender authentication (ADR-0014): the only Authentication-Results header
+# believed is the one our receiving server adds — its name, and how many
+# Received headers sit above it. The fixtures carry this fictional server's
+# header, with no Received above it (GreenMail adds none).
+authserv_id = "mx.cenacle.test"
+rang_attendu = 0
 
 # How long each store keeps what it keeps, in days (phase 5, C1). The purges
 # read these values; nothing else in the code decides a retention.

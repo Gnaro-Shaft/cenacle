@@ -40,6 +40,12 @@ export interface AgentStatus {
    * a purge succeeds — a GDPR failure must be seen, not only journaled.
    */
   readonly purgeFailing: boolean;
+  /**
+   * The last pass with new mails found our receiving server's header in none
+   * of them (ADR-0014): no sender can be authenticated, every client rule is
+   * refused. Shown as sick until a pass finds it again.
+   */
+  readonly authMissing: boolean;
   /** Id of the last event applied; the next one must be greater. */
   readonly lastEventId: bigint | null;
 }
@@ -89,6 +95,7 @@ const HANDLED_EVENT_TYPES: ReadonlySet<string> = new Set([
   "mail.sorted_by_rules",
   "mail.model_sorted",
   "mail.totals",
+  "mail.sender_auth",
   "purge.done",
   "purge.failed",
 ]);
@@ -116,13 +123,44 @@ export function initialStatus(agent: string): AgentStatus {
     pendingProposalIds: [],
     mail: null,
     purgeFailing: false,
+    authMissing: false,
     lastEventId: null,
   };
 }
 
-/** A failed purge outranks the internal state: it is a real problem. */
-function viewOf(internal: InternalState, purgeFailing: boolean): AgentView {
-  return purgeFailing ? { visual: "sick", note: "purge_failed" } : toView(internal);
+/** A failed purge or lost authentication outranks the internal state: real problems. */
+function viewOf(
+  internal: InternalState,
+  health: Pick<AgentStatus, "purgeFailing" | "authMissing">,
+): AgentView {
+  if (health.purgeFailing) return { visual: "sick", note: "purge_failed" };
+  if (health.authMissing) return { visual: "sick", note: "auth_missing" };
+  return toView(internal);
+}
+
+function withHealth(
+  status: AgentStatus,
+  health: Partial<Pick<AgentStatus, "purgeFailing" | "authMissing">>,
+): AgentStatus {
+  const next = { ...status, ...health };
+  return { ...next, view: viewOf(next.internal, next) };
+}
+
+/** mail.sender_auth: counts of a pass; `trusted` among `mails` carried our server's header. */
+function authMissingOf(event: AgentEvent): boolean {
+  const { mails, trusted } = event.payload;
+  for (const [name, value] of [
+    ["mails", mails],
+    ["trusted", trusted],
+  ] as const) {
+    if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
+      throw new ProjectionError(event, `invalid ${name} ${JSON.stringify(value)}`);
+    }
+  }
+  if ((trusted as number) > (mails as number)) {
+    throw new ProjectionError(event, "more trusted headers than mails");
+  }
+  return (mails as number) > 0 && trusted === 0;
 }
 
 function proposalId(event: AgentEvent): string {
@@ -163,7 +201,7 @@ export function applyEvent(status: AgentStatus, event: AgentEvent): AgentStatus 
       return {
         ...next,
         internal: to,
-        view: viewOf(to, next.purgeFailing),
+        view: viewOf(to, next),
         since: event.occurredAt,
       };
     }
@@ -189,9 +227,11 @@ export function applyEvent(status: AgentStatus, event: AgentEvent): AgentStatus 
       );
     }
     case "purge.failed":
-      return { ...next, purgeFailing: true, view: viewOf(next.internal, true) };
+      return withHealth(next, { purgeFailing: true });
     case "purge.done":
-      return { ...next, purgeFailing: false, view: viewOf(next.internal, false) };
+      return withHealth(next, { purgeFailing: false });
+    case "mail.sender_auth":
+      return withHealth(next, { authMissing: authMissingOf(event) });
     case "mail.fetched":
     case "mail.sorted_by_rules":
     case "mail.model_sorted":

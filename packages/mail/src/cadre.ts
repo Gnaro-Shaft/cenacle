@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { TIME_ZONE, zonedMidnight } from "@cenacle/core";
 import { parse } from "smol-toml";
 import { type Opening, OpeningError, parseOpening } from "./opening.ts";
+import type { TrustedServer } from "./sender-auth.ts";
 import {
   type Conservation,
   coveringTraitement,
@@ -38,6 +39,11 @@ export interface MailBox {
   readonly address: string;
   /** A test mailbox (fictional, or a real one marked `test = true`): the only kind fixtures may be loaded into. */
   readonly test: boolean;
+  /**
+   * The only Authentication-Results believed (ADR-0014): our receiving server's
+   * name ([mail] authserv_id) and where it puts its header ([mail] rang_attendu).
+   */
+  readonly trustedServer: TrustedServer;
 }
 
 /**
@@ -94,7 +100,11 @@ const MAIL_KEYS = [
   "max_per_fetch",
   "smtp_port",
   "address",
+  "authserv_id",
+  "rang_attendu",
 ] as const;
+/** Received headers above our server's Authentication-Results: a handful at most. */
+export const MAX_RECEIVED_ABOVE = 50;
 /** Domains reserved for tests (RFC 2606): nobody real can receive a mail there. */
 export const TEST_DOMAIN = /\.(test|example|invalid|localhost)$/i;
 
@@ -168,6 +178,9 @@ export function readingStartsAt(cadre: Cadre): Date | null {
   return new Date(zonedMidnight(y, m, d, TIME_ZONE));
 }
 
+/** A server name, as the first word of an Authentication-Results header (RFC 8601). */
+const AUTHSERV_ID = /^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,251}[A-Za-z0-9])?$/;
+
 /** Validates already-parsed TOML. Exported for tests. */
 export function toCadre(raw: unknown, today = localToday()): Cadre {
   if (!isTable(raw)) throw new CadreError("not a table");
@@ -214,6 +227,10 @@ export function toCadre(raw: unknown, today = localToday()): Cadre {
       address: fictional ? testAddress(address) : address,
       test: fictional || test,
       ...opening,
+      trustedServer: {
+        authservId: text(mail, "authserv_id", AUTHSERV_ID).toLowerCase(),
+        receivedAbove: integer(mail, "rang_attendu", 0, MAX_RECEIVED_ABOVE),
+      },
     },
   };
 }

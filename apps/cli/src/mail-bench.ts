@@ -26,7 +26,8 @@ try {
   const toModel = all
     ? views
     : sortByRules(
-        views.map((v) => ({ uid: v.uid, domain: v.domain })),
+        // The fixtures all carry an authenticated sender (cadre.toml, rfc822.ts).
+        views.map((v) => ({ uid: v.uid, domain: v.domain, auth: "authenticated" as const })),
         rules,
       ).remaining.map((ref) => views[ref.uid - 1]);
 

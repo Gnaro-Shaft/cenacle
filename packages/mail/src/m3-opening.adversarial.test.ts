@@ -3,15 +3,16 @@
 // Each writer checks the opening again itself, before any connection.
 import { describe, expect, it } from "vitest";
 import { parseCadre, ReadOnlyMailboxError, refuseDrafts, refuseSending } from "./cadre.ts";
+import { noTrustRuleYet, senderAuthFor } from "./draft-auth.ts";
 import { copyToSent, sendReply } from "./sender.ts";
-import { noTrustRuleYet, senderAuthFor } from "./sender-auth.ts";
 
 const TODAY = "2026-10-20";
 const CONSERVATION =
   "[conservation]\nmemoire_jours = 90\ntexte_brouillon_jours = 7\npropositions_jours = 90\njournal_jours = 180\n";
 const mail = (host: string, address: string, extra = "") =>
   `[mail]\n${extra}source = "boite-pro"\nhost = "${host}"\nport = 993\nuser = "moi"\n` +
-  `mailbox = "INBOX"\nsent_mailbox = "Sent"\nmax_per_fetch = 500\nsmtp_port = 465\naddress = "${address}"\n`;
+  `mailbox = "INBOX"\nsent_mailbox = "Sent"\nmax_per_fetch = 500\nsmtp_port = 465\naddress = "${address}"\n` +
+  `authserv_id = "mx.box.test"\nrang_attendu = 5\n`;
 const T01 =
   `[[traitement]]\nidentifiant = "T-01"\nfinalite = "Ranger la boîte pro."\n` +
   `base_legale = "interet-legitime"\ncategories = ["UID", "clés HMAC"]\n` +
@@ -177,7 +178,7 @@ describe("each writer refuses by itself", () => {
   });
 });
 
-describe("sender authentication on a real box (fails closed until ADR-0014)", () => {
+describe("sender authentication on a real box (fails closed until wired to ADR-0014's verdict)", () => {
   it("no trust rule yet: nobody is authenticated", async () => {
     expect(await noTrustRuleYet(1, "1")).toBe(false);
     expect(await senderAuthFor(open("brouillons = 2026-10-18\n").mail)(1, "1")).toBe(false);

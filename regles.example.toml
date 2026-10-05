@@ -6,7 +6,8 @@
 # One exact domain → one category. No wildcard: a subdomain needs its own line
 # (so "client.example.attacker.test" never passes for "client.example").
 # Mails whose domain no rule knows are left for the model (phase 2, M5).
-# Phase 5: a "clients_prospects" rule will only apply to authenticated senders.
+# A "clients_prospects" rule applies only to a sender our own receiving server
+# authenticated (ADR-0014); otherwise the mail goes to "À trier".
 
 [clients_prospects]
 domains = [

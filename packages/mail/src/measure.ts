@@ -11,8 +11,14 @@
  */
 import { CATEGORIES, type Category } from "@cenacle/core";
 
-export type Decider = "rule" | "unreadable" | "model" | "set_aside";
-const DECIDERS: readonly Decider[] = ["rule", "unreadable", "model", "set_aside"];
+export type Decider = "rule" | "unreadable" | "model" | "set_aside" | "unauthenticated";
+const DECIDERS: readonly Decider[] = [
+  "rule",
+  "unreadable",
+  "model",
+  "set_aside",
+  "unauthenticated",
+];
 
 export interface Verdict {
   /** What Iris decided. */

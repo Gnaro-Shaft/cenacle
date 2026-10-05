@@ -9,7 +9,7 @@ import { senderDomain } from "./sender-domain.ts";
 const source = readFileSync(join(import.meta.dirname, "postman.ts"), "utf8");
 
 describe("postman — what it remembers", () => {
-  it("MailRef holds a UID, a domain, keys, a date and an urgency flag — no address, no subject", () => {
+  it("MailRef holds a UID, a domain, keys, a date, an urgency flag and an auth verdict — no address, no subject", () => {
     const block = /export interface MailRef \{([^}]*)\}/.exec(source)?.[1] ?? "";
     const fields = [...block.matchAll(/readonly (\w+):/g)].map((m) => m[1]);
     expect(fields).toEqual([
@@ -20,6 +20,7 @@ describe("postman — what it remembers", () => {
       "threadKeys",
       "receivedAt",
       "urgentTerm",
+      "auth",
     ]);
   });
 

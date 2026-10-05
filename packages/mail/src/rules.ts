@@ -1,5 +1,8 @@
 /**
  * Sorting by rules: an exact sender domain decides the category. No model.
+ * A "clients_prospects" rule applies only to an authenticated sender
+ * (ADR-0014): a forged From with a client's domain goes to "À trier", never
+ * to the model, which a forged "client" mail would talk into calling it one.
  *
  * Rules live in regles.local.toml (git-ignored: real domains are personal and
  * business data). Without it, regles.example.toml — the fictional test
@@ -10,6 +13,7 @@ import { join } from "node:path";
 import type { Category } from "@cenacle/core";
 import { parse } from "smol-toml";
 import type { MailRef } from "./postman.ts";
+import type { AuthVerdict } from "./sender-auth.ts";
 import { senderDomain } from "./sender-domain.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
@@ -122,8 +126,11 @@ export function loadRules(
 export interface SortedRef {
   readonly uid: number;
   readonly category: Category;
-  /** "rule" for an exact domain rule, "unreadable" when the sender could not be read. */
-  readonly decidedBy: "rule" | "unreadable";
+  /**
+   * "rule" for an exact domain rule, "unreadable" when the sender could not be
+   * read, "unauthenticated" for a client rule whose sender is not authenticated.
+   */
+  readonly decidedBy: "rule" | "unreadable" | "unauthenticated";
 }
 
 export interface RuleSort<T extends Sortable = MailRef> {
@@ -132,31 +139,38 @@ export interface RuleSort<T extends Sortable = MailRef> {
   /** Domains no rule knows: left for the model. */
   readonly remaining: readonly T[];
   readonly counts: Readonly<Record<Category, number>> & { readonly remaining: number };
+  /** Client rules refused for an unauthenticated sender (counted in a_trier too). */
+  readonly unauthenticated: number;
 }
 
 /** What sorting by rules needs to know of a mail. */
 export interface Sortable {
   readonly uid: number;
   readonly domain: string | null;
+  readonly auth: AuthVerdict;
 }
 
 export function sortByRules<T extends Sortable>(refs: readonly T[], rules: Rules): RuleSort<T> {
   const sorted: SortedRef[] = [];
   const remaining: T[] = [];
   const counts = { clients_prospects: 0, administratif: 0, bruit: 0, a_trier: 0, remaining: 0 };
+  let unauthenticated = 0;
   for (const ref of refs) {
-    const category: Category | undefined = ref.domain === null ? "a_trier" : rules.get(ref.domain);
-    if (category === undefined) {
+    const rule: Category | undefined = ref.domain === null ? "a_trier" : rules.get(ref.domain);
+    if (rule === undefined) {
       remaining.push(ref);
       counts.remaining++;
-    } else {
-      sorted.push({
-        uid: ref.uid,
-        category,
-        decidedBy: ref.domain === null ? "unreadable" : "rule",
-      });
-      counts[category]++;
+      continue;
     }
+    const refused = rule === "clients_prospects" && ref.auth !== "authenticated";
+    const category = refused ? "a_trier" : rule;
+    if (refused) unauthenticated++;
+    sorted.push({
+      uid: ref.uid,
+      category,
+      decidedBy: ref.domain === null ? "unreadable" : refused ? "unauthenticated" : "rule",
+    });
+    counts[category]++;
   }
-  return { sorted, remaining, counts };
+  return { sorted, remaining, counts, unauthenticated };
 }

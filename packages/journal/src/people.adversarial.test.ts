@@ -42,6 +42,7 @@ async function world() {
     receivedAt: T0.toISOString(),
     noFollowUp: false,
     urgentTerm: false,
+    senderAuthenticated: true,
     senderKey: sender,
     messageKey: hex("e"),
     threadKeys: [],
