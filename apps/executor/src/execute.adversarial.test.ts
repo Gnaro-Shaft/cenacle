@@ -263,6 +263,14 @@ describe("executeDue — a real box (M3)", () => {
     expect((await w.store.get(id))?.status).toBe("lapsed");
   });
 
+  it("a sender stored as unauthenticated lapses as such, not as 'already answered'", async () => {
+    const w = world({ mail: { ...MAIL, senderAuthenticated: false }, authenticated: false });
+    const id = await w.accepted();
+    const r = await executeDue(w.deps);
+    expect(r.lapsed).toEqual([{ id, reason: "unauthenticated" }]);
+    expect(w.outbox).toEqual([]);
+  });
+
   it("5 a day on a real box: the sixth waits for tomorrow", async () => {
     const w = world({ maxPerDay: 5 });
     for (let i = 0; i < 7; i++) await w.accepted();

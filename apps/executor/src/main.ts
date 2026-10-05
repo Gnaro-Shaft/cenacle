@@ -26,6 +26,7 @@ import {
   readReplyContexts,
   senderAuthFor,
   sendReply,
+  storedVerdict,
 } from "@cenacle/mail";
 import { executeDue } from "./execute.ts";
 
@@ -45,8 +46,8 @@ const mails = createMailStore(sql);
 const keyer = keyerFromEnv();
 const { mail: cadre } = loadCadre();
 const password = mailPassword(loadCadre());
-// M3: on a real box, a sender must be authenticated before a send (fails closed until ADR-0014).
-const senderAuth = senderAuthFor(cadre);
+// M3: on a real box, a sender must be authenticated before a send (ADR-0014's verdict, kept with the mail).
+const senderAuth = senderAuthFor(cadre, storedVerdict(mails));
 const startedAt = new Date();
 // S2: the sentinel hears the executor once a minute at most.
 const sentinel = heartbeatFromEnv("executor");

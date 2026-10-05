@@ -9,6 +9,7 @@ import {
   readMailsForModel,
   refuseDrafts,
   senderAuthFor,
+  storedVerdict,
 } from "@cenacle/mail";
 import type { DraftDueDeps } from "./draft-due.ts";
 
@@ -23,7 +24,7 @@ export function draftingDeps(w: {
   // M2: a real box is not drafted for until [ouverture] brouillons (M3).
   refuseDrafts(w.cadre, "Drafting replies");
   return {
-    authenticated: senderAuthFor(w.cadre),
+    authenticated: senderAuthFor(w.cadre, storedVerdict(w.mails)),
     mails: w.mails,
     store: w.store,
     read: (uids, uidValidity) => readMailsForModel(w.cadre, w.password, uids, uidValidity),

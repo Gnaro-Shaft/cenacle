@@ -96,6 +96,12 @@ export async function executeDue(deps: ExecutorDeps): Promise<RoundResult> {
       await lapse("gone");
       continue;
     }
+    // Before the follow-up check: an unauthenticated sender is never "due" (ADR-0014), and
+    // the reason shown must be the real one, not "you already answered".
+    if (!(await deps.authenticated(p))) {
+      await lapse("unauthenticated");
+      continue;
+    }
     if (followUpOf(mail, mine, now) !== "due") {
       await lapse("answered");
       continue;
@@ -107,10 +113,6 @@ export async function executeDue(deps: ExecutorDeps): Promise<RoundResult> {
     }
     if (context.to === null) {
       await lapse("no_recipient");
-      continue;
-    }
-    if (!(await deps.authenticated(p))) {
-      await lapse("unauthenticated");
       continue;
     }
 
