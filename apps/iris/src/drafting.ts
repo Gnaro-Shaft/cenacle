@@ -7,7 +7,8 @@ import {
   loadTrames,
   type MailCadre,
   readMailsForModel,
-  refuseReadOnly,
+  refuseDrafts,
+  senderAuthFor,
 } from "@cenacle/mail";
 import type { DraftDueDeps } from "./draft-due.ts";
 
@@ -19,9 +20,10 @@ export function draftingDeps(w: {
   readonly cadre: MailCadre;
   readonly password: string;
 }): DraftDueDeps {
-  // M2: a real box is sorted and followed, never drafted for.
-  refuseReadOnly(w.cadre, "Drafting replies");
+  // M2: a real box is not drafted for until [ouverture] brouillons (M3).
+  refuseDrafts(w.cadre, "Drafting replies");
   return {
+    authenticated: senderAuthFor(w.cadre),
     mails: w.mails,
     store: w.store,
     read: (uids, uidValidity) => readMailsForModel(w.cadre, w.password, uids, uidValidity),

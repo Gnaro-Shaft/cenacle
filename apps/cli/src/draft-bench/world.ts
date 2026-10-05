@@ -245,6 +245,9 @@ export function createWorld(
     trames: TRAMES,
     now,
     sign: (p, at) => signProposal(privateKey, p, at),
+    // The fictional box: 2-minute undo delay, test domains only.
+    undoMs: 2 * 60_000,
+    sending: "test-domains",
   });
 
   return {
@@ -272,6 +275,7 @@ export function createWorld(
     async draft(uid, model) {
       const run = m.draft ?? draftFollowUp;
       return run(mailbox.forModel(uid), mailbox.uidValidity, {
+        authenticated: async () => true,
         trames: TRAMES,
         proposals,
         vote: async (mail) => model.vote(mail),
@@ -308,6 +312,10 @@ export function createWorld(
         },
         copy: async () => {},
         verify: (p) => isAcceptedByPage(publicKey, p),
+        // The fictional box: its limits, and its mails are mine (no authentication asked).
+        maxPerDay: 20,
+        undoMs: 2 * 60_000,
+        authenticated: async () => true,
       };
       const deps = m.tamper === undefined ? real : m.tamper(real, opts.executorSql);
       const claim = deps.store.claim;

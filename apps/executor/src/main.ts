@@ -24,14 +24,15 @@ import {
   mailPassword,
   ReadOnlyMailboxError,
   readReplyContexts,
+  senderAuthFor,
   sendReply,
 } from "@cenacle/mail";
-import { executeDue, MAX_SENDS_PER_DAY } from "./execute.ts";
+import { executeDue } from "./execute.ts";
 
 const ROUND_MS = 10_000;
 refuseForeignSecrets("The executor", ["mail", "executor", "sentinel"]);
-// M2: a real box is read-only — the executor does not even start (sendReply refuses too).
-if (loadCadre().mail.readOnly) {
+// M2: a real box sends nothing until [ouverture] — the executor does not even start (sendReply refuses too).
+if (loadCadre().mail.sending === "none") {
   console.error(`🛑 ${new ReadOnlyMailboxError("Starting the executor").message}`);
   process.exit(1);
 }
@@ -44,6 +45,8 @@ const mails = createMailStore(sql);
 const keyer = keyerFromEnv();
 const { mail: cadre } = loadCadre();
 const password = mailPassword(loadCadre());
+// M3: on a real box, a sender must be authenticated before a send (fails closed until ADR-0014).
+const senderAuth = senderAuthFor(cadre);
 const startedAt = new Date();
 // S2: the sentinel hears the executor once a minute at most.
 const sentinel = heartbeatFromEnv("executor");
@@ -57,6 +60,7 @@ const LAPSE = {
   gone: "le mail n'est plus là",
   answered: "tu as déjà répondu",
   no_recipient: "adresse illisible",
+  unauthenticated: "expéditeur non authentifié",
 };
 
 let stopping = false;
@@ -65,8 +69,14 @@ process.on("SIGINT", () => {
 });
 
 let limitedDay: string | null = null;
+const TO = {
+  none: "à personne",
+  "test-domains": "vers des domaines de test seulement",
+  closed: "vers ta liste fermée seulement",
+  correspondents: "au vrai correspondant (expéditeur authentifié)",
+} as const;
 console.log(
-  `Exécuteur prêt : envoie ce que tu as accepté, après 2 min, vers ${cadre.host}:${cadre.smtpPort} (test), ${MAX_SENDS_PER_DAY}/jour au plus.`,
+  `Exécuteur prêt : envoie ce que tu as accepté, après ${cadre.undoMs / 60_000} min, ${TO[cadre.sending]}, ${cadre.maxPerDay}/jour au plus.`,
 );
 while (!stopping) {
   try {
@@ -99,11 +109,13 @@ while (!stopping) {
       ],
       context: async (p) =>
         (await readReplyContexts(cadre, password, [p.mailUid], p.mailUidValidity)).get(p.mailUid),
-      build: (context, text, date) =>
-        buildReply(cadre.address, context, text, date, cadre.recipients),
+      build: (context, text, date) => buildReply(cadre.address, context, text, date, cadre),
       send: (reply) => sendReply(cadre, password, reply),
       copy: (reply) => copyToSent(cadre, password, reply.raw),
       verify: (p) => isAcceptedByPage(acceptKey, p),
+      maxPerDay: cadre.maxPerDay,
+      undoMs: cadre.undoMs,
+      authenticated: (p) => senderAuth(p.mailUid, p.mailUidValidity),
     });
     for (const id of r.sent) console.log(`📤 ${id} envoyé`);
     for (const id of r.failed)
@@ -117,9 +129,9 @@ while (!stopping) {
       await journal.append({
         agent: "iris",
         type: "send.limit_reached",
-        payload: { limit: MAX_SENDS_PER_DAY },
+        payload: { limit: cadre.maxPerDay },
       });
-      console.log(`⏸ ${MAX_SENDS_PER_DAY} envois aujourd'hui : le reste attend demain`);
+      console.log(`⏸ ${cadre.maxPerDay} envois aujourd'hui : le reste attend demain`);
     }
   } catch (error) {
     // The name only: an error message may quote an address.

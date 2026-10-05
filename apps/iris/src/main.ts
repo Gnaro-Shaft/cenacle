@@ -46,8 +46,8 @@ const { rules, noFollowUp } = loadRules();
 const password = mailPassword(cadre);
 const local = createLocalModels(localModelConfigFromEnv());
 const proposalStore = createProposalStore(sql);
-// M2: on a real box, no draft at all — Iris sorts, follows and alerts.
-const drafting = mail.readOnly
+// M2: on a real box, no draft until [ouverture] brouillons (M3) — Iris sorts, follows and alerts.
+const drafting = !mail.drafts
   ? null
   : draftingDeps({
       local,
@@ -74,7 +74,7 @@ process.on("SIGINT", () => {
 console.log(
   `Iris suit son rythme : relève toutes les 15 min (8 h–20 h en semaine), ${
     drafting === null
-      ? "sans aucun brouillon (vraie boîte, lecture seule)"
+      ? "sans aucun brouillon (vraie boîte non ouverte aux brouillons)"
       : "brouillons pour les relances dues"
   }, récaps 9 h / 13 h / 18 h.`,
 );

@@ -227,14 +227,17 @@ export function memoryProposalStore(): ProposalStore {
     async edit(id, draft) {
       return move(id, ["pending"], { draft });
     },
-    async accept(id, now, signed) {
+    async accept(id, now, signed, undoMs = 120_000) {
+      if (!Number.isFinite(undoMs) || undoMs < 120_000) {
+        throw new ProposalError(`proposal ${id}: the undo delay cannot be under 2 minutes`);
+      }
       if (draftHash(rows.get(id)?.draft ?? "") !== signed.draftHash) {
         throw new ProposalError(`proposal ${id}: its text is not the one signed`);
       }
       return move(id, ["pending"], {
         status: "accepted",
         decidedAt: now,
-        sendAfter: new Date(now.getTime() + 120_000),
+        sendAfter: new Date(now.getTime() + undoMs),
         acceptanceSig: signed.signature,
       });
     },

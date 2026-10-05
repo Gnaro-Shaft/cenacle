@@ -110,6 +110,15 @@ function Card({
         </span>
       </header>
       <ul className="flags">
+        {p.delivery === "real" && (
+          <li className="red">
+            Destinataire réel : une fois acceptée, cette réponse partira vraiment chez ton
+            correspondant (10 minutes pour changer d'avis).
+          </li>
+        )}
+        {p.delivery === "my_list" && (
+          <li>Envoi limité à ta liste fermée : rien ne partira chez un correspondant.</li>
+        )}
         {p.mail?.replyToElsewhere && (
           <li className="red">
             Ce mail demande qu'on réponde à une autre adresse : ignoré, la réponse ira à

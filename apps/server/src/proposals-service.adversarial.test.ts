@@ -16,7 +16,12 @@ const MAIL: MailForModel = {
   text: "Bonjour, seriez-vous disponible jeudi à 14 h ?",
 };
 
-function setup(target: ReplyTarget | undefined, validity = "8") {
+function setup(
+  target: ReplyTarget | undefined,
+  validity = "8",
+  undoMs = 2 * 60_000,
+  sending: "none" | "test-domains" | "closed" | "correspondents" = "test-domains",
+) {
   const store = memoryProposalStore();
   const journal = memoryJournal();
   const service = createProposalsService({
@@ -28,6 +33,8 @@ function setup(target: ReplyTarget | undefined, validity = "8") {
     trames: TRAMES,
     now: () => new Date("2026-10-05T10:00:00Z"),
     sign: TEST_KEYS.signed,
+    undoMs,
+    sending,
   });
   const propose = (draft: string) =>
     store.create({
@@ -96,6 +103,23 @@ describe("accepting", () => {
     expect(accepted?.status).toBe("accepted");
     // Signed by the page, for this very text: what the executor will check.
     expect(accepted !== null && TEST_KEYS.verify(accepted)).toBe(true);
+    expect(accepted?.sendAfter?.toISOString()).toBe("2026-10-05T10:02:00.000Z");
+  });
+
+  it("a real box (M3): 10 minutes to change my mind", async () => {
+    const target = { uid: 7, to: "claire@client.example", replyToElsewhere: false };
+    const { service, propose, store } = setup(target, "8", 10 * 60_000);
+    await propose(SIGNED);
+    await service.accept("p-1");
+    expect((await store.get("p-1"))?.sendAfter?.toISOString()).toBe("2026-10-05T10:10:00.000Z");
+  });
+
+  it("an undo delay under 2 minutes is refused, whoever asks", async () => {
+    const target = { uid: 7, to: "claire@client.example", replyToElsewhere: false };
+    const { service, propose, store } = setup(target, "8", 30_000);
+    await propose(SIGNED);
+    await expect(service.accept("p-1")).rejects.toThrow(/undo delay/);
+    expect((await store.get("p-1"))?.status).toBe("pending");
   });
 
   it.each([
@@ -113,5 +137,19 @@ describe("accepting", () => {
     for (const bad of [42, null, "", "x".repeat(5001), "Bonjour\u0000", "Bcc:\u001bx"]) {
       expect(() => cleanDraft(bad)).toThrow();
     }
+  });
+});
+
+describe("where an accepted reply goes, shown on every proposal (M3)", () => {
+  const target = { uid: 7, to: "claire@client.example", replyToElsewhere: false };
+  it.each([
+    ["test-domains", "test"],
+    ["closed", "my_list"],
+    ["correspondents", "real"],
+  ] as const)("a box sending to %s shows %s", async (sending, delivery) => {
+    const { service, propose } = setup(target, "8", 2 * 60_000, sending);
+    await propose(SIGNED);
+    const [view] = await service.list();
+    expect(view?.delivery).toBe(delivery);
   });
 });

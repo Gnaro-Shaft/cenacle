@@ -38,6 +38,7 @@ async function setup() {
     mails,
     store,
     read: async () => [],
+    authenticated: async () => true,
     trames: loadTrames({ local: "/nonexistent/x.toml", example: EXAMPLE_TRAMES_PATH }),
     proposals: createProposals(store, journal),
     vote: async (): Promise<TrameVote> => ({ choice: null, votes: {}, rounds: 0, needed: 5 }),

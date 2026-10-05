@@ -15,6 +15,8 @@ export interface ProposalView {
   } | null;
   readonly toComplete: readonly string[];
   readonly unsupported: readonly string[];
+  /** Where an accepted reply goes (M3). */
+  readonly delivery: "test" | "my_list" | "real";
 }
 
 export class ApiError extends Error {

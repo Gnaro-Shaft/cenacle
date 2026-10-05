@@ -18,5 +18,7 @@ Elles sont rédigées en français (le code et le README sont en anglais).
 | [0011](0011-depot-public.md) | Un dépôt public se pense dès le premier commit | Acceptée |
 | [0012](0012-memoire-du-courrier.md) | Ce qu'Iris retient d'un mail : des clés, pas des adresses, 90 jours | Acceptée |
 | [0013](0013-qui-accepte.md) | Seule la page peut accepter : acceptation signée, états clos définitifs | Acceptée |
+| 0014 | Authentification des expéditeurs : quel en-tête croire (chantier en cours) | À venir |
+| [0015](0015-ouverture-de-la-vraie-boite.md) | Ouvrir la vraie boîte aux brouillons et aux envois, en deux crans datés | Acceptée |
 
 Les règles dures qui s'appliquent à tout le code sont dans [`../charte.md`](../charte.md).

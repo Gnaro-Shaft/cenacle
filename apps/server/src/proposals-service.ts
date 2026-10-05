@@ -40,7 +40,11 @@ export interface ProposalView {
   readonly toComplete: readonly string[];
   /** Facts of the draft absent from the thread and from my templates. */
   readonly unsupported: readonly string[];
+  /** Where an accepted reply goes: test domains, my closed list, or the real correspondent (M3). */
+  readonly delivery: Delivery;
 }
+
+export type Delivery = "test" | "my_list" | "real";
 
 export interface ProposalsService {
   list(): Promise<ProposalView[]>;
@@ -65,6 +69,10 @@ export interface ServiceDeps {
   readonly now: () => Date;
   /** Signs my acceptance of this proposal's current text (the page's private key, ADR-0013). */
   readonly sign: (p: Proposal, now: Date) => SignedAcceptance;
+  /** The box's undo delay: 10 min on a real box (M3), 2 min on a test box. */
+  readonly undoMs: number;
+  /** Where the box sends (opening.ts): shown on every proposal. */
+  readonly sending: "none" | "test-domains" | "closed" | "correspondents";
 }
 
 const SLOT_LEFT = /\{([a-z_]+) \?\}/g;
@@ -98,6 +106,8 @@ export function createProposalsService(deps: ServiceDeps): ProposalsService {
 
   return {
     async list() {
+      const delivery: Delivery =
+        deps.sending === "correspondents" ? "real" : deps.sending === "closed" ? "my_list" : "test";
       const open = (await deps.store.open()).filter(
         (p): p is Proposal & { status: ShownStatus; draft: string } =>
           SHOWN.includes(p.status) && p.draft !== null,
@@ -135,6 +145,7 @@ export function createProposalsService(deps: ServiceDeps): ProposalsService {
                 },
           toComplete: [...p.draft.matchAll(SLOT_LEFT)].map((m) => m[1] ?? ""),
           unsupported: checkDraft(p.draft, sources).unsupported.map((f) => f.raw),
+          delivery,
         };
       });
     },
@@ -155,7 +166,7 @@ export function createProposalsService(deps: ServiceDeps): ProposalsService {
       }
       const now = deps.now();
       // Signed on the text read just now; the database accepts only if it is still that text.
-      await deps.proposals.accept(id, now, deps.sign(p, now));
+      await deps.proposals.accept(id, now, deps.sign(p, now), deps.undoMs);
     },
 
     async refuse(id) {

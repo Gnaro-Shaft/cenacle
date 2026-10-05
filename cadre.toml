@@ -6,7 +6,8 @@
 # The fictional test mailbox of this machine needs no processing: it holds no
 # personal data. Any other mailbox is read only if an open processing covers it,
 # and is read-only (M2): sorted and followed, never drafted for nor sent from —
-# unless marked `test = true` (a real test box, M1).
+# unless marked `test = true` (a real test box, M1), or opened in two dated
+# steps by [ouverture] brouillons, then envoi, in cadre.local.toml (M3, ADR-0015).
 source = "boite-test"
 # Phase 2: the fictional test mailbox (GreenMail) only — any host that is not
 # this machine is refused by the code until phase 5.

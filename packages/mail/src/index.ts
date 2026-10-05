@@ -16,12 +16,14 @@ export {
   CadreError,
   LOCAL_CADRE_PATH,
   loadCadre,
+  type MailBox,
   type MailCadre,
   mailPassword,
   parseCadre,
   ReadOnlyMailboxError,
   readingStartsAt,
-  refuseReadOnly,
+  refuseDrafts,
+  refuseSending,
   TEST_DOMAIN,
 } from "./cadre.ts";
 export {
@@ -57,6 +59,16 @@ export {
   skeleton,
   type Verdict,
 } from "./measure.ts";
+export {
+  type Opening,
+  OpeningError,
+  parseOpening,
+  REAL_DEFAULT_MAX_PER_DAY,
+  REAL_UNDO_MS,
+  type Sending,
+  TEST_MAX_PER_DAY,
+  TEST_UNDO_MS,
+} from "./opening.ts";
 export { type HeaderField, orderedHeaders } from "./ordered-headers.ts";
 export { type PassDeps, type PassResult, runMailPass } from "./pass.ts";
 export {
@@ -101,8 +113,11 @@ export {
   copyToSent,
   replySubject,
   SendError,
+  type SendPolicy,
   sendReply,
+  TEST_DOMAINS_ONLY,
 } from "./sender.ts";
+export { noTrustRuleYet, type SenderAuthCheck, senderAuthFor } from "./sender-auth.ts";
 export { addressList, senderAddress, senderDomain } from "./sender-domain.ts";
 export {
   assertTestMailbox,

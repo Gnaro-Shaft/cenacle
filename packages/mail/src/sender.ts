@@ -15,8 +15,9 @@ import { randomUUID } from "node:crypto";
 import { ImapFlow } from "imapflow";
 import { createTransport } from "nodemailer";
 import MailComposer from "nodemailer/lib/mail-composer";
-import { type MailCadre, refuseReadOnly, TEST_DOMAIN } from "./cadre.ts";
+import { type MailCadre, refuseSending, TEST_DOMAIN } from "./cadre.ts";
 import { imapOptions, smtpOptions } from "./connection.ts";
+import type { Opening } from "./opening.ts";
 import { type ReplyContext, safeAddress, validMessageId } from "./reply-target.ts";
 
 export class SendError extends Error {
@@ -50,25 +51,39 @@ export function replySubject(subject: string): string {
   return base.slice(0, MAX_SUBJECT);
 }
 
+/** Where a reply may go: the box's sending mode and its closed list (opening.ts). */
+export type SendPolicy = Pick<Opening, "sending" | "recipients">;
+/** The fictional box: reserved test domains only. */
+export const TEST_DOMAINS_ONLY: SendPolicy = { sending: "test-domains", recipients: null };
+
 /**
- * The recipient, re-checked here: one plain address, and either on my closed
- * list ([envoi] destinataires of a real box, M1-M2) or, for the fictional box
- * (null), on a reserved test domain.
+ * The recipient, re-checked here: one plain address, and allowed by the box —
+ * a reserved test domain (fictional box), my closed list ([envoi]
+ * destinataires: a real test box, or a real box with drafts only), or, once
+ * `envoi` is opened (M3), the correspondent read from the server. Nothing else.
  */
 export function allowedRecipient(
   to: string | null,
-  recipients: readonly string[] | null = null,
+  policy: SendPolicy = TEST_DOMAINS_ONLY,
 ): string {
   const address = safeAddress(to ?? undefined);
   if (address === null) throw new SendError("no readable recipient");
-  if (recipients === null) {
-    if (!TEST_DOMAIN.test(address)) {
-      throw new SendError("the fictional box sends to test domains only (.test, .example)");
-    }
-  } else if (!recipients.includes(address.toLowerCase())) {
-    throw new SendError("not on the closed list of recipients ([envoi] destinataires)");
+  switch (policy.sending) {
+    case "test-domains":
+      if (!TEST_DOMAIN.test(address)) {
+        throw new SendError("the fictional box sends to test domains only (.test, .example)");
+      }
+      return address;
+    case "closed":
+      if (policy.recipients === null || !policy.recipients.includes(address.toLowerCase())) {
+        throw new SendError("not on the closed list of recipients ([envoi] destinataires)");
+      }
+      return address;
+    case "correspondents":
+      return address;
+    default:
+      throw new SendError("this mailbox sends nothing (not opened: [ouverture] envoi)");
   }
-  return address;
 }
 
 export interface BuiltReply {
@@ -81,10 +96,10 @@ export async function buildReply(
   context: ReplyContext,
   text: string,
   date: Date,
-  /** [envoi] destinataires of the box; null (the default) allows reserved test domains only. */
-  recipients: readonly string[] | null = null,
+  /** Where the box may send; the default allows reserved test domains only. */
+  policy: SendPolicy = TEST_DOMAINS_ONLY,
 ): Promise<BuiltReply> {
-  const to = allowedRecipient(context.to, recipients);
+  const to = allowedRecipient(context.to, policy);
   const parent = validMessageId(context.messageId);
   const references = [...context.references, ...(parent === null ? [] : [parent])].slice(-20);
   const domain = from.slice(from.lastIndexOf("@") + 1);
@@ -111,7 +126,7 @@ export async function sendReply(
   password: string,
   reply: BuiltReply,
 ): Promise<void> {
-  refuseReadOnly(cadre, "Sending a reply");
+  refuseSending(cadre, "Sending a reply");
   const transport = createTransport(smtpOptions(cadre, password));
   try {
     await transport.sendMail({ envelope: { from: cadre.address, to: [reply.to] }, raw: reply.raw });
@@ -122,7 +137,7 @@ export async function sendReply(
 
 /** The executor's only write to the mailbox: a copy in Sent, marked read. */
 export async function copyToSent(cadre: MailCadre, password: string, raw: Buffer): Promise<void> {
-  refuseReadOnly(cadre, "Copying a reply to Sent");
+  refuseSending(cadre, "Copying a reply to Sent");
   const client = new ImapFlow(imapOptions(cadre, password));
   await client.connect();
   try {
