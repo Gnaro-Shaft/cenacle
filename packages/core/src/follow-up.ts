@@ -3,7 +3,8 @@
  *
  * Pure code, no model, keys only. Rule validated on 2026-10-02:
  * - only "clients_prospects" mails are followed, unless their domain expects
- *   no reply by mail (platform notifications);
+ *   no reply by mail (platform notifications), and only when their sender is
+ *   authenticated (ADR-0014): a forged From is never chased for a reply;
  * - a mail is "replied" if I sent, AFTER it, a mail in the same thread
  *   (its key among my mail's thread keys) or to the same address (its sender
  *   key among my mail's recipient keys) — a colleague's address does not count;
@@ -18,6 +19,8 @@ export const FOLLOW_UP_TIME_ZONE = "Europe/Paris";
 export interface FollowedMail {
   readonly category: string | null;
   readonly noFollowUp: boolean;
+  /** Our receiving server authenticated the From domain (ADR-0014). */
+  readonly senderAuthenticated: boolean;
   readonly senderKey: string | null;
   readonly messageKey: string | null;
   readonly receivedAt: string;
@@ -30,7 +33,9 @@ export interface MyMail {
 }
 
 export function followUpOf(mail: FollowedMail, sent: readonly MyMail[], now: Date): FollowUp {
-  if (mail.category !== "clients_prospects" || mail.noFollowUp) return "not_tracked";
+  if (mail.category !== "clients_prospects" || mail.noFollowUp || !mail.senderAuthenticated) {
+    return "not_tracked";
+  }
   const received = Date.parse(mail.receivedAt);
   const answered = sent.some(
     (s) =>

@@ -9,8 +9,11 @@ import type { Sql } from "postgres";
 
 export const CATEGORY_VALUES = ["clients_prospects", "administratif", "bruit", "a_trier"] as const;
 export type StoredCategory = (typeof CATEGORY_VALUES)[number];
-/** "set_aside": kept from the model (article 9 floor, empty or unreadable) — never why (C2). */
-export type DecidedBy = "rule" | "unreadable" | "model" | "set_aside";
+/**
+ * "set_aside": kept from the model (article 9 floor, empty or unreadable) — never why (C2).
+ * "unauthenticated": a client rule refused for an unauthenticated sender (ADR-0014).
+ */
+export type DecidedBy = "rule" | "unreadable" | "model" | "set_aside" | "unauthenticated";
 export type Mailbox = "inbox" | "sent";
 
 export interface InboxItem {
@@ -20,6 +23,8 @@ export interface InboxItem {
   readonly noFollowUp: boolean;
   /** An urgency term was in its subject (the subject is not stored). */
   readonly urgentTerm: boolean;
+  /** Our receiving server authenticated its From domain (ADR-0014). */
+  readonly senderAuthenticated: boolean;
   readonly senderKey: string | null;
   readonly messageKey: string | null;
   readonly threadKeys: readonly string[];
@@ -62,7 +67,7 @@ export interface MailStore {
   totals(): Promise<Totals>;
   inbox(): Promise<StoredInboxItem[]>;
   sent(): Promise<SentItem[]>;
-  /** Urgent client mails received since `since` that I was not told about yet. */
+  /** Urgent client mails from authenticated senders, received since `since`, not told yet. */
   urgentToNotify(since: Date): Promise<number[]>;
   /** Records that I was told about these urgent mails (alert or recap). */
   markUrgentNotified(uids: readonly number[]): Promise<void>;
@@ -75,6 +80,7 @@ interface Row {
   at: Date;
   no_follow_up: boolean;
   urgent_term: boolean;
+  sender_authenticated: boolean;
   category: StoredCategory | null;
   decided_by: DecidedBy | null;
   sender_key: string | null;
@@ -114,10 +120,10 @@ export function createMailStore(sql: Sql): MailStore {
       let added = 0;
       for (const item of items) {
         const result = await sql`
-          insert into mail_items (mailbox, uid_validity, uid, at, no_follow_up, urgent_term, sender_key,
-                                  message_key, thread_keys)
+          insert into mail_items (mailbox, uid_validity, uid, at, no_follow_up, urgent_term,
+                                  sender_authenticated, sender_key, message_key, thread_keys)
           values ('inbox', ${uidValidity}, ${item.uid}, ${item.receivedAt}, ${item.noFollowUp},
-                  ${item.urgentTerm}, ${item.senderKey},
+                  ${item.urgentTerm}, ${item.senderAuthenticated}, ${item.senderKey},
                   ${item.messageKey}, ${sql.array([...item.threadKeys])})
           on conflict do nothing`;
         added += result.count;
@@ -164,14 +170,15 @@ export function createMailStore(sql: Sql): MailStore {
 
     async inbox() {
       const rows = await sql<Row[]>`
-        select uid::text, at, no_follow_up, urgent_term, category, decided_by, sender_key, recipient_keys,
-               message_key, thread_keys
+        select uid::text, at, no_follow_up, urgent_term, sender_authenticated, category, decided_by,
+               sender_key, recipient_keys, message_key, thread_keys
         from mail_items where mailbox = 'inbox' order by uid`;
       return rows.map((r) => ({
         uid: Number(r.uid),
         receivedAt: r.at.toISOString(),
         noFollowUp: r.no_follow_up,
         urgentTerm: r.urgent_term,
+        senderAuthenticated: r.sender_authenticated,
         senderKey: r.sender_key,
         messageKey: r.message_key,
         threadKeys: r.thread_keys,
@@ -199,6 +206,8 @@ export function createMailStore(sql: Sql): MailStore {
         -- A set-aside mail may be an urgent client's (C2): never lose its alert silently.
         where mailbox = 'inbox' and (category = 'clients_prospects' or decided_by = 'set_aside')
           and urgent_term
+          -- ADR-0014: a forged From must never ring the alarm.
+          and sender_authenticated
           and not urgent_notified and at >= ${since}
         order by uid`;
       return rows.map((r) => Number(r.uid));

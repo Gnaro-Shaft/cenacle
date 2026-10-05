@@ -8,6 +8,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { TIME_ZONE, zonedMidnight } from "@cenacle/core";
 import { parse } from "smol-toml";
+import type { TrustedServer } from "./sender-auth.ts";
 import {
   type Conservation,
   coveringTraitement,
@@ -47,6 +48,11 @@ export interface MailCadre {
    * never drafted for nor sent from. Lifting it is M3's decision, not a default.
    */
   readonly readOnly: boolean;
+  /**
+   * The only Authentication-Results believed (ADR-0014): our receiving server's
+   * name ([mail] authserv_id) and where it puts its header ([mail] rang_attendu).
+   */
+  readonly trustedServer: TrustedServer;
 }
 
 export interface Cadre {
@@ -89,7 +95,11 @@ const MAIL_KEYS = [
   "max_per_fetch",
   "smtp_port",
   "address",
+  "authserv_id",
+  "rang_attendu",
 ] as const;
+/** Received headers above our server's Authentication-Results: a handful at most. */
+export const MAX_RECEIVED_ABOVE = 50;
 /** Domains reserved for tests (RFC 2606): nobody real can receive a mail there. */
 export const TEST_DOMAIN = /\.(test|example|invalid|localhost)$/i;
 
@@ -163,6 +173,9 @@ export function readingStartsAt(cadre: Cadre): Date | null {
   return new Date(zonedMidnight(y, m, d, TIME_ZONE));
 }
 
+/** A server name, as the first word of an Authentication-Results header (RFC 8601). */
+const AUTHSERV_ID = /^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,251}[A-Za-z0-9])?$/;
+
 const PLAIN_ADDRESS = /^[A-Za-z0-9._%+-]{1,64}@(?:[A-Za-z0-9-]{1,63}\.)+[A-Za-z]{2,63}$/;
 
 /** [envoi] destinataires: a non-empty list of plain addresses, required for a real box. */
@@ -226,6 +239,10 @@ export function toCadre(raw: unknown, today = localToday()): Cadre {
       test: fictional || test,
       recipients,
       readOnly: !fictional && !test,
+      trustedServer: {
+        authservId: text(mail, "authserv_id", AUTHSERV_ID).toLowerCase(),
+        receivedAbove: integer(mail, "rang_attendu", 0, MAX_RECEIVED_ABOVE),
+      },
     },
   };
 }

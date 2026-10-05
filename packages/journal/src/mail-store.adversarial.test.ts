@@ -29,6 +29,11 @@ describe("mail_items — refused rows", () => {
       "a set-aside mail anywhere but « À trier » (C2)",
       { category: "clients_prospects", decided_by: "set_aside" },
     ],
+    [
+      "a refused client rule anywhere but « À trier » (ADR-0014)",
+      { category: "clients_prospects", decided_by: "unauthenticated" },
+    ],
+    ["an authentication left unknown", { sender_authenticated: null }],
   ])("refuses %s", async (_label, columns) => {
     await expect(insert(columns)).rejects.toThrow();
   });
@@ -53,6 +58,7 @@ describe("mail_items — set aside by the article 9 floor (C2)", () => {
         receivedAt: new Date().toISOString(),
         noFollowUp: false,
         urgentTerm: true,
+        senderAuthenticated: true,
         senderKey: "c".repeat(64),
         messageKey: "d".repeat(64),
         threadKeys: [],
@@ -64,5 +70,46 @@ describe("mail_items — set aside by the article 9 floor (C2)", () => {
       select decided_by from mail_items where uid = 4242 and uid_validity = ${validity}`;
     // One mark for every reason: nothing says why.
     expect(row?.decided_by).toBe("set_aside");
+  });
+});
+
+describe("mail_items — sender authentication (ADR-0014)", () => {
+  it("an urgent client mail alerts only when its sender is authenticated", async () => {
+    const store = createMailStore(sql);
+    const since = new Date(Date.now() - 60_000);
+    const validity = (await store.position("inbox"))?.uidValidity ?? "424242";
+    const item = (uid: number, senderAuthenticated: boolean) => ({
+      uid,
+      receivedAt: new Date().toISOString(),
+      noFollowUp: false,
+      urgentTerm: true,
+      senderAuthenticated,
+      senderKey: "c".repeat(64),
+      messageKey: "e".repeat(64),
+      threadKeys: [],
+    });
+    await store.saveInbox(validity, [item(4243, true), item(4244, false), item(4245, false)]);
+    await store.categorize(4243, "clients_prospects", "rule");
+    // Even a client decided by the model: an unauthenticated sender never rings.
+    await store.categorize(4244, "clients_prospects", "model");
+    await store.categorize(4245, "a_trier", "unauthenticated");
+    const urgent = await store.urgentToNotify(since);
+    expect(urgent).toContain(4243);
+    expect(urgent).not.toContain(4244);
+    expect(urgent).not.toContain(4245);
+    const rows = (await store.inbox()).filter((r) => r.uid >= 4243 && r.uid <= 4245);
+    expect(rows.map((r) => [r.uid, r.senderAuthenticated, r.decidedBy])).toEqual([
+      [4243, true, "rule"],
+      [4244, false, "model"],
+      [4245, false, "unauthenticated"],
+    ]);
+  });
+
+  it("a row written without saying is not authenticated (the protective default)", async () => {
+    const validity = (await createMailStore(sql).position("inbox"))?.uidValidity ?? "424242";
+    await insert({ uid_validity: validity, uid: 4246 });
+    const [row] = await sql<{ sender_authenticated: boolean }[]>`
+      select sender_authenticated from mail_items where uid = 4246 and uid_validity = ${validity}`;
+    expect(row?.sender_authenticated).toBe(false);
   });
 });

@@ -139,6 +139,7 @@ export async function runAlertBench(outages: readonly Outage[] = []): Promise<Be
               receivedAt: new Date(m.date).toISOString(),
               noFollowUp: false,
               urgentTerm: hasUrgentTerm(m.subject),
+              senderAuthenticated: true,
               senderKey: key(m.from.address),
               messageKey: key(m.id),
               threadKeys: [],

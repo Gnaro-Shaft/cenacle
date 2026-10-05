@@ -9,7 +9,8 @@ const CONSERVATION =
   "[conservation]\nmemoire_jours = 90\ntexte_brouillon_jours = 7\npropositions_jours = 90\njournal_jours = 180\n";
 const mail = (host: string, address: string) =>
   `[mail]\nsource = "boite-pro"\nhost = "${host}"\nport = 993\nuser = "moi"\nmailbox = "INBOX"\n` +
-  `sent_mailbox = "Sent"\nmax_per_fetch = 500\nsmtp_port = 465\naddress = "${address}"\n`;
+  `sent_mailbox = "Sent"\nmax_per_fetch = 500\nsmtp_port = 465\naddress = "${address}"\n` +
+  `authserv_id = "mx.box.test"\nrang_attendu = 5\n`;
 const FICTIONAL = mail("127.0.0.1", "test-cenacle@cenacle.test");
 const T01 = (extra = "", mention = "mention_publiee = 2026-10-01") =>
   `[[traitement]]\nidentifiant = "T-01"\nfinalite = "Ranger la boîte pro."\n` +

@@ -27,6 +27,7 @@ async function setup() {
       receivedAt: "2026-10-01T08:00:00Z",
       noFollowUp: false,
       urgentTerm: false,
+      senderAuthenticated: true,
       senderKey: K("a"),
       messageKey: K("b"),
       threadKeys: [],

@@ -35,6 +35,22 @@ describe("postman (GreenMail)", () => {
     });
   });
 
+  it("every fixture's sender is authenticated by the fictional server (ADR-0014)", async () => {
+    const result = await fetchMailRefs(mail, password, keyer);
+    expect(result.refs.length).toBe(messages.length);
+    expect(result.refs.filter((r) => r.auth !== "authenticated")).toEqual([]);
+  });
+
+  it("another server name, or another rank, authenticates nobody", async () => {
+    for (const trustedServer of [
+      { ...mail.trustedServer, authservId: "mx.other.test" },
+      { ...mail.trustedServer, receivedAbove: 1 },
+    ]) {
+      const result = await fetchMailRefs({ ...mail, trustedServer }, password, keyer);
+      expect(result.refs.some((r) => r.auth === "authenticated")).toBe(false);
+    }
+  });
+
   it("reads every mail's UID and domain, and leaves them all unread", async () => {
     const result = await fetchMailRefs(mail, password, keyer);
     expect(result.refs).toHaveLength(messages.length);
@@ -44,6 +60,7 @@ describe("postman (GreenMail)", () => {
     expect(result.refs.map((r) => r.domain).sort()).toEqual(expected);
     for (const ref of result.refs) {
       expect(Object.keys(ref).sort()).toEqual([
+        "auth",
         "domain",
         "messageKey",
         "receivedAt",

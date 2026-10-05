@@ -18,6 +18,13 @@ function displayName(name: string): string {
   return `"${name.replace(/[\\"]/g, "\\$&")}"`;
 }
 
+/**
+ * The fictional receiving server of the test mailbox (cadre.toml authserv_id):
+ * every incoming fixture carries its verdict, on top — GreenMail adds no
+ * Received header, so cadre.toml expects it with none above (rang_attendu 0).
+ */
+export const FIXTURE_AUTHSERV_ID = "mx.cenacle.test";
+
 function wrap76(base64: string): string {
   return base64.match(/.{1,76}/g)?.join("\r\n") ?? "";
 }
@@ -37,6 +44,8 @@ interface RawMessage {
   readonly body: string;
   /** Fixture ids of the thread, oldest first; the last one is the direct parent. */
   readonly references: readonly string[];
+  /** Incoming mails only: our fictional server says the From domain passed DMARC. */
+  readonly authenticated: boolean;
 }
 
 function build(message: RawMessage): Buffer {
@@ -56,7 +65,12 @@ function build(message: RawMessage): Buffer {
           `In-Reply-To: ${fixtureMessageId(message.references.at(-1) ?? "")}`,
           `References: ${message.references.map(fixtureMessageId).join(" ")}`,
         ];
+  const domain = message.fromAddress.split("@").at(-1)?.toLowerCase() ?? "";
+  const verdict = message.authenticated
+    ? [`Authentication-Results: ${FIXTURE_AUTHSERV_ID}; dmarc=pass header.from=${domain}`]
+    : [];
   const headers = [
+    ...verdict,
     `From: ${displayName(message.fromName)} <${message.fromAddress}>`,
     `To: <${message.to}>`,
     `Subject: ${encodeWord(message.subject)}`,
@@ -96,6 +110,7 @@ export function toRfc822(
     contentType: message.contentType,
     body: message.body,
     references,
+    authenticated: true,
   });
 }
 
@@ -111,5 +126,6 @@ export function sentToRfc822(message: FixtureSentMessage, from: string): Buffer 
     contentType: "text/plain",
     body: message.body,
     references: message.references,
+    authenticated: false,
   });
 }

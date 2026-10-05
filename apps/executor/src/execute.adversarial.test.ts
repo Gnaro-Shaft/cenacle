@@ -20,6 +20,7 @@ const K = (c: string) => c.repeat(64);
 const MAIL: FollowedMail = {
   category: "clients_prospects",
   noFollowUp: false,
+  senderAuthenticated: true,
   senderKey: K("a"),
   messageKey: K("b"),
   receivedAt: "2026-10-01T09:00:00+02:00",

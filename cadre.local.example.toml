@@ -19,6 +19,13 @@ sent_mailbox = "<Sent folder name of your provider>"
 max_per_fetch = 500
 smtp_port = 465
 address = "<the account's address>"
+# Sender authentication (ADR-0014), required. Read them on your own mails:
+# authserv_id = the first word of the Authentication-Results header your
+# provider adds (webmail, "show source"); rang_attendu = how many Received
+# headers sit above it — `npm run mail:auth-survey -- --serveur=<name>` counts
+# it for you ("position").
+authserv_id = "<first word of your provider's Authentication-Results>"
+rang_attendu = 0
 
 # Until M3, replies go to these addresses only — your own.
 [envoi]

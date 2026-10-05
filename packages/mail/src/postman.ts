@@ -6,14 +6,17 @@
  * an IMAP command that writes — an adversarial test scans it for them.
  *
  * Minimization (charter): for each mail it keeps the UID, the arrival date,
- * the sender's domain (inbox) and pseudonymous KEYS of the addresses and
- * thread identifiers (keys.ts). Raw headers are parsed and dropped at once.
+ * the sender's domain (inbox), whether the sender is authenticated (inbox,
+ * ADR-0014) and pseudonymous KEYS of the addresses and thread identifiers
+ * (keys.ts). Raw headers are parsed and dropped at once.
  */
 import { hasUrgentTerm } from "@cenacle/core";
 import { ImapFlow } from "imapflow";
 import type { MailCadre } from "./cadre.ts";
 import { imapOptions } from "./connection.ts";
 import { type Keyer, messageIds } from "./keys.ts";
+import { type HeaderField, orderedHeaders } from "./ordered-headers.ts";
+import { type AuthVerdict, senderAuthentication } from "./sender-auth.ts";
 import { addressList, senderAddress, senderDomain } from "./sender-domain.ts";
 
 /** An incoming mail, as remembered. */
@@ -28,6 +31,8 @@ export interface MailRef {
   readonly receivedAt: string;
   /** An urgency term is in the subject (ADR-0007). The subject itself is not kept. */
   readonly urgentTerm: boolean;
+  /** Is the From domain authenticated by our receiving server (ADR-0014)? */
+  readonly auth: AuthVerdict;
 }
 
 /** One of my sent mails, as remembered. */
@@ -69,7 +74,15 @@ export class PostmanError extends Error {
   }
 }
 
-const INBOX_HEADERS = ["from", "subject", "message-id", "in-reply-to", "references"];
+const INBOX_HEADERS = [
+  "from",
+  "subject",
+  "message-id",
+  "in-reply-to",
+  "references",
+  "received",
+  "authentication-results",
+];
 const SENT_HEADERS = ["to", "cc", "message-id", "in-reply-to", "references"];
 
 /** Header name → value; a header present twice is ambiguous and kept as null. */
@@ -89,6 +102,9 @@ export function splitHeaders(raw: string): Map<string, string | null> {
 interface RawEntry {
   readonly uid: number;
   readonly headers: Map<string, string | null>;
+  /** The same headers in order, duplicates kept (Received, Authentication-Results). */
+  readonly fields: readonly HeaderField[];
+  readonly truncated: boolean;
   readonly date: string;
 }
 
@@ -142,9 +158,13 @@ async function readHeaders(
           const date = msg.internalDate instanceof Date ? msg.internalDate : new Date(Number.NaN);
           if (Number.isNaN(date.getTime()))
             throw new PostmanError(`mail ${msg.uid}: no arrival date`);
+          const raw = msg.headers?.toString("utf8") ?? "";
+          const { fields, truncated } = orderedHeaders(raw);
           entries.push({
             uid: msg.uid,
-            headers: splitHeaders(msg.headers?.toString("utf8") ?? ""),
+            headers: splitHeaders(raw),
+            fields,
+            truncated,
             date: date.toISOString(),
           });
         }
@@ -221,16 +241,18 @@ export async function fetchMailRefs(
   const raw = await readHeaders(cadre, password, cadre.mailbox, INBOX_HEADERS, options);
   return {
     ...raw,
-    refs: raw.refs.map(({ uid, headers, date }) => {
+    refs: raw.refs.map(({ uid, headers, fields, truncated, date }) => {
       const from = headers.get("from");
       const sender = senderAddress(from === undefined ? undefined : from);
+      const domain = senderDomain(from === null ? null : from);
       return {
         uid,
-        domain: senderDomain(from === null ? null : from),
+        domain,
         senderKey: sender === null ? null : keyer.address(sender),
         ...keysOf(keyer, headers),
         receivedAt: date,
         urgentTerm: hasUrgentTerm(decodeSubject(headers.get("subject"))),
+        auth: senderAuthentication(fields, truncated, domain, cadre.trustedServer),
       };
     }),
   };

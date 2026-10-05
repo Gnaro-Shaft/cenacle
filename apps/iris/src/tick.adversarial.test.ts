@@ -43,6 +43,7 @@ function world(start: string) {
         receivedAt: now.toISOString(),
         noFollowUp: false,
         urgentTerm: urgent,
+        senderAuthenticated: true,
         senderKey: K("a"),
         messageKey: K(String(uid % 10)),
         threadKeys: [],

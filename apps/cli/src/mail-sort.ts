@@ -47,7 +47,7 @@ try {
     `✔ ${summary.count} nouveaux mails mémorisés, ${summary.sentCount} envoyés lus — ${conversations} conversations reconstituées`,
   );
   console.log(
-    `✔ règles : ${byRule} rangés (clients ${c.clients_prospects}, admin ${c.administratif}, bruit ${c.bruit}), ${c.a_trier} à trier (expéditeur illisible)`,
+    `✔ règles : ${byRule} rangés (clients ${c.clients_prospects}, admin ${c.administratif}, bruit ${c.bruit}), ${c.a_trier} à trier (expéditeur illisible, ou client non authentifié : ${summary.ruleSort.unauthenticated})`,
   );
   if (summary.purged > 0) {
     console.log(`🗑 ${summary.purged} mails oubliés (partis du serveur, ou de plus de 90 jours)`);

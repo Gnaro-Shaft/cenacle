@@ -24,6 +24,7 @@ describe("follow-up — agrees with the fixtures", () => {
     const mail: FollowedMail = {
       category: m.expected.category,
       noFollowUp: box.followUp.noFollowUpDomains.includes(m.from.address.split("@")[1] ?? ""),
+      senderAuthenticated: true,
       senderKey: key("a", m.from.address),
       messageKey: key("m", fixtureMessageId(m.id)),
       receivedAt: m.date,
@@ -36,11 +37,16 @@ describe("follow-up — what is not a reply", () => {
   const mail: FollowedMail = {
     category: "clients_prospects",
     noFollowUp: false,
+    senderAuthenticated: true,
     senderKey: "client",
     messageKey: "m1",
     receivedAt: "2026-09-28T09:00:00Z",
   };
   const late = new Date("2026-10-05T09:00:00Z");
+
+  it("a client mail whose sender is not authenticated is never chased (ADR-0014)", () => {
+    expect(followUpOf({ ...mail, senderAuthenticated: false }, [], late)).toBe("not_tracked");
+  });
 
   it("a mail I sent BEFORE theirs", () => {
     expect(
