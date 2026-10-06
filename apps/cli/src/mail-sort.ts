@@ -57,7 +57,9 @@ try {
     `✔ règles : ${byRule} rangés (clients ${c.clients_prospects}, admin ${c.administratif}, bruit ${c.bruit}), ${c.a_trier} à trier (expéditeur illisible, ou client non authentifié : ${summary.ruleSort.unauthenticated})`,
   );
   if (summary.purged > 0) {
-    console.log(`🗑 ${summary.purged} mails oubliés (partis du serveur, ou de plus de 90 jours)`);
+    console.log(
+      `🗑 ${summary.purged} mails oubliés (partis du serveur ou mis à la corbeille, de plus de 90 jours, ou relus sous une nouvelle numérotation)`,
+    );
   }
   if (model !== null) {
     const m = model.counts;
