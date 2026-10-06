@@ -19,7 +19,8 @@ deploy/sentinel/install.sh
 Remplir `/etc/cenacle-sentinel.env` (lisible par root seul) :
 - `SENTINEL_LISTEN` : l'adresse **Tailscale** du VPS et le port (`100.x.y.z:8790`) — jamais `0.0.0.0` : le programme le refuse ;
 - `SENTINEL_TOKEN` : le jeton partagé ;
-- `SENTINEL_TELEGRAM_TOKEN` et `SENTINEL_CHAT_ID` : le bot de la sentinelle et mon identifiant de conversation.
+- `SENTINEL_TELEGRAM_TOKEN` et `SENTINEL_CHAT_ID` : le bot de la sentinelle et mon identifiant de conversation ;
+- `SENTINEL_PROGRAMS` : les programmes qui doivent tourner, séparés par des virgules (`iris,executor` par défaut). Tant que la vraie boîte n'est pas ouverte aux envois (M2), l'exécuteur ne tourne pas : `SENTINEL_PROGRAMS=iris`, sinon son silence est pris pour une panne. À remettre à `iris,executor` à l'ouverture de `[ouverture] envoi` (M3).
 
 Puis `systemctl enable --now cenacle-sentinel`. Le service tourne sous un utilisateur jetable, sans droit d'écriture.
 

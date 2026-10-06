@@ -17,6 +17,7 @@ if [ ! -e /etc/cenacle-sentinel.env ]; then
   install -m 0600 /dev/null /etc/cenacle-sentinel.env
   printf '%s\n' "SENTINEL_LISTEN=<tailscale-ip>:8790" "SENTINEL_TOKEN=" \
     "SENTINEL_TELEGRAM_TOKEN=" "SENTINEL_CHAT_ID=" "SENTINEL_SILENCE_MINUTES=10" \
+    "SENTINEL_PROGRAMS=iris,executor" \
     > /etc/cenacle-sentinel.env
   echo "Fill in /etc/cenacle-sentinel.env, then: systemctl enable --now cenacle-sentinel"
 fi
