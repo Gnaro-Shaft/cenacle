@@ -1,7 +1,7 @@
 // S2: a beat carries no content and cannot lie about time; an outage is told
 // once, a recovery once, and a message that failed to go out is told again.
 import { describe, expect, it } from "vitest";
-import { BeatError, createWatch, parseBeat } from "./watch.ts";
+import { BeatError, createWatch, parseBeat, parsePrograms } from "./watch.ts";
 
 const NOW = new Date("2026-10-05T10:00:00.000Z");
 const MIN = 60_000;
@@ -88,5 +88,52 @@ describe("the watch tells each change once", () => {
     w.beat({ program: "iris", at: at(4 * MIN) });
     w.beat({ program: "executor", at: at(9 * MIN) });
     expect(w.check(at(18 * MIN))).toBeNull();
+  });
+});
+
+// M2: the executor does not run on the real box — its silence is no outage,
+// and must not leave the sentinel stuck without a "back" message.
+describe("only the programs that should run (SENTINEL_PROGRAMS)", () => {
+  it.each([
+    [undefined, ["iris", "executor"]],
+    ["", ["iris", "executor"]],
+    ["iris", ["iris"]],
+    [" iris , executor ", ["iris", "executor"]],
+  ])("%j expects %j", (raw, programs) => {
+    expect(parsePrograms(raw)).toEqual(programs);
+  });
+
+  it.each([["iris,iris"], ["page"], ["iris,"], ["IRIS"], ["iris;executor"]])(
+    "refuses %j",
+    (raw) => {
+      expect(() => parsePrograms(raw)).toThrow(BeatError);
+    },
+  );
+
+  it("an empty list of programs is refused", () => {
+    expect(() => createWatch({ silenceMs: 10 * MIN, startedAt: NOW, programs: [] })).toThrow(
+      BeatError,
+    );
+  });
+
+  it("Iris alone: the executor's silence is no outage, Iris's is", () => {
+    const w = createWatch({ silenceMs: 10 * MIN, startedAt: NOW, programs: ["iris"] });
+    w.beat({ program: "iris", at: at(5 * MIN) });
+    expect(w.check(at(12 * MIN))).toBeNull();
+    expect(w.check(at(16 * MIN))).toMatch(/Plus de nouvelles de Iris depuis/);
+  });
+
+  it("Iris alone: the back message names Iris only, and does come", () => {
+    const w = createWatch({ silenceMs: 10 * MIN, startedAt: NOW, programs: ["iris"] });
+    expect(w.check(at(11 * MIN))).toMatch(/🚨/);
+    w.told();
+    w.beat({ program: "iris", at: at(12 * MIN) });
+    expect(w.check(at(12 * MIN))).toBe("✅ Le Mac répond de nouveau : Iris bat.");
+  });
+
+  it("a beat from a program not expected is ignored, and hides nothing", () => {
+    const w = createWatch({ silenceMs: 10 * MIN, startedAt: NOW, programs: ["iris"] });
+    w.beat({ program: "executor", at: at(15 * MIN) });
+    expect(w.check(at(15 * MIN))).toMatch(/Plus de nouvelles de Iris/);
   });
 });

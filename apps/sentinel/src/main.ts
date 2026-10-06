@@ -8,10 +8,11 @@
  *   SENTINEL_TELEGRAM_TOKEN  a bot of its own: the Mac's bot token never leaves the Mac
  *   SENTINEL_CHAT_ID         my chat only
  *   SENTINEL_SILENCE_MINUTES silence before the alert (default 10)
+ *   SENTINEL_PROGRAMS        the programs that should run (default iris,executor; iris in M2)
  */
 import { createServer } from "node:http";
 import { createHandler } from "./server.ts";
-import { createWatch } from "./watch.ts";
+import { createWatch, parsePrograms } from "./watch.ts";
 
 function required(name: string): string {
   const value = process.env[name] ?? "";
@@ -39,7 +40,8 @@ if (!Number.isInteger(silenceMinutes) || silenceMinutes < 2 || silenceMinutes > 
   throw new Error("SENTINEL_SILENCE_MINUTES must be from 2 to 120");
 }
 
-const watch = createWatch({ silenceMs: silenceMinutes * 60_000, startedAt: new Date() });
+const programs = parsePrograms(process.env.SENTINEL_PROGRAMS);
+const watch = createWatch({ silenceMs: silenceMinutes * 60_000, startedAt: new Date(), programs });
 
 async function tell(text: string): Promise<boolean> {
   try {
@@ -56,7 +58,7 @@ async function tell(text: string): Promise<boolean> {
 
 createServer(createHandler({ token, watch, now: () => new Date() })).listen(port, host, () => {
   console.log(
-    `Sentinelle à l'écoute sur ${host}:${port} — alerte après ${silenceMinutes} min de silence.`,
+    `Sentinelle à l'écoute sur ${host}:${port} — alerte après ${silenceMinutes} min de silence de : ${programs.join(", ")}.`,
   );
 });
 
