@@ -6,6 +6,7 @@ import { type CollectDeps, collectMail } from "./collect.ts";
 import type { FetchResult, MailRef, SentRef } from "./postman.ts";
 import { parseRules } from "./rules.ts";
 import { memoryJournal, memoryMailStore } from "./test-helpers.ts";
+import { oneFolder } from "./test-locations.ts";
 
 const K = (c: string) => c.repeat(64);
 const NOW = new Date("2026-10-01T08:00:00Z");
@@ -50,14 +51,14 @@ function setup(inbox: (afterUid: number) => MailRef[], sent: SentRef[] = [], val
     opposedKeys: new Set(),
     notBefore: null,
     clock: () => NOW,
-    fetchInbox: async (afterUid) => {
+    ...oneFolder(async (afterUid) => {
       asked.push(afterUid);
       return result(
         inbox(afterUid),
         validity(),
         inbox(0).map((r) => r.uid),
       );
-    },
+    }),
     fetchSent: async (afterUid) =>
       result(
         sent.filter((s) => s.uid > afterUid),
@@ -111,7 +112,7 @@ describe("collectMail", () => {
     expect(second.count).toBe(1);
   });
 
-  it("forgets a mailbox the server renumbered, and reads it again from the start", async () => {
+  it("a folder the server renumbered is read again from the start; its mails are found again, not forgotten (ADR-0016)", async () => {
     let validity = "1";
     const { deps, store, asked } = setup(
       (after) => [ref(1, "client.example"), ref(2, "x.example")].filter((r) => r.uid > after),
@@ -119,11 +120,15 @@ describe("collectMail", () => {
       () => validity,
     );
     await collectMail(deps);
+    const before = (await store.inbox()).map((i) => [i.uid, i.category]);
     validity = "2";
     const second = await collectMail(deps);
     expect(asked).toEqual([0, 2, 0]);
-    expect(second.purged).toBe(2);
-    expect((await store.inbox()).map((i) => i.uid)).toEqual([1, 2]);
+    expect(second.purged).toBe(0);
+    expect(second.count).toBe(0);
+    expect((await store.inbox()).map((i) => [i.uid, i.category])).toEqual(before);
+    const places = await deps.locations.all();
+    expect(places.map((l) => l.uidValidity)).toEqual(["2", "2"]);
   });
 
   it("flags mails from a [sans_suivi] domain, without storing the domain", async () => {
@@ -161,9 +166,9 @@ describe("collectMail", () => {
     await expect(
       collectMail({
         ...deps,
-        fetchInbox: async () => {
+        ...oneFolder(async () => {
           throw leak;
-        },
+        }),
       }),
     ).rejects.toBe(leak);
     expect(journal.events.map((e) => [e.type, e.payload])).toEqual([
@@ -234,7 +239,8 @@ describe("nothing from before the information notice (C4)", () => {
     );
     // Notice published on 30 September: from midnight, Paris time (22:00 UTC the day before).
     const summary = await collectMail({ ...deps, notBefore: new Date("2026-09-29T22:00:00.000Z") });
-    expect((await store.inbox()).map((i) => i.uid)).toEqual([2]);
+    // Iris's own ids (ADR-0016): which mail was kept is told by its arrival time.
+    expect((await store.inbox()).map((i) => i.receivedAt)).toEqual(["2026-09-29T22:00:00.000Z"]);
     expect((await store.sent()).map((s) => s.uid)).toEqual([2]);
     expect(summary.count).toBe(1);
   });

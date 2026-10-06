@@ -10,10 +10,11 @@ import { refuseForeignSecrets } from "@cenacle/core";
 import {
   connectAsApp,
   createJournal,
+  createLocationStore,
   createMailStore,
   createProposalStore,
 } from "@cenacle/journal";
-import { loadCadre, mailPassword } from "@cenacle/mail";
+import { keyerFromEnv, loadCadre, mailPassword } from "@cenacle/mail";
 import { draftDueFollowUps } from "./draft-due.ts";
 import { draftingDeps } from "./drafting.ts";
 
@@ -36,6 +37,8 @@ try {
       store: createProposalStore(sql),
       cadre: loadCadre().mail,
       password: mailPassword(loadCadre()),
+      keyer: keyerFromEnv(),
+      locations: createLocationStore(sql),
     }),
   );
   if (r.lapsed > 0) {

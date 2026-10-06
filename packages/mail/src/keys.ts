@@ -25,6 +25,8 @@ export interface Keyer {
   address(address: string): string;
   /** Key of a Message-ID, without its angle brackets. */
   messageId(id: string): string;
+  /** Key of a folder path: folder names may name clients, so they are never stored. */
+  folder(path: string): string;
 }
 
 export function createKeyer(secretHex: string): Keyer {
@@ -38,6 +40,7 @@ export function createKeyer(secretHex: string): Keyer {
   return {
     address: (address) => key("address", address.toLowerCase()),
     messageId: (id) => key("message-id", id),
+    folder: (path) => key("folder", path),
   };
 }
 

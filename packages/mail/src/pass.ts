@@ -1,21 +1,24 @@
 /**
- * One full pass of Iris on the mail: collect what is new (inbox and Sent,
- * read-only), sort it by rules, then by the local model for the rest, and
+ * One full pass of Iris on the mail: collect what is new (every folder Iris
+ * reads — ADR-0016 — and Sent, read-only), sort it by rules, then by the local model for the rest, and
  * publish the totals. Shared by `npm run mail:sort` and Iris's own rhythm.
  */
 import { type LocalModels, type ModelSort, sortByModel } from "@cenacle/brain";
-import type { Journal, MailStore } from "@cenacle/journal";
+import type { Journal, LocationStore, MailStore } from "@cenacle/journal";
 import type { MailCadre } from "./cadre.ts";
 import { type CollectSummary, collectMail, mailTotals } from "./collect.ts";
 import { keptFromModel } from "./floor.ts";
+import { listFolders } from "./folders.ts";
 import type { Keyer } from "./keys.ts";
+import { createLocator, readMailsForModelAt } from "./located.ts";
 import { fetchMailRefs, fetchSentRefs } from "./postman.ts";
-import { readMailsForModel } from "./reader.ts";
 import type { Rules } from "./rules.ts";
 
 export interface PassDeps {
   readonly journal: Journal;
   readonly store: MailStore;
+  /** Where each remembered mail is, and how far each folder was read (ADR-0016). */
+  readonly locations: LocationStore;
   readonly keyer: Keyer;
   readonly cadre: MailCadre;
   /** How long a mail is remembered, in days ([conservation] of cadre.toml). */
@@ -39,7 +42,16 @@ export interface PassResult {
 }
 
 export async function runMailPass(deps: PassDeps): Promise<PassResult> {
-  const { journal, store, keyer, cadre, password, local, clock = () => new Date() } = deps;
+  const {
+    journal,
+    store,
+    locations,
+    keyer,
+    cadre,
+    password,
+    local,
+    clock = () => new Date(),
+  } = deps;
   const collected = await collectMail({
     journal,
     store,
@@ -49,12 +61,16 @@ export async function runMailPass(deps: PassDeps): Promise<PassResult> {
     notBefore: deps.notBefore,
     noFollowUp: deps.noFollowUp,
     clock,
-    fetchInbox: (afterUid) => fetchMailRefs(cadre, password, keyer, { afterUid }),
+    folders: () => listFolders(cadre, password, keyer),
+    fetchFolder: (path, afterUid) =>
+      fetchMailRefs({ ...cadre, mailbox: path }, password, keyer, { afterUid }),
+    locations,
     fetchSent: (afterUid) => fetchSentRefs(cadre, password, keyer, { afterUid }),
   });
   if (local === null || collected.uncategorized.length === 0) return { collected, model: null };
 
-  const read = await readMailsForModel(cadre, password, collected.uncategorized);
+  const locator = createLocator({ cadre, password, keyer, locations });
+  const read = await readMailsForModelAt(locator, cadre, password, collected.uncategorized);
   // C2: the article 9 floor (and empty or unreadable mails) — never given to the
   // model, put in "À trier" for me, with one mark that does not say why.
   const setAside = read.filter(keptFromModel);

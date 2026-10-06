@@ -105,6 +105,8 @@ describe("drafting on a read-only mailbox", () => {
         store: untouched,
         cadre,
         password: "pw",
+        keyer: untouched,
+        locations: untouched,
       }),
     ).toThrow(ReadOnlyMailboxError);
   });

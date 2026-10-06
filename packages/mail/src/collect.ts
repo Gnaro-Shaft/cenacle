@@ -1,13 +1,23 @@
 /**
  * One collection pass by Iris: journaled, remembered, visible on her box.
  *
- * Each pass reads only what is new since the last one (inbox and Sent),
+ * Each pass reads only what is new since the last one (every folder Iris
+ * reads — ADR-0016 — and Sent),
  * remembers it (keys only), sorts the new mails the rules know, and applies
  * the retention period of cadre.toml ([conservation], memoire_jours). The journal gets facts, not content (charter): counts
  * and durations — never a UID, a domain or a key.
  */
 import { countFollowUps } from "@cenacle/core";
-import type { Journal, Mailbox, MailStore, Totals } from "@cenacle/journal";
+import {
+  type Journal,
+  type LocationStore,
+  type Mailbox,
+  type MailStore,
+  type Totals,
+  VIRTUAL_UID_VALIDITY,
+} from "@cenacle/journal";
+import { locKey, placeRefs, readFolders } from "./collect-folders.ts";
+import type { Folder } from "./folders.ts";
 import type { FetchResult, MailRef, SentRef } from "./postman.ts";
 import { type RuleSort, type Rules, sortByRules } from "./rules.ts";
 import { AUTH_VERDICTS, type AuthVerdict, hasTrustedHeader } from "./sender-auth.ts";
@@ -33,7 +43,10 @@ export interface CollectSummary {
 export interface CollectDeps {
   readonly journal: Journal;
   readonly store: MailStore;
-  readonly fetchInbox: (afterUid: number) => Promise<FetchResult<MailRef>>;
+  /** The folders Iris reads (folders.ts), and where each remembered mail is. */
+  readonly folders: () => Promise<readonly Folder[]>;
+  readonly fetchFolder: (path: string, afterUid: number) => Promise<FetchResult<MailRef>>;
+  readonly locations: LocationStore;
   readonly fetchSent: (afterUid: number) => Promise<FetchResult<SentRef>>;
   readonly rules: Rules;
   /** How long a mail is remembered after its arrival, in days (cadre.toml). */
@@ -95,21 +108,37 @@ export async function collectMail(deps: CollectDeps): Promise<CollectSummary> {
   await journal.append({ agent: AGENT, type: "state.changed", payload: { to: "reading" } });
   const started = now();
   try {
-    const inbox = await readNew(store, "inbox", deps.fetchInbox);
+    // Once: received mails remembered under a server's numbering (before ADR-0016) are
+    // forgotten and read again under Iris's own ids.
+    const before = await store.position("inbox");
+    const reset =
+      before !== null && before.uidValidity !== VIRTUAL_UID_VALIDITY
+        ? await store.forget("inbox")
+        : 0;
+    // A location saved by a pass that failed before its mail: dropped, the mail is read again.
+    await deps.locations.keepOnly((await store.inbox()).map((m) => m.uid));
+    const read = await readFolders(await deps.folders(), deps.locations, deps.fetchFolder);
     const sent = await readNew(store, "sent", deps.fetchSent);
     // C3: an opposed person's mails are not remembered, sorted nor read; in my
     // sent mails, only their key is left out (the other recipients stay).
     const opposed = deps.opposedKeys;
     // C4: nothing from before the information notice; null for the fictional box.
     const since = deps.notBefore?.getTime() ?? Number.NEGATIVE_INFINITY;
-    const inboxRefs = inbox.result.refs.filter(
+    const kept = read.refs.filter(
       (r) =>
         (r.senderKey === null || !opposed.has(r.senderKey)) && Date.parse(r.receivedAt) >= since,
     );
+    // A moved mail keeps its id and all Iris knows of it; only new ones get an id.
+    const placed = await placeRefs(kept, read.present, deps.locations, store);
+    const inboxRefs: MailRef[] = [];
+    for (const ref of placed.fresh) {
+      const { location, ...rest } = ref;
+      inboxRefs.push({ ...rest, uid: await deps.locations.add(location, ref.messageKey) });
+    }
     const sentRefs = sent.result.refs.filter((r) => Date.parse(r.sentAt) >= since);
     // Mapped field by field: the domain is used for sorting below, never stored.
     const added = await store.saveInbox(
-      inbox.result.uidValidity,
+      VIRTUAL_UID_VALIDITY,
       inboxRefs.map(
         ({ uid, domain, receivedAt, urgentTerm, auth, senderKey, messageKey, threadKeys }) => ({
           uid,
@@ -139,7 +168,10 @@ export async function collectMail(deps: CollectDeps): Promise<CollectSummary> {
       payload: {
         count: added,
         sent: sentAdded,
-        truncated: inbox.result.truncated || sent.result.truncated,
+        moved: placed.moved,
+        copies: placed.copies,
+        folders: read.cursors.length,
+        truncated: read.truncated || sent.result.truncated,
         durationMs: Math.round(now() - started),
       },
     });
@@ -161,12 +193,20 @@ export async function collectMail(deps: CollectDeps): Promise<CollectSummary> {
       });
     }
 
-    // Deleted or moved on the server: forgotten here too (no reminder for a mail that is gone).
+    // Deleted on the server, or moved to a folder Iris does not read: forgotten here too.
+    const stillThere = (await deps.locations.all())
+      .filter((l) => read.present.has(locKey(l)))
+      .map((l) => l.id);
     const gone =
-      (await store.keepOnly("inbox", inbox.result.present)) +
+      (await store.keepOnly("inbox", stillThere)) +
       (await store.keepOnly("sent", sent.result.present));
+    await deps.locations.keepOnly(stillThere);
+    // Only now, with the mails saved: the next pass starts after them.
+    for (const { folderKey, cursor } of read.cursors)
+      await deps.locations.setCursor(folderKey, cursor);
+    await deps.locations.keepCursors(read.cursors.map((c) => c.folderKey));
     const cutoff = new Date(clock().getTime() - deps.retentionDays * DAY_MS);
-    const purged = (await store.purgeBefore(cutoff)) + inbox.forgotten + sent.forgotten + gone;
+    const purged = (await store.purgeBefore(cutoff)) + reset + sent.forgotten + gone;
     await journal.append({
       agent: AGENT,
       type: "mail.totals",
@@ -176,8 +216,8 @@ export async function collectMail(deps: CollectDeps): Promise<CollectSummary> {
     return {
       count: added,
       sentCount: sentAdded,
-      truncated: inbox.result.truncated || sent.result.truncated,
-      unseen: inbox.result.unseen,
+      truncated: read.truncated || sent.result.truncated,
+      unseen: read.unseen,
       durationMs: Math.round(now() - started),
       ruleSort,
       uncategorized: await store.uncategorized(),

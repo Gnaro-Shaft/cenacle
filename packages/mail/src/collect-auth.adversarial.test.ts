@@ -8,6 +8,7 @@ import type { FetchResult, MailRef } from "./postman.ts";
 import { parseRules } from "./rules.ts";
 import type { AuthVerdict } from "./sender-auth.ts";
 import { memoryJournal, memoryMailStore } from "./test-helpers.ts";
+import { oneFolder } from "./test-locations.ts";
 
 const K = (c: string) => c.repeat(64);
 const NOW = new Date("2026-10-01T08:00:00Z");
@@ -46,13 +47,14 @@ function setup(passes: MailRef[][]) {
     opposedKeys: new Set(),
     notBefore: null,
     clock: () => NOW,
-    fetchInbox: async (afterUid) =>
+    ...oneFolder(async (afterUid) =>
       result(
         passes
           .slice(0, ++pass)
           .flat()
           .filter((r) => r.uid > afterUid),
       ),
+    ),
     fetchSent: async () => result([]),
   };
   return { journal, store, deps };

@@ -8,6 +8,7 @@ import { heartbeatFromEnv, refuseForeignSecrets } from "@cenacle/core";
 import {
   connectAsApp,
   createJournal,
+  createLocationStore,
   createMailStore,
   createPeople,
   createProposalStore,
@@ -39,6 +40,7 @@ const telegram = createTelegramApi(process.env.TELEGRAM_BOT_TOKEN ?? "");
 const sql = connectAsApp();
 const journal = createJournal(sql);
 const store = createMailStore(sql);
+const locations = createLocationStore(sql);
 const keyer = keyerFromEnv();
 const cadre = loadCadre();
 const { mail, conservation } = cadre;
@@ -56,6 +58,8 @@ const drafting = !mail.drafts
       store: proposalStore,
       cadre: mail,
       password,
+      keyer,
+      locations,
     });
 const startedAt = new Date();
 // S2: the sentinel hears Iris every minute; its silence is the alert.
@@ -90,6 +94,7 @@ while (!stopping) {
         await runMailPass({
           journal,
           store,
+          locations,
           keyer,
           cadre: mail,
           retentionDays: conservation.memoireJours,

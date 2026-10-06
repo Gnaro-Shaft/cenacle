@@ -8,16 +8,19 @@ import { privateKeyFromEnv, refuseForeignSecrets } from "@cenacle/core";
 import {
   connectAsApp,
   createJournal,
+  createLocationStore,
   createMailStore,
   createProposalStore,
 } from "@cenacle/journal";
 import {
+  createLocator,
   createProposals,
+  keyerFromEnv,
   loadCadre,
   loadTrames,
   mailPassword,
-  readMailsForModel,
-  readReplyTargets,
+  readMailsForModelAt,
+  readReplyTargetsAt,
   signProposal,
 } from "@cenacle/mail";
 import { serve } from "@hono/node-server";
@@ -35,6 +38,12 @@ const mails = createMailStore(sql);
 const cadre = loadCadre();
 const { mail } = cadre;
 const password = mailPassword(cadre);
+const locator = createLocator({
+  cadre: mail,
+  password,
+  keyer: keyerFromEnv(),
+  locations: createLocationStore(sql),
+});
 refuseForeignSecrets("The page's server", ["mail", "page"]);
 const token = newToken();
 const acceptKey = privateKeyFromEnv();
@@ -46,8 +55,9 @@ const app = createApp({
     store,
     proposals: createProposals(store, journal),
     uidValidity: async () => (await mails.position("inbox"))?.uidValidity ?? null,
-    readMails: (uids, v) => readMailsForModel(mail, password, uids, v),
-    readTargets: (uids, v) => readReplyTargets(mail, password, uids, v),
+    // ADR-0016: each mail is read where it is now.
+    readMails: (uids, v) => readMailsForModelAt(locator, mail, password, uids, v),
+    readTargets: (uids, v) => readReplyTargetsAt(locator, mail, password, uids, v),
     trames: loadTrames(),
     now: () => new Date(),
     sign: (p, now) => signProposal(acceptKey, p, now),
