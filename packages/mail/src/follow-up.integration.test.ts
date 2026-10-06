@@ -12,6 +12,7 @@ import { createKeyer } from "./keys.ts";
 import { fetchMailRefs, fetchSentRefs } from "./postman.ts";
 import { EXAMPLE_RULES_PATH, loadRules } from "./rules.ts";
 import { memoryJournal, memoryMailStore } from "./test-helpers.ts";
+import { oneFolder } from "./test-locations.ts";
 import { loadFixtures, testMailboxConfigFromEnv } from "./test-mailbox.ts";
 
 // .env, and the mailbox secrets of .env.mail (S1).
@@ -48,7 +49,7 @@ describe("follow-up on the test mailbox (GreenMail)", () => {
       opposedKeys: new Set(),
       notBefore: null,
       clock: () => new Date(box.followUp.now),
-      fetchInbox: (afterUid) => fetchMailRefs(mail, password, keyer, { afterUid }),
+      ...oneFolder((afterUid) => fetchMailRefs(mail, password, keyer, { afterUid })),
       fetchSent: (afterUid) => fetchSentRefs(mail, password, keyer, { afterUid }),
     });
     // Mails were appended in fixture order: the n-th remembered UID is the n-th fixture.

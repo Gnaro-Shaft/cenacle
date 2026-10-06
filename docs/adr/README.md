@@ -20,5 +20,6 @@ Elles sont rédigées en français (le code et le README sont en anglais).
 | [0013](0013-qui-accepte.md) | Seule la page peut accepter : acceptation signée, états clos définitifs | Acceptée |
 | [0014](0014-authentification-expediteur.md) | Un « client » doit être authentifié par notre propre serveur | Acceptée |
 | [0015](0015-ouverture-de-la-vraie-boite.md) | Ouvrir la vraie boîte aux brouillons et aux envois, en deux crans datés | Acceptée |
+| [0016](0016-tous-les-dossiers.md) | Iris lit tous les dossiers de la boîte, et suit un mail déplacé | Acceptée |
 
 Les règles dures qui s'appliquent à tout le code sont dans [`../charte.md`](../charte.md).

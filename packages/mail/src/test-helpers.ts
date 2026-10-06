@@ -316,3 +316,4 @@ export async function signedNow(
   if (p === null) throw new ProposalError(`proposal ${id} does not exist`);
   return keys.signed(p, now);
 }
+export { INBOX_KEY, memoryLocationStore, oneFolder } from "./test-locations.ts";

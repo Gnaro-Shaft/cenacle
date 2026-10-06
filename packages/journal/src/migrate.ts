@@ -82,6 +82,11 @@ export async function migrate({
     // the app still cannot alter the table's structure.
     await sql.unsafe(`REVOKE ALL ON mail_items FROM ${APP_ROLE}`);
     await sql.unsafe(`GRANT SELECT, INSERT, UPDATE, DELETE ON mail_items TO ${APP_ROLE}`);
+    // Where each remembered mail is, and how far each folder was read (ADR-0016).
+    await sql.unsafe(`REVOKE ALL ON mail_folders, mail_locations FROM ${APP_ROLE}`);
+    await sql.unsafe(
+      `GRANT SELECT, INSERT, UPDATE, DELETE ON mail_folders, mail_locations TO ${APP_ROLE}`,
+    );
     // Proposals are never deleted (their history matters); only their text is wiped.
     await sql.unsafe(`REVOKE ALL ON proposals FROM ${APP_ROLE}`);
     await sql.unsafe(`GRANT SELECT, INSERT, UPDATE ON proposals TO ${APP_ROLE}`);
@@ -99,9 +104,11 @@ export async function migrate({
     await loginRole(sql, EXECUTOR_ROLE, executorPassword, EXECUTOR_PASSWORD_VAR);
     await sql.unsafe(`GRANT CONNECT ON DATABASE "${db.name}" TO ${EXECUTOR_ROLE}`);
     await sql.unsafe(`GRANT USAGE ON SCHEMA public TO ${EXECUTOR_ROLE}`);
-    await sql.unsafe(`REVOKE ALL ON events, mail_items, proposals FROM ${EXECUTOR_ROLE}`);
+    await sql.unsafe(
+      `REVOKE ALL ON events, mail_items, proposals, mail_folders, mail_locations FROM ${EXECUTOR_ROLE}`,
+    );
     await sql.unsafe(`GRANT INSERT, SELECT ON events TO ${EXECUTOR_ROLE}`);
-    await sql.unsafe(`GRANT SELECT ON mail_items TO ${EXECUTOR_ROLE}`);
+    await sql.unsafe(`GRANT SELECT ON mail_items, mail_locations TO ${EXECUTOR_ROLE}`);
     await sql.unsafe(`GRANT SELECT, UPDATE ON proposals TO ${EXECUTOR_ROLE}`);
   } finally {
     await sql.end();

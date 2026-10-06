@@ -6,7 +6,13 @@
  */
 import { createLocalModels, localModelConfigFromEnv } from "@cenacle/brain";
 import { countConversations } from "@cenacle/core";
-import { connectAsApp, createJournal, createMailStore, createPeople } from "@cenacle/journal";
+import {
+  connectAsApp,
+  createJournal,
+  createLocationStore,
+  createMailStore,
+  createPeople,
+} from "@cenacle/journal";
 import {
   keyerFromEnv,
   loadCadre,
@@ -30,6 +36,7 @@ try {
   const { collected: summary, model } = await runMailPass({
     journal: createJournal(sql),
     store,
+    locations: createLocationStore(sql),
     keyer: keyerFromEnv(),
     cadre: mail,
     retentionDays: conservation.memoireJours,

@@ -9,6 +9,7 @@ import { dayStart, heartbeatFromEnv, publicKeyFromEnv, refuseForeignSecrets } fr
 import {
   connectAsExecutor,
   createJournal,
+  createLocationStore,
   createMailStore,
   createProposalStore,
   readAllEvents,
@@ -16,6 +17,7 @@ import {
 import {
   buildReply,
   copyToSent,
+  createLocator,
   createProposals,
   fetchSentRefs,
   isAcceptedByPage,
@@ -23,7 +25,7 @@ import {
   loadCadre,
   mailPassword,
   ReadOnlyMailboxError,
-  readReplyContexts,
+  readReplyContextsAt,
   senderAuthFor,
   sendReply,
   storedVerdict,
@@ -43,11 +45,14 @@ const sql = connectAsExecutor();
 const journal = createJournal(sql);
 const store = createProposalStore(sql);
 const mails = createMailStore(sql);
+// ADR-0016: where each remembered mail is now (read only: the executor moves nothing).
+const locations = createLocationStore(sql);
 const keyer = keyerFromEnv();
 const { mail: cadre } = loadCadre();
 const password = mailPassword(loadCadre());
 // M3: on a real box, a sender must be authenticated before a send (ADR-0014's verdict, kept with the mail).
 const senderAuth = senderAuthFor(cadre, storedVerdict(mails));
+const locator = createLocator({ cadre, password, keyer, locations });
 const startedAt = new Date();
 // S2: the sentinel hears the executor once a minute at most.
 const sentinel = heartbeatFromEnv("executor");
@@ -109,7 +114,9 @@ while (!stopping) {
         ...(await fetchSentRefs(cadre, password, keyer)).refs,
       ],
       context: async (p) =>
-        (await readReplyContexts(cadre, password, [p.mailUid], p.mailUidValidity)).get(p.mailUid),
+        (await readReplyContextsAt(locator, cadre, password, [p.mailUid], p.mailUidValidity)).get(
+          p.mailUid,
+        ),
       build: (context, text, date) => buildReply(cadre.address, context, text, date, cadre),
       send: (reply) => sendReply(cadre, password, reply),
       copy: (reply) => copyToSent(cadre, password, reply.raw),

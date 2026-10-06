@@ -3,8 +3,15 @@
  * its subject, sender and display name read again from the server — read-only
  * (EXAMINE, unread count checked: reply-target.ts), in memory, never stored.
  */
-import { createMailStore, type StoredInboxItem } from "@cenacle/journal";
-import { type Cadre, loadCadre, mailPassword, readReplyContexts } from "@cenacle/mail";
+import { createLocationStore, createMailStore, type StoredInboxItem } from "@cenacle/journal";
+import {
+  type Cadre,
+  createLocator,
+  keyerFromEnv,
+  loadCadre,
+  mailPassword,
+  readReplyContextsAt,
+} from "@cenacle/mail";
 
 /** UIDs per IMAP fetch: a long UID list is a long command line. */
 const CHUNK = 200;
@@ -30,11 +37,19 @@ export async function readBack(sql: Parameters<typeof createMailStore>[0]): Prom
   if (position === null) return { cadre, mails: [], gone: 0 };
   const items = (await store.inbox()).sort((a, b) => a.receivedAt.localeCompare(b.receivedAt));
   const mailPass = mailPassword(cadre);
+  const locator = createLocator({
+    cadre: cadre.mail,
+    password: mailPass,
+    keyer: keyerFromEnv(),
+    locations: createLocationStore(sql),
+  });
   const mails: ReadBack[] = [];
   let gone = 0;
   for (let i = 0; i < items.length; i += CHUNK) {
     const chunk = items.slice(i, i + CHUNK);
-    const contexts = await readReplyContexts(
+    // ADR-0016: each mail is read where it is now, whatever folder I filed it in.
+    const contexts = await readReplyContextsAt(
+      locator,
       cadre.mail,
       mailPass,
       chunk.map((m) => m.uid),

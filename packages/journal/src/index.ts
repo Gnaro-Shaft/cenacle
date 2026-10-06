@@ -11,6 +11,14 @@ export {
   type StoredEvent,
 } from "./journal.ts";
 export {
+  createLocationStore,
+  type FolderCursor,
+  type LocatedMail,
+  type Location,
+  type LocationStore,
+  VIRTUAL_UID_VALIDITY,
+} from "./mail-locations.ts";
+export {
   CATEGORY_VALUES,
   createMailStore,
   type DecidedBy,

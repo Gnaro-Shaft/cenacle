@@ -47,8 +47,16 @@ export {
   type VerdictMemory,
 } from "./draft-auth.ts";
 export { keptFromModel } from "./floor.ts";
+export { type Folder, listFolders, readableFolders, SKIPPED_FOLDERS } from "./folders.ts";
 export { headersSince } from "./header-scan.ts";
 export { createKeyer, KeyError, type Keyer, keyerFromEnv, messageIds } from "./keys.ts";
+export {
+  createLocator,
+  type MailLocator,
+  readMailsForModelAt,
+  readReplyContextsAt,
+  readReplyTargetsAt,
+} from "./located.ts";
 export { cleanForModel, htmlToText, toMailForModel } from "./mail-text.ts";
 export {
   type Decider,
