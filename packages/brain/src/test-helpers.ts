@@ -32,6 +32,8 @@ export interface FakeModelServer {
 /** Answers every chat completion with `reply` (or `reply(requestBody)`), streamed in two chunks. */
 export async function fakeModelServer(
   replyWith: string | ((body: string) => string),
+  /** Why the model stopped: "length" plays an answer cut at the token cap. */
+  finish = "stop",
 ): Promise<FakeModelServer> {
   const requests: string[] = [];
   const server: Server = createServer((req, res) => {
@@ -49,7 +51,7 @@ export async function fakeModelServer(
         );
       const half = Math.ceil(reply.length / 2);
       send({ role: "assistant", content: reply.slice(0, half) }, null);
-      send({ content: reply.slice(half) }, "stop");
+      send({ content: reply.slice(half) }, finish);
       res.end("data: [DONE]\n\n");
     });
   });
