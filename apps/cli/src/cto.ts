@@ -15,7 +15,13 @@ import {
   ModelUnavailableError,
 } from "@cenacle/brain";
 import { refuseForeignSecrets } from "@cenacle/core";
-import { ctoSystemPrompt, loadProjectContext } from "@cenacle/cto";
+import {
+  answerVerified,
+  buildRepoIndex,
+  checkSummary,
+  ctoSystemPrompt,
+  loadProjectContext,
+} from "@cenacle/cto";
 import { connectAsApp, createJournal } from "@cenacle/journal";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
@@ -34,25 +40,49 @@ try {
       context.skipped.length > 0 ? `, ${context.skipped.length} écartés` : ""
     } — le CTO réfléchit…\n`,
   );
-  const answer = await askAgent({
-    agent: "cto",
-    systemPrompt: ctoSystemPrompt("Cénacle", context),
+  const journal = createJournal(sql);
+  const system = ctoSystemPrompt("Cénacle", context);
+  // 120 k characters of documentation are ~35 k tokens: a window far above
+  // Iris's, within what LM Studio loads for the shared model (208 k).
+  const local = createLocalModels({
+    ...localModelConfigFromEnv(),
+    contextWindow: 131_072,
+    maxTokens: 4096,
+  });
+  const started = Date.now();
+  // Checked before shown (ADR-0017): every ADR, file, command and name the answer
+  // cites is looked up in the repository; what cannot be found goes back once.
+  const answer = await answerVerified(
     question,
-    // The question may name someone: local model only (ADR-0003).
-    dataClass: "personal",
-    journal: createJournal(sql),
-    // 120 k characters of documentation are ~35 k tokens: a window far above
-    // Iris's, within what LM Studio loads for the shared model (208 k).
-    local: createLocalModels({
-      ...localModelConfigFromEnv(),
-      contextWindow: 131_072,
-      maxTokens: 4096,
-    }),
-    timeoutMs: 300_000,
+    async (prompt) =>
+      (
+        await askAgent({
+          agent: "cto",
+          systemPrompt: system,
+          question: prompt,
+          // The question may name someone: local model only (ADR-0003).
+          dataClass: "personal",
+          journal,
+          local,
+          timeoutMs: 300_000,
+        })
+      ).text,
+    buildRepoIndex(ROOT),
+  );
+  await journal.append({
+    agent: "cto",
+    type: "cto.verified",
+    payload: {
+      claims: answer.checked.length,
+      notFound: answer.checked.filter((c) => !c.found).length,
+      revised: answer.revised,
+      notFoundFirst: answer.unverifiedFirst.length,
+    },
   });
   console.log(answer.text);
+  console.log(`\n${checkSummary(answer)}`);
   console.log(
-    `\n— ${Math.round(answer.durationMs / 1000)} s, modèle local. Un avis à vérifier, pas un fait établi.`,
+    `— ${Math.round((Date.now() - started) / 1000)} s, modèle local. Un avis à vérifier, pas un fait établi.`,
   );
 } catch (error) {
   if (error instanceof ModelUnavailableError) {
