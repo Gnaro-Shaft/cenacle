@@ -34,6 +34,8 @@ export interface IrisAnswer {
   readonly outputTokens: number;
   /** Hidden reasoning tokens, when the server reports them. */
   readonly reasoningTokens: number | null;
+  /** The answer hit the token cap: it is cut, and must be shown as such. */
+  readonly cut: boolean;
 }
 
 export interface AskOptions {
@@ -46,6 +48,11 @@ export interface AskOptions {
   readonly journal: Journal;
   readonly local: LocalModels;
   readonly timeoutMs?: number;
+  /**
+   * Told as the answer is written, with how many characters so far — never the
+   * text: a long wait shows progress instead of looking like a crash.
+   */
+  readonly onProgress?: (writtenChars: number) => void;
 }
 
 const AGENT_NAME = /^[a-z][a-z0-9_-]{0,31}$/;
@@ -124,11 +131,27 @@ async function askIrisTraced(options: AskOptions, span: Span): Promise<IrisAnswe
     },
     streamFn: local.models.streamSimple.bind(local.models),
   });
+  let written = 0;
+  const { onProgress } = options;
+  const unsubscribe =
+    onProgress === undefined
+      ? () => {}
+      : agent.subscribe((event) => {
+          if (event.type !== "message_update") return;
+          if (event.assistantMessageEvent.type !== "text_delta") return;
+          written += event.assistantMessageEvent.delta.length;
+          try {
+            onProgress(written);
+          } catch {
+            // Progress is display only: a failing display never costs the answer.
+          }
+        });
   const timer = setTimeout(() => agent.abort(), options.timeoutMs ?? 120_000);
   try {
     await agent.prompt(options.question);
   } finally {
     clearTimeout(timer);
+    unsubscribe();
   }
 
   const last = agent.state.messages.at(-1);
@@ -170,6 +193,7 @@ async function askIrisTraced(options: AskOptions, span: Span): Promise<IrisAnswe
     durationMs: Date.now() - started,
     outputTokens: answer.usage.output,
     reasoningTokens: answer.usage.reasoning ?? null,
+    cut: answer.stopReason === "length",
   };
   await journal.append({
     agent: AGENT,

@@ -150,6 +150,8 @@ describe("answerVerified", () => {
     expect(asked[1]).toContain("ADR-0099");
     expect(asked[1]).toContain("selfHealingRebuild");
     expect(asked[1]).not.toContain("- ADR-0016");
+    // The rewrite answers the person, not the check: no apology, no list of what was removed.
+    expect(asked[1]).toMatch(/pas de la personne.*sans nommer les éléments retirés/);
     expect(a).toMatchObject({ text: "Voir ADR-0016 seulement.", revised: true });
     expect(checkSummary(a)).toBe(
       "✔ 1 référence vérifiée dans le dépôt · premier jet corrigé (2 éléments introuvables)",

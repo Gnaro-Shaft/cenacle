@@ -35,6 +35,7 @@ export function revisionRequest(
     "",
     "Réécris ta réponse complète : retire ces éléments, ou marque-les explicitement « (non vérifié) ».",
     "Ne cite que ce que la documentation contient. N'ajoute aucun nouvel élément que tu ne peux pas sourcer.",
+    "Cette demande vient de la vérification automatique, pas de la personne : rends seulement ta réponse finale, comme si c'était la première, sans parler de cette vérification, sans t'excuser, et sans nommer les éléments retirés.",
     "",
     "PREMIER JET :",
     draft,

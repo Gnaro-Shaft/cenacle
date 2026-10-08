@@ -90,4 +90,55 @@ describe("an empty answer is a failure, never a silent success", () => {
     expect([iris.model.contextWindow, iris.model.maxTokens]).toEqual([32768, 2048]);
     expect([cto.model.contextWindow, cto.model.maxTokens]).toEqual([131_072, 4096]);
   });
+
+  it("progress: growing character counts, never the text, ending at the full answer", async () => {
+    const reply = "Réponse longue et confidentielle du CTO.";
+    server = await fakeModelServer(reply);
+    const local = createLocalModels({ baseUrl: server.baseUrl, modelId: "test-model" });
+    const told: unknown[] = [];
+    const answer = await askAgent({
+      agent: "cto",
+      question: "x",
+      dataClass: "personal",
+      journal: memoryJournal(),
+      local,
+      onProgress: (chars) => told.push(chars),
+    });
+    expect(told.length).toBeGreaterThanOrEqual(2);
+    expect(told.every((c) => typeof c === "number")).toBe(true);
+    expect(told).toEqual([...(told as number[])].sort((a, b) => a - b));
+    expect(told.at(-1)).toBe(reply.length);
+    expect(answer).toMatchObject({ text: reply, cut: false });
+  });
+
+  it("a failing progress display never costs the answer", async () => {
+    server = await fakeModelServer("ok");
+    const local = createLocalModels({ baseUrl: server.baseUrl, modelId: "test-model" });
+    const journal = memoryJournal();
+    const answer = await askAgent({
+      agent: "cto",
+      question: "x",
+      dataClass: "personal",
+      journal,
+      local,
+      onProgress: () => {
+        throw new Error("terminal gone");
+      },
+    });
+    expect(answer.text).toBe("ok");
+    expect(projectStatus("cto", journal.events).view.visual).toBe("resting");
+  });
+
+  it("an answer cut at the token cap says so: never shown as complete", async () => {
+    server = await fakeModelServer("Début de réponse", "length");
+    const local = createLocalModels({ baseUrl: server.baseUrl, modelId: "test-model" });
+    const answer = await askAgent({
+      agent: "cto",
+      question: "x",
+      dataClass: "personal",
+      journal: memoryJournal(),
+      local,
+    });
+    expect(answer).toMatchObject({ text: "Début de réponse", cut: true });
+  });
 });
