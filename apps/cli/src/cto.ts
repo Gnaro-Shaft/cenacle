@@ -68,6 +68,10 @@ try {
         })
       ).text,
     buildRepoIndex(ROOT),
+    (missing) =>
+      console.log(
+        `🔎 Premier jet : ${missing.length} référence${missing.length > 1 ? "s" : ""} introuvable${missing.length > 1 ? "s" : ""} dans le dépôt — le CTO corrige sa réponse (encore quelques minutes)…`,
+      ),
   );
   await journal.append({
     agent: "cto",

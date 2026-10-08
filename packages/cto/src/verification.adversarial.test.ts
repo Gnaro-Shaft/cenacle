@@ -112,11 +112,17 @@ describe("checked in the repository", () => {
 describe("answerVerified", () => {
   it("nothing invented: one draft, shown as is, with its check", async () => {
     const asked: string[] = [];
+    let told = 0;
     const a = await answerVerified(
       "Q ?",
-      async (p) => (asked.push(p), "Voir ADR-0016 et `collectMail()`."),
+      async (p) => {
+        asked.push(p);
+        return "Voir ADR-0016 et `collectMail()`.";
+      },
       index,
+      () => told++,
     );
+    expect(told).toBe(0);
     expect(asked).toEqual(["Q ?"]);
     expect(a.revised).toBe(false);
     expect(checkSummary(a)).toBe("✔ 2 références vérifiées dans le dépôt");
@@ -124,15 +130,22 @@ describe("answerVerified", () => {
 
   it("an invented reference: sent back once with the list, the rewrite is checked again", async () => {
     const asked: string[] = [];
+    const told: number[] = [];
     const replies = [
       "Voir ADR-0099 et `selfHealingRebuild()`, et ADR-0016.",
       "Voir ADR-0016 seulement.",
     ];
     const a = await answerVerified(
       "Q ?",
-      async (p) => (asked.push(p), replies.shift() ?? ""),
+      async (p) => {
+        asked.push(p);
+        return replies.shift() ?? "";
+      },
       index,
+      (missing) => told.push(asked.length, missing.length),
     );
+    // Told once, after the draft and before the rewrite, with the count only.
+    expect(told).toEqual([1, 2]);
     expect(asked).toHaveLength(2);
     expect(asked[1]).toContain("ADR-0099");
     expect(asked[1]).toContain("selfHealingRebuild");

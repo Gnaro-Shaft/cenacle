@@ -45,12 +45,15 @@ export async function answerVerified(
   question: string,
   ask: (prompt: string) => Promise<string>,
   index: RepoIndex,
+  /** Told before the rewrite starts, so a long wait is never mistaken for a crash. */
+  onRevise?: (missing: readonly Claim[]) => void,
 ): Promise<VerifiedAnswer> {
   const draft = await ask(question);
   const first = verifyClaims(extractClaims(draft), index);
   const missing = first.filter((c) => !c.found).map((c) => c.claim);
   if (missing.length === 0)
     return { text: draft, checked: first, revised: false, unverifiedFirst: [] };
+  onRevise?.(missing);
   const text = await ask(revisionRequest(question, draft, missing));
   return {
     text,
