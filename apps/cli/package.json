@@ -12,6 +12,7 @@
     "@cenacle/mail": "0.0.0",
     "@cenacle/iris": "0.0.0",
     "@cenacle/server": "0.0.0",
-    "@cenacle/executor": "0.0.0"
+    "@cenacle/executor": "0.0.0",
+    "@cenacle/cto": "0.0.0"
   }
 }

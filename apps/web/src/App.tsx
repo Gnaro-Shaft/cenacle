@@ -19,6 +19,7 @@ export function App() {
       <h1>Cénacle</h1>
       <section className="grid" aria-label="Les agents">
         <AgentBox agent="iris" title="Iris" duty="Courrier" />
+        <AgentBox agent="cto" title="CTO" duty="Conseil technique" />
       </section>
       {token === null ? (
         <p className="detail locked">

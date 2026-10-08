@@ -21,5 +21,6 @@ Elles sont rédigées en français (le code et le README sont en anglais).
 | [0014](0014-authentification-expediteur.md) | Un « client » doit être authentifié par notre propre serveur | Acceptée |
 | [0015](0015-ouverture-de-la-vraie-boite.md) | Ouvrir la vraie boîte aux brouillons et aux envois, en deux crans datés | Acceptée |
 | [0016](0016-tous-les-dossiers.md) | Iris lit tous les dossiers de la boîte, et suit un mail déplacé | Acceptée |
+| [0017](0017-cto-conseiller-local.md) | Le CTO, un conseiller technique local qui n'agit jamais | Acceptée |
 
 Les règles dures qui s'appliquent à tout le code sont dans [`../charte.md`](../charte.md).

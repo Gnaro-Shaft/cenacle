@@ -14,6 +14,13 @@ import { openAICompletionsApi } from "@earendil-works/pi-ai/api/openai-completio
 export interface LocalModelConfig {
   readonly baseUrl: string;
   readonly modelId: string;
+  /**
+   * What the program may send and receive, in tokens. Iris's short questions
+   * keep the defaults; the CTO's documentation needs a larger window (it must
+   * stay within what LM Studio loaded, or the server refuses).
+   */
+  readonly contextWindow?: number;
+  readonly maxTokens?: number;
 }
 
 export interface LocalModels {
@@ -49,8 +56,8 @@ export function createLocalModels(config: LocalModelConfig): LocalModels {
     thinkingLevelMap: { off: "none" },
     input: ["text"],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 32768,
-    maxTokens: 2048,
+    contextWindow: config.contextWindow ?? 32768,
+    maxTokens: config.maxTokens ?? 2048,
     compat: {
       supportsStore: false,
       supportsDeveloperRole: false,
