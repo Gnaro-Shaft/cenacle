@@ -17,6 +17,9 @@
       "path": "packages/observability"
     },
     {
+      "path": "packages/cto"
+    },
+    {
       "path": "apps/cli"
     },
     {

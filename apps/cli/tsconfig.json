@@ -23,6 +23,9 @@
       "path": "../../packages/mail"
     },
     {
+      "path": "../../packages/cto"
+    },
+    {
       "path": "../iris"
     },
     {

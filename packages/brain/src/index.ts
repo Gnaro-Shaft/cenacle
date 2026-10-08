@@ -18,7 +18,13 @@ export {
   classifyMail,
   parseCategory,
 } from "./classify.ts";
-export { askIris, IRIS_SYSTEM_PROMPT, type IrisAnswer, ModelUnavailableError } from "./iris.ts";
+export {
+  askAgent,
+  askIris,
+  IRIS_SYSTEM_PROMPT,
+  type IrisAnswer,
+  ModelUnavailableError,
+} from "./iris.ts";
 export {
   createLocalModels,
   type LocalModelConfig,

@@ -18,6 +18,7 @@ Rédigé par Claude le 2026-10-04. **Validé par le responsable le 2026-10-04.**
 | IA-02 | Choix de la réponse type, par vote (phase 4, B2) | Choisir une de mes trames, ou aucune | Limité (prépare un texte destiné à un tiers) | Liste fermée de trames écrites par moi ; 6 votes, 5 doivent concorder, sinon **rien n'est proposé** ; mesuré à 9 sur 12 comme moi, 0 autre trame | Testé sur boîte fictive |
 | IA-03 | Recopie de cases depuis le fil (phase 4, B2) | Remplir `{creneau}`, `{date}`, `{sujet}` avec des mots du mail | Limité | Chaque mot doit venir du fil ; vérificateur de faits **sans IA** (nombre, date, heure, montant, lien, adresse) ; une valeur douteuse laisse la case vide et visible ; banc d'invention : 550 brouillons piégés, **0 fait inventé** | Testé sur boîte fictive |
 | IA-04 | Iris répond à une question (phase 1, `npm run ask`) | Converser avec moi | Limité | Interlocuteur unique : moi, qui sais parler à une IA ; journal sans la question ni la réponse | Outil de développement |
+| IA-05 | Le CTO répond à une question technique (phase 6, J1 — ADR-0017) | Conseiller le dirigeant sur ses projets techniques (architecture, sécurité, conformité, code) | Limité | Interlocuteur unique : moi ; il conseille et n'agit jamais ; aucun outil ; contexte choisi par le code (documentation versionnée, jamais `.env*`, `*.local.toml`, `fixtures/` ni texte ressemblant à un secret) ; modèle local uniquement ; ne détient aucun secret ; ni la question ni la réponse ne sont gardées ni journalisées ; banc du 2026-10-09 : 85 % des points attendus, pièges évités | Jalon J1 |
 
 ## Transparence (art. 50)
 
@@ -27,6 +28,8 @@ Rédigé par Claude le 2026-10-04. **Validé par le responsable le 2026-10-04.**
 - **Sur la page**, une proposition est montrée comme une proposition, avec ses alertes : faits absents du fil, cases à compléter, Reply-To ailleurs.
 
 ## Limites connues (littératie IA, art. 4)
+
+- **CTO** (IA-05) : il ne sait que ce que dit la documentation versionnée (pas le code, jusqu'au jalon J3) ; il peut se tromper avec assurance — au banc, le modèle retenu a fait une erreur mineure sur 17 réponses, l'autre en inventait sept. Ses réponses sont des avis à vérifier.
 
 - **Rangement** : le modèle peut se tromper de case. « À trier » recueille ses doutes. Le taux de bon classement sur la vraie boîte sera mesuré et publié en M2 (`npm run mesure:rangement` : je juge chaque mail rangé, seuls les compteurs sont publiés, dans `docs/mesures/m2.md`). En M2, IA-02 et IA-03 ne tournent pas sur la vraie boîte : le code y interdit tout brouillon. En M3 (ADR-0015), ils n'y tourneront que pour un expéditeur authentifié, après l'ouverture datée des brouillons.
 - **Choix de la trame** : 3 mails sur 12 n'ont pas eu la trame que j'aurais choisie, ou aucune. Une proposition peut donc tomber à côté : elle se refuse d'un clic.

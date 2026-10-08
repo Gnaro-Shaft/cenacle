@@ -83,6 +83,7 @@ const NEUTRAL_EVENT_TYPES: ReadonlySet<string> = new Set([
   "person.withdrawn",
   "stop.requested", // the emergency stop (/stop), read by the executor
   "telegram.rejected", // a message from someone else than me, ignored
+  "cto.verified", // the CTO's answer checked against the repository: counts only (ADR-0017)
   "dev.memory.wiped", // the test box memory, emptied once by hand before the real box (M2)
 ]);
 

@@ -1,5 +1,6 @@
 /**
- * Iris asks the local model a question (milestone J7: first breath of Pi).
+ * An agent asks the local model a question (milestone J7: first breath of Pi;
+ * shared by every agent since phase 6 — Iris, the CTO).
  *
  * Every step is journaled — routing, thinking, answered or failed — but never
  * the question or the answer themselves: the journal keeps facts, not content.
@@ -37,13 +38,17 @@ export interface IrisAnswer {
 
 export interface AskOptions {
   readonly question: string;
+  /** Who asks, as journaled (ADR-0008): "iris" by default. */
+  readonly agent?: string;
+  /** The agent's instructions: Iris's by default. */
+  readonly systemPrompt?: string;
   readonly dataClass: DataClass;
   readonly journal: Journal;
   readonly local: LocalModels;
   readonly timeoutMs?: number;
 }
 
-const AGENT = "iris";
+const AGENT_NAME = /^[a-z][a-z0-9_-]{0,31}$/;
 const tracer = trace.getTracer("cenacle.brain");
 
 /**
@@ -68,7 +73,14 @@ function textOf(message: AssistantMessage): string {
 }
 
 export function askIris(options: AskOptions): Promise<IrisAnswer> {
-  return tracer.startActiveSpan("iris.ask", async (span) => {
+  return askAgent({ ...options, agent: "iris", systemPrompt: IRIS_SYSTEM_PROMPT });
+}
+
+/** Any agent: its name and instructions, the same journaled, traced, local-only path. */
+export function askAgent(options: AskOptions): Promise<IrisAnswer> {
+  const agent = options.agent ?? "iris";
+  if (!AGENT_NAME.test(agent)) throw new Error(`invalid agent name ${JSON.stringify(agent)}`);
+  return tracer.startActiveSpan(`${agent}.ask`, async (span) => {
     try {
       return await askIrisTraced(options, span);
     } catch (error) {
@@ -87,6 +99,7 @@ export function askIris(options: AskOptions): Promise<IrisAnswer> {
 
 async function askIrisTraced(options: AskOptions, span: Span): Promise<IrisAnswer> {
   const { journal, local } = options;
+  const AGENT = options.agent ?? "iris";
   // Phase 1 has no EU API: the router must answer "local" for every class.
   const destination = route({ dataClass: options.dataClass }, { euApiConfigured: false });
   span.setAttributes({
@@ -104,7 +117,11 @@ async function askIrisTraced(options: AskOptions, span: Span): Promise<IrisAnswe
 
   const started = Date.now();
   const agent = new Agent({
-    initialState: { systemPrompt: IRIS_SYSTEM_PROMPT, model: local.model, thinkingLevel: "off" },
+    initialState: {
+      systemPrompt: options.systemPrompt ?? IRIS_SYSTEM_PROMPT,
+      model: local.model,
+      thinkingLevel: "off",
+    },
     streamFn: local.models.streamSimple.bind(local.models),
   });
   const timer = setTimeout(() => agent.abort(), options.timeoutMs ?? 120_000);
@@ -129,6 +146,18 @@ async function askIrisTraced(options: AskOptions, span: Span): Promise<IrisAnswe
   }
 
   const text = textOf(answer);
+  // An empty answer is a failure, never a success to print (charter, rule 3):
+  // a prompt larger than the declared window leaves no room for any token.
+  if (text === "") {
+    await journal.append({
+      agent: AGENT,
+      type: "state.changed",
+      payload: { to: "error", reason: "empty_answer" },
+    });
+    throw new ModelUnavailableError(
+      `The local model did not answer (empty_answer): ${answer.usage.output} tokens generated`,
+    );
+  }
   span.setAttributes({
     "cenacle.outcome": "answered",
     "gen_ai.usage.output_tokens": answer.usage.output,
