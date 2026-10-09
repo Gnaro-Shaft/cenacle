@@ -4,11 +4,11 @@
  * Usage: npm run mail:followup [-- --at 2026-10-01T10:00:00+02:00]
  */
 import { countFollowUps, errorText, FOLLOW_UP_HOURS, UsageError } from "@cenacle/core";
-import { connectAsApp, createMailStore } from "@cenacle/journal";
+import { connectOrQuit, createMailStore } from "@cenacle/journal";
 
 const atIndex = process.argv.indexOf("--at");
 const now = atIndex === -1 ? new Date() : new Date(process.argv[atIndex + 1] ?? "");
-const sql = connectAsApp();
+const sql = connectOrQuit();
 try {
   if (Number.isNaN(now.getTime()))
     throw new UsageError("--at needs a date, e.g. 2026-10-01T10:00:00+02:00");

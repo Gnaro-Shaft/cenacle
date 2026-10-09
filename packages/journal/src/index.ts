@@ -1,4 +1,4 @@
-export { connectAsApp, connectAsExecutor } from "./connect.ts";
+export { connectAsApp, connectAsExecutor, connectOrQuit } from "./connect.ts";
 export { holdSingleInstance, type InstanceLock, instanceLockKey } from "./instance-lock.ts";
 export {
   createJournal,

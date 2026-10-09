@@ -8,7 +8,7 @@
 import { createLocalModels, localModelConfigFromEnv } from "@cenacle/brain";
 import { errorText, refuseForeignSecrets } from "@cenacle/core";
 import {
-  connectAsApp,
+  connectOrQuit,
   createJournal,
   createLocationStore,
   createMailStore,
@@ -27,7 +27,7 @@ const LABEL = {
 };
 // Iris can never accept: she must not even hold the page's key (ADR-0013).
 refuseForeignSecrets("Iris", ["mail"]);
-const sql = connectAsApp();
+const sql = connectOrQuit();
 try {
   const r = await draftDueFollowUps(
     draftingDeps({

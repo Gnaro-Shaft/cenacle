@@ -15,7 +15,7 @@
  */
 import { stdout } from "node:process";
 import { errorText, refuseForeignSecrets, SecretPlacementError, UsageError } from "@cenacle/core";
-import { connectAsApp, createPeople } from "@cenacle/journal";
+import { connectOrQuit, createPeople } from "@cenacle/journal";
 import {
   censusDomains,
   forTerminal,
@@ -39,7 +39,7 @@ if (stdout.isTTY !== true) {
 refuseForeignSecrets("Le recensement des domaines", ["mail"]);
 const daysArg = process.argv.indexOf("--jours");
 const days = daysArg === -1 ? 182 : Number(process.argv[daysArg + 1]);
-const sql = connectAsApp();
+const sql = connectOrQuit();
 try {
   if (!Number.isInteger(days) || days < 1 || days > MAX_DAYS) {
     throw new UsageError(`--jours attend un entier de 1 à ${MAX_DAYS}`);

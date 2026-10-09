@@ -5,10 +5,10 @@
  * "approve" scenarios are gone; "clear-demo" closes the demo proposals they left.
  */
 import { errorText, ProjectionError, projectStatus, UsageError } from "@cenacle/core";
-import { connectAsApp, createJournal, type NewEvent, readAllEvents } from "@cenacle/journal";
+import { connectOrQuit, createJournal, type NewEvent, readAllEvents } from "@cenacle/journal";
 
 const [scenario, agent = "iris"] = process.argv.slice(2);
-const sql = connectAsApp();
+const sql = connectOrQuit();
 const journal = createJournal(sql);
 const state = (to: string): NewEvent => ({ agent, type: "state.changed", payload: { to } });
 

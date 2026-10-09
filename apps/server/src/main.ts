@@ -9,7 +9,7 @@ import { homedir } from "node:os";
 import { privateKeyFromEnv, refuseForeignSecrets } from "@cenacle/core";
 import { askCtoService, ctoSocketPath } from "@cenacle/cto";
 import {
-  connectAsApp,
+  connectOrQuit,
   createJournal,
   createLocationStore,
   createMailStore,
@@ -36,7 +36,7 @@ import { createProposalsService } from "./proposals-service.ts";
 const HOST = "127.0.0.1";
 const PORT = Number(process.env.CENACLE_API_PORT ?? 8787);
 
-const sql = connectAsApp();
+const sql = connectOrQuit();
 const journal = createJournal(sql);
 const store = createProposalStore(sql);
 const mails = createMailStore(sql);
@@ -52,7 +52,7 @@ const locator = createLocator({
 refuseForeignSecrets("The page's server", ["mail", "page"]);
 // One server at a time (ADR-0019): a second one would fail on the port, or
 // worse, replace the page's link with a token the running server never drew.
-const lockSql = connectAsApp();
+const lockSql = connectOrQuit();
 const instance = await holdSingleInstance(lockSql, "server");
 if (instance === null) {
   console.error("🛑 Un autre serveur de la page tourne déjà : celui-ci ne démarre pas.");

@@ -12,6 +12,7 @@
  */
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { UsageError } from "@cenacle/core";
 import postgres from "postgres";
 
 export const APP_ROLE = "cenacle_app";
@@ -23,7 +24,7 @@ const PASSWORD_RULE = /^[A-Za-z0-9_-]{16,128}$/;
 export function requireEnv(name: string): string {
   const value = process.env[name];
   if (value === undefined || value === "") {
-    throw new Error(`Missing environment variable ${name} (see .env.example)`);
+    throw new UsageError(`Missing environment variable ${name} (see .env.example)`);
   }
   return value;
 }
@@ -33,7 +34,7 @@ async function loginRole(sql: postgres.Sql, role: string, password: string, what
   // The password is interpolated into DDL (Postgres does not accept bind
   // parameters there), so it must match a strict allowlist — never escape.
   if (!PASSWORD_RULE.test(password))
-    throw new Error(`${what} must be 16-128 chars of [A-Za-z0-9_-]`);
+    throw new UsageError(`${what} must be 16-128 chars of [A-Za-z0-9_-]`);
   const [exists] = await sql`select 1 from pg_roles where rolname = ${role}`;
   const verb = exists === undefined ? "CREATE" : "ALTER";
   await sql.unsafe(
@@ -57,10 +58,10 @@ export async function migrate({
     [executorPassword, EXECUTOR_PASSWORD_VAR],
   ] as const) {
     if (!PASSWORD_RULE.test(password))
-      throw new Error(`${name} must be 16-128 chars of [A-Za-z0-9_-]`);
+      throw new UsageError(`${name} must be 16-128 chars of [A-Za-z0-9_-]`);
   }
   if (appPassword === executorPassword) {
-    throw new Error(`${EXECUTOR_PASSWORD_VAR} must differ from CENACLE_DB_APP_PASSWORD`);
+    throw new UsageError(`${EXECUTOR_PASSWORD_VAR} must differ from CENACLE_DB_APP_PASSWORD`);
   }
   const sql = postgres(ownerUrl, { max: 1, onnotice: () => {} });
   const applied: string[] = [];
@@ -141,7 +142,7 @@ export function appUrlFromEnv(database: string, env: NodeJS.ProcessEnv = process
   const port = env.CENACLE_DB_PORT ?? "55432";
   const raw = env.CENACLE_DB_APP_PASSWORD ?? "";
   if (raw === "") {
-    throw new Error("Missing environment variable CENACLE_DB_APP_PASSWORD (see .env.example)");
+    throw new UsageError("Missing environment variable CENACLE_DB_APP_PASSWORD (see .env.example)");
   }
   return `postgres://${APP_ROLE}:${encodeURIComponent(raw)}@${host}:${port}/${database}`;
 }
