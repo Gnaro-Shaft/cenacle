@@ -126,6 +126,7 @@ describe("path:line, checked in the code the answer was written from", () => {
     ["src/service.ts:0", false],
     ["unique.ts:2", true],
     ["service.ts:3", false],
+    ["service.ts:1", false],
     ["src/inconnu.ts:1", false],
     [".env.mail:1", false],
     ["src/fuite.ts:1", false],
