@@ -6,7 +6,7 @@
  * marked as a test one (`test = true` in cadre.local.toml, M1). It must never
  * touch a production mailbox.
  */
-import type { FixtureMessage, FixtureSentFolder } from "@cenacle/core";
+import { type FixtureMessage, type FixtureSentFolder, UsageError } from "@cenacle/core";
 import { ImapFlow } from "imapflow";
 import { imapOptions } from "./connection.ts";
 import { sentToRfc822, toRfc822 } from "./rfc822.ts";
@@ -39,7 +39,7 @@ export function assertTestMailbox(config: TestMailboxConfig): void {
 
 export function testMailboxConfigFromEnv(env = process.env): TestMailboxConfig {
   const password = env.CENACLE_TEST_MAIL_PASSWORD;
-  if (!password) throw new Error("CENACLE_TEST_MAIL_PASSWORD is missing (see .env.example)");
+  if (!password) throw new UsageError("CENACLE_TEST_MAIL_PASSWORD is missing (see .env.example)");
   return {
     host: env.CENACLE_TEST_MAIL_HOST ?? "127.0.0.1",
     port: Number(env.CENACLE_TEST_MAIL_IMAP_PORT ?? 3143),

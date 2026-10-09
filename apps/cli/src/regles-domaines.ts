@@ -14,12 +14,13 @@
  * domains must not end up in a file, a pipe, or an assistant's transcript.
  */
 import { stdout } from "node:process";
-import { refuseForeignSecrets } from "@cenacle/core";
+import { errorText, refuseForeignSecrets, SecretPlacementError, UsageError } from "@cenacle/core";
 import { connectAsApp, createPeople } from "@cenacle/journal";
 import {
   censusDomains,
   forTerminal,
   headersSince,
+  KeyError,
   keyerFromEnv,
   loadCadre,
   loadRules,
@@ -41,7 +42,7 @@ const days = daysArg === -1 ? 182 : Number(process.argv[daysArg + 1]);
 const sql = connectAsApp();
 try {
   if (!Number.isInteger(days) || days < 1 || days > MAX_DAYS) {
-    throw new Error(`--jours attend un entier de 1 à ${MAX_DAYS}`);
+    throw new UsageError(`--jours attend un entier de 1 à ${MAX_DAYS}`);
   }
   const cadre = loadCadre();
   const keyer = keyerFromEnv();
@@ -82,7 +83,7 @@ try {
     `\n${census.domains.length} domaines ; ${census.unreadable} expéditeurs illisibles ; ${census.opposed} mails ignorés (liste d'opposition). Rien n'a été enregistré.`,
   );
 } catch (error) {
-  console.error(`🛑 ${error instanceof Error ? error.message : String(error)}`);
+  console.error(`🛑 ${errorText(error, [SecretPlacementError, KeyError])}`);
   process.exitCode = 1;
 } finally {
   await sql.end();

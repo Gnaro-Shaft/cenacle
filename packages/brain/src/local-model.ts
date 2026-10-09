@@ -2,6 +2,7 @@
  * The local model, served by LM Studio (OpenAI-compatible API) on the Mac.
  * Only this provider is registered: no cloud provider exists in this process.
  */
+import { UsageError } from "@cenacle/core";
 import {
   type Api,
   createModels,
@@ -32,11 +33,11 @@ export function localModelConfigFromEnv(env: NodeJS.ProcessEnv = process.env): L
   const baseUrl = env.LOCAL_MODEL_BASE_URL;
   const modelId = env.LOCAL_MODEL_ID;
   if (!baseUrl || !modelId) {
-    throw new Error("LOCAL_MODEL_BASE_URL and LOCAL_MODEL_ID must be set in .env");
+    throw new UsageError("LOCAL_MODEL_BASE_URL and LOCAL_MODEL_ID must be set in .env");
   }
   const url = new URL(baseUrl);
   if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new Error(`LOCAL_MODEL_BASE_URL must be http(s), got ${url.protocol}`);
+    throw new UsageError(`LOCAL_MODEL_BASE_URL must be http(s), got ${url.protocol}`);
   }
   return { baseUrl: baseUrl.replace(/\/$/, ""), modelId };
 }

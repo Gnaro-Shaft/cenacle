@@ -11,7 +11,7 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { ModelUnavailableError } from "@cenacle/brain";
-import { refuseForeignSecrets } from "@cenacle/core";
+import { errorText, refuseForeignSecrets } from "@cenacle/core";
 import {
   askCto,
   askCtoReview,
@@ -114,7 +114,9 @@ try {
 } catch (error) {
   status.clear();
   if (error instanceof QuestionError || error instanceof ReviewError) {
-    console.error(`usage : npm run cto -- "ta question" | --relire <branche> (${error.message})`);
+    console.error(
+      `usage : npm run cto -- "ta question" | --relire <branche> (${errorText(error, [QuestionError, ReviewError])})`,
+    );
   } else if (
     error instanceof ModelUnavailableError ||
     (error instanceof CtoServiceError && error.code === "model_unavailable")
@@ -123,9 +125,9 @@ try {
       "🛑 le modèle local ne répond pas : LM Studio est-il ouvert, avec le modèle chargé ?",
     );
   } else if (error instanceof CtoServiceError) {
-    console.error(`🛑 ${error.message}`);
+    console.error(`🛑 ${errorText(error, [CtoServiceError])}`);
   } else {
-    console.error(`🛑 ${error instanceof Error ? error.name : "erreur"}`);
+    console.error(`🛑 ${errorText(error)}`);
   }
   process.exitCode = 1;
 }

@@ -5,7 +5,13 @@
  * machine. Every 10 seconds; /stop on Telegram or Ctrl+C ends it.
  * It holds the page's public key: it can check an acceptance, never make one.
  */
-import { dayStart, heartbeatFromEnv, publicKeyFromEnv, refuseForeignSecrets } from "@cenacle/core";
+import {
+  dayStart,
+  errorText,
+  heartbeatFromEnv,
+  publicKeyFromEnv,
+  refuseForeignSecrets,
+} from "@cenacle/core";
 import {
   connectAsExecutor,
   createJournal,
@@ -36,7 +42,9 @@ const ROUND_MS = 10_000;
 refuseForeignSecrets("The executor", ["mail", "executor", "sentinel"]);
 // M2: a real box sends nothing until [ouverture] — the executor does not even start (sendReply refuses too).
 if (loadCadre().mail.sending === "none") {
-  console.error(`🛑 ${new ReadOnlyMailboxError("Starting the executor").message}`);
+  console.error(
+    `🛑 ${errorText(new ReadOnlyMailboxError("Starting the executor"), [ReadOnlyMailboxError])}`,
+  );
   process.exit(1);
 }
 const acceptKey = publicKeyFromEnv();
@@ -143,7 +151,7 @@ while (!stopping) {
     }
   } catch (error) {
     // The name only: an error message may quote an address.
-    console.error(`⚠ ${error instanceof Error ? error.name : "error"} — nouvel essai dans 10 s`);
+    console.error(`⚠ ${errorText(error)} — nouvel essai dans 10 s`);
   }
   for (let s = 0; s < ROUND_MS / 1000 && !stopping; s++)
     await new Promise((r) => setTimeout(r, 1000));

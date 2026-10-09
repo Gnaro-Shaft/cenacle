@@ -15,7 +15,14 @@
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { openSecrets, SECRET_FAMILIES, sealSecrets } from "@cenacle/core";
+import {
+  errorText,
+  openSecrets,
+  SECRET_FAMILIES,
+  sealSecrets,
+  UsageError,
+  VaultError,
+} from "@cenacle/core";
 import { connectAsApp, createPeople, type OppositionEntry } from "@cenacle/journal";
 import { createPrompt } from "./prompt.ts";
 
@@ -77,7 +84,7 @@ try {
     files[OPPOSITION] = JSON.stringify(opposition);
     const pass = await prompt.secret("Phrase de passe (12 caractères au moins) : ");
     if ((await prompt.secret("La même, encore : ")) !== pass) {
-      throw new Error("les deux phrases diffèrent : rien n'a été écrit");
+      throw new UsageError("les deux phrases diffèrent : rien n'a été écrit");
     }
     writeFileSync(out, sealSecrets(files, pass), { mode: 0o600, flag: "wx" });
     const names = Object.keys(files).filter((n) => n !== OPPOSITION);
@@ -99,10 +106,10 @@ try {
       const target = into ?? ROOT;
       const names = Object.keys(files).filter((n) => n !== OPPOSITION);
       const unknown = names.filter((name) => !FILES.includes(name));
-      if (unknown.length > 0) throw new Error(`fichiers inattendus : ${unknown.join(", ")}`);
+      if (unknown.length > 0) throw new UsageError(`fichiers inattendus : ${unknown.join(", ")}`);
       const present = names.filter((name) => existsSync(join(target, name)));
       if (present.length > 0) {
-        throw new Error(`rien n'est restauré, déjà présents : ${present.join(", ")}`);
+        throw new UsageError(`rien n'est restauré, déjà présents : ${present.join(", ")}`);
       }
       for (const name of names) {
         writeFileSync(join(target, name), files[name] ?? "", { mode: 0o600, flag: "wx" });
@@ -116,10 +123,10 @@ try {
       }
     }
   } else {
-    throw new Error(USAGE);
+    throw new UsageError(USAGE);
   }
 } catch (error) {
-  console.error(`🛑 ${error instanceof Error ? error.message : String(error)}`);
+  console.error(`🛑 ${errorText(error, [VaultError])}`);
   process.exitCode = 1;
 } finally {
   prompt.close();

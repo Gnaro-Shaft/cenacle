@@ -7,6 +7,7 @@
  *   - no invented fact in any proposal.
  * Each run starts from a fresh test database (cenacle_test, never the real one).
  */
+import { errorText } from "@cenacle/core";
 import { appConnection, executorConnection, resetTestDatabase } from "@cenacle/journal/test-db";
 import type { Check } from "./checks.ts";
 import { benchContext } from "./context.ts";
@@ -44,7 +45,7 @@ export async function runDraftBench(mutations?: Mutations): Promise<DraftBenchRe
         checks.push(...(await run(ctx)));
       } catch (error) {
         // A crash is a failure of the scenario, said by its name only.
-        const why = error instanceof Error ? `${error.name}: ${error.message}` : "error";
+        const why = errorText(error);
         checks.push({ scenario: name, name: "a planté", ok: false, detail: why });
       }
     }

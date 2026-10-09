@@ -6,7 +6,7 @@
  */
 import { execFile } from "node:child_process";
 import { homedir, userInfo } from "node:os";
-import { refuseForeignSecrets } from "@cenacle/core";
+import { errorText, refuseForeignSecrets } from "@cenacle/core";
 import { PageUrlError, pageUrlPath, readPageUrl } from "@cenacle/server/page-url";
 
 refuseForeignSecrets("L'ouverture de la page", []);
@@ -21,6 +21,6 @@ try {
     console.log("✔ Page ouverte dans le navigateur.");
   });
 } catch (error) {
-  console.error(`🛑 ${error instanceof PageUrlError ? error.message : "erreur"}`);
+  console.error(`🛑 ${errorText(error, [PageUrlError])}`);
   process.exitCode = 1;
 }

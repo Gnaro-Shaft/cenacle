@@ -6,7 +6,7 @@
  * Usage: npm run iris:draft   (then npm run proposal -- list)
  */
 import { createLocalModels, localModelConfigFromEnv } from "@cenacle/brain";
-import { refuseForeignSecrets } from "@cenacle/core";
+import { errorText, refuseForeignSecrets } from "@cenacle/core";
 import {
   connectAsApp,
   createJournal,
@@ -68,9 +68,7 @@ try {
 } catch (error) {
   // Only the error's name: its message may quote the mail server, an account
   // or an address (found by the CTO's review, 2026-10-09). Nothing is ever sent here.
-  console.error(
-    `🛑 ${error instanceof Error ? error.name : "erreur"} — rien n'a été envoyé ; relance plus tard`,
-  );
+  console.error(`🛑 ${errorText(error)} — rien n'a été envoyé ; relance plus tard`);
   process.exitCode = 1;
 } finally {
   await sql.end();

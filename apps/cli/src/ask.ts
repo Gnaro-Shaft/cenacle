@@ -3,7 +3,9 @@
  * Usage: npm run ask -- "Qui es-tu ?"
  * Watch the page meanwhile: Iris works while the model thinks.
  */
+
 import { askIris, createLocalModels, localModelConfigFromEnv } from "@cenacle/brain";
+import { errorText } from "@cenacle/core";
 import { connectAsApp, createJournal } from "@cenacle/journal";
 import { setupTracing } from "@cenacle/observability";
 
@@ -31,7 +33,7 @@ try {
     `(${(answer.durationMs / 1000).toFixed(1)} s, ${answer.outputTokens} tokens generated${reasoning}, local model, nothing sent elsewhere)`,
   );
 } catch (error) {
-  console.error(`🤒 ${error instanceof Error ? error.message : String(error)}`);
+  console.error(`🤒 ${errorText(error)}`);
   process.exitCode = 1;
 } finally {
   await sql.end();

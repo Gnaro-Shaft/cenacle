@@ -8,7 +8,14 @@
  */
 import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { SECRET_FAMILIES, type SecretFamily, splitEnv } from "@cenacle/core";
+import {
+  errorText,
+  SECRET_FAMILIES,
+  type SecretFamily,
+  SecretPlacementError,
+  splitEnv,
+  UsageError,
+} from "@cenacle/core";
 import { createPrompt } from "./prompt.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
@@ -22,7 +29,7 @@ const namesIn = (text: string) =>
 
 const prompt = createPrompt();
 try {
-  if (!existsSync(at(".env"))) throw new Error(".env est introuvable");
+  if (!existsSync(at(".env"))) throw new UsageError(".env est introuvable");
   const original = readFileSync(at(".env"), "utf8");
   const plan = splitEnv(original);
   const families = Object.keys(plan.moved) as SecretFamily[];
@@ -39,10 +46,10 @@ try {
       }
     }
     if (conflicts.length > 0) {
-      throw new Error(`rien n'est fait, en double : ${conflicts.join(", ")}`);
+      throw new UsageError(`rien n'est fait, en double : ${conflicts.join(", ")}`);
     }
     if (existsSync(at(".env.avant-split"))) {
-      throw new Error(
+      throw new UsageError(
         "rien n'est fait : .env.avant-split existe déjà (une répartition précédente ?)",
       );
     }
@@ -51,7 +58,7 @@ try {
       console.log(`  ${file} ← ${(names ?? []).join(", ")}`);
     }
     if ((await prompt.ask("Répartir ainsi ? Tape OUI : ")) !== "OUI") {
-      throw new Error("rien n'a été fait");
+      throw new UsageError("rien n'a été fait");
     }
     writeFileSync(at(".env.avant-split"), original, { mode: 0o600, flag: "wx" });
     for (const family of families) {
@@ -73,7 +80,7 @@ try {
   }
 } catch (error) {
   // Messages name variables and files, never a value.
-  console.error(`🛑 ${error instanceof Error ? error.message : String(error)}`);
+  console.error(`🛑 ${errorText(error, [SecretPlacementError])}`);
   process.exitCode = 1;
 } finally {
   prompt.close();
