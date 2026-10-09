@@ -49,6 +49,7 @@ function statusLine() {
       if (p.kind === "queued") write(`⏳ ${p.ahead} question(s) avant la tienne…`);
       if (p.kind === "reading") write(`📖 ${p.phase} : lecture de la documentation…`);
       if (p.kind === "tool") write(`🔍 ${p.tool} ${p.target}…`);
+      if (p.kind === "pass") write(`📄 ${p.n}/${p.of} ${p.label}…`);
       if (p.kind === "writing") {
         write(`✍️  ${p.phase} : ${p.chars.toLocaleString("fr-FR")} caractères écrits…`);
       }
