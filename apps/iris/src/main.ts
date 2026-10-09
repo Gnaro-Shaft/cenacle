@@ -13,6 +13,7 @@ import {
   createPeople,
   createProposalStore,
   createPurges,
+  holdSingleInstance,
   readAllEvents,
 } from "@cenacle/journal";
 import {
@@ -38,6 +39,16 @@ if (!Number.isSafeInteger(chatId) || chatId === 0) {
 }
 const telegram = createTelegramApi(process.env.TELEGRAM_BOT_TOKEN ?? "");
 const sql = connectAsApp();
+// One Iris at a time (ADR-0018): its own connection holds the lock for the
+// whole run. Refused = exit 75 ("try again later"): launchd keeps retrying and
+// takes over once the other Iris stops. No database = a crash, retried too.
+const lockSql = connectAsApp();
+const instance = await holdSingleInstance(lockSql, "iris");
+if (instance === null) {
+  console.error("🛑 Une autre Iris tourne déjà : celle-ci ne démarre pas.");
+  await Promise.all([lockSql.end(), sql.end()]);
+  process.exit(75);
+}
 const journal = createJournal(sql);
 const store = createMailStore(sql);
 const locations = createLocationStore(sql);
@@ -71,9 +82,12 @@ if (sentinel === null)
   );
 
 let stopping = false;
-process.on("SIGINT", () => {
-  stopping = true;
-});
+// Ctrl+C, or SIGTERM when macOS logs out or launchd unloads Iris: a clean stop.
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  process.on(signal, () => {
+    stopping = true;
+  });
+}
 
 console.log(
   `Iris suit son rythme : relève toutes les 15 min (8 h–20 h en semaine), ${
@@ -149,4 +163,5 @@ while (!stopping) {
   }
   for (let s = 0; s < 60 && !stopping; s++) await new Promise((r) => setTimeout(r, 1000));
 }
-await sql.end();
+await instance.release();
+await Promise.all([lockSql.end(), sql.end()]);
