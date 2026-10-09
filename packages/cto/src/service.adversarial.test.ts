@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { ModelUnavailableError } from "@cenacle/brain";
 import { afterEach, describe, expect, it } from "vitest";
-import { askCtoService, type CtoServiceError } from "./client.ts";
+import { askCtoReview, askCtoService, type CtoServiceError } from "./client.ts";
 import type { CtoProgress, CtoReply } from "./pipeline.ts";
 import { MAX_LINE } from "./protocol.ts";
 import { createCtoService, listenCto } from "./service.ts";
@@ -137,6 +137,13 @@ describe("the CTO's socket", () => {
       throw new ModelUnavailableError("connect ECONNREFUSED 100.64.0.1:1234");
     });
     await expect(askCtoService(down, "q")).rejects.toMatchObject({ code: "model_unavailable" });
+    const slow = await start(async () => {
+      throw new ModelUnavailableError("The local model did not answer (timeout): no message");
+    });
+    await expect(askCtoService(slow, "q")).rejects.toMatchObject({
+      code: "timeout",
+      message: "le CTO n'a pas répondu à temps",
+    });
     const boom = await start(async () => {
       throw new Error("leak: claire@client.example");
     });
@@ -172,6 +179,52 @@ describe("the CTO's socket", () => {
       listenCto(file, createCtoService({ ask: async () => reply("x") })),
     ).rejects.toThrow(/not a socket/);
     expect(statSync(file).isFile()).toBe(true);
+  });
+});
+
+describe("a review over the socket (ADR-0021)", () => {
+  it("a valid branch goes to the review, never to the question", async () => {
+    const seen: string[] = [];
+    const path = socketPath();
+    const listener = await listenCto(
+      path,
+      createCtoService({
+        ask: async () => reply("question"),
+        review: async (branch) => {
+          seen.push(branch);
+          return reply(`relu ${branch}`);
+        },
+      }),
+    );
+    closers.push(() => listener.close());
+    expect((await askCtoReview(path, "cto-j3")).text).toBe("relu cto-j3");
+    expect(seen).toEqual(["cto-j3"]);
+  });
+
+  it.each([["--output=/tmp/x"], ["main..evil"], [""]])(
+    "a malicious branch name %j is refused before the review",
+    async (branch) => {
+      let reviewed = 0;
+      const path = socketPath();
+      const listener = await listenCto(
+        path,
+        createCtoService({
+          ask: async () => reply("q"),
+          review: async () => {
+            reviewed++;
+            return reply("x");
+          },
+        }),
+      );
+      closers.push(() => listener.close());
+      await expect(askCtoReview(path, branch)).rejects.toMatchObject({ code: "invalid" });
+      expect(reviewed).toBe(0);
+    },
+  );
+
+  it("a review when none is plugged in: refused, said", async () => {
+    const path = await start(async () => reply("q"));
+    await expect(askCtoReview(path, "cto-j3")).rejects.toMatchObject({ code: "invalid" });
   });
 });
 

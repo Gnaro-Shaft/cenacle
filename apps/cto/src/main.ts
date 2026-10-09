@@ -2,14 +2,22 @@
  * The CTO's service (phase 6, J2 — ADR-0020). Usage: npm run cto:serve
  * (under launchd: npm run service -- install cto).
  *
- * Answers the page and `npm run cto` on a local socket only I can open, one
- * question at a time. Holds no secret (ADR-0017): it refuses to start if any
+ * Answers the page, Telegram and `npm run cto` on a local socket only I can
+ * open, one question or review at a time. Holds no secret (ADR-0017): it refuses to start if any
  * secret family is loaded. Nothing is kept: the journal gets counts only.
  */
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { refuseForeignSecrets } from "@cenacle/core";
-import { askCto, createCtoService, ctoModels, ctoSocketPath, listenCto } from "@cenacle/cto";
+import {
+  askCto,
+  branchTarget,
+  createCtoService,
+  ctoModels,
+  ctoSocketPath,
+  listenCto,
+  reviewCto,
+} from "@cenacle/cto";
 import { connectAsApp, createJournal, holdSingleInstance } from "@cenacle/journal";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
@@ -28,6 +36,9 @@ const journal = createJournal(sql);
 const local = ctoModels();
 const service = createCtoService({
   ask: (question, onProgress) => askCto(question, { root: ROOT, journal, local, onProgress }),
+  // A local branch against main (ADR-0021): the diff is computed by code.
+  review: (branch, onProgress) =>
+    reviewCto(branchTarget(ROOT, branch), { root: ROOT, journal, local, onProgress }),
 });
 const listener = await listenCto(ctoSocketPath(homedir()), service);
 console.log("Le CTO écoute sur sa prise locale (une question à la fois).");

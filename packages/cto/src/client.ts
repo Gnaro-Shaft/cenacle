@@ -23,11 +23,22 @@ export class CtoServiceError extends Error {
 /** Two model calls of 5 min at most, plus a wait in line. */
 export const CLIENT_TIMEOUT_MS = 20 * 60_000;
 
-export function askCtoService(
-  path: string,
-  question: string,
-  options: { readonly onProgress?: (p: CtoProgress) => void; readonly timeoutMs?: number } = {},
-): Promise<CtoReply> {
+type CallOptions = {
+  readonly onProgress?: (p: CtoProgress) => void;
+  readonly timeoutMs?: number;
+};
+
+/** A question to the CTO's service. */
+export function askCtoService(path: string, question: string, options: CallOptions = {}) {
+  return call(path, { question }, options);
+}
+
+/** A local branch for the CTO to review (ADR-0021). */
+export function askCtoReview(path: string, branch: string, options: CallOptions = {}) {
+  return call(path, { review: branch }, options);
+}
+
+function call(path: string, request: object, options: CallOptions): Promise<CtoReply> {
   return new Promise((resolve, reject) => {
     let settled = false;
     let buffer = "";
@@ -45,7 +56,7 @@ export function askCtoService(
       options.timeoutMs ?? CLIENT_TIMEOUT_MS,
     );
     conn.setEncoding("utf8");
-    conn.on("connect", () => conn.write(encode({ question })));
+    conn.on("connect", () => conn.write(encode(request)));
     conn.on("error", (error: NodeJS.ErrnoException) => {
       const unreachable = error.code === "ENOENT" || error.code === "ECONNREFUSED";
       finish(

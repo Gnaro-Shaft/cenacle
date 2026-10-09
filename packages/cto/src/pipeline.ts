@@ -13,9 +13,15 @@ import {
 } from "@cenacle/brain";
 import type { Journal } from "@cenacle/journal";
 import { answerVerified, checkSummary } from "./answer.ts";
-import { loadProjectContext } from "./context.ts";
+import { gitTrackedFiles, loadProjectContext } from "./context.ts";
+
+/** What a review reads of the documentation: the rules, not the history. */
+const ESSENTIAL_DOCS = ["CLAUDE.md", "README.md", "docs/charte.md"];
+
 import { ctoSystemPrompt } from "./prompt.ts";
 import { validQuestion } from "./question.ts";
+import { gitView, type RepoView } from "./repo-view.ts";
+import { createReadTools } from "./tools.ts";
 import { buildRepoIndex } from "./verify.ts";
 
 export { MAX_QUESTION, QuestionError, validQuestion } from "./question.ts";
@@ -28,7 +34,8 @@ export type CtoProgress =
       readonly phase: "premier jet" | "correction";
       readonly chars: number;
     }
-  | { readonly kind: "revising"; readonly missing: number };
+  | { readonly kind: "revising"; readonly missing: number }
+  | { readonly kind: "tool"; readonly tool: string; readonly target: string };
 
 export interface CtoReply {
   readonly text: string;
@@ -61,9 +68,30 @@ export function ctoModels(): LocalModels {
 }
 
 export async function askCto(question: string, deps: CtoDeps): Promise<CtoReply> {
-  const text = validQuestion(question);
+  // The code at HEAD: what is committed.
+  return runCto(validQuestion(question), gitView(deps.root, "HEAD"), deps);
+}
+
+/**
+ * The shared circuit (ADR-0017, ADR-0021): the documentation in the prompt,
+ * the code through three read-only tools on `view`, every reference checked
+ * — `path:line` in that same view — and one rewrite if anything is missing.
+ */
+export async function runCto(
+  prompt: string,
+  view: RepoView,
+  deps: CtoDeps,
+  options: { readonly kind?: "question" | "review"; readonly maxCalls?: number } = {},
+): Promise<CtoReply> {
   const started = Date.now();
-  const context = loadProjectContext(deps.root);
+  const review = options.kind === "review";
+  // A review has the diff and the code: only the essential documentation, so
+  // that reading the prompt stays short (all of it is ~60 k tokens).
+  const context = review
+    ? loadProjectContext(deps.root, {
+        tracked: (root) => gitTrackedFiles(root).filter((p) => ESSENTIAL_DOCS.includes(p)),
+      })
+    : loadProjectContext(deps.root);
   const system = ctoSystemPrompt("Cénacle", context);
   const tell = (progress: CtoProgress) => {
     try {
@@ -72,40 +100,51 @@ export async function askCto(question: string, deps: CtoDeps): Promise<CtoReply>
       // Progress is display only: a failing display never costs the answer.
     }
   };
-  let phase: "premier jet" | "correction" = "premier jet";
+  const phase: "premier jet" | "correction" = "premier jet";
   let cut = false;
+  const { tools, stats } = createReadTools(view, {
+    ...(options.maxCalls === undefined ? {} : { maxCalls: options.maxCalls }),
+    // Tools stop well before the model's timeout: he then answers with what he read.
+    windowMs: review ? 240_000 : 120_000,
+    onUse: (use) => tell({ kind: "tool", tool: use.tool, target: use.target.slice(0, 120) }),
+  });
   const answer = await answerVerified(
-    text,
-    async (prompt) => {
+    prompt,
+    async (text) => {
       tell({ kind: "reading", phase });
       const reply = await askAgent({
         agent: "cto",
         systemPrompt: system,
-        question: prompt,
+        question: text,
         // The question may name someone: local model only (ADR-0003).
         dataClass: "personal",
         journal: deps.journal,
         local: deps.local,
-        timeoutMs: 300_000,
+        // Tools mean several model turns: a review reads more.
+        timeoutMs: review ? 900_000 : 300_000,
         onProgress: (chars) => tell({ kind: "writing", phase, chars }),
+        tools,
       });
       cut = reply.cut;
       return reply.text;
     },
-    buildRepoIndex(deps.root),
-    (missing) => {
-      phase = "correction";
-      tell({ kind: "revising", missing: missing.length });
-    },
+    { ...buildRepoIndex(deps.root), view },
+    undefined,
+    // With tools, no rewrite by the model (it would try to call tools it no
+    // longer has, or drop what it read): the code marks what is missing.
+    "annotate",
   );
   await deps.journal.append({
     agent: "cto",
     type: "cto.verified",
     payload: {
+      kind: options.kind ?? "question",
       claims: answer.checked.length,
       notFound: answer.checked.filter((c) => !c.found).length,
       revised: answer.revised,
       notFoundFirst: answer.unverifiedFirst.length,
+      toolCalls: stats.calls,
+      toolRefused: stats.refused,
     },
   });
   return {

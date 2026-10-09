@@ -7,7 +7,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { answerVerified, checkSummary } from "./answer.ts";
+import { annotate, answerVerified, checkSummary, NOT_FOUND_MARK } from "./answer.ts";
 import { extractClaims, MAX_CLAIMS } from "./claims.ts";
 import { buildRepoIndex, type RepoIndex, verifyClaims } from "./verify.ts";
 
@@ -174,5 +174,39 @@ describe("answerVerified", () => {
         index,
       ),
     ).rejects.toThrow("model down");
+  });
+});
+
+describe("annotate mode (J3, ADR-0021): the code marks, the model is asked once", () => {
+  it("one model call; each missing reference marked where it stands, the rest untouched", async () => {
+    const asked: string[] = [];
+    const a = await answerVerified(
+      "Q ?",
+      async (p) => {
+        asked.push(p);
+        return "Voir ADR-0016, ADR-0099 et `selfHealingRebuild()`, puis `npm run nope`.";
+      },
+      index,
+      undefined,
+      "annotate",
+    );
+    expect(asked).toHaveLength(1);
+    expect(a.revised).toBe(false);
+    expect(a.text).toContain(`ADR-0099${NOT_FOUND_MARK}`);
+    expect(a.text).toContain(`\`npm run nope\`${NOT_FOUND_MARK}`);
+    expect(a.text).not.toContain(`ADR-0016${NOT_FOUND_MARK}`);
+    expect(checkSummary(a)).toMatch(/⚠ \d introuvables? :.*ADR-0099/);
+  });
+
+  it("at most three marks per reference, never twice on the same spot", () => {
+    const claim = { kind: "path" as const, value: "apps/x.ts" };
+    const text = Array.from({ length: 5 }, () => "`apps/x.ts`").join(" ");
+    const once = annotate(text, [claim]);
+    expect(once.split(NOT_FOUND_MARK)).toHaveLength(4);
+    expect(annotate(once, [claim])).toBe(once);
+  });
+
+  it("a reference absent from the text changes nothing", () => {
+    expect(annotate("rien", [{ kind: "adr", value: "0099" }])).toBe("rien");
   });
 });

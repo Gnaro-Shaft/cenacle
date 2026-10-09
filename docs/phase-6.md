@@ -11,7 +11,7 @@ Un jalon = une branche + une pull request, CI verte obligatoire.
 |---|---|---|
 | **J1 — Le conseiller** (ADR-0017) | `npm run cto -- "question"` : il répond à mes questions techniques sur Cénacle, avec la documentation versionnée choisie par le code ; modèle local ; aucun outil ; rien n'est gardé ; une boîte « CTO » sur la page | Mes vraies questions sur Cénacle, et la boîte qui s'anime |
 | J2 — La conversation (ADR-0020) | J2a : le CTO en service local, interrogé depuis la page ; J2b : `/cto` sur Telegram, sans donnée de tiers dans les questions | Une question posée depuis la page, puis depuis le téléphone |
-| J3 — Le contrôle qualité | Lecture du code et relecture d'une pull request, par des outils de lecture seule accordés par le code | Une relecture qui trouve un vrai défaut |
+| J3 — Le contrôle qualité (ADR-0021) | Lecture du code et relecture d'une branche (`npm run cto -- --relire <branche>`, expérimentale), par trois outils de lecture seule accordés par le code | Une relecture qui trouve un vrai défaut : un défaut mineur trouvé, 0 sur 3 au banc — à améliorer en J3b |
 | J4 — La conformité | Registres, cadre, code et documentation qui concordent | Un écart réel signalé |
 | J5 — La veille | Ce qui bouge dans mes technos, et ce qui m'est applicable | Un résumé régulier utile ; **la veille actuelle sur n8n est alors supprimée** |
 | J6 — L'agent sécurité | Un second agent qui surveille (Mac, VPS, dépendances, failles), supervisé par le CTO | Une faille ou une mise à jour signalée et suivie |

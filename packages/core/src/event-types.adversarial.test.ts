@@ -8,8 +8,11 @@ import { describe, expect, it } from "vitest";
 import { type AgentEvent, isKnownEventType, projectStatus } from "./agent-status.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
-/** `type: "…"` literals that are not journal events (key formats of node:crypto). */
-const NOT_EVENTS: ReadonlySet<string> = new Set(["pkcs8", "spki"]);
+/**
+ * `type: "…"` literals that are not journal events: key formats of node:crypto,
+ * and the content blocks a tool returns to the model (ADR-0021).
+ */
+const NOT_EVENTS: ReadonlySet<string> = new Set(["pkcs8", "spki", "text"]);
 
 function sources(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {

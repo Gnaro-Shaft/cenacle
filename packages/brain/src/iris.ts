@@ -7,7 +7,7 @@
  */
 
 import type { Journal } from "@cenacle/journal";
-import { Agent } from "@earendil-works/pi-agent-core";
+import { Agent, type AgentTool } from "@earendil-works/pi-agent-core";
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 import { type Span, SpanStatusCode, trace } from "@opentelemetry/api";
 import type { LocalModels } from "./local-model.ts";
@@ -53,6 +53,12 @@ export interface AskOptions {
    * text: a long wait shows progress instead of looking like a crash.
    */
   readonly onProgress?: (writtenChars: number) => void;
+  /**
+   * Read-only tools granted by code (ADR-0021), never by the model: none for
+   * Iris. With tools, the model may call them several times before answering.
+   */
+  // biome-ignore lint/suspicious/noExplicitAny: the agent's own type for a mixed tool list.
+  readonly tools?: readonly AgentTool<any>[];
 }
 
 const AGENT_NAME = /^[a-z][a-z0-9_-]{0,31}$/;
@@ -128,6 +134,7 @@ async function askIrisTraced(options: AskOptions, span: Span): Promise<IrisAnswe
       systemPrompt: options.systemPrompt ?? IRIS_SYSTEM_PROMPT,
       model: local.model,
       thinkingLevel: "off",
+      tools: [...(options.tools ?? [])],
     },
     streamFn: local.models.streamSimple.bind(local.models),
   });

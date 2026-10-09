@@ -9,6 +9,7 @@ import { lstatSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Claim } from "./claims.ts";
 import { gitTrackedFiles } from "./context.ts";
+import type { RepoView } from "./repo-view.ts";
 
 export interface RepoIndex {
   readonly files: ReadonlySet<string>;
@@ -16,6 +17,16 @@ export interface RepoIndex {
   readonly adrs: ReadonlySet<string>;
   /** Whether a name appears in a readable versioned file. */
   has(name: string): boolean;
+  /** The code the answer was written from (ADR-0021): where `path:line` is checked. */
+  readonly view?: RepoView;
+}
+
+/** A full path, or a short name that designates exactly one file — else null. */
+function resolve(path: string, files: Iterable<string>): string | null {
+  const all = [...files];
+  if (all.includes(path)) return path;
+  const matches = all.filter((f) => f.endsWith(`/${path}`));
+  return matches.length === 1 ? (matches[0] ?? null) : null;
 }
 
 export interface Checked {
@@ -77,7 +88,22 @@ export function verifyClaims(claims: readonly Claim[], index: RepoIndex): Checke
         const p = claim.value.replace(/\/$/, "");
         if (p.startsWith("/") || p.split("/").includes("..") || DENIED.test(p))
           return { claim, found: false };
-        const found = index.files.has(p) || [...index.files].some((f) => f.startsWith(`${p}/`));
+        const found =
+          resolve(p, index.files) !== null || [...index.files].some((f) => f.startsWith(`${p}/`));
+        return { claim, found };
+      }
+      case "line": {
+        // "path:12" or "path:12-30", checked in the code the answer was written from.
+        const m = /^(.+):(\d+)(?:-(\d+))?$/.exec(claim.value);
+        const view = index.view;
+        if (m?.[1] === undefined || view === undefined || DENIED.test(m[1])) {
+          return { claim, found: false };
+        }
+        const path = resolve(m[1], view.files());
+        const lines = path === null ? null : view.lines(path);
+        const start = Number(m[2]);
+        const end = Number(m[3] ?? m[2]);
+        const found = lines !== null && start >= 1 && start <= end && end <= lines;
         return { claim, found };
       }
       case "name":
