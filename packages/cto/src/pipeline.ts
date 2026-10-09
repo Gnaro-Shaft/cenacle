@@ -89,10 +89,13 @@ export async function runCto(
       // Progress is display only: a failing display never costs the answer.
     }
   };
-  let phase: "premier jet" | "correction" = "premier jet";
+  const phase: "premier jet" | "correction" = "premier jet";
   let cut = false;
+  const review = options.kind === "review";
   const { tools, stats } = createReadTools(view, {
     ...(options.maxCalls === undefined ? {} : { maxCalls: options.maxCalls }),
+    // Tools stop well before the model's timeout: he then answers with what he read.
+    windowMs: review ? 360_000 : 120_000,
     onUse: (use) => tell({ kind: "tool", tool: use.tool, target: use.target.slice(0, 120) }),
   });
   const answer = await answerVerified(
@@ -108,7 +111,7 @@ export async function runCto(
         journal: deps.journal,
         local: deps.local,
         // Tools mean several model turns: a review reads more.
-        timeoutMs: options.kind === "review" ? 600_000 : 300_000,
+        timeoutMs: review ? 600_000 : 300_000,
         onProgress: (chars) => tell({ kind: "writing", phase, chars }),
         tools,
       });
@@ -116,10 +119,10 @@ export async function runCto(
       return reply.text;
     },
     { ...buildRepoIndex(deps.root), view },
-    (missing) => {
-      phase = "correction";
-      tell({ kind: "revising", missing: missing.length });
-    },
+    undefined,
+    // With tools, no rewrite by the model (it would try to call tools it no
+    // longer has, or drop what it read): the code marks what is missing.
+    "annotate",
   );
   await deps.journal.append({
     agent: "cto",

@@ -51,7 +51,8 @@ export const SECRET_LIKE: readonly RegExp[] = [
   /\bgh[pousr]_[A-Za-z0-9]{20,}/,
   /\bAKIA[0-9A-Z]{16}\b/,
   /\bxox[abprs]-[A-Za-z0-9-]{10,}/,
-  /\b(?:password|passwd|secret|token|api[_-]?key)\s*[:=]\s*["']?[A-Za-z0-9_\-/+=]{12,}/i,
+  // A value, not code: a function call (`mailPassword(cadre)`) or `process.env.X` is not one.
+  /\b(?:password|passwd|secret|token|api[_-]?key)\s*[:=]\s*["']?[A-Za-z0-9_\-/+=]{12,}(?![A-Za-z0-9_\-/+=(.])/i,
 ];
 
 const FIRST = ["CLAUDE.md", "README.md", "docs/charte.md", "docs/adr/README.md"];

@@ -24,6 +24,8 @@ function classify(raw: string): Claim | null {
   const script = /^npm run ([a-z][a-z0-9:_-]{0,40})\b/.exec(span);
   if (script?.[1] !== undefined) return { kind: "script", value: script[1] };
   if (/\s/.test(span)) return null; // a code snippet, not a name
+  // A chat command such as `/stop` or `/cto`: a name to look up, not an absolute path.
+  if (/^\/[a-z]{2,20}$/.test(span)) return { kind: "name", value: span };
   const bare = span.replace(/\(\)$/, "").replace(/^\[(.+)\]$/, "$1");
   // "path:12" or "path:12-30": a place in the code (ADR-0021).
   const place = /^([\w./@-]{2,200}\.[a-z]{1,5}):(\d{1,6})(?:-(\d{1,6}))?$/.exec(bare);

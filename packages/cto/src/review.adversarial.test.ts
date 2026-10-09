@@ -114,6 +114,8 @@ describe("path:line, checked in the code the answer was written from", () => {
       ]),
     );
     expect(claims.some((c) => c.kind === "line" && c.value.startsWith(".env"))).toBe(false);
+    // A chat command is a name, never an absolute path.
+    expect(extractClaims("Envoie `/stop`.")).toEqual([{ kind: "name", value: "/stop" }]);
   });
 
   it.each([

@@ -46,6 +46,16 @@ beforeAll(() => {
   put("fixtures/mails.md", "un mail fictif");
   put("src/cle.ts", FAKE_KEY);
   put("src/image.ts", Buffer.from([0x23, 0x00, 0x01, 0x02]));
+  // Code, not a secret: a call and an environment access must stay readable.
+  put(
+    "src/appel.ts",
+    [
+      "const pass",
+      "word = mailPassword(cadre);\nconst tok",
+      "en = process.env.TELEGRAM_BOT_TOKEN;",
+    ].join(""),
+  );
+  put("src/clair.ts", ["const pass", "word = Sup3rS3cretValue2026;"].join(""));
   put("src/gros.ts", "x".repeat(MAX_VIEW_FILE + 1));
   symlinkSync("../.env", join(root, "src/lien.ts"));
   commit("init");
@@ -93,6 +103,13 @@ describe("the view of the repository", () => {
     ["src/gros.ts", "too_big"],
   ])("refuses %s (%s)", (path, reason) => {
     expect(() => gitView(root).read(path)).toThrow(expect.objectContaining({ reason }));
+  });
+
+  it("code that names a password is readable; a password written in clear is not", () => {
+    expect(gitView(root).read("src/appel.ts")).toContain("mailPassword(cadre)");
+    expect(() => gitView(root).read("src/clair.ts")).toThrow(
+      expect.objectContaining({ reason: "secret_like" }),
+    );
   });
 
   it("reads at the ref it is given: the branch's file exists there, not at HEAD", () => {
@@ -156,6 +173,28 @@ describe("the tools", () => {
     );
     expect(stats.calls).toBe(3);
     expect(uses).toHaveLength(3);
+  });
+
+  it("the budget in time counts from the first call; past it, nothing more is read", async () => {
+    const uses: ToolUse[] = [];
+    const { tools, stats } = createReadTools(gitView(root), {
+      windowMs: 50,
+      onUse: (u) => uses.push(u),
+    });
+    // Slow before the first call (a cold model): the window has not started.
+    await new Promise((r) => setTimeout(r, 80));
+    await tool(tools, "lire")({ chemin: "src/a.ts", debut: 1, fin: 2 });
+    await new Promise((r) => setTimeout(r, 80));
+    await expect(tool(tools, "lire")({ chemin: "src/a.ts" })).rejects.toBeInstanceOf(
+      ToolBudgetError,
+    );
+    expect(stats.calls).toBe(1);
+    expect(uses).toHaveLength(1);
+  });
+
+  it("lire without an end gives 200 lines, not more", async () => {
+    const { tools } = createReadTools(gitView(root));
+    expect((await tool(tools, "lire")({ chemin: "src/a.ts" })).split("\n")).toHaveLength(200);
   });
 
   it("the budget in characters bounds what comes back", async () => {

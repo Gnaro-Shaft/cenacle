@@ -9,9 +9,11 @@ import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { type Static, Type } from "@earendil-works/pi-ai";
 import type { RepoView } from "./repo-view.ts";
 
-export const MAX_TOOL_CALLS = 15;
+export const MAX_TOOL_CALLS = 6;
 export const MAX_TOOL_CHARS = 150_000;
 const MAX_LINES_PER_READ = 400;
+/** Lines read when the model gives no end: each turn stays light. */
+const DEFAULT_LINES = 200;
 const MAX_CHARS_PER_RESULT = 20_000;
 const MAX_LISTED = 300;
 const MAX_HITS = 50;
@@ -58,17 +60,29 @@ export function createReadTools(
   options: {
     readonly maxCalls?: number;
     readonly maxChars?: number;
+    /**
+     * How long the tools may be used, from the first call (ms): past it, they
+     * say "budget exhausted" and the CTO answers with what he has, instead of
+     * being cut by the timeout. Counted from the first call, so that reading
+     * the documentation (slow when cold) never eats it.
+     */
+    readonly windowMs?: number;
     readonly onUse?: (use: ToolUse) => void;
   } = {},
   // biome-ignore lint/suspicious/noExplicitAny: the agent's own type for a mixed tool list.
 ): { readonly tools: AgentTool<any>[]; readonly stats: ToolStats } {
   const stats: ToolStats = { calls: 0, refused: 0, chars: 0 };
+  let deadline: number | undefined;
   const maxCalls = options.maxCalls ?? MAX_TOOL_CALLS;
   const maxChars = options.maxChars ?? MAX_TOOL_CHARS;
 
   /** Counts the call, runs it, bounds its result; a refusal is counted, then thrown. */
   const run = (use: ToolUse, body: () => string) => {
-    if (stats.calls >= maxCalls || stats.chars >= maxChars) throw new ToolBudgetError();
+    if (deadline === undefined && options.windowMs !== undefined) {
+      deadline = Date.now() + options.windowMs;
+    }
+    const late = deadline !== undefined && Date.now() >= deadline;
+    if (stats.calls >= maxCalls || stats.chars >= maxChars || late) throw new ToolBudgetError();
     stats.calls++;
     try {
       options.onUse?.(use);
@@ -109,7 +123,7 @@ export function createReadTools(
   const read: AgentTool<typeof READ> = {
     name: "lire",
     label: "lire",
-    description: `Lit un fichier suivi du dépôt, des lignes debut à fin (${MAX_LINES_PER_READ} lignes au plus par appel), numérotées.`,
+    description: `Lit un fichier suivi du dépôt, des lignes debut à fin (${DEFAULT_LINES} lignes si fin manque, ${MAX_LINES_PER_READ} au plus), numérotées. Cherche d'abord, puis lis seulement les lignes utiles.`,
     parameters: READ,
     execute: async (_id, params: Static<typeof READ>) =>
       run({ tool: "lire", target: params.chemin }, () => {
@@ -118,7 +132,7 @@ export function createReadTools(
         if (from > lines.length) return `(le fichier n'a que ${lines.length} lignes)`;
         const to = Math.min(
           lines.length,
-          Math.floor(params.fin ?? from + MAX_LINES_PER_READ - 1),
+          Math.floor(params.fin ?? from + DEFAULT_LINES - 1),
           from + MAX_LINES_PER_READ - 1,
         );
         return lines
