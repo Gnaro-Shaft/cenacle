@@ -1,14 +1,12 @@
 {
-  "name": "@cenacle/cto",
+  "name": "@cenacle/cto-service",
   "version": "0.0.0",
   "private": true,
   "license": "Apache-2.0",
   "type": "module",
-  "exports": {
-    ".": "./src/index.ts"
-  },
   "dependencies": {
-    "@cenacle/brain": "0.0.0",
+    "@cenacle/core": "0.0.0",
+    "@cenacle/cto": "0.0.0",
     "@cenacle/journal": "0.0.0"
   }
 }

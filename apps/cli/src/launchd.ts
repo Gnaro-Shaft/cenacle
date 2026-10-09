@@ -8,7 +8,7 @@
 import { chmodSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join } from "node:path";
 
-export const PROGRAMS = ["iris", "server", "bot", "web"] as const;
+export const PROGRAMS = ["iris", "server", "bot", "web", "cto"] as const;
 export type Program = (typeof PROGRAMS)[number];
 
 export interface ServicePaths {

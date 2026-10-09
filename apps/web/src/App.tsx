@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { AgentBox } from "./AgentBox.tsx";
+import { CtoAsk } from "./CtoAsk.tsx";
 import { Proposals } from "./Proposals.tsx";
 import { takeToken } from "./token.ts";
 
@@ -23,11 +24,14 @@ export function App() {
       </section>
       {token === null ? (
         <p className="detail locked">
-          🔒 Pour voir et valider les brouillons, ouvre le lien affiché par{" "}
-          <code>npm run server</code> (il change à chaque démarrage du serveur).
+          🔒 Pour voir les brouillons et parler au CTO, ouvre la page avec <code>npm run page</code>{" "}
+          (le lien change à chaque démarrage du serveur).
         </p>
       ) : (
-        <Proposals token={token} onLost={() => setToken(null)} />
+        <>
+          <CtoAsk token={token} onLost={() => setToken(null)} />
+          <Proposals token={token} onLost={() => setToken(null)} />
+        </>
       )}
     </main>
   );

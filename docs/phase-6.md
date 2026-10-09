@@ -10,7 +10,7 @@ Un jalon = une branche + une pull request, CI verte obligatoire.
 | Jalon | Contenu | Démonstration |
 |---|---|---|
 | **J1 — Le conseiller** (ADR-0017) | `npm run cto -- "question"` : il répond à mes questions techniques sur Cénacle, avec la documentation versionnée choisie par le code ; modèle local ; aucun outil ; rien n'est gardé ; une boîte « CTO » sur la page | Mes vraies questions sur Cénacle, et la boîte qui s'anime |
-| J2 — La conversation | Lui écrire depuis Telegram et la page | Une question posée depuis le téléphone |
+| J2 — La conversation (ADR-0020) | J2a : le CTO en service local, interrogé depuis la page ; J2b : `/cto` sur Telegram, sans donnée de tiers dans les questions | Une question posée depuis la page, puis depuis le téléphone |
 | J3 — Le contrôle qualité | Lecture du code et relecture d'une pull request, par des outils de lecture seule accordés par le code | Une relecture qui trouve un vrai défaut |
 | J4 — La conformité | Registres, cadre, code et documentation qui concordent | Un écart réel signalé |
 | J5 — La veille | Ce qui bouge dans mes technos, et ce qui m'est applicable | Un résumé régulier utile ; **la veille actuelle sur n8n est alors supprimée** |

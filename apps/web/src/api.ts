@@ -1,4 +1,4 @@
-/** Calls to the proposals API, with the token of this run of the server. */
+/** Calls to the API (proposals, the CTO), with the token of this run of the server. */
 
 export interface ProposalView {
   readonly id: string;
@@ -52,3 +52,19 @@ export const saveDraft = (token: string, id: string, draft: string) =>
 
 export const act = (token: string, id: string, action: "accept" | "refuse" | "cancel") =>
   call(token, `/api/proposals/${encodeURIComponent(id)}/${action}`, { method: "POST", body: "{}" });
+
+/** The CTO's checked answer (ADR-0020). */
+export interface CtoReplyView {
+  readonly text: string;
+  readonly summary: string;
+  readonly cut: boolean;
+  readonly seconds: number;
+}
+
+export const askCto = async (token: string, question: string) =>
+  (
+    await call<{ reply: CtoReplyView }>(token, "/api/cto", {
+      method: "POST",
+      body: JSON.stringify({ question }),
+    })
+  ).reply;

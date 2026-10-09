@@ -32,6 +32,9 @@
       "path": "apps/telegram"
     },
     {
+      "path": "apps/cto"
+    },
+    {
       "path": "apps/iris"
     },
     {

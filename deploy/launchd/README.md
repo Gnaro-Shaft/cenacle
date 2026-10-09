@@ -1,18 +1,18 @@
 # Cénacle lancé par launchd (ADR-0018, ADR-0019)
 
-Iris, le serveur de la page, le bot Telegram et la page démarrent à l'ouverture de session. Chacun repart s'il plante, jamais après `/stop`, Ctrl+C ou une déconnexion.
+Iris, le serveur de la page, le bot Telegram, la page et le CTO démarrent à l'ouverture de session. Chacun repart s'il plante, jamais après `/stop`, Ctrl+C ou une déconnexion.
 
 ## Installer, vérifier, retirer
 
 ```bash
-npm run service -- install all       # écrit et démarre les quatre agents launchd
+npm run service -- install all       # écrit et démarre les cinq agents launchd
 npm run service -- status all        # chargé ? pid ? dernier code de sortie ?
 npm run service -- uninstall all     # les arrête et les retire
 ```
 
-On peut viser un seul programme : `iris`, `server`, `bot` ou `web` à la place de `all`. `npm run iris:service -- install` fait la même chose pour Iris seule.
+On peut viser un seul programme : `iris`, `server`, `bot`, `web` ou `cto` à la place de `all`. `npm run iris:service -- install` fait la même chose pour Iris seule.
 
-Avant d'installer, arrête ce que tu as lancé à la main (Ctrl+C). Si tu l'oublies, rien de grave : Iris, le serveur et le bot n'acceptent qu'un exemplaire à la fois. Celui de launchd réessaie toutes les 30 s, puis prend le relais quand l'autre s'arrête.
+Avant d'installer, arrête ce que tu as lancé à la main (Ctrl+C). Si tu l'oublies, rien de grave : Iris, le serveur, le bot et le CTO n'acceptent qu'un exemplaire à la fois. Celui de launchd réessaie toutes les 30 s, puis prend le relais quand l'autre s'arrête.
 
 Les agents sont écrits dans `~/Library/LaunchAgents/`, à partir des chemins de ce Mac : ils ne sont jamais versionnés. Ils ne contiennent aucun secret : le lanceur (`run.sh`) charge les mêmes fichiers `.env*` que les scripts npm.
 
@@ -42,3 +42,13 @@ Iris, le serveur et le bot ont besoin de la base ; Iris, du modèle. Sans eux, i
 ## Ce que ça ne règle pas
 
 Tout ne tourne qu'une fois ta session ouverte (écran verrouillé : ça continue). Mac en veille, fermé ou absent : tout est en pause. Au retour, la relève suivante rattrape le courrier.
+
+## Parler au CTO
+
+Depuis la page (`npm run page`), le cadre « Demander au CTO », ou en ligne de commande :
+
+```bash
+npm run cto -- "ta question"
+```
+
+Les deux passent par le service du CTO, une question à la fois. Pas de donnée de client ni de contenu de mail dans les questions.
