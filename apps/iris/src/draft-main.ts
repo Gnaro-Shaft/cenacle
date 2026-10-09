@@ -66,7 +66,11 @@ try {
   }
   console.log(`\n${proposed} brouillon(s) à valider — npm run proposal -- list`);
 } catch (error) {
-  console.error(`🛑 ${error instanceof Error ? error.message : String(error)}`);
+  // Only the error's name: its message may quote the mail server, an account
+  // or an address (found by the CTO's review, 2026-10-09). Nothing is ever sent here.
+  console.error(
+    `🛑 ${error instanceof Error ? error.name : "erreur"} — rien n'a été envoyé ; relance plus tard`,
+  );
   process.exitCode = 1;
 } finally {
   await sql.end();
