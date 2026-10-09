@@ -67,8 +67,8 @@ try {
   );
   const journal = createJournal(sql);
   const system = ctoSystemPrompt("Cénacle", context);
-  // 120 k characters of documentation are ~35 k tokens: a window far above
-  // Iris's, within what LM Studio loads for the shared model (208 k). Answers
+  // Up to 200 k characters of documentation, ~60 k tokens: a window far above
+  // Iris's, within what LM Studio loads for the shared model (262 k). Answers
   // are short (the model writes ~18 tokens/s): 1500 tokens, ~1000 words at most.
   const local = createLocalModels({
     ...localModelConfigFromEnv(),

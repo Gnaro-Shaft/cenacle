@@ -37,7 +37,7 @@ export interface ProjectContext {
 }
 
 /** Characters of documentation at most: the local model holds far more, the answer stays fast. */
-export const CONTEXT_BUDGET = 120_000;
+export const CONTEXT_BUDGET = 200_000;
 const MAX_FILE = 200_000;
 
 /** Documentation, by path: the only files ever considered. */
@@ -54,13 +54,42 @@ export const SECRET_LIKE: readonly RegExp[] = [
   /\b(?:password|passwd|secret|token|api[_-]?key)\s*[:=]\s*["']?[A-Za-z0-9_\-/+=]{12,}/i,
 ];
 
-/** Charter and decisions first, then the rest by path: the same order at every call. */
-function rank(path: string): string {
-  const first = ["CLAUDE.md", "README.md", "docs/charte.md", "docs/adr/README.md"];
-  const i = first.indexOf(path);
-  if (i !== -1) return `0${i}`;
-  if (path.startsWith("docs/adr/")) return `1${path}`;
-  return `2${path}`;
+const FIRST = ["CLAUDE.md", "README.md", "docs/charte.md", "docs/adr/README.md"];
+const PHASE = /^docs\/phase-(\d+)\.md$/;
+const ADR = /^docs\/adr\/(\d{4})-/;
+/** How many of the latest phases count as current work. */
+const CURRENT_PHASES = 2;
+
+/**
+ * What matters first, so that what the budget leaves out is the least useful
+ * (the same order at every call): the charter and its kin; the current phases
+ * and security; decisions, newest first; the rest by path; then older phases,
+ * which are history. Phases are numbered: a new one moves ahead by itself.
+ */
+export function orderDocumentation(paths: readonly string[]): string[] {
+  const phase = (p: string) => Number(PHASE.exec(p)?.[1] ?? Number.NaN);
+  const current = new Set(
+    paths
+      .map(phase)
+      .filter((n) => !Number.isNaN(n))
+      .sort((a, b) => b - a)
+      .slice(0, CURRENT_PHASES),
+  );
+  const key = (p: string): [number, number, string] => {
+    const first = FIRST.indexOf(p);
+    if (first !== -1) return [0, first, ""];
+    const n = phase(p);
+    if (!Number.isNaN(n)) return current.has(n) ? [1, -n, ""] : [4, -n, ""];
+    if (p.startsWith("docs/securite/")) return [1, 0, p];
+    const adr = ADR.exec(p)?.[1];
+    if (adr !== undefined) return [2, -Number(adr), p];
+    return [3, 0, p];
+  };
+  return [...paths].sort((a, b) => {
+    const [ta, na, sa] = key(a);
+    const [tb, nb, sb] = key(b);
+    return ta - tb || na - nb || (sa < sb ? -1 : sa > sb ? 1 : 0);
+  });
 }
 
 export function gitTrackedFiles(root: string): string[] {
@@ -80,9 +109,9 @@ export function loadProjectContext(
   const files: ContextFile[] = [];
   const skipped: Skipped[] = [];
   let chars = 0;
-  const candidates = (options.tracked ?? gitTrackedFiles)(root)
-    .filter((p) => DOCUMENTATION.test(p))
-    .sort((a, b) => rank(a).localeCompare(rank(b)));
+  const candidates = orderDocumentation(
+    (options.tracked ?? gitTrackedFiles)(root).filter((p) => DOCUMENTATION.test(p)),
+  );
   for (const path of candidates) {
     if (DENIED.test(path)) {
       skipped.push({ path, reason: "denied" });

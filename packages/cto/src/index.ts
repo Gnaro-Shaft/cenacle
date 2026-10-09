@@ -5,6 +5,7 @@ export {
   type ContextFile,
   gitTrackedFiles,
   loadProjectContext,
+  orderDocumentation,
   type ProjectContext,
   SECRET_LIKE,
   type Skipped,
