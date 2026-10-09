@@ -6,7 +6,7 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { loadProjectContext } from "./context.ts";
+import { CONTEXT_BUDGET, loadProjectContext, orderDocumentation } from "./context.ts";
 
 let root = "";
 let outside = "";
@@ -54,8 +54,8 @@ describe("loadProjectContext", () => {
       "CLAUDE.md",
       "README.md",
       "docs/charte.md",
-      "docs/adr/0001-a.md",
       "docs/adr/0002-b.md",
+      "docs/adr/0001-a.md",
       "docs/guide.md",
     ]);
     expect(loadProjectContext(root)).toEqual(c);
@@ -118,5 +118,83 @@ describe("loadProjectContext", () => {
     const empty = mkdtempSync(join(tmpdir(), "cto-nogit-"));
     expect(() => loadProjectContext(empty)).toThrow();
     rmSync(empty, { recursive: true, force: true });
+  });
+
+  it("what matters first: current phases and security, then decisions newest first, old phases last", () => {
+    const shuffled = [
+      "docs/phase-1.md",
+      "docs/adr/0003-c.md",
+      "docs/conformite/registre.md",
+      "docs/phase-6.md",
+      "docs/securite/secrets.md",
+      "docs/adr/README.md",
+      "docs/phase-5.md",
+      "README.md",
+      "docs/adr/0019-s.md",
+      "docs/phase-4.md",
+      "docs/charte.md",
+      "CLAUDE.md",
+      "deploy/launchd/README.md",
+    ];
+    const expected = [
+      "CLAUDE.md",
+      "README.md",
+      "docs/charte.md",
+      "docs/adr/README.md",
+      "docs/phase-6.md",
+      "docs/phase-5.md",
+      "docs/securite/secrets.md",
+      "docs/adr/0019-s.md",
+      "docs/adr/0003-c.md",
+      "deploy/launchd/README.md",
+      "docs/conformite/registre.md",
+      "docs/phase-4.md",
+      "docs/phase-1.md",
+    ];
+    expect(orderDocumentation(shuffled)).toEqual(expected);
+    expect(orderDocumentation([...shuffled].reverse())).toEqual(expected);
+  });
+
+  it("phases are numbered, not alphabetical: phase-10 is ahead of phase-9", () => {
+    expect(
+      orderDocumentation([
+        "docs/phase-2.md",
+        "docs/phase-9.md",
+        "docs/phase-10.md",
+        "docs/phase-8.md",
+      ]),
+    ).toEqual(["docs/phase-10.md", "docs/phase-9.md", "docs/phase-8.md", "docs/phase-2.md"]);
+  });
+
+  it("under a tight budget, old phases go first — never the charter, security or current phases", () => {
+    const docs: Record<string, string> = {
+      "docs/charte.md": "c".repeat(100),
+      "docs/securite/secrets.md": "s".repeat(100),
+      "docs/phase-3.md": "3".repeat(100),
+      "docs/phase-2.md": "2".repeat(100),
+      "docs/phase-1.md": "1".repeat(100),
+      "docs/adr/0001-a.md": "a".repeat(100),
+    };
+    for (const [path, text] of Object.entries(docs)) put(path, text);
+    const c = loadProjectContext(root, { budget: 500, tracked: () => Object.keys(docs) });
+    expect(c.files.map((f) => f.path)).toEqual([
+      "docs/charte.md",
+      "docs/phase-3.md",
+      "docs/phase-2.md",
+      "docs/securite/secrets.md",
+      "docs/adr/0001-a.md",
+    ]);
+    expect(c.skipped).toEqual([{ path: "docs/phase-1.md", reason: "budget" }]);
+  });
+
+  it("the real repository fits in the budget: nothing is left out for lack of room", () => {
+    // An alarm: when the documentation outgrows the budget, this fails first.
+    const repo = join(import.meta.dirname, "..", "..", "..");
+    const c = loadProjectContext(repo);
+    expect(c.skipped.filter((s) => s.reason === "budget")).toEqual([]);
+    expect(c.chars).toBeLessThanOrEqual(CONTEXT_BUDGET);
+    expect(c.files.map((f) => f.path)).toEqual(
+      expect.arrayContaining(["docs/phase-5.md", "docs/phase-6.md", "docs/securite/secrets.md"]),
+    );
   });
 });
