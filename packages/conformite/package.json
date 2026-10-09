@@ -1,13 +1,15 @@
 {
-  "name": "@cenacle/cto-service",
+  "name": "@cenacle/conformite",
   "version": "0.0.0",
   "private": true,
   "license": "Apache-2.0",
   "type": "module",
   "dependencies": {
-    "@cenacle/conformite": "0.0.0",
     "@cenacle/core": "0.0.0",
     "@cenacle/cto": "0.0.0",
-    "@cenacle/journal": "0.0.0"
+    "smol-toml": "1.9.0"
+  },
+  "exports": {
+    ".": "./src/index.ts"
   }
 }

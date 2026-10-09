@@ -37,7 +37,10 @@ const isObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
 
 /** A question, or a branch to review (ADR-0021): one field, checked by the service. */
-export type CtoRequest = { readonly question: unknown } | { readonly review: unknown };
+export type CtoRequest =
+  | { readonly question: unknown }
+  | { readonly review: unknown }
+  | { readonly conformity: true };
 
 /** The request: `{"question": "..."}` or `{"review": "<branch>"}`, and nothing else. */
 export function decodeRequest(line: string): CtoRequest {
@@ -46,6 +49,7 @@ export function decodeRequest(line: string): CtoRequest {
   const keys = Object.keys(value).join();
   if (keys === "question") return { question: value.question };
   if (keys === "review") return { review: value.review };
+  if (keys === "conformity" && value.conformity === true) return { conformity: true };
   throw new Error("invalid request");
 }
 

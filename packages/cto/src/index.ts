@@ -1,6 +1,12 @@
 export { answerVerified, checkSummary, revisionRequest, type VerifiedAnswer } from "./answer.ts";
 export { type Claim, type ClaimKind, extractClaims, MAX_CLAIMS } from "./claims.ts";
-export { askCtoReview, askCtoService, CLIENT_TIMEOUT_MS, CtoServiceError } from "./client.ts";
+export {
+  askCtoConformity,
+  askCtoReview,
+  askCtoService,
+  CLIENT_TIMEOUT_MS,
+  CtoServiceError,
+} from "./client.ts";
 export {
   CONTEXT_BUDGET,
   type ContextFile,

@@ -38,6 +38,11 @@ export function askCtoReview(path: string, branch: string, options: CallOptions 
   return call(path, { review: branch }, options);
 }
 
+/** The compliance look (ADR-0022). */
+export function askCtoConformity(path: string, options: CallOptions = {}) {
+  return call(path, { conformity: true }, options);
+}
+
 function call(path: string, request: object, options: CallOptions): Promise<CtoReply> {
   return new Promise((resolve, reject) => {
     let settled = false;

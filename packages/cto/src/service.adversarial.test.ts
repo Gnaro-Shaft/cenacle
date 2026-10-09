@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { ModelUnavailableError } from "@cenacle/brain";
 import { afterEach, describe, expect, it } from "vitest";
-import { askCtoReview, askCtoService, type CtoServiceError } from "./client.ts";
+import { askCtoConformity, askCtoReview, askCtoService, type CtoServiceError } from "./client.ts";
 import type { CtoProgress, CtoReply } from "./pipeline.ts";
 import { MAX_LINE } from "./protocol.ts";
 import { createCtoService, listenCto } from "./service.ts";
@@ -225,6 +225,33 @@ describe("a review over the socket (ADR-0021)", () => {
   it("a review when none is plugged in: refused, said", async () => {
     const path = await start(async () => reply("q"));
     await expect(askCtoReview(path, "cto-j3")).rejects.toMatchObject({ code: "invalid" });
+  });
+});
+
+describe("the compliance look over the socket (ADR-0022)", () => {
+  it("goes to the compliance handler, never to the question", async () => {
+    let asked = 0;
+    const path = socketPath();
+    const listener = await listenCto(
+      path,
+      createCtoService({
+        ask: async () => {
+          asked++;
+          return reply("question");
+        },
+        conformity: async () => reply("conformité"),
+      }),
+    );
+    closers.push(() => listener.close());
+    expect((await askCtoConformity(path)).text).toBe("conformité");
+    expect(asked).toBe(0);
+  });
+
+  it("refused when not plugged in, and on a malformed request", async () => {
+    const path = await start(async () => reply("q"));
+    await expect(askCtoConformity(path)).rejects.toMatchObject({ code: "invalid" });
+    const lines = await raw(path, '{"conformity":"oui"}\n');
+    expect(lines.map((l) => JSON.parse(l).code)).toEqual(["invalid"]);
   });
 });
 
