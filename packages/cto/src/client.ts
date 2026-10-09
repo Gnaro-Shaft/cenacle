@@ -8,6 +8,9 @@ import { createConnection } from "node:net";
 import type { CtoProgress, CtoReply } from "./pipeline.ts";
 import { decodeEvent, type ErrorCode, encode, MAX_LINE } from "./protocol.ts";
 
+export type { CtoProgress, CtoReply } from "./pipeline.ts";
+export { ctoSocketPath } from "./protocol.ts";
+
 export class CtoServiceError extends Error {
   readonly code: ErrorCode | "unreachable" | "broken" | "timeout";
   constructor(code: CtoServiceError["code"], message: string) {

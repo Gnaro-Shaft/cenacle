@@ -16,7 +16,7 @@ Il ne peut vivre ni dans le serveur de la page ni dans le bot : l'ADR-0017 (§ 5
 4. **Rien n'est gardé** (ADR-0017 § 6, inchangé) : la question et la réponse vivent en mémoire le temps de la réponse ; le journal reçoit des compteurs. Une erreur du modèle sort comme un code et un mot générique, jamais le message du serveur de modèles.
 5. **La page** : une route `POST /api/cto`, protégée comme les autres actions (jeton de la page, origine, JSON), transmet la question au service et rend la réponse vérifiée avec son bilan. La page l'affiche **en texte brut** : rien de ce qu'écrit le modèle n'est interprété comme du HTML.
 6. **`npm run cto`** passe par le service quand il tourne, et répond seul sinon, avec le même circuit (documentation, modèle local, vérification).
-7. **Telegram** (option (a) du 09/10, jalon J2b) : `/cto` y transmettra mes questions, avec une règle écrite — **aucune donnée de tiers dans une question** (ni nom de client, ni contenu de mail). Le registre des traitements et l'ADR-0006 seront complétés avec J2b.
+7. **Telegram** (option (a) du 09/10, jalon J2b) : `/cto` y transmet mes questions, avec une règle écrite — **aucune donnée de tiers dans une question** (ni nom de client, ni contenu de mail), rappelée par `/aide` et par chaque accusé de réception. Le bot relaie sans bloquer `/etat` ni `/stop`, découpe la réponse en messages de 4 000 caractères au plus, en texte brut, et ne garde rien. Le registre des traitements (ligne Telegram) et l'ADR-0006 sont complétés.
 
 ## Conséquences
 

@@ -2,9 +2,12 @@
  * Iris on Telegram. Usage: npm run bot
  * Long polling: the Mac calls Telegram, Telegram never calls the Mac.
  */
+import { homedir } from "node:os";
 import { projectStatus, refuseForeignSecrets } from "@cenacle/core";
+import { askCtoService, ctoSocketPath } from "@cenacle/cto/client";
 import { connectAsApp, createJournal, holdSingleInstance, readAllEvents } from "@cenacle/journal";
 import { createTelegramApi } from "./api.ts";
+import { relayToCto } from "./cto-relay.ts";
 import { handleUpdate } from "./handler.ts";
 
 const allowedChatId = Number(process.env.TELEGRAM_ALLOWED_CHAT_ID);
@@ -30,6 +33,18 @@ async function readStatus(agent: string) {
   return projectStatus(agent, await readAllEvents(journal, agent));
 }
 
+// Questions to the CTO take minutes: relayed apart, so that /etat and /stop
+// keep answering meanwhile (ADR-0020).
+const relaying = new Set<{ chatId: number }>();
+function relay(chatId: number, question: string): void {
+  const job = { chatId };
+  relaying.add(job);
+  void relayToCto(question, {
+    send: (text) => api.sendMessage(chatId, text),
+    ask: (q) => askCtoService(ctoSocketPath(homedir()), q),
+  }).finally(() => relaying.delete(job));
+}
+
 let offset = 0;
 let stopping = false;
 // Ctrl+C, or SIGTERM when macOS logs out or launchd unloads the bot.
@@ -48,6 +63,8 @@ while (!stopping) {
     for (const action of await handleUpdate(update, { allowedChatId, readStatus })) {
       if (action.kind === "reply") {
         await api.sendMessage(action.chatId, action.text);
+      } else if (action.kind === "ask_cto") {
+        relay(action.chatId, action.question);
       } else {
         await journal.append({
           agent: "cenacle",
@@ -57,6 +74,15 @@ while (!stopping) {
       }
     }
   }
+}
+// A question still on its way is lost with the bot: say so, best effort.
+for (const job of relaying) {
+  await api
+    .sendMessage(
+      job.chatId,
+      "⏹ Le bot s'arrête : ta question au CTO est abandonnée, repose-la plus tard.",
+    )
+    .catch(() => {});
 }
 await instance.release();
 await Promise.all([lockSql.end(), sql.end()]);
