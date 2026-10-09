@@ -1,3 +1,4 @@
+import { type AgentEvent, ProjectionError } from "@cenacle/core";
 import { describe, expect, it } from "vitest";
 import { createTelegramApi, TelegramError, type TelegramUpdate } from "./api.ts";
 import { handleUpdate } from "./handler.ts";
@@ -53,6 +54,50 @@ describe("only the owner is answered", () => {
       deps,
     );
     expect(action?.kind === "reply" && action.text).toContain("🤒");
+  });
+});
+
+describe("/etat never sends an unknown error's message to Telegram", () => {
+  const etat: TelegramUpdate = {
+    update_id: 1,
+    message: {
+      message_id: 1,
+      chat: { id: OWNER, type: "private" },
+      from: { id: OWNER },
+      text: "/etat",
+    },
+  };
+  const failingWith = (error: unknown) => ({
+    allowedChatId: OWNER,
+    readStatus: async () => {
+      throw error;
+    },
+  });
+  const textOf = async (error: unknown) => {
+    const [action] = await handleUpdate(etat, failingWith(error));
+    return action?.kind === "reply" ? action.text : "";
+  };
+
+  it("names a database error, and keeps its host and address home", async () => {
+    const leak = Object.assign(
+      new Error('connect to mail.example.test failed for "someone@example.test"'),
+      { name: "PostgresError" },
+    );
+    const text = await textOf(leak);
+    expect(text).toContain("PostgresError");
+    expect(text).not.toMatch(/example\.test|someone/);
+  });
+
+  it("refuses a name that smuggles data, and a thrown non-error", async () => {
+    const forged = Object.assign(new Error("x"), { name: "someone@example.test" });
+    expect(await textOf(forged)).not.toContain("someone");
+    expect(await textOf("someone@example.test")).not.toContain("someone");
+  });
+
+  it("still explains a broken projection, which the project words itself", async () => {
+    const event = { id: 7n, type: "state.changed" } as unknown as AgentEvent;
+    const text = await textOf(new ProjectionError(event, "out of order"));
+    expect(text).toContain("Event #7 (state.changed): out of order");
   });
 });
 

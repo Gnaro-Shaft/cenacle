@@ -4,7 +4,7 @@
  * Since phase 4 proposals are real (npm run iris:draft): the old "propose" and
  * "approve" scenarios are gone; "clear-demo" closes the demo proposals they left.
  */
-import { projectStatus } from "@cenacle/core";
+import { errorText, ProjectionError, projectStatus, UsageError } from "@cenacle/core";
 import { connectAsApp, createJournal, type NewEvent, readAllEvents } from "@cenacle/journal";
 
 const [scenario, agent = "iris"] = process.argv.slice(2);
@@ -35,7 +35,7 @@ async function eventFor(name: string | undefined): Promise<NewEvent> {
     case "sick":
       return state("error");
     default:
-      throw new Error(
+      throw new UsageError(
         `Unknown scenario ${JSON.stringify(name)} — use idle, work, wait-mac, sick or clear-demo`,
       );
   }
@@ -49,7 +49,7 @@ try {
     console.log(`✔ #${event.id} ${event.type} ${JSON.stringify(event.payload)}`);
   }
 } catch (error) {
-  console.error(`🛑 ${error instanceof Error ? error.message : String(error)}`);
+  console.error(`🛑 ${errorText(error, [ProjectionError])}`);
   process.exitCode = 1;
 } finally {
   await sql.end();

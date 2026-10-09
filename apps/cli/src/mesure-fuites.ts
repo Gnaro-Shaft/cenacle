@@ -9,7 +9,7 @@
  * Not covered here: OpenTelemetry traces (Tempo), Telegram messages already
  * sent, terminal output. Nothing is written anywhere.
  */
-import { refuseForeignSecrets } from "@cenacle/core";
+import { errorText, refuseForeignSecrets, SecretPlacementError } from "@cenacle/core";
 import { connectAsApp } from "@cenacle/journal";
 import { findLeaks, type Haystack, type Needle, type NeedleKind, searchable } from "@cenacle/mail";
 import { readBack } from "./mesure-lecture.ts";
@@ -61,7 +61,7 @@ try {
     process.exitCode = 1;
   }
 } catch (error) {
-  console.error(`🛑 ${error instanceof Error ? `${error.name}: ${error.message}` : String(error)}`);
+  console.error(`🛑 ${errorText(error, [SecretPlacementError])}`);
   process.exitCode = 1;
 } finally {
   await sql.end();

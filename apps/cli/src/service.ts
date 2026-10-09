@@ -9,7 +9,7 @@
 import { execFile } from "node:child_process";
 import { homedir, userInfo } from "node:os";
 import { join } from "node:path";
-import { refuseForeignSecrets } from "@cenacle/core";
+import { errorText, refuseForeignSecrets, SecretPlacementError } from "@cenacle/core";
 import {
   install,
   PROGRAMS,
@@ -83,6 +83,6 @@ try {
     );
   }
 } catch (error) {
-  console.error(`🛑 ${error instanceof Error ? error.message : "erreur"}`);
+  console.error(`🛑 ${errorText(error, [SecretPlacementError])}`);
   process.exitCode = 1;
 }

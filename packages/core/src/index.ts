@@ -33,6 +33,7 @@ export {
   projectStatus,
 } from "./agent-status.ts";
 export { conversationIds, countConversations, type Threaded } from "./conversations.ts";
+export { errorText, type SafeErrorClass, UsageError } from "./error-text.ts";
 export {
   checkDraft,
   extractFacts,

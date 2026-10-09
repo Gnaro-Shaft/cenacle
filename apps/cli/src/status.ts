@@ -2,7 +2,7 @@
  * Prints an agent's status, computed from the journal.
  * Usage: npm run status -- [agent]   (default: iris)
  */
-import { ProjectionError, projectStatus } from "@cenacle/core";
+import { errorText, ProjectionError, projectStatus } from "@cenacle/core";
 import { connectAsApp, createJournal, readAllEvents } from "@cenacle/journal";
 
 const agent = process.argv[2] ?? "iris";
@@ -27,7 +27,9 @@ try {
   console.log(`   events applied : ${events.length}`);
 } catch (error) {
   if (error instanceof ProjectionError) {
-    console.error(`🛑 Cannot compute the status of ${agent}: ${error.message}`);
+    console.error(
+      `🛑 Cannot compute the status of ${agent}: ${errorText(error, [ProjectionError])}`,
+    );
     process.exitCode = 1;
   } else {
     throw error;

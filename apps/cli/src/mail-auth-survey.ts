@@ -7,9 +7,11 @@
  *
  * Usage: npm run mail:auth-survey [-- --serveur=<name> --max=300]
  */
+import { errorText, UsageError } from "@cenacle/core";
 import { connectAsApp, createPeople } from "@cenacle/journal";
 import {
   authShape,
+  KeyError,
   keyerFromEnv,
   loadCadre,
   MAX_SURVEYED,
@@ -73,7 +75,7 @@ const sql = connectAsApp();
 try {
   const max = Number(option("max") ?? "300");
   if (!Number.isSafeInteger(max) || max < 1 || max > MAX_SURVEYED) {
-    throw new Error(`--max doit être un entier entre 1 et ${MAX_SURVEYED}`);
+    throw new UsageError(`--max doit être un entier entre 1 et ${MAX_SURVEYED}`);
   }
   const cadre = loadCadre();
   const keyer = keyerFromEnv();
@@ -96,7 +98,7 @@ try {
   const kept = scan.mails.filter((m) => !m.opposed).map((m) => m.shape);
   print(summarize(kept, option("serveur")), scan.mails.length - kept.length, scan.beforeLimit);
 } catch (error) {
-  console.error(`🛑 ${error instanceof Error ? error.message : String(error)}`);
+  console.error(`🛑 ${errorText(error, [KeyError])}`);
   process.exitCode = 1;
 } finally {
   await sql.end();

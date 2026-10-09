@@ -6,7 +6,7 @@
  * (the bot does not reveal itself), and the attempt is journaled without
  * keeping who it was (data minimisation).
  */
-import type { AgentStatus, VisualState } from "@cenacle/core";
+import { type AgentStatus, errorText, ProjectionError, type VisualState } from "@cenacle/core";
 import { QuestionError, validQuestion } from "@cenacle/cto/question";
 import type { TelegramUpdate } from "./api.ts";
 
@@ -88,7 +88,9 @@ export async function handleUpdate(update: TelegramUpdate, deps: HandlerDeps): P
       try {
         return [reply(describeStatus(await deps.readStatus("iris")))];
       } catch (error) {
-        return [reply(`🤒 Je ne peux pas calculer mon état : ${(error as Error).message}`)];
+        return [
+          reply(`🤒 Je ne peux pas calculer mon état : ${errorText(error, [ProjectionError])}`),
+        ];
       }
     case "/cto": {
       // The text after the command, line breaks kept: "/cto@bot  question…".

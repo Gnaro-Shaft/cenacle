@@ -5,7 +5,7 @@
  */
 
 import { existsSync } from "node:fs";
-import { loadFixtureMailbox, loadFixtureSent } from "@cenacle/core";
+import { errorText, loadFixtureMailbox, loadFixtureSent, UsageError } from "@cenacle/core";
 import {
   LOCAL_CADRE_PATH,
   loadCadre,
@@ -20,7 +20,7 @@ try {
   const sent = loadFixtureSent();
   const local = existsSync(LOCAL_CADRE_PATH) ? loadCadre(LOCAL_CADRE_PATH) : null;
   if (local !== null && !local.mail.test) {
-    throw new Error("cadre.local.toml: this mailbox is not marked test = true");
+    throw new UsageError("cadre.local.toml: this mailbox is not marked test = true");
   }
   const config =
     local === null
@@ -30,6 +30,6 @@ try {
   console.log(`✔ INBOX: ${counts.messages} messages (${counts.unseen} unread) in the test mailbox`);
   console.log(`✔ Sent: ${sent.messages.length} of my sent mails (already read)`);
 } catch (error) {
-  console.error(`🛑 ${error instanceof Error ? error.message : String(error)}`);
+  console.error(`🛑 ${errorText(error)}`);
   process.exitCode = 1;
 }

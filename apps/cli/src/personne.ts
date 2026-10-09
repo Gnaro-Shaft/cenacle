@@ -8,11 +8,13 @@
  * stay in the shell history. The export file is written for me only, never
  * over an existing file. Every action is journaled as counts, never who.
  */
+
 import { writeFileSync } from "node:fs";
 import { stdin, stdout } from "node:process";
 import { createInterface } from "node:readline/promises";
+import { errorText, UsageError } from "@cenacle/core";
 import { connectAsApp, createJournal, createPeople } from "@cenacle/journal";
-import { keyerFromEnv } from "@cenacle/mail";
+import { KeyError, keyerFromEnv } from "@cenacle/mail";
 
 const [action, flag, out] = process.argv.slice(2);
 const USAGE = "usage : personne export --out <fichier.json> | efface | retire";
@@ -24,16 +26,16 @@ const lines = rl[Symbol.asyncIterator]();
 async function ask(question: string): Promise<string> {
   stdout.write(question);
   const answer = await lines.next();
-  if (answer.done === true) throw new Error("réponse manquante : rien n'a été fait");
+  if (answer.done === true) throw new UsageError("réponse manquante : rien n'a été fait");
   return String(answer.value).trim();
 }
 
 const sql = connectAsApp();
 try {
-  if (!["export", "efface", "retire"].includes(action ?? "")) throw new Error(USAGE);
-  if (action === "export" && (flag !== "--out" || out === undefined)) throw new Error(USAGE);
+  if (!["export", "efface", "retire"].includes(action ?? "")) throw new UsageError(USAGE);
+  if (action === "export" && (flag !== "--out" || out === undefined)) throw new UsageError(USAGE);
   const address = await ask("Adresse de la personne : ");
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) throw new Error("adresse illisible");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) throw new UsageError("adresse illisible");
   const key = keyerFromEnv().address(address);
   const people = createPeople(sql);
   const journal = createJournal(sql);
@@ -65,7 +67,7 @@ try {
     );
   } else if (action === "efface") {
     const confirm = await ask("Tout effacer et ignorer ses mails désormais ? Tape EFFACER : ");
-    if (confirm !== "EFFACER") throw new Error("rien n'a été effacé");
+    if (confirm !== "EFFACER") throw new UsageError("rien n'a été effacé");
     const erased = await people.erase(key);
     await journal.append({ agent: "cenacle", type: "person.erased", payload: { ...erased } });
     console.log(
@@ -85,8 +87,8 @@ try {
     );
   }
 } catch (error) {
-  // The message only: it never quotes the address.
-  console.error(`🛑 ${error instanceof Error ? error.message : String(error)}`);
+  // Our own messages only: a database's could quote the address.
+  console.error(`🛑 ${errorText(error, [KeyError])}`);
   process.exitCode = 1;
 } finally {
   rl.close();
