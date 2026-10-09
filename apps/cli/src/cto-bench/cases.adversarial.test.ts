@@ -57,6 +57,15 @@ describe("the bench of the CTO's review", () => {
     ).toBe(true);
   });
 
+  it("E is not met by a cited `unknown` in a paragraph about something else (corrected 2026-10-09)", () => {
+    const misleading =
+      "Ligne 50 : `error instanceof Error ? error.name : \"unknown\"` ; le `purge.failed` n'est qu'un compte rendu.";
+    expect(found(misleading, byId("E"))).toBe(false);
+    expect(
+      found("`purge.done` n'est pas déclaré dans la projection : Iris passe malade.", byId("E")),
+    ).toBe(true);
+  });
+
   it("paragraphs split on blank lines only", () => {
     expect(paragraphs("a\nb\n\n  \nc")).toEqual(["a\nb", "c"]);
   });

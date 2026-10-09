@@ -20,10 +20,23 @@ L'essai du 09/10 (étape 0) a montré que Qwen 3.8 sait s'en servir : cinq bonne
 ## Conséquences
 
 - Il vérifie dans le code au lieu de dire « dans le code, que je ne vois pas » : au premier essai réel, une réponse juste en 123 s, avec 16 références vérifiées.
-- **La relecture manque les défauts qui comptent** : au banc du 09/10 (trois commits qui avaient introduit de vrais défauts, corrigés depuis), elle n'en a trouvé **aucun**, en 3 minutes environ chacune, avec des constats souvent théoriques ; elle a trouvé par ailleurs un vrai défaut mineur (un message d'erreur complet affiché par `apps/iris/src/draft-main.ts`). Une branche trop grosse (23 fichiers) dépasse le délai. Son amélioration est un jalon à part (J3b).
+- **La relecture trouve peu, mais plus qu'au départ.** Au premier banc (trois commits qui avaient introduit de vrais défauts, corrigés depuis), la relecture libre n'en a trouvé **aucun** ; elle a trouvé par ailleurs un vrai défaut mineur (un message d'erreur complet affiché par `apps/iris/src/draft-main.ts`, corrigé). D'où J3b (ci-dessous). Une branche trop grosse (23 fichiers) dépassait le délai.
 - Une question qui lit du code prend 1 à 3 minutes ; une relecture, environ 3 minutes sur un diff moyen.
 - Six fichiers de tests, qui contiennent volontairement de faux secrets, lui restent illisibles.
 - Une consigne écrite dans un fichier du dépôt ne lui donne aucun droit : l'outil refuse quand même.
+
+## Complément J3b (2026-10-09) : la relecture par passes
+
+7. **Le code prépare un dossier par fichier de code modifié** — son propre diff (un fichier énorme ne prend jamais la place d'un petit), le fichier après le changement (entier s'il est court, sinon autour des modifications, lignes numérotées), les appelants des noms qu'il exporte — et pose **six questions fixes** : erreur avalée ; processus, arrêts, courses ; donnée personnelle dans un message ; texte venu de l'extérieur (encodage, caractères de contrôle) ; tests qui ne prouvent pas ce qu'ils disent ; règles du projet (`docs/regles-du-code.md`, tirées de la charte et des ADR seulement). Huit fichiers au plus, les plus modifiés ; les autres sont nommés. Chaque passe a son petit budget d'outils (3 appels, 90 s) ; une passe ratée est dite et ne coûte pas les autres.
+8. **Mesuré sur un banc versionné avant le code** (`apps/cli/src/cto-bench/`, six défauts historiques, critères écrits d'avance, seuil décidé le 09/10 : 3 sur 6 pour retirer « expérimental », moins de 2 pour envisager un modèle plus fort) :
+
+| | Relecture libre (J3) | Par passes (J3b) |
+|---|---|---|
+| Défauts trouvés (lecture honnête) | 0 / 6 | **2 / 6** (A : la réinstallation `launchd` ; F : les caractères C1 d'un sujet) |
+| Critère automatique | 0 / 6 | 3 / 6 (le cas E est un faux positif du critère, corrigé depuis) |
+| Durée d'une relecture | 3 à 4 min | 10 à 16 min |
+
+La relecture **reste expérimentale** (seuil de 3 non atteint) ; aucun modèle plus fort n'est envisagé (pas sous 2). Les deux défauts de règle du projet (un type d'événement non déclaré dans la projection) restent manqués : ils ne se voient dans aucun fichier modifié — c'est le rôle d'un test (il existe depuis `2e491d4`), pas d'un modèle.
 
 ## Options écartées
 

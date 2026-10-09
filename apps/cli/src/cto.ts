@@ -87,7 +87,7 @@ try {
     args[0] === "--relire"
       ? { review: validBranch(args[1]) }
       : { question: validQuestion(args.join(" ")) };
-  if ("review" in request) console.log(`🧐 Relecture de ${request.review} (3 à 10 min)…\n`);
+  if ("review" in request) console.log(`🧐 Relecture de ${request.review} (10 à 15 min)…\n`);
   const socket = ctoSocketPath(homedir());
   let reply: CtoReply;
   try {

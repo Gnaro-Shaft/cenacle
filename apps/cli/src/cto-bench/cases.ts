@@ -70,9 +70,12 @@ export const BENCH: readonly BenchCase[] = [
     defect:
       "purge.done / purge.failed written but not declared in the projection; a failed purge unseen",
     fixedBy: "2e491d4",
+    // Corrected after the first J3b run (2026-10-09), and said so: "unknown"
+    // matched a cited line of code (`error.name : "unknown"`) in a paragraph
+    // about something else. The run is counted with the stricter reading.
     mustMention: [
       /purge\.(done|failed)/,
-      /(projection|agent-status|inconnu|d[ée]clar|malade|sick|unknown|silenc)/i,
+      /(projection|agent-status|inconnu|d[ée]clar|malade|sick|silenc)/i,
     ],
   },
   {
