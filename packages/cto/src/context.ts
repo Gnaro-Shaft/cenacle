@@ -43,7 +43,7 @@ const MAX_FILE = 200_000;
 /** Documentation, by path: the only files ever considered. */
 const DOCUMENTATION = /^(README\.md|CLAUDE\.md|docs\/.+\.md|[^/]+\/[^/]+\/README\.md)$/;
 /** Never read, whatever the allow-list says. */
-const DENIED = /(^|\/)\.env|\.local\.toml$|(^|\/)fixtures\//i;
+export const DENIED = /(^|\/)\.env|\.local\.toml$|(^|\/)fixtures\//i;
 /** Text that looks like a credential: the whole file is left out. */
 export const SECRET_LIKE: readonly RegExp[] = [
   /-----BEGIN [A-Z ]*PRIVATE KEY-----/,

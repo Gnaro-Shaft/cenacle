@@ -1,6 +1,7 @@
 /**
  * Ask the CTO a technical question (phase 6 — ADR-0017, ADR-0020).
  * Usage: npm run cto -- "ta question"
+ *        npm run cto -- --relire <branche locale>   (J3 — ADR-0021)
  *
  * Through the CTO's service when it runs (one question at a time on the shared
  * model); on its own otherwise, with the same checked answer. He holds no
@@ -13,13 +14,18 @@ import { ModelUnavailableError } from "@cenacle/brain";
 import { refuseForeignSecrets } from "@cenacle/core";
 import {
   askCto,
+  askCtoReview,
   askCtoService,
+  branchTarget,
   type CtoProgress,
   type CtoReply,
   CtoServiceError,
   ctoModels,
   ctoSocketPath,
   QuestionError,
+  ReviewError,
+  reviewCto,
+  validBranch,
   validQuestion,
 } from "@cenacle/cto";
 import { connectAsApp, createJournal } from "@cenacle/journal";
@@ -42,6 +48,7 @@ function statusLine() {
     show: (p: CtoProgress) => {
       if (p.kind === "queued") write(`⏳ ${p.ahead} question(s) avant la tienne…`);
       if (p.kind === "reading") write(`📖 ${p.phase} : lecture de la documentation…`);
+      if (p.kind === "tool") write(`🔍 ${p.tool} ${p.target}…`);
       if (p.kind === "writing") {
         write(`✍️  ${p.phase} : ${p.chars.toLocaleString("fr-FR")} caractères écrits…`);
       }
@@ -56,15 +63,17 @@ function statusLine() {
   };
 }
 
-async function alone(question: string, show: (p: CtoProgress) => void): Promise<CtoReply> {
+/** Without the service: the same circuit, in this process. */
+async function alone(
+  request: { question: string } | { review: string },
+  show: (p: CtoProgress) => void,
+): Promise<CtoReply> {
   const sql = connectAsApp();
   try {
-    return await askCto(question, {
-      root: ROOT,
-      journal: createJournal(sql),
-      local: ctoModels(),
-      onProgress: show,
-    });
+    const deps = { root: ROOT, journal: createJournal(sql), local: ctoModels(), onProgress: show };
+    return "review" in request
+      ? await reviewCto(branchTarget(ROOT, request.review), deps)
+      : await askCto(request.question, deps);
   } finally {
     await sql.end();
   }
@@ -72,14 +81,23 @@ async function alone(question: string, show: (p: CtoProgress) => void): Promise<
 
 const status = statusLine();
 try {
-  const question = validQuestion(process.argv.slice(2).join(" "));
+  const args = process.argv.slice(2);
+  const request =
+    args[0] === "--relire"
+      ? { review: validBranch(args[1]) }
+      : { question: validQuestion(args.join(" ")) };
+  if ("review" in request) console.log(`🧐 Relecture de ${request.review} (3 à 10 min)…\n`);
+  const socket = ctoSocketPath(homedir());
   let reply: CtoReply;
   try {
-    reply = await askCtoService(ctoSocketPath(homedir()), question, { onProgress: status.show });
+    reply =
+      "review" in request
+        ? await askCtoReview(socket, request.review, { onProgress: status.show })
+        : await askCtoService(socket, request.question, { onProgress: status.show });
   } catch (error) {
     if (!(error instanceof CtoServiceError) || error.code !== "unreachable") throw error;
     console.log("(service du CTO absent : il répond seul)\n");
-    reply = await alone(question, status.show);
+    reply = await alone(request, status.show);
   }
   status.clear();
   console.log(reply.text);
@@ -94,8 +112,8 @@ try {
   );
 } catch (error) {
   status.clear();
-  if (error instanceof QuestionError) {
-    console.error(`usage : npm run cto -- "ta question" (${error.message})`);
+  if (error instanceof QuestionError || error instanceof ReviewError) {
+    console.error(`usage : npm run cto -- "ta question" | --relire <branche> (${error.message})`);
   } else if (
     error instanceof ModelUnavailableError ||
     (error instanceof CtoServiceError && error.code === "model_unavailable")

@@ -9,7 +9,8 @@ import { createServer, type Server, type Socket } from "node:net";
 import { dirname } from "node:path";
 import { ModelUnavailableError } from "@cenacle/brain";
 import { type CtoProgress, type CtoReply, QuestionError, validQuestion } from "./pipeline.ts";
-import { decodeRequest, encode, MAX_LINE, type ServiceEvent } from "./protocol.ts";
+import { type CtoRequest, decodeRequest, encode, MAX_LINE, type ServiceEvent } from "./protocol.ts";
+import { ReviewError, validBranch } from "./review.ts";
 
 export const MAX_WAITING = 3;
 /** A caller that does not send its question within this delay is dropped. */
@@ -17,7 +18,7 @@ export const REQUEST_TIMEOUT_MS = 5000;
 
 export interface CtoService {
   handle(
-    question: unknown,
+    request: CtoRequest,
     send: (event: ServiceEvent) => void,
     gone: () => boolean,
   ): Promise<void>;
@@ -25,6 +26,8 @@ export interface CtoService {
 
 export function createCtoService(options: {
   readonly ask: (question: string, onProgress: (p: CtoProgress) => void) => Promise<CtoReply>;
+  /** Reviews a local branch (ADR-0021); absent, a review is refused. */
+  readonly review?: (branch: string, onProgress: (p: CtoProgress) => void) => Promise<CtoReply>;
   readonly maxWaiting?: number;
 }): CtoService {
   const maxWaiting = options.maxWaiting ?? MAX_WAITING;
@@ -36,10 +39,18 @@ export function createCtoService(options: {
     else next();
   };
   return {
-    async handle(question, send, gone) {
-      let text: string;
+    async handle(request, send, gone) {
+      let run: (onProgress: (p: CtoProgress) => void) => Promise<CtoReply>;
       try {
-        text = validQuestion(question);
+        if ("review" in request) {
+          const branch = validBranch(request.review);
+          const review = options.review;
+          if (review === undefined) throw new ReviewError("la relecture n'est pas branchée");
+          run = (p) => review(branch, p);
+        } else {
+          const text = validQuestion(request.question);
+          run = (p) => options.ask(text, p);
+        }
       } catch (error) {
         send({ event: "error", code: "invalid", message: (error as Error).message });
         return;
@@ -57,7 +68,7 @@ export function createCtoService(options: {
         // Gone while waiting: the model is not asked for nobody.
         if (gone()) return;
         let shownAt = 0;
-        const reply = await options.ask(text, (progress) => {
+        const reply = await run((progress) => {
           if (progress.kind === "writing") {
             if (Date.now() - shownAt < 1000) return;
             shownAt = Date.now();
@@ -72,7 +83,7 @@ export function createCtoService(options: {
             code: "model_unavailable",
             message: "le modèle local ne répond pas",
           });
-        } else if (error instanceof QuestionError) {
+        } else if (error instanceof QuestionError || error instanceof ReviewError) {
           send({ event: "error", code: "invalid", message: error.message });
         } else {
           // The message may quote the model server: only a generic word leaves.
@@ -129,16 +140,16 @@ export async function listenCto(
       if (end === -1 && buffer.length <= MAX_LINE) return;
       asked = true;
       clearTimeout(timer);
-      let question: unknown;
+      let request: CtoRequest;
       try {
         if (end === -1 || end > MAX_LINE) throw new Error("request too long");
-        question = decodeRequest(buffer.slice(0, end));
+        request = decodeRequest(buffer.slice(0, end));
       } catch {
         say({ event: "error", code: "invalid", message: "requête malformée" });
         conn.end();
         return;
       }
-      void service.handle(question, say, () => gone).finally(() => conn.end());
+      void service.handle(request, say, () => gone).finally(() => conn.end());
     });
   });
   await new Promise<void>((resolve, reject) => {

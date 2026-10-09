@@ -36,13 +36,17 @@ export function encode(message: object): string {
 const isObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
 
-/** The request: `{"question": "..."}` and nothing else. */
-export function decodeRequest(line: string): unknown {
+/** A question, or a branch to review (ADR-0021): one field, checked by the service. */
+export type CtoRequest = { readonly question: unknown } | { readonly review: unknown };
+
+/** The request: `{"question": "..."}` or `{"review": "<branch>"}`, and nothing else. */
+export function decodeRequest(line: string): CtoRequest {
   const value: unknown = JSON.parse(line);
-  if (!isObject(value) || Object.keys(value).join() !== "question") {
-    throw new Error("invalid request");
-  }
-  return value.question;
+  if (!isObject(value)) throw new Error("invalid request");
+  const keys = Object.keys(value).join();
+  if (keys === "question") return { question: value.question };
+  if (keys === "review") return { review: value.review };
+  throw new Error("invalid request");
 }
 
 const CODES: readonly ErrorCode[] = ["invalid", "busy", "model_unavailable", "internal"];
