@@ -11,6 +11,7 @@
   - réponses limitées au seul `chat_id` autorisé ;
   - **aucun contenu de mail** : les messages de bot ne sont pas chiffrés de bout en bout ;
   - **aucune validation d'envoi** : on ne valide pas ce qu'on n'a pas lu.
+  - *complément (2026-10-09, ADR-0020)* : `/cto` y transmet mes questions techniques au CTO et ses réponses — aucun contenu de mail (le CTO n'en lit aucun) et, par règle, aucune donnée de tiers dans mes questions.
 - **Commande d'arrêt** disponible partout : un bouton « tout arrêter » sur la page, `/stop` sur Telegram.
 
 ## Alternatives écartées

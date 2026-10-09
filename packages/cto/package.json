@@ -5,7 +5,9 @@
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts",
+    "./question": "./src/question.ts"
   },
   "dependencies": {
     "@cenacle/brain": "0.0.0",

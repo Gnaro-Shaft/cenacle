@@ -7,12 +7,15 @@
  * keeping who it was (data minimisation).
  */
 import type { AgentStatus, VisualState } from "@cenacle/core";
+import { QuestionError, validQuestion } from "@cenacle/cto/question";
 import type { TelegramUpdate } from "./api.ts";
 
 export type Action =
   | { readonly kind: "reply"; readonly chatId: number; readonly text: string }
   | { readonly kind: "journal"; readonly type: "telegram.rejected"; readonly reason: string }
-  | { readonly kind: "journal"; readonly type: "stop.requested" };
+  | { readonly kind: "journal"; readonly type: "stop.requested" }
+  /** A question for the CTO (ADR-0020): relayed without blocking the bot. */
+  | { readonly kind: "ask_cto"; readonly chatId: number; readonly question: string };
 
 export interface HandlerDeps {
   readonly allowedChatId: number;
@@ -29,6 +32,8 @@ const HELP = [
   "Je suis Iris, du Cénacle. Commandes :",
   "/etat — où j'en suis",
   "/stop — arrêt d'urgence (noté dans le journal)",
+  "/cto ta question — une question technique au CTO (réponse en 1 à 3 min).",
+  "   ⚠ Jamais de nom de client ni de contenu de mail : le texte passe par Telegram.",
   "/aide — cette aide",
 ].join("\n");
 
@@ -85,6 +90,20 @@ export async function handleUpdate(update: TelegramUpdate, deps: HandlerDeps): P
       } catch (error) {
         return [reply(`🤒 Je ne peux pas calculer mon état : ${(error as Error).message}`)];
       }
+    case "/cto": {
+      // The text after the command, line breaks kept: "/cto@bot  question…".
+      const rest = (message.text ?? "").trim().replace(/^\S+\s*/, "");
+      try {
+        return [{ kind: "ask_cto", chatId: message.chat.id, question: validQuestion(rest) }];
+      } catch (error) {
+        const why = error instanceof QuestionError ? error.message : "question refusée";
+        return [
+          reply(
+            `Pose ta question ainsi : /cto ta question (${why}). Jamais de nom de client ni de contenu de mail.`,
+          ),
+        ];
+      }
+    }
     case "/stop":
       return [
         { kind: "journal", type: "stop.requested" },
@@ -95,6 +114,6 @@ export async function handleUpdate(update: TelegramUpdate, deps: HandlerDeps): P
     case "/help":
       return [reply(HELP)];
     default:
-      return [reply("Je ne comprends que /etat, /stop et /aide.")];
+      return [reply("Je ne comprends que /etat, /cto, /stop et /aide.")];
   }
 }
