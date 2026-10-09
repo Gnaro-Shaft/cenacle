@@ -7,12 +7,13 @@
  * Nothing is ever sent here: only the executor sends (npm run executor).
  */
 import { randomBytes } from "node:crypto";
-import { checkDraft, followUpOf } from "@cenacle/core";
+import { checkDraft, errorText, followUpOf, UsageError } from "@cenacle/core";
 import {
   connectAsApp,
   createJournal,
   createMailStore,
   createProposalStore,
+  ProposalError,
 } from "@cenacle/journal";
 import {
   createProposals,
@@ -36,7 +37,7 @@ try {
       const mails = createMailStore(sql);
       const position = await mails.position("inbox");
       if (position === null)
-        throw new Error("Iris ne connaît aucun mail : lance d'abord npm run mail:sort");
+        throw new UsageError("Iris ne connaît aucun mail : lance d'abord npm run mail:sort");
       const sent = await mails.sent();
       let target: number | undefined;
       for (const m of await mails.inbox()) {
@@ -45,7 +46,7 @@ try {
         target = m.uid;
         break;
       }
-      if (target === undefined) throw new Error("aucune relance due sans proposition");
+      if (target === undefined) throw new UsageError("aucune relance due sans proposition");
       const { mail } = loadCadre();
       const [read] = await readMailsForModel(
         mail,
@@ -53,10 +54,10 @@ try {
         [target],
         position.uidValidity,
       );
-      if (read === undefined) throw new Error(`le mail ${target} n'est plus sur le serveur`);
+      if (read === undefined) throw new UsageError(`le mail ${target} n'est plus sur le serveur`);
       const { trames, signature } = loadTrames();
       const trame = trames.get("accuse_reception");
-      if (trame === undefined) throw new Error("trame accuse_reception absente");
+      if (trame === undefined) throw new UsageError("trame accuse_reception absente");
       const prenom = firstName(read.fromName);
       const conversation = [read.subject, read.text];
       const r = renderTrame(
@@ -88,12 +89,15 @@ try {
         console.log(`${p.id} (${p.trame ?? "libre"})\n${p.draft ?? ""}\n`);
       break;
     case "edit":
-      if (id === undefined || text === undefined) throw new Error('usage : edit <id> "<texte>"');
+      if (id === undefined || text === undefined)
+        throw new UsageError('usage : edit <id> "<texte>"');
       await store.edit(id, text.replace(/\\n/g, "\n"));
       console.log(`✔ ${id} modifiée`);
       break;
     case "accept":
-      throw new Error("accepter se fait sur la page seulement (npm run server), elle seule signe");
+      throw new UsageError(
+        "accepter se fait sur la page seulement (npm run server), elle seule signe",
+      );
     case "refuse":
       await proposals.refuse(id ?? "", now);
       console.log(`✔ ${id} refusée — elle ne reviendra pas pour ce mail`);
@@ -103,10 +107,10 @@ try {
       console.log(`✔ ${id} annulée`);
       break;
     default:
-      throw new Error("commande : create | list | edit | refuse | cancel");
+      throw new UsageError("commande : create | list | edit | refuse | cancel");
   }
 } catch (error) {
-  console.error(`🛑 ${error instanceof Error ? error.message : String(error)}`);
+  console.error(`🛑 ${errorText(error, [ProposalError])}`);
   process.exitCode = 1;
 } finally {
   await sql.end();

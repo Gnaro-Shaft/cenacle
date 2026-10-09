@@ -6,7 +6,14 @@
  * printed at the end, ready to be published; my verdicts are not kept, not
  * even mail by mail. Nothing is written anywhere.
  */
-import { CATEGORIES, type Category, refuseForeignSecrets } from "@cenacle/core";
+import {
+  CATEGORIES,
+  type Category,
+  errorText,
+  refuseForeignSecrets,
+  SecretPlacementError,
+  UsageError,
+} from "@cenacle/core";
 import { connectAsApp } from "@cenacle/journal";
 import { type Decider, forTerminal, measureSorting, type Verdict } from "@cenacle/mail";
 import { readBack } from "./mesure-lecture.ts";
@@ -39,7 +46,7 @@ refuseForeignSecrets("La mesure du rangement", ["mail"]);
 const sql = connectAsApp();
 const prompt = createPrompt();
 try {
-  if (!(max > 0)) throw new Error("--max attend un nombre positif");
+  if (!(max > 0)) throw new UsageError("--max attend un nombre positif");
   const { mails } = await readBack(sql);
   const sorted = mails.filter((m) => m.item.category !== null && m.item.decidedBy !== null);
   const queue = sorted.slice(0, max);
@@ -87,7 +94,7 @@ try {
     console.log(`| ${LABEL[c]} | ${CATEGORIES.map((t) => r.confusion[c][t]).join(" | ")} |`);
   }
 } catch (error) {
-  console.error(`🛑 ${error instanceof Error ? `${error.name}: ${error.message}` : String(error)}`);
+  console.error(`🛑 ${errorText(error, [SecretPlacementError])}`);
   process.exitCode = 1;
 } finally {
   prompt.close();

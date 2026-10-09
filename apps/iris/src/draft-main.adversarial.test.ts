@@ -11,6 +11,6 @@ describe("iris:draft on error", () => {
     const printed = [...source.matchAll(/console\.\w+\(([\s\S]*?)\);/g)].map((m) => m[1] ?? "");
     expect(printed.length).toBeGreaterThan(0);
     for (const args of printed) expect(args).not.toMatch(/\.message\b/);
-    expect(source).toMatch(/error instanceof Error \? error\.name/);
+    expect(source).toMatch(/errorText\(error\)/);
   });
 });

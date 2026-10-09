@@ -6,7 +6,7 @@
 
 import { readFileSync } from "node:fs";
 import { classifyMail, createLocalModels, localModelConfigFromEnv } from "@cenacle/brain";
-import { CATEGORIES, loadFixtureMailbox } from "@cenacle/core";
+import { CATEGORIES, errorText, loadFixtureMailbox } from "@cenacle/core";
 import {
   EXAMPLE_RULES_PATH,
   fixtureForModel,
@@ -81,6 +81,6 @@ try {
     process.exitCode = 1;
   }
 } catch (error) {
-  console.error(`🛑 ${error instanceof Error ? error.message : String(error)}`);
+  console.error(`🛑 ${errorText(error)}`);
   process.exitCode = 1;
 }

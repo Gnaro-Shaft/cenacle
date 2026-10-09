@@ -5,7 +5,7 @@
  * Usage: npm run mail:sort [-- --rules-only]
  */
 import { createLocalModels, localModelConfigFromEnv } from "@cenacle/brain";
-import { countConversations } from "@cenacle/core";
+import { countConversations, errorText } from "@cenacle/core";
 import {
   connectAsApp,
   createJournal,
@@ -14,11 +14,13 @@ import {
   createPeople,
 } from "@cenacle/journal";
 import {
+  KeyError,
   keyerFromEnv,
   loadCadre,
   loadRules,
   mailPassword,
   mailTotals,
+  ReadOnlyMailboxError,
   readingStartsAt,
   runMailPass,
 } from "@cenacle/mail";
@@ -79,7 +81,7 @@ try {
   console.log(`  suivi : ${t.waiting} en attente de réponse, 🔔 ${t.due} relances dues`);
   if (summary.truncated) console.log("… plafond atteint : relancer pour lire la suite");
 } catch (error) {
-  console.error(`🛑 ${error instanceof Error ? error.message : String(error)}`);
+  console.error(`🛑 ${errorText(error, [KeyError, ReadOnlyMailboxError])}`);
   process.exitCode = 1;
 } finally {
   await sql.end();

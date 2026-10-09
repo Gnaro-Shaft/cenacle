@@ -4,7 +4,7 @@
  * on Telegram ends it. It never sends a mail: only Telegram messages to me.
  */
 import { createLocalModels, localModelConfigFromEnv } from "@cenacle/brain";
-import { heartbeatFromEnv, refuseForeignSecrets } from "@cenacle/core";
+import { errorText, heartbeatFromEnv, refuseForeignSecrets } from "@cenacle/core";
 import {
   connectAsApp,
   createJournal,
@@ -157,9 +157,7 @@ while (!stopping) {
     }
   } catch (error) {
     // Already journaled by the pass (Iris shows sick); keep the rhythm, try again next minute.
-    console.error(
-      `⚠ ${error instanceof Error ? error.name : "error"} — nouvel essai dans 1 minute`,
-    );
+    console.error(`⚠ ${errorText(error)} — nouvel essai dans 1 minute`);
   }
   for (let s = 0; s < 60 && !stopping; s++) await new Promise((r) => setTimeout(r, 1000));
 }
