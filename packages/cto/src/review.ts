@@ -9,6 +9,7 @@ import { execFileSync } from "node:child_process";
 import { DENIED, SECRET_LIKE } from "./context.ts";
 import { type CtoDeps, type CtoReply, runCto } from "./pipeline.ts";
 import { gitView } from "./repo-view.ts";
+import { buildPasses } from "./review-passes.ts";
 
 /** Diff characters given to the model at most: beyond, the files list and the tools. */
 export const MAX_DIFF = 30_000;
@@ -46,6 +47,8 @@ export interface ReviewTarget {
   readonly truncated: boolean;
   /** Changed files left out of the diff: denied, or text that looks like a secret. */
   readonly withheld: readonly string[];
+  /** Each file's own diff, uncut by the others (J3b: one pass per file). */
+  readonly parts: readonly { readonly path: string; readonly diff: string }[];
 }
 
 function git(root: string, args: string[]): string {
@@ -101,6 +104,7 @@ export function rangeTarget(root: string, base: string, head: string, label: str
     diff,
     truncated,
     withheld,
+    parts: parts.map(({ path, part }) => ({ path, diff: part })),
   };
 }
 
@@ -140,10 +144,16 @@ export function reviewPrompt(t: ReviewTarget): string {
     .join("\n");
 }
 
-/** The review itself, through the shared circuit, the tools on the branch's code. */
+/**
+ * The review itself (J3b): one focused pass per changed code file, each with
+ * its dossier prepared by code; the tools on the branch's code.
+ */
 export function reviewCto(target: ReviewTarget, deps: CtoDeps): Promise<CtoReply> {
-  return runCto(reviewPrompt(target), gitView(deps.root, target.head), deps, {
+  const view = gitView(deps.root, target.head);
+  const { passes } = buildPasses(target, view);
+  return runCto(reviewPrompt(target), view, deps, {
     kind: "review",
     maxCalls: REVIEW_TOOL_CALLS,
+    passes,
   });
 }
