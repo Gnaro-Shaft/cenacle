@@ -29,6 +29,8 @@ export interface ServiceDeps {
   readonly launchctl: (args: readonly string[]) => Promise<{ code: number; output: string }>;
   /** The user's id, for the gui/<uid> domain. */
   readonly uid: number;
+  /** Waits that long (real time by default; tests pass a fake clock). */
+  readonly sleep?: (ms: number) => Promise<void>;
 }
 
 /** Seconds launchd waits between two starts: Docker or the model may still be starting. */
@@ -100,6 +102,22 @@ export function buildPlist(
 `;
 }
 
+/**
+ * `bootout` returns before the job has finished stopping: bootstrapping it
+ * again right away fails (EIO, 5). Waits until launchd no longer knows the
+ * job, at most its stop timeout; never bootstraps over a job still stopping.
+ */
+async function stopAndWait(label: string, deps: ServiceDeps): Promise<void> {
+  const target = `gui/${deps.uid}/${label}`;
+  await deps.launchctl(["bootout", target]);
+  const sleep = deps.sleep ?? ((ms) => new Promise<void>((r) => setTimeout(r, ms)));
+  for (let waited = 0; waited <= (EXIT_TIMEOUT_SECONDS + 5) * 1000; waited += 250) {
+    if ((await deps.launchctl(["print", target])).code !== 0) return;
+    await sleep(250);
+  }
+  throw new Error(`${label} ne s'arrête pas : réinstallation abandonnée`);
+}
+
 /** Writes the LaunchAgent and starts it. Running it again replaces the previous one. */
 export async function install(program: Program, deps: ServiceDeps): Promise<ServicePaths> {
   const p = servicePaths(program, deps);
@@ -108,7 +126,7 @@ export async function install(program: Program, deps: ServiceDeps): Promise<Serv
   mkdirSync(dirname(p.plist), { recursive: true });
   mkdirSync(dirname(p.log), { recursive: true, mode: 0o700 });
   // A previous version, if any, is stopped first; "not loaded" is fine.
-  await deps.launchctl(["bootout", `gui/${deps.uid}/${p.label}`]);
+  await stopAndWait(p.label, deps);
   writeFileSync(p.plist, plist, { mode: 0o644 });
   chmodSync(p.plist, 0o644);
   const started = await deps.launchctl(["bootstrap", `gui/${deps.uid}`, p.plist]);
