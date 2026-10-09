@@ -1,0 +1,31 @@
+name: Mirror CI images
+
+# Copies the images the CI needs and no public mirror serves into this
+# repository's GitHub registry, digest for digest, so that the CI no longer
+# depends on Docker Hub's anonymous pull limit. Run by hand, once per version.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    env:
+      # GreenMail's official image (Apache 2.0), pinned by its digest on Docker Hub.
+      SOURCE: docker.io/greenmail/standalone:2.1.14@sha256:1ef95a966418cd09b7ea91d504d8c0826bbe7a2f6e679a75c601a831587c1626
+      SOURCE_DIGEST: sha256:1ef95a966418cd09b7ea91d504d8c0826bbe7a2f6e679a75c601a831587c1626
+      TARGET: ghcr.io/${{ github.repository_owner }}/greenmail-standalone:2.1.14
+    steps:
+      - name: Log in to the GitHub registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Copy, digest for digest
+        run: docker buildx imagetools create --tag "${TARGET,,}" "$SOURCE"
+      - name: Refuse a copy that is not the same image
+        run: |
+          copied=$(docker buildx imagetools inspect "${TARGET,,}" --format '{{json .Manifest.Digest}}' | tr -d '"')
+          echo "source $SOURCE_DIGEST"
+          echo "copy   $copied"
+          test "$copied" = "$SOURCE_DIGEST"
