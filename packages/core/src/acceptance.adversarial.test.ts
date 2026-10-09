@@ -52,7 +52,7 @@ describe("acceptance signature", () => {
       "x",
       sig.slice(1),
       `${sig}=`,
-      sig.replace(/^./, "A"),
+      `${sig[0] === "A" ? "B" : "A"}${sig.slice(1)}`, // always a real change
       "A".repeat(86),
     ]) {
       expect(verifyAcceptance(pub, fields, bad)).toBe(false);
