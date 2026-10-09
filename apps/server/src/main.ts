@@ -7,6 +7,7 @@
  */
 import { homedir } from "node:os";
 import { privateKeyFromEnv, refuseForeignSecrets } from "@cenacle/core";
+import { askCtoService, ctoSocketPath } from "@cenacle/cto";
 import {
   connectAsApp,
   createJournal,
@@ -77,6 +78,8 @@ const app = createApp({
     undoMs: mail.undoMs,
     sending: mail.sending,
   }),
+  // The CTO holds no secret and runs apart (ADR-0017, ADR-0020): asked over his socket.
+  askCto: (question) => askCtoService(ctoSocketPath(homedir()), question),
 });
 
 const linkPath = pageUrlPath(homedir());

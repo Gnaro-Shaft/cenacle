@@ -163,15 +163,17 @@ describe("the LaunchAgent", () => {
 });
 
 describe("the runner", () => {
-  it.each(["iris", "server", "bot"])(
-    "starts %s with exactly the env files of its npm script",
-    (program) => {
-      const script = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).scripts[program];
-      const runner = readFileSync(RUNNER, "utf8");
-      const branch = new RegExp(`^${program}\\)\\n([\\s\\S]*?);;`, "m").exec(runner)?.[1] ?? "";
-      expect(branch).toContain(`exec ${script}\n`);
-    },
-  );
+  it.each([
+    ["iris", "iris"],
+    ["server", "server"],
+    ["bot", "bot"],
+    ["cto", "cto:serve"],
+  ])("starts %s with exactly the env files of `npm run %s`", (program, npmScript) => {
+    const script = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).scripts[npmScript];
+    const runner = readFileSync(RUNNER, "utf8");
+    const branch = new RegExp(`^${program}\\)\\n([\\s\\S]*?);;`, "m").exec(runner)?.[1] ?? "";
+    expect(branch).toContain(`exec ${script}\n`);
+  });
 
   it("starts the page exactly like `npm run web` (apps/web's dev script: vite)", () => {
     const web = JSON.parse(readFileSync(join(ROOT, "apps", "web", "package.json"), "utf8"));

@@ -1,6 +1,6 @@
 /**
  * Cénacle's programs as launchd services (ADR-0018, ADR-0019).
- * Usage: npm run service -- install|uninstall|status iris|server|bot|web|all
+ * Usage: npm run service -- install|uninstall|status iris|server|bot|web|cto|all
  * (npm run iris:service -- install|uninstall|status: Iris alone).
  *
  * It holds no secret (no env file is loaded): each plist names files, never
@@ -27,6 +27,7 @@ const NAMES: Record<Program, string> = {
   server: "Le serveur de la page",
   bot: "Le bot Telegram",
   web: "La page",
+  cto: "Le CTO",
 };
 const COMMANDS = ["install", "uninstall", "status"] as const;
 type Command = (typeof COMMANDS)[number];

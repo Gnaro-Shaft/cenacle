@@ -1,144 +1,112 @@
 /**
- * Ask the CTO a technical question (phase 6, J1 — ADR-0017).
+ * Ask the CTO a technical question (phase 6 — ADR-0017, ADR-0020).
  * Usage: npm run cto -- "ta question"
  *
- * The CTO answers from the versioned documentation of Cénacle, chosen by code,
- * with the local model only. He holds no secret: he refuses to start if any
- * secret family is loaded. Neither the question nor the answer is kept: the
- * journal gets facts and counts under the agent "cto", as for Iris.
+ * Through the CTO's service when it runs (one question at a time on the shared
+ * model); on its own otherwise, with the same checked answer. He holds no
+ * secret: he refuses to start if any secret family is loaded. Neither the
+ * question nor the answer is kept: the journal gets counts only.
  */
+import { homedir } from "node:os";
 import { join } from "node:path";
-import {
-  askAgent,
-  createLocalModels,
-  localModelConfigFromEnv,
-  ModelUnavailableError,
-} from "@cenacle/brain";
+import { ModelUnavailableError } from "@cenacle/brain";
 import { refuseForeignSecrets } from "@cenacle/core";
 import {
-  answerVerified,
-  buildRepoIndex,
-  checkSummary,
-  ctoSystemPrompt,
-  loadProjectContext,
+  askCto,
+  askCtoService,
+  type CtoProgress,
+  type CtoReply,
+  CtoServiceError,
+  ctoModels,
+  ctoSocketPath,
+  QuestionError,
+  validQuestion,
 } from "@cenacle/cto";
 import { connectAsApp, createJournal } from "@cenacle/journal";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
 // The CTO reads documentation, never mail: no secret family at all (ADR-0017).
 refuseForeignSecrets("Le CTO", []);
-const question = process.argv.slice(2).join(" ").trim();
-if (question === "") {
-  console.error('usage : npm run cto -- "ta question"');
-  process.exit(1);
-}
+
 /**
- * One status line on the terminal, rewritten in place: reading the
- * documentation, then how much is written. Counts only, never the text. Off
- * when the output is not a terminal (a log keeps only the answer).
+ * One status line on the terminal, rewritten in place: waiting in line,
+ * reading, writing. Counts only, never the text. Off when the output is not a
+ * terminal (a log keeps only the answer).
  */
 function statusLine() {
   const tty = process.stderr.isTTY === true;
-  let shownAt = 0;
   const write = (text: string) => {
     if (tty) process.stderr.write(`\r\x1b[K${text}`);
   };
   return {
-    reading: (phase: string) => {
-      shownAt = 0;
-      write(`📖 ${phase} : lecture de la documentation…`);
-    },
-    writing: (phase: string, chars: number) => {
-      if (Date.now() - shownAt < 1000) return;
-      shownAt = Date.now();
-      write(`✍️  ${phase} : ${chars.toLocaleString("fr-FR")} caractères écrits…`);
+    show: (p: CtoProgress) => {
+      if (p.kind === "queued") write(`⏳ ${p.ahead} question(s) avant la tienne…`);
+      if (p.kind === "reading") write(`📖 ${p.phase} : lecture de la documentation…`);
+      if (p.kind === "writing") {
+        write(`✍️  ${p.phase} : ${p.chars.toLocaleString("fr-FR")} caractères écrits…`);
+      }
+      if (p.kind === "revising") {
+        write("");
+        console.log(
+          `🔎 Premier jet : ${p.missing} référence(s) introuvable(s) dans le dépôt — le CTO corrige sa réponse…`,
+        );
+      }
     },
     clear: () => write(""),
   };
 }
 
-const sql = connectAsApp();
+async function alone(question: string, show: (p: CtoProgress) => void): Promise<CtoReply> {
+  const sql = connectAsApp();
+  try {
+    return await askCto(question, {
+      root: ROOT,
+      journal: createJournal(sql),
+      local: ctoModels(),
+      onProgress: show,
+    });
+  } finally {
+    await sql.end();
+  }
+}
+
+const status = statusLine();
 try {
-  const context = loadProjectContext(ROOT);
-  console.log(
-    `📚 ${context.files.length} documents lus (${Math.round(context.chars / 1000)} k caractères)${
-      context.skipped.length > 0 ? `, ${context.skipped.length} écartés` : ""
-    } — le CTO réfléchit…\n`,
-  );
-  const journal = createJournal(sql);
-  const system = ctoSystemPrompt("Cénacle", context);
-  // Up to 200 k characters of documentation, ~60 k tokens: a window far above
-  // Iris's, within what LM Studio loads for the shared model (262 k). Answers
-  // are short (the model writes ~18 tokens/s): 1500 tokens, ~1000 words at most.
-  const local = createLocalModels({
-    ...localModelConfigFromEnv(),
-    contextWindow: 131_072,
-    maxTokens: 1500,
-  });
-  const status = statusLine();
-  let phase = "premier jet";
-  let cut = false;
-  const started = Date.now();
-  // Checked before shown (ADR-0017): every ADR, file, command and name the answer
-  // cites is looked up in the repository; what cannot be found goes back once.
-  const answer = await answerVerified(
-    question,
-    async (prompt) => {
-      status.reading(phase);
-      try {
-        const reply = await askAgent({
-          agent: "cto",
-          systemPrompt: system,
-          question: prompt,
-          // The question may name someone: local model only (ADR-0003).
-          dataClass: "personal",
-          journal,
-          local,
-          timeoutMs: 300_000,
-          onProgress: (chars) => status.writing(phase, chars),
-        });
-        cut = reply.cut;
-        return reply.text;
-      } finally {
-        status.clear();
-      }
-    },
-    buildRepoIndex(ROOT),
-    (missing) => {
-      phase = "correction";
-      console.log(
-        `🔎 Premier jet : ${missing.length} référence${missing.length > 1 ? "s" : ""} introuvable${missing.length > 1 ? "s" : ""} dans le dépôt — le CTO corrige sa réponse…`,
-      );
-    },
-  );
-  await journal.append({
-    agent: "cto",
-    type: "cto.verified",
-    payload: {
-      claims: answer.checked.length,
-      notFound: answer.checked.filter((c) => !c.found).length,
-      revised: answer.revised,
-      notFoundFirst: answer.unverifiedFirst.length,
-    },
-  });
-  console.log(answer.text);
-  if (cut)
+  const question = validQuestion(process.argv.slice(2).join(" "));
+  let reply: CtoReply;
+  try {
+    reply = await askCtoService(ctoSocketPath(homedir()), question, { onProgress: status.show });
+  } catch (error) {
+    if (!(error instanceof CtoServiceError) || error.code !== "unreachable") throw error;
+    console.log("(service du CTO absent : il répond seul)\n");
+    reply = await alone(question, status.show);
+  }
+  status.clear();
+  console.log(reply.text);
+  if (reply.cut) {
     console.log(
       "\n⚠ Réponse coupée à la limite de longueur : demande-lui d'approfondir un point précis.",
     );
-  console.log(`\n${checkSummary(answer)}`);
+  }
+  console.log(`\n${reply.summary}`);
   console.log(
-    `— ${Math.round((Date.now() - started) / 1000)} s, modèle local. Un avis à vérifier, pas un fait établi.`,
+    `— ${reply.seconds} s, ${reply.documents} documents, modèle local. Un avis à vérifier, pas un fait établi.`,
   );
 } catch (error) {
-  if (error instanceof ModelUnavailableError) {
+  status.clear();
+  if (error instanceof QuestionError) {
+    console.error(`usage : npm run cto -- "ta question" (${error.message})`);
+  } else if (
+    error instanceof ModelUnavailableError ||
+    (error instanceof CtoServiceError && error.code === "model_unavailable")
+  ) {
     console.error(
       "🛑 le modèle local ne répond pas : LM Studio est-il ouvert, avec le modèle chargé ?",
     );
+  } else if (error instanceof CtoServiceError) {
+    console.error(`🛑 ${error.message}`);
   } else {
     console.error(`🛑 ${error instanceof Error ? error.name : "erreur"}`);
   }
   process.exitCode = 1;
-} finally {
-  await sql.end();
 }

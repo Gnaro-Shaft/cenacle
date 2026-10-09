@@ -6,6 +6,7 @@
   "type": "module",
   "dependencies": {
     "@cenacle/core": "0.0.0",
+    "@cenacle/cto": "0.0.0",
     "@cenacle/journal": "0.0.0",
     "@cenacle/mail": "0.0.0",
     "@hono/node-server": "2.1.3",

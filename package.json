@@ -29,6 +29,7 @@
     "iris:service": "node apps/cli/src/service.ts iris",
     "service": "node apps/cli/src/service.ts",
     "page": "node apps/cli/src/page-open.ts",
+    "cto:serve": "node --env-file=.env apps/cto/src/main.ts",
     "ask": "node --env-file=.env apps/cli/src/ask.ts",
     "probe:thinking": "node --env-file=.env apps/cli/src/probe-thinking.ts",
     "obs:up": "docker compose --env-file .env --env-file .env.owner --env-file .env.mail --env-file .env.obs --profile obs up -d",

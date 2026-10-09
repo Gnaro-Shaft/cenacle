@@ -7,8 +7,17 @@
   },
   "include": ["src"],
   "references": [
-    { "path": "../../packages/core" },
-    { "path": "../../packages/journal" },
-    { "path": "../../packages/mail" }
+    {
+      "path": "../../packages/core"
+    },
+    {
+      "path": "../../packages/journal"
+    },
+    {
+      "path": "../../packages/mail"
+    },
+    {
+      "path": "../../packages/cto"
+    }
   ]
 }
