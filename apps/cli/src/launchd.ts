@@ -1,5 +1,6 @@
 /**
- * Iris under launchd (ADR-0018): the LaunchAgent is written on this Mac at
+ * Cénacle's programs under launchd (ADR-0018, ADR-0019): Iris, the page's
+ * server, the Telegram bot and the page. Each LaunchAgent is written on this Mac at
  * install time, from the paths found then — none is stored in the repository.
  * It names files, never values: no secret is ever copied into the plist.
  * Restarted after a crash only (SuccessfulExit false): never after /stop.
@@ -7,7 +8,7 @@
 import { chmodSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join } from "node:path";
 
-export const PROGRAMS = ["iris"] as const;
+export const PROGRAMS = ["iris", "server", "bot", "web"] as const;
 export type Program = (typeof PROGRAMS)[number];
 
 export interface ServicePaths {
@@ -28,10 +29,14 @@ export interface ServiceDeps {
   readonly launchctl: (args: readonly string[]) => Promise<{ code: number; output: string }>;
   /** The user's id, for the gui/<uid> domain. */
   readonly uid: number;
+  /** Waits that long (real time by default; tests pass a fake clock). */
+  readonly sleep?: (ms: number) => Promise<void>;
 }
 
 /** Seconds launchd waits between two starts: Docker or the model may still be starting. */
 export const THROTTLE_SECONDS = 30;
+/** Seconds launchd waits after SIGTERM before SIGKILL: the bot ends its 25 s poll first. */
+export const EXIT_TIMEOUT_SECONDS = 40;
 
 export function servicePaths(program: Program, deps: Pick<ServiceDeps, "home" | "root">) {
   if (!(PROGRAMS as readonly string[]).includes(program)) {
@@ -89,11 +94,28 @@ export function buildPlist(
     <key>SuccessfulExit</key><false/>
   </dict>
   <key>ThrottleInterval</key><integer>${THROTTLE_SECONDS}</integer>
+  <key>ExitTimeOut</key><integer>${EXIT_TIMEOUT_SECONDS}</integer>
   <key>StandardOutPath</key>${str(p.log)}
   <key>StandardErrorPath</key>${str(p.log)}
 </dict>
 </plist>
 `;
+}
+
+/**
+ * `bootout` returns before the job has finished stopping: bootstrapping it
+ * again right away fails (EIO, 5). Waits until launchd no longer knows the
+ * job, at most its stop timeout; never bootstraps over a job still stopping.
+ */
+async function stopAndWait(label: string, deps: ServiceDeps): Promise<void> {
+  const target = `gui/${deps.uid}/${label}`;
+  await deps.launchctl(["bootout", target]);
+  const sleep = deps.sleep ?? ((ms) => new Promise<void>((r) => setTimeout(r, ms)));
+  for (let waited = 0; waited <= (EXIT_TIMEOUT_SECONDS + 5) * 1000; waited += 250) {
+    if ((await deps.launchctl(["print", target])).code !== 0) return;
+    await sleep(250);
+  }
+  throw new Error(`${label} ne s'arrête pas : réinstallation abandonnée`);
 }
 
 /** Writes the LaunchAgent and starts it. Running it again replaces the previous one. */
@@ -104,7 +126,7 @@ export async function install(program: Program, deps: ServiceDeps): Promise<Serv
   mkdirSync(dirname(p.plist), { recursive: true });
   mkdirSync(dirname(p.log), { recursive: true, mode: 0o700 });
   // A previous version, if any, is stopped first; "not loaded" is fine.
-  await deps.launchctl(["bootout", `gui/${deps.uid}/${p.label}`]);
+  await stopAndWait(p.label, deps);
   writeFileSync(p.plist, plist, { mode: 0o644 });
   chmodSync(p.plist, 0o644);
   const started = await deps.launchctl(["bootstrap", `gui/${deps.uid}`, p.plist]);

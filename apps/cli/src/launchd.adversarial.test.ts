@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   buildPlist,
   install,
+  PROGRAMS,
   type ServiceDeps,
   servicePaths,
   status,
@@ -32,8 +33,11 @@ function deps(over: Partial<ServiceDeps> = {}): ServiceDeps {
     uid: 501,
     launchctl: async (args) => {
       calls.push([...args]);
+      // A job not loaded: `print` fails, as launchctl does.
+      if (args[0] === "print") return { code: 113, output: "" };
       return { code: args[0] === "bootstrap" ? bootstrapCode : 0, output: "" };
     },
+    sleep: async () => {},
     ...over,
   };
 }
@@ -70,6 +74,8 @@ describe("the LaunchAgent", () => {
     expect(plist).toMatch(/<key>KeepAlive<\/key>\s*<dict>\s*<key>SuccessfulExit<\/key><false\/>/);
     expect(plist).toContain("<key>RunAtLoad</key><true/>");
     expect(plist).toContain("<key>ThrottleInterval</key><integer>30</integer>");
+    // The bot ends its 25 s poll before stopping: launchd waits longer than that.
+    expect(plist).toContain("<key>ExitTimeOut</key><integer>40</integer>");
   });
 
   it("odd paths (spaces, accents, & < > quotes) are escaped, never break the XML", () => {
@@ -85,14 +91,48 @@ describe("the LaunchAgent", () => {
   });
 
   it("refuses an unknown program and relative paths", () => {
-    expect(() => servicePaths("server" as never, deps())).toThrow(/unknown program/);
+    expect(() => servicePaths("nope" as never, deps())).toThrow(/unknown program/);
     expect(() => servicePaths("iris", deps({ home: "relative/home" }))).toThrow(/absolute/);
     expect(() => buildPlist("iris", deps({ nodePath: "node" }))).toThrow(/absolute/);
   });
 
+  it("reinstalling over a running job waits until it has stopped, then starts it", async () => {
+    // launchctl bootout returns at once; the job is still known for a while.
+    let stillLoaded = 3;
+    const order: string[] = [];
+    await install(
+      "iris",
+      deps({
+        launchctl: async (args) => {
+          order.push(args[0] ?? "");
+          if (args[0] === "print") return { code: stillLoaded-- > 0 ? 0 : 113, output: "" };
+          if (args[0] === "bootstrap" && stillLoaded >= 0) return { code: 5, output: "" };
+          return { code: 0, output: "" };
+        },
+      }),
+    );
+    expect(order).toEqual(["bootout", "print", "print", "print", "print", "bootstrap"]);
+  });
+
+  it("a job that never stops: an error, and never a bootstrap over it", async () => {
+    const order: string[] = [];
+    await expect(
+      install(
+        "iris",
+        deps({
+          launchctl: async (args) => {
+            order.push(args[0] ?? "");
+            return { code: 0, output: "" };
+          },
+        }),
+      ),
+    ).rejects.toThrow(/ne s'arrête pas/);
+    expect(order).not.toContain("bootstrap");
+  });
+
   it("install replaces the previous one; a failed start is an error, not a success", async () => {
     await install("iris", deps());
-    expect(calls.map((c) => c[0])).toEqual(["bootout", "bootstrap"]);
+    expect(calls.map((c) => c[0])).toEqual(["bootout", "print", "bootstrap"]);
     bootstrapCode = 5;
     await expect(install("iris", deps())).rejects.toThrow(/bootstrap failed/);
   });
@@ -123,9 +163,32 @@ describe("the LaunchAgent", () => {
 });
 
 describe("the runner", () => {
-  it("starts Iris with exactly the env files of `npm run iris`", () => {
-    const script = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).scripts.iris;
-    expect(readFileSync(RUNNER, "utf8")).toContain(`exec ${script}`);
+  it.each(["iris", "server", "bot"])(
+    "starts %s with exactly the env files of its npm script",
+    (program) => {
+      const script = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).scripts[program];
+      const runner = readFileSync(RUNNER, "utf8");
+      const branch = new RegExp(`^${program}\\)\\n([\\s\\S]*?);;`, "m").exec(runner)?.[1] ?? "";
+      expect(branch).toContain(`exec ${script}\n`);
+    },
+  );
+
+  it("starts the page exactly like `npm run web` (apps/web's dev script: vite)", () => {
+    const web = JSON.parse(readFileSync(join(ROOT, "apps", "web", "package.json"), "utf8"));
+    expect(web.scripts.dev).toBe("vite");
+    expect(readFileSync(RUNNER, "utf8")).toMatch(
+      /^web\)\n\s*#.*\n\s*cd apps\/web\n\s*exec \.\.\/\.\.\/node_modules\/\.bin\/vite\n/m,
+    );
+  });
+
+  it("every program has its branch in the runner, and its own plist label", () => {
+    const runner = readFileSync(RUNNER, "utf8");
+    const labels = new Set<string>();
+    for (const program of PROGRAMS) {
+      expect(runner).toMatch(new RegExp(`^${program}\\)$`, "m"));
+      labels.add(servicePaths(program, deps()).label);
+    }
+    expect(labels.size).toBe(PROGRAMS.length);
   });
 
   it("an unknown program: refused (64)", () => {

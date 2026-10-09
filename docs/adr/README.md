@@ -23,5 +23,6 @@ Elles sont rédigées en français (le code et le README sont en anglais).
 | [0016](0016-tous-les-dossiers.md) | Iris lit tous les dossiers de la boîte, et suit un mail déplacé | Acceptée |
 | [0017](0017-cto-conseiller-local.md) | Le CTO, un conseiller technique local qui n'agit jamais | Acceptée |
 | [0018](0018-iris-sous-launchd.md) | Iris lancée par launchd, relancée seulement si elle plante, une seule à la fois | Acceptée |
+| [0019](0019-services-sous-launchd.md) | Le serveur, le bot et la page lancés par launchd ; le jeton de la page ne passe plus par la console | Acceptée |
 
 Les règles dures qui s'appliquent à tout le code sont dans [`../charte.md`](../charte.md).

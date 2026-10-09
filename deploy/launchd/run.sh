@@ -1,5 +1,5 @@
 #!/bin/sh
-# Starts a Cénacle program under launchd (ADR-0018). Usage: run.sh iris
+# Starts a Cénacle program under launchd (ADR-0018, ADR-0019). Usage: run.sh iris|server|bot|web
 # The repository is found from this file's place: no personal path is written
 # anywhere in the repository. CENACLE_LOG (set by the installer) is the console
 # log: emptied at start beyond 1 MB, so it never grows without bound.
@@ -14,6 +14,19 @@ case "${1:-}" in
 iris)
   # Same files as `npm run iris` (package.json): checked by a test.
   exec node --env-file=.env --env-file-if-exists=.env.mail --env-file-if-exists=.env.telegram --env-file-if-exists=.env.sentinel apps/iris/src/main.ts
+  ;;
+server)
+  # Same files as `npm run server`.
+  exec node --env-file=.env --env-file-if-exists=.env.mail --env-file-if-exists=.env.page apps/server/src/main.ts
+  ;;
+bot)
+  # Same files as `npm run bot`.
+  exec node --env-file=.env --env-file-if-exists=.env.telegram apps/telegram/src/main.ts
+  ;;
+web)
+  # Same as `npm run web` (the "dev" script of apps/web: vite), without npm in between.
+  cd apps/web
+  exec ../../node_modules/.bin/vite
   ;;
 *)
   echo "run.sh: unknown program ${1:-}" >&2
