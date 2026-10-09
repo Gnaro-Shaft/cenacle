@@ -16,7 +16,17 @@ import { answerVerified, checkSummary } from "./answer.ts";
 import { gitTrackedFiles, loadProjectContext } from "./context.ts";
 
 /** What a review reads of the documentation: the rules, not the history. */
-const ESSENTIAL_DOCS = ["CLAUDE.md", "README.md", "docs/charte.md"];
+const ESSENTIAL_DOCS = ["CLAUDE.md", "README.md", "docs/charte.md", "docs/regles-du-code.md"];
+
+/** One focused pass of a review (J3b): a file, its own small tool budget. */
+export interface ReviewPass {
+  readonly label: string;
+  readonly prompt: string;
+}
+const PASS_TOOL_CALLS = 3;
+const PASS_WINDOW_MS = 90_000;
+const PASS_TIMEOUT_MS = 240_000;
+const NOTHING = /^\s*\**\s*aucun d[ée]faut/i;
 
 import { ctoSystemPrompt } from "./prompt.ts";
 import { validQuestion } from "./question.ts";
@@ -35,7 +45,8 @@ export type CtoProgress =
       readonly chars: number;
     }
   | { readonly kind: "revising"; readonly missing: number }
-  | { readonly kind: "tool"; readonly tool: string; readonly target: string };
+  | { readonly kind: "tool"; readonly tool: string; readonly target: string }
+  | { readonly kind: "pass"; readonly n: number; readonly of: number; readonly label: string };
 
 export interface CtoReply {
   readonly text: string;
@@ -81,7 +92,12 @@ export async function runCto(
   prompt: string,
   view: RepoView,
   deps: CtoDeps,
-  options: { readonly kind?: "question" | "review"; readonly maxCalls?: number } = {},
+  options: {
+    readonly kind?: "question" | "review";
+    readonly maxCalls?: number;
+    /** A review in focused passes (J3b): one ask each, results gathered by file. */
+    readonly passes?: readonly ReviewPass[];
+  } = {},
 ): Promise<CtoReply> {
   const started = Date.now();
   const review = options.kind === "review";
@@ -108,9 +124,51 @@ export async function runCto(
     windowMs: review ? 240_000 : 120_000,
     onUse: (use) => tell({ kind: "tool", tool: use.tool, target: use.target.slice(0, 120) }),
   });
+  const totals = { calls: 0, refused: 0 };
+  /** One pass: its own tool budget, its own timeout; a failure is said, never fatal. */
+  const runPass = async (pass: ReviewPass, n: number, of: number): Promise<string | null> => {
+    tell({ kind: "pass", n, of, label: pass.label });
+    const own = createReadTools(view, {
+      maxCalls: PASS_TOOL_CALLS,
+      windowMs: PASS_WINDOW_MS,
+      onUse: (use) => tell({ kind: "tool", tool: use.tool, target: use.target.slice(0, 120) }),
+    });
+    try {
+      const reply = await askAgent({
+        agent: "cto",
+        systemPrompt: system,
+        question: pass.prompt,
+        dataClass: "personal",
+        journal: deps.journal,
+        local: deps.local,
+        timeoutMs: PASS_TIMEOUT_MS,
+        onProgress: (chars) => tell({ kind: "writing", phase, chars }),
+        tools: own.tools,
+      });
+      cut = cut || reply.cut;
+      return NOTHING.test(reply.text) ? null : reply.text;
+    } catch {
+      return "(relecture de ce fichier interrompue : délai ou modèle indisponible)";
+    } finally {
+      totals.calls += own.stats.calls;
+      totals.refused += own.stats.refused;
+    }
+  };
+  const passes = options.passes;
   const answer = await answerVerified(
     prompt,
     async (text) => {
+      if (passes !== undefined && passes.length > 0) {
+        const sections: string[] = [];
+        const clean: string[] = [];
+        for (const [i, pass] of passes.entries()) {
+          const found = await runPass(pass, i + 1, passes.length);
+          if (found === null) clean.push(`\`${pass.label}\``);
+          else sections.push(`## \`${pass.label}\`\n\n${found.trim()}`);
+        }
+        if (clean.length > 0) sections.push(`Sans constat : ${clean.join(", ")}.`);
+        return sections.length > 0 ? sections.join("\n\n") : "Aucun défaut trouvé.";
+      }
       tell({ kind: "reading", phase });
       const reply = await askAgent({
         agent: "cto",
@@ -143,8 +201,8 @@ export async function runCto(
       notFound: answer.checked.filter((c) => !c.found).length,
       revised: answer.revised,
       notFoundFirst: answer.unverifiedFirst.length,
-      toolCalls: stats.calls,
-      toolRefused: stats.refused,
+      toolCalls: stats.calls + totals.calls,
+      toolRefused: stats.refused + totals.refused,
     },
   });
   return {
