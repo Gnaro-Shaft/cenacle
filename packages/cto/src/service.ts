@@ -78,10 +78,12 @@ export function createCtoService(options: {
         send({ event: "answer", reply });
       } catch (error) {
         if (error instanceof ModelUnavailableError) {
+          // askAgent names the reason in its message: a timeout is not a dead model.
+          const timedOut = error.message.includes("(timeout)");
           send({
             event: "error",
-            code: "model_unavailable",
-            message: "le modèle local ne répond pas",
+            code: timedOut ? "timeout" : "model_unavailable",
+            message: timedOut ? "le CTO n'a pas répondu à temps" : "le modèle local ne répond pas",
           });
         } else if (error instanceof QuestionError || error instanceof ReviewError) {
           send({ event: "error", code: "invalid", message: error.message });

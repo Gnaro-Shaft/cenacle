@@ -31,7 +31,9 @@ export interface ToolUse {
 
 export class ToolBudgetError extends Error {
   constructor() {
-    super("budget d'outils épuisé : réponds maintenant avec ce que tu as déjà lu");
+    super(
+      "Budget d'outils épuisé. N'appelle plus aucun outil : écris maintenant ta réponse finale avec ce que tu as déjà lu.",
+    );
     this.name = "ToolBudgetError";
   }
 }

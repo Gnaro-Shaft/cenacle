@@ -13,7 +13,11 @@ import {
 } from "@cenacle/brain";
 import type { Journal } from "@cenacle/journal";
 import { answerVerified, checkSummary } from "./answer.ts";
-import { loadProjectContext } from "./context.ts";
+import { gitTrackedFiles, loadProjectContext } from "./context.ts";
+
+/** What a review reads of the documentation: the rules, not the history. */
+const ESSENTIAL_DOCS = ["CLAUDE.md", "README.md", "docs/charte.md"];
+
 import { ctoSystemPrompt } from "./prompt.ts";
 import { validQuestion } from "./question.ts";
 import { gitView, type RepoView } from "./repo-view.ts";
@@ -80,7 +84,14 @@ export async function runCto(
   options: { readonly kind?: "question" | "review"; readonly maxCalls?: number } = {},
 ): Promise<CtoReply> {
   const started = Date.now();
-  const context = loadProjectContext(deps.root);
+  const review = options.kind === "review";
+  // A review has the diff and the code: only the essential documentation, so
+  // that reading the prompt stays short (all of it is ~60 k tokens).
+  const context = review
+    ? loadProjectContext(deps.root, {
+        tracked: (root) => gitTrackedFiles(root).filter((p) => ESSENTIAL_DOCS.includes(p)),
+      })
+    : loadProjectContext(deps.root);
   const system = ctoSystemPrompt("Cénacle", context);
   const tell = (progress: CtoProgress) => {
     try {
@@ -91,11 +102,10 @@ export async function runCto(
   };
   const phase: "premier jet" | "correction" = "premier jet";
   let cut = false;
-  const review = options.kind === "review";
   const { tools, stats } = createReadTools(view, {
     ...(options.maxCalls === undefined ? {} : { maxCalls: options.maxCalls }),
     // Tools stop well before the model's timeout: he then answers with what he read.
-    windowMs: review ? 360_000 : 120_000,
+    windowMs: review ? 240_000 : 120_000,
     onUse: (use) => tell({ kind: "tool", tool: use.tool, target: use.target.slice(0, 120) }),
   });
   const answer = await answerVerified(
@@ -111,7 +121,7 @@ export async function runCto(
         journal: deps.journal,
         local: deps.local,
         // Tools mean several model turns: a review reads more.
-        timeoutMs: review ? 600_000 : 300_000,
+        timeoutMs: review ? 900_000 : 300_000,
         onProgress: (chars) => tell({ kind: "writing", phase, chars }),
         tools,
       });

@@ -11,7 +11,7 @@ import type { CtoProgress, CtoReply } from "./pipeline.ts";
 /** The longest line either side accepts. */
 export const MAX_LINE = 64 * 1024;
 
-export type ErrorCode = "invalid" | "busy" | "model_unavailable" | "internal";
+export type ErrorCode = "invalid" | "busy" | "model_unavailable" | "timeout" | "internal";
 
 export type ServiceEvent =
   | { readonly event: "progress"; readonly progress: CtoProgress }
@@ -49,7 +49,7 @@ export function decodeRequest(line: string): CtoRequest {
   throw new Error("invalid request");
 }
 
-const CODES: readonly ErrorCode[] = ["invalid", "busy", "model_unavailable", "internal"];
+const CODES: readonly ErrorCode[] = ["invalid", "busy", "model_unavailable", "timeout", "internal"];
 
 /** A line from the service, checked field by field. */
 export function decodeEvent(line: string): ServiceEvent {

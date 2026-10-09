@@ -137,6 +137,13 @@ describe("the CTO's socket", () => {
       throw new ModelUnavailableError("connect ECONNREFUSED 100.64.0.1:1234");
     });
     await expect(askCtoService(down, "q")).rejects.toMatchObject({ code: "model_unavailable" });
+    const slow = await start(async () => {
+      throw new ModelUnavailableError("The local model did not answer (timeout): no message");
+    });
+    await expect(askCtoService(slow, "q")).rejects.toMatchObject({
+      code: "timeout",
+      message: "le CTO n'a pas répondu à temps",
+    });
     const boom = await start(async () => {
       throw new Error("leak: claire@client.example");
     });

@@ -11,9 +11,9 @@ import { type CtoDeps, type CtoReply, runCto } from "./pipeline.ts";
 import { gitView } from "./repo-view.ts";
 
 /** Diff characters given to the model at most: beyond, the files list and the tools. */
-export const MAX_DIFF = 60_000;
+export const MAX_DIFF = 30_000;
 /** A review reads more than a question. */
-export const REVIEW_TOOL_CALLS = 25;
+export const REVIEW_TOOL_CALLS = 12;
 
 const BRANCH = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,100}$/;
 
