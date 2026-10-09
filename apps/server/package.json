@@ -14,6 +14,7 @@
   "exports": {
     "./app": "./src/app.ts",
     "./guard": "./src/guard.ts",
+    "./page-url": "./src/page-url.ts",
     "./proposals-service": "./src/proposals-service.ts"
   }
 }

@@ -3,7 +3,7 @@
  * Long polling: the Mac calls Telegram, Telegram never calls the Mac.
  */
 import { projectStatus, refuseForeignSecrets } from "@cenacle/core";
-import { connectAsApp, createJournal, readAllEvents } from "@cenacle/journal";
+import { connectAsApp, createJournal, holdSingleInstance, readAllEvents } from "@cenacle/journal";
 import { createTelegramApi } from "./api.ts";
 import { handleUpdate } from "./handler.ts";
 
@@ -14,7 +14,17 @@ if (!Number.isSafeInteger(allowedChatId) || allowedChatId === 0) {
 const api = createTelegramApi(process.env.TELEGRAM_BOT_TOKEN ?? "");
 // The bot holds its token, and nothing of the mailbox, the page or the database owner (S1).
 refuseForeignSecrets("The Telegram bot", ["telegram"]);
-const journal = createJournal(connectAsApp());
+const sql = connectAsApp();
+const journal = createJournal(sql);
+// One bot at a time (ADR-0019): Telegram refuses two pollers (409), and the
+// refused one would crash and be restarted every 30 s.
+const lockSql = connectAsApp();
+const instance = await holdSingleInstance(lockSql, "bot");
+if (instance === null) {
+  console.error("🛑 Un autre bot Telegram tourne déjà : celui-ci ne démarre pas.");
+  await Promise.all([lockSql.end(), sql.end()]);
+  process.exit(75);
+}
 
 async function readStatus(agent: string) {
   return projectStatus(agent, await readAllEvents(journal, agent));
@@ -22,10 +32,13 @@ async function readStatus(agent: string) {
 
 let offset = 0;
 let stopping = false;
-process.on("SIGINT", () => {
-  stopping = true;
-  console.log("Stopping after the current poll…");
-});
+// Ctrl+C, or SIGTERM when macOS logs out or launchd unloads the bot.
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  process.on(signal, () => {
+    stopping = true;
+    console.log("Stopping after the current poll…");
+  });
+}
 
 console.log("Iris is listening on Telegram (Ctrl+C to stop).");
 while (!stopping) {
@@ -45,4 +58,6 @@ while (!stopping) {
     }
   }
 }
+await instance.release();
+await Promise.all([lockSql.end(), sql.end()]);
 process.exit(0);

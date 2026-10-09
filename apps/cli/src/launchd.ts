@@ -1,5 +1,6 @@
 /**
- * Iris under launchd (ADR-0018): the LaunchAgent is written on this Mac at
+ * Cénacle's programs under launchd (ADR-0018, ADR-0019): Iris, the page's
+ * server, the Telegram bot and the page. Each LaunchAgent is written on this Mac at
  * install time, from the paths found then — none is stored in the repository.
  * It names files, never values: no secret is ever copied into the plist.
  * Restarted after a crash only (SuccessfulExit false): never after /stop.
@@ -7,7 +8,7 @@
 import { chmodSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join } from "node:path";
 
-export const PROGRAMS = ["iris"] as const;
+export const PROGRAMS = ["iris", "server", "bot", "web"] as const;
 export type Program = (typeof PROGRAMS)[number];
 
 export interface ServicePaths {
@@ -32,6 +33,8 @@ export interface ServiceDeps {
 
 /** Seconds launchd waits between two starts: Docker or the model may still be starting. */
 export const THROTTLE_SECONDS = 30;
+/** Seconds launchd waits after SIGTERM before SIGKILL: the bot ends its 25 s poll first. */
+export const EXIT_TIMEOUT_SECONDS = 40;
 
 export function servicePaths(program: Program, deps: Pick<ServiceDeps, "home" | "root">) {
   if (!(PROGRAMS as readonly string[]).includes(program)) {
@@ -89,6 +92,7 @@ export function buildPlist(
     <key>SuccessfulExit</key><false/>
   </dict>
   <key>ThrottleInterval</key><integer>${THROTTLE_SECONDS}</integer>
+  <key>ExitTimeOut</key><integer>${EXIT_TIMEOUT_SECONDS}</integer>
   <key>StandardOutPath</key>${str(p.log)}
   <key>StandardErrorPath</key>${str(p.log)}
 </dict>
