@@ -11,7 +11,7 @@
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { refuseForeignSecrets } from "@cenacle/core";
+import { errorText, refuseForeignSecrets } from "@cenacle/core";
 import { ctoModels, rangeTarget, reviewCto } from "@cenacle/cto";
 import { connectAsApp, createJournal } from "@cenacle/journal";
 import { BENCH, found } from "./cto-bench/cases.ts";
@@ -47,7 +47,7 @@ try {
       );
     } catch (error) {
       console.log(
-        `✘ ${c.id} ${c.commit} — échec (${error instanceof Error ? error.name : "erreur"}) après ${Math.round((Date.now() - started) / 1000)} s`,
+        `✘ ${c.id} ${c.commit} — échec (${errorText(error)}) après ${Math.round((Date.now() - started) / 1000)} s`,
       );
     }
   }
