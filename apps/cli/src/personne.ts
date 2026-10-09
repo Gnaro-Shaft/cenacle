@@ -13,7 +13,7 @@ import { writeFileSync } from "node:fs";
 import { stdin, stdout } from "node:process";
 import { createInterface } from "node:readline/promises";
 import { errorText, UsageError } from "@cenacle/core";
-import { connectAsApp, createJournal, createPeople } from "@cenacle/journal";
+import { connectOrQuit, createJournal, createPeople } from "@cenacle/journal";
 import { KeyError, keyerFromEnv } from "@cenacle/mail";
 
 const [action, flag, out] = process.argv.slice(2);
@@ -30,7 +30,7 @@ async function ask(question: string): Promise<string> {
   return String(answer.value).trim();
 }
 
-const sql = connectAsApp();
+const sql = connectOrQuit();
 try {
   if (!["export", "efface", "retire"].includes(action ?? "")) throw new UsageError(USAGE);
   if (action === "export" && (flag !== "--out" || out === undefined)) throw new UsageError(USAGE);

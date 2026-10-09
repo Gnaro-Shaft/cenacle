@@ -13,7 +13,7 @@ import {
   refuseForeignSecrets,
 } from "@cenacle/core";
 import {
-  connectAsExecutor,
+  connectOrQuit,
   createJournal,
   createLocationStore,
   createMailStore,
@@ -49,7 +49,7 @@ if (loadCadre().mail.sending === "none") {
 }
 const acceptKey = publicKeyFromEnv();
 // Its own database role: the only one allowed to claim and close a sending (B7).
-const sql = connectAsExecutor();
+const sql = connectOrQuit("executor");
 const journal = createJournal(sql);
 const store = createProposalStore(sql);
 const mails = createMailStore(sql);

@@ -3,10 +3,10 @@
  * Usage: npm run status -- [agent]   (default: iris)
  */
 import { errorText, ProjectionError, projectStatus } from "@cenacle/core";
-import { connectAsApp, createJournal, readAllEvents } from "@cenacle/journal";
+import { connectOrQuit, createJournal, readAllEvents } from "@cenacle/journal";
 
 const agent = process.argv[2] ?? "iris";
-const sql = connectAsApp();
+const sql = connectOrQuit();
 
 try {
   const events = await readAllEvents(createJournal(sql), agent);

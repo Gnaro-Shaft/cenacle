@@ -9,7 +9,7 @@
 import { randomBytes } from "node:crypto";
 import { checkDraft, errorText, followUpOf, UsageError } from "@cenacle/core";
 import {
-  connectAsApp,
+  connectOrQuit,
   createJournal,
   createMailStore,
   createProposalStore,
@@ -26,7 +26,7 @@ import {
 } from "@cenacle/mail";
 
 const [command, id, text] = process.argv.slice(2);
-const sql = connectAsApp();
+const sql = connectOrQuit();
 const store = createProposalStore(sql);
 const proposals = createProposals(store, createJournal(sql));
 const now = new Date();
