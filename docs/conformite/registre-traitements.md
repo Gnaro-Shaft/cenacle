@@ -32,6 +32,7 @@ Rédigé par Claude le 2026-10-04, sur le modèle des registres de Myriade et de
 | **Modèle local** (LM Studio, sur le même Mac) | Rangement, choix de trame, recopie de cases | Objet et texte d'un mail, le temps d'un appel | Mac | **Aucun fournisseur d'IA** ne reçoit de contenu (ADR-0003) : si le modèle local est indisponible, on attend |
 | **VPS de la sentinelle** (S2) | Entendre les battements du Mac et me prévenir d'une panne | **Aucune donnée de personne** : un nom de programme et une heure, rien d'autre (refusé sinon) | France (VPS OVH) ; **en service depuis le 2026-10-05** | Ne parle jamais au Mac ; un bot Telegram à lui, pour que le jeton du bot principal ne quitte pas le Mac |
 | **Tailscale** | Nom réseau par lequel les programmes joignent le modèle, sur le même Mac | **Aucun contenu** : le trafic ne quitte pas la machine ; le service de coordination ne voit que des métadonnées de connexion | Hors UE | Ne voit pas les mails |
+| **Flux publics de la veille** (`hnrss.org`, `simonwillison.net`, `rss.arxiv.org`, `www.reddit.com`, `github.com`, liste dans `veille.toml`) | Lire chaque jour les articles et notes de version pour la veille du CTO (J5, ADR-0024) | **Aucune donnée** : une simple lecture (GET) de flux publics, sans compte ni témoin ; ils voient l'adresse IP du Mac | Hors UE pour certains (États-Unis) | Aucune donnée personnelle n'y est envoyée : ce ne sont pas des sous-traitants |
 
 ## Tables de la base
 

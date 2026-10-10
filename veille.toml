@@ -1,0 +1,137 @@
+# The CTO's veille (J5, ADR-0024): public feeds and settings only.
+# The map of my projects lives in veille.local.toml (git-ignored); without it,
+# veille.example.toml and its fictional projects.
+
+[reglage]
+# Articles published within the last 30 hours (a daily run, with some overlap).
+fenetre_heures = 30
+# At most this many articles go to the local model, and this many per source:
+# a busy feed (arXiv) must not crowd out the others.
+max_articles = 50
+max_par_source = 8
+# Kept from this score (1-10), at most this many in the message.
+seuil = 7
+max_retenus = 12
+profil = "Ingénieur IA freelance en France (EURL Gnaro) : LLM, agents IA, RAG, intégration au SI, modèles locaux ; développe en TypeScript et en Python."
+
+# ── News ──
+[[source]]
+nom = "Hacker News (IA)"
+url = "https://hnrss.org/frontpage?q=AI+OR+LLM+OR+agent+OR+RAG+OR+Claude+OR+GPT+OR+Anthropic+OR+OpenAI+OR+Mistral"
+theme = "actualite"
+
+[[source]]
+nom = "Simon Willison"
+url = "https://simonwillison.net/atom/everything/"
+theme = "actualite"
+
+[[source]]
+nom = "arXiv cs.AI"
+url = "https://rss.arxiv.org/rss/cs.AI"
+theme = "actualite"
+
+[[source]]
+nom = "arXiv cs.CL"
+url = "https://rss.arxiv.org/rss/cs.CL"
+theme = "actualite"
+
+[[source]]
+nom = "r/LocalLLaMA"
+url = "https://www.reddit.com/r/LocalLLaMA/.rss"
+theme = "actualite"
+
+# ── Release notes of the tools of my projects ──
+[[source]]
+nom = "LangGraph"
+url = "https://github.com/langchain-ai/langgraph/releases.atom"
+theme = "version"
+
+[[source]]
+nom = "LangChain"
+url = "https://github.com/langchain-ai/langchain/releases.atom"
+theme = "version"
+
+[[source]]
+nom = "LangSmith"
+url = "https://github.com/langchain-ai/langsmith-sdk/releases.atom"
+theme = "version"
+
+[[source]]
+nom = "Pi"
+url = "https://github.com/earendil-works/pi/releases.atom"
+theme = "version"
+
+[[source]]
+nom = "Model Context Protocol"
+url = "https://github.com/modelcontextprotocol/modelcontextprotocol/releases.atom"
+theme = "version"
+
+[[source]]
+nom = "Claude Code"
+url = "https://github.com/anthropics/claude-code/releases.atom"
+theme = "version"
+
+[[source]]
+nom = "SDK Anthropic (TS)"
+url = "https://github.com/anthropics/anthropic-sdk-typescript/releases.atom"
+theme = "version"
+
+[[source]]
+nom = "SDK OpenAI (Python)"
+url = "https://github.com/openai/openai-python/releases.atom"
+theme = "version"
+
+[[source]]
+nom = "SDK Mistral (Python)"
+url = "https://github.com/mistralai/client-python/releases.atom"
+theme = "version"
+
+[[source]]
+nom = "Ollama"
+url = "https://github.com/ollama/ollama/releases.atom"
+theme = "version"
+
+[[source]]
+nom = "Qdrant"
+url = "https://github.com/qdrant/qdrant/releases.atom"
+theme = "version"
+
+[[source]]
+nom = "Transformers"
+url = "https://github.com/huggingface/transformers/releases.atom"
+theme = "version"
+
+[[source]]
+nom = "PyTorch"
+url = "https://github.com/pytorch/pytorch/releases.atom"
+theme = "version"
+
+[[source]]
+nom = "FastAPI"
+url = "https://github.com/fastapi/fastapi/releases.atom"
+theme = "version"
+
+[[source]]
+nom = "OpenTelemetry JS"
+url = "https://github.com/open-telemetry/opentelemetry-js/releases.atom"
+theme = "version"
+
+[[source]]
+nom = "n8n"
+url = "https://github.com/n8n-io/n8n/releases.atom"
+theme = "version"
+
+[[source]]
+nom = "postgres (Node)"
+url = "https://github.com/porsager/postgres/releases.atom"
+theme = "version"
+
+[[source]]
+nom = "Node.js"
+url = "https://github.com/nodejs/node/releases.atom"
+theme = "version"
+
+[[source]]
+nom = "TypeScript"
+url = "https://github.com/microsoft/TypeScript/releases.atom"
+theme = "version"
