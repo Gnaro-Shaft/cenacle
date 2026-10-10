@@ -22,6 +22,27 @@ export type Action =
 export interface HandlerDeps {
   readonly allowedChatId: number;
   readonly readStatus: (agent: string) => Promise<AgentStatus>;
+  /** When the security agent last made its round (J6, watching the watcher). */
+  readonly lastSecurityRound?: () => Promise<Date | null>;
+  readonly now?: () => Date;
+}
+
+/** "Sécurité : dernière ronde il y a N min", or nothing when it cannot be read. */
+async function securityLine(deps: HandlerDeps): Promise<string> {
+  if (deps.lastSecurityRound === undefined) return "";
+  try {
+    const last = await deps.lastSecurityRound();
+    if (last === null) return "\n🛡 Sécurité : aucune ronde encore";
+    const minutes = Math.max(
+      0,
+      Math.round(((deps.now?.() ?? new Date()).getTime() - last.getTime()) / 60_000),
+    );
+    // Three missed rounds (45 min): said, the Mac asleep being the usual reason.
+    const late = minutes >= 45 ? " ⚠ (Mac endormi, ou l'agent ne tourne plus)" : "";
+    return `\n🛡 Sécurité : dernière ronde il y a ${minutes} min${late}`;
+  } catch {
+    return "\n🛡 Sécurité : dernière ronde illisible";
+  }
 }
 
 const LABELS: Record<VisualState, string> = {
@@ -89,7 +110,7 @@ export async function handleUpdate(update: TelegramUpdate, deps: HandlerDeps): P
   switch (commandOf(message.text ?? "")) {
     case "/etat":
       try {
-        return [reply(describeStatus(await deps.readStatus("iris")))];
+        return [reply(describeStatus(await deps.readStatus("iris")) + (await securityLine(deps)))];
       } catch (error) {
         return [
           reply(`🤒 Je ne peux pas calculer mon état : ${errorText(error, [ProjectionError])}`),

@@ -134,3 +134,20 @@ export async function readAllEvents(journal: Journal, agent: string): Promise<St
     afterId = last.id;
   }
 }
+
+/**
+ * When the latest event of this agent and type happened, optionally only
+ * those whose payload contains these fields — without reading the whole
+ * journal (the security agent asks it every 15 minutes). Null if never.
+ */
+export async function latestEventAt(
+  sql: Sql,
+  agent: string,
+  type: string,
+  payload: Readonly<Record<string, string | number | boolean>> = {},
+): Promise<Date | null> {
+  const [row] = await sql<{ at: Date | null }[]>`
+    select max(occurred_at) as at from events
+    where agent = ${agent} and type = ${type} and payload @> ${sql.json(payload)}`;
+  return row?.at ?? null;
+}

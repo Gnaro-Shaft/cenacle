@@ -12,6 +12,7 @@ import {
   createSecuriteStore,
   holdSingleInstance,
   InvalidEventError,
+  latestEventAt,
   readAllEvents,
   watchOrQuit,
 } from "@cenacle/journal";
@@ -140,15 +141,22 @@ await poll({
     ) {
       return;
     }
-    await perform(await handleUpdate(update, { allowedChatId, readStatus }), {
-      reply,
-      askCto: relay,
-      listFindings: (chatId) => guarded(() => listFindings(chatId, securite), undefined),
-      record: async (type, payload) => {
-        await journal.append({ agent: "cenacle", type, payload });
+    await perform(
+      await handleUpdate(update, {
+        allowedChatId,
+        readStatus,
+        lastSecurityRound: () => latestEventAt(sql, "securite", "securite.ran"),
+      }),
+      {
+        reply,
+        askCto: relay,
+        listFindings: (chatId) => guarded(() => listFindings(chatId, securite), undefined),
+        record: async (type, payload) => {
+          await journal.append({ agent: "cenacle", type, payload });
+        },
+        log: (line) => console.error(line),
       },
-      log: (line) => console.error(line),
-    });
+    );
   },
   stopped: () => stopping,
   sleep: (ms) => sleepUnless(ms, () => stopping),

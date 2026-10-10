@@ -11,6 +11,7 @@ import { homedir, userInfo } from "node:os";
 import { join } from "node:path";
 import { errorText, refuseForeignSecrets, SecretPlacementError } from "@cenacle/core";
 import {
+  INTERVALS,
   install,
   PROGRAMS,
   type Program,
@@ -70,6 +71,13 @@ try {
       console.log(`✔ ${name} n'est plus confié(e) à launchd (${p.label} retiré).`);
     } else {
       const s = await status(program, deps);
+      const every = INTERVALS[program];
+      if (every !== undefined && s.loaded && s.pid === null) {
+        console.log(
+          `${name} : en attente de la prochaine ronde (toutes les ${every / 60} min) · dernier code de sortie ${s.lastExitCode ?? "—"}`,
+        );
+        continue;
+      }
       const at = SCHEDULED[program];
       if (at !== undefined && s.loaded && s.pid === null) {
         console.log(
@@ -86,15 +94,16 @@ try {
       );
     }
   }
-  if (command === "install" && programs.some((p) => SCHEDULED[p] === undefined)) {
+  const timed = (p: Program) => SCHEDULED[p] !== undefined || INTERVALS[p] !== undefined;
+  if (command === "install" && programs.some((p) => !timed(p))) {
     console.log("  Démarrage à chaque ouverture de session ; relance seulement après un plantage,");
     console.log(
       `  jamais après /stop, Ctrl+C ou SIGTERM. Un exemplaire lancé à la main garde la main : celui de launchd réessaie toutes les ${THROTTLE_SECONDS} s.`,
     );
   }
-  if (command === "install" && programs.some((p) => SCHEDULED[p] !== undefined)) {
+  if (command === "install" && programs.some(timed)) {
     console.log(
-      "  La veille part chaque jour à 8 h, l'agent sécurité à 7 h 30 ; Mac en veille : au réveil ; éteint ou session fermée : ce jour-là est sauté.",
+      "  La veille part chaque jour à 8 h ; l'agent sécurité fait sa ronde toutes les 15 min (rapport du matin à 7 h 30) ; Mac en veille : au réveil.",
     );
   }
 } catch (error) {

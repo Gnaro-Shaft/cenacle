@@ -11,6 +11,15 @@ export {
   parsePressed,
   withoutFinding,
 } from "./buttons.ts";
+export {
+  isQuiet,
+  LOCAL_CHECKS,
+  NETWORK_EVERY_MS,
+  networkDue,
+  REPORT_AT,
+  reportDue,
+  urgentNow,
+} from "./cadence.ts";
 export { CATALOGUE_TYPES, type Fix, fixFor, UnknownFindingError } from "./catalogue.ts";
 export { buildCommentPrompt, COMMENT_SYSTEM_PROMPT, cleanComment } from "./comment.ts";
 export {
