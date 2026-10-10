@@ -10,10 +10,13 @@
  */
 import { collectDue, dayStart, isQuiet, recapToSend, TIME_ZONE, zonedParts } from "@cenacle/core";
 import type { Journal, MailStore, StoredEvent } from "@cenacle/journal";
+import { TelegramError } from "@cenacle/telegram/api";
 import { type NewCounts, recap, urgentAlert } from "./messages.ts";
 
 const AGENT = "iris";
 const URGENT_WINDOW_MS = 24 * 3600 * 1000;
+/** A recap sent later than this after its hour says so, with the time of its numbers. */
+const LATE_RECAP_MS = 15 * 60 * 1000;
 
 export interface TickDeps {
   readonly now: () => Date;
@@ -34,6 +37,8 @@ export interface TickDeps {
   readonly purge?: () => Promise<void>;
   /** Phase 5, S2: tells the sentinel Iris is alive (never throws). */
   readonly heartbeat?: () => Promise<void>;
+  /** One line when Telegram becomes unreachable, one when it is back. */
+  readonly log?: (line: string) => void;
 }
 
 export type TickOutcome = "stopped" | "done";
@@ -54,23 +59,44 @@ async function freshCounts(store: MailStore, since: Date): Promise<NewCounts> {
   return counts;
 }
 
+/** The start of the current Telegram outage, read from the journal (a restart loses nothing). */
+async function outageSince(deps: TickDeps): Promise<StoredEvent | undefined> {
+  const last = (await deps.events(AGENT)).findLast(
+    (e) => e.type === "notify.failed" || e.type === "notify.recovered",
+  );
+  return last?.type === "notify.failed" ? last : undefined;
+}
+
+/**
+ * Sends on Telegram. A Telegram failure is retried by the next beat, since
+ * nothing is marked sent: journaled once per outage, by its kind only. Any
+ * other error is a bug and throws (charter, rule 3).
+ */
 async function notify(
   deps: TickDeps,
   text: string,
   type: string,
   payload: Record<string, unknown>,
 ) {
+  const outage = await outageSince(deps);
   try {
     await deps.send(text);
   } catch (error) {
-    // The message may quote the network error, never mail content; the name is enough.
-    const reason = error instanceof Error ? error.name : "unknown";
-    await deps.journal.append({
-      agent: AGENT,
-      type: "notify.failed",
-      payload: { kind: type, reason },
-    });
+    if (!(error instanceof TelegramError)) throw error;
+    if (outage === undefined) {
+      await deps.journal.append({
+        agent: AGENT,
+        type: "notify.failed",
+        payload: { kind: type, failure: error.kind },
+      });
+      deps.log?.(`⚠ Telegram injoignable (${error.kind}) : messages retentés chaque minute`);
+    }
     return false;
+  }
+  if (outage !== undefined) {
+    const minutes = Math.round((deps.now().getTime() - outage.occurredAt.getTime()) / 60_000);
+    await deps.journal.append({ agent: AGENT, type: "notify.recovered", payload: { minutes } });
+    deps.log?.(`✔ Telegram de nouveau joint, après ${minutes} min`);
   }
   await deps.journal.append({ agent: AGENT, type, payload });
   return true;
@@ -130,6 +156,7 @@ export async function tick(deps: TickDeps): Promise<TickOutcome> {
     const urgent = await deps.store.urgentToNotify(since);
     const { due, waiting } = await deps.totals(now);
     const drafts = (await deps.pendingDrafts?.()) ?? 0;
+    const late = now.getTime() - slot.getTime() > LATE_RECAP_MS;
     const text = recap({
       hour: localHour(slot),
       fresh,
@@ -137,6 +164,7 @@ export async function tick(deps: TickDeps): Promise<TickOutcome> {
       waiting,
       urgent: urgent.length,
       drafts,
+      ...(late ? { asOf: zonedParts(now.getTime(), TIME_ZONE) } : {}),
     });
     if (
       await notify(deps, text, "recap.sent", {

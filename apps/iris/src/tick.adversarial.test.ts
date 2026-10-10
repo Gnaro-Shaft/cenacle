@@ -3,6 +3,7 @@
 // never puts anything but numbers in a message.
 import type { NewEvent, StoredEvent } from "@cenacle/journal";
 import { memoryMailStore } from "@cenacle/mail/test-helpers";
+import { TelegramError } from "@cenacle/telegram/api";
 import { describe, expect, it } from "vitest";
 import { recap, urgentAlert } from "./messages.ts";
 import { type TickDeps, tick } from "./tick.ts";
@@ -64,7 +65,7 @@ function world(start: string) {
     },
     totals: async () => ({ waiting: 1, due: 2 }),
     send: async (text) => {
-      if (!telegramUp) throw new Error("ECONNRESET api.telegram.org");
+      if (!telegramUp) throw new TelegramError("ECONNRESET api.telegram.org", "network");
       sent.push(text);
     },
   };
