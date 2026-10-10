@@ -12,6 +12,7 @@ import {
   parseFileVault,
   parseFirewall,
   parseGatekeeper,
+  parseLegionVerdict,
   parseNpmAudit,
   parseNpmOutdated,
   parseSip,
@@ -60,9 +61,21 @@ interface Spec {
 
 const firstExisting = (...paths: string[]) => paths.find((p) => existsSync(p)) ?? paths[0] ?? "";
 
+/** Where Legion's reader leaves the raw verdict (the bridge, ADR-0025). */
+export const LEGION_VERDICT_PATH =
+  process.env.LEGION_VERDICT_PATH ??
+  `${process.env.HOME ?? ""}/Library/Caches/fr.gnaro.legion.ronde.verdict`;
+
 export function specs(root: string, nodeDir: string, macMajor: number): Spec[] {
   const npm = `${nodeDir}/npm`;
   return [
+    {
+      check: "legion_ronde",
+      file: "/bin/cat",
+      args: [LEGION_VERDICT_PATH],
+      codes: [0],
+      parse: (out) => parseLegionVerdict(out, Date.now()),
+    },
     {
       check: "filevault",
       file: "/usr/bin/fdesetup",

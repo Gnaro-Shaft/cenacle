@@ -35,13 +35,21 @@ export interface Plan {
   readonly drop: readonly number[];
 }
 
+/** Clearer words for the checks whose failure says something by itself. */
+const IMPOSSIBLE_TITLE: Readonly<Record<string, string>> = {
+  legion_ronde:
+    "La ronde de Legion ne répond plus : verdict absent, périmé ou illisible — plus rien ne surveille les serveurs",
+};
+
 const impossible = (check: string): SeenObservation => ({
   check,
   type: "check_impossible",
   target: check,
   occurrence: "-",
-  severity: "moyen" as Severity,
-  title: `Le contrôle « ${check} » n'a pas pu tourner`,
+  severity: (check === "legion_ronde" ? "eleve" : "moyen") as Severity,
+  title: Object.hasOwn(IMPOSSIBLE_TITLE, check)
+    ? (IMPOSSIBLE_TITLE[check] ?? "")
+    : `Le contrôle « ${check} » n'a pas pu tourner`,
 });
 
 export function reconcile(active: readonly ActiveFinding[], results: readonly CheckResult[]): Plan {

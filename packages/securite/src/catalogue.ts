@@ -22,6 +22,12 @@ export class UnknownFindingError extends Error {
 }
 
 const LABEL = /^[A-Za-z0-9 ._()+-]{1,100}$/;
+const HOST = /^[a-z0-9][a-z0-9-]{0,39}$/;
+const MOUNT = /^\/[A-Za-z0-9._/-]{0,100}$/;
+const PORT = /^(?:[a-z]{2,10}\/)?(?:tcp|udp)\/(\d{1,5}|\*)$/;
+/** "Sur homeserv01 : " — where a server command is to be run, the name checked. */
+const on = (p: Readonly<Record<string, string>>) =>
+  p.host !== undefined && HOST.test(p.host) ? `Sur ${p.host} : ` : "Sur la machine : ";
 const quoted = (s: string) => `"${s}"`;
 
 type Builder = (key: FindingKey, p: Readonly<Record<string, string>>) => Fix;
@@ -85,6 +91,55 @@ const CATALOGUE: Readonly<Record<string, Builder>> = {
   },
   npm_major: (_k, p) => ({
     advice: `Envisager la montée de version de ${p.package ?? "ce paquet"} (${p.current ?? "?"} → ${p.latest ?? "?"}) : lire ses changements avant.`,
+    command: null,
+  }),
+  // The servers, through Legion's ronde (the bridge): commands to run on the machine.
+  serveur_quorum: (_k, p) => ({
+    advice: `${on(p)}grappe Proxmox sans quorum, /etc/pve en lecture seule : vérifier les nœuds et le réseau du cluster.`,
+    command: "pvecm status",
+  }),
+  serveur_disque: (_k, p) => ({
+    advice: `${on(p)}libérer de la place sur ${p.mount ?? "ce disque"} (journaux, images Docker, sauvegardes anciennes).`,
+    command:
+      p.mount !== undefined && MOUNT.test(p.mount)
+        ? `sudo du -xh --max-depth=1 ${p.mount} | sort -h | tail -15`
+        : null,
+  }),
+  serveur_maj_securite: (_k, p) => ({
+    advice: `${on(p)}appliquer les mises à jour de sécurité, puis voir si un redémarrage est demandé.`,
+    command: "sudo apt update && sudo apt full-upgrade",
+  }),
+  serveur_port: (_k, p) => {
+    const port = p.port !== undefined && PORT.test(p.port) ? p.port : null;
+    if (port?.startsWith("tailnet/")) {
+      return {
+        advice: `${on(p)}port Tailscale tiré au hasard à chaque démarrage : déclarer le joker tailnet/tcp/* dans la ronde de Legion (maison.toml), sans quoi il revient à chaque redémarrage.`,
+        command: null,
+      };
+    }
+    const num = port === null ? null : (PORT.exec(port)?.[1] ?? null);
+    return {
+      advice: `${on(p)}identifier ce qui écoute sur ${port ?? "ce port"} ; si c'est normal, le déclarer attendu dans la ronde de Legion (maison.toml) ; sinon, arrêter ce service.`,
+      command: num !== null && num !== "*" ? `sudo ss -lntup | grep ':${num} '` : null,
+    };
+  },
+  serveur_port_absent: (_k, p) => {
+    const num = p.port !== undefined ? (PORT.exec(p.port)?.[1] ?? null) : null;
+    return {
+      advice: `${on(p)}un service attendu n'écoute plus sur ${p.port ?? "ce port"} : vérifier qu'il tourne.`,
+      command: num !== null && num !== "*" ? `sudo ss -lntup | grep ':${num} '` : null,
+    };
+  },
+  serveur_redemarrage: (_k, p) => ({
+    advice: `${on(p)}un noyau corrigé attend un redémarrage : à planifier, c'est une décision à toi.`,
+    command: null,
+  }),
+  serveur_services: (_k, p) => ({
+    advice: `${on(p)}relancer les services qui tournent sur une bibliothèque remplacée (la liste d'abord).`,
+    command: "sudo needrestart -r l",
+  }),
+  serveur_autre: (_k, p) => ({
+    advice: `${on(p)}motif signalé par la ronde de Legion : à examiner sur la machine.`,
     command: null,
   }),
   check_impossible: (k) => ({

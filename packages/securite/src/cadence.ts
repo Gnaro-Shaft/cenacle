@@ -10,7 +10,14 @@ import { TIME_ZONE } from "@cenacle/core";
 import type { Severity } from "./types.ts";
 
 /** Local and instant: worth every round. */
-export const LOCAL_CHECKS: readonly string[] = ["filevault", "firewall", "sip", "gatekeeper"];
+export const LOCAL_CHECKS: readonly string[] = [
+  "filevault",
+  "firewall",
+  "sip",
+  "gatekeeper",
+  // Legion's verdict, a file on the Mac refreshed every 15 minutes (the bridge).
+  "legion_ronde",
+];
 export const NETWORK_EVERY_MS = 3_600_000;
 export const QUIET_FROM_HOUR = 22;
 export const QUIET_UNTIL_HOUR = 7;

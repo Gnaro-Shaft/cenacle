@@ -29,6 +29,7 @@ export {
   reconcile,
   type SeenObservation,
 } from "./lifecycle.ts";
+export { classifyMotif, LEGION_STALE_MS, parseLegionVerdict } from "./parse-legion.ts";
 export {
   parseFileVault,
   parseFirewall,
