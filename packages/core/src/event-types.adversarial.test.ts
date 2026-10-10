@@ -13,6 +13,9 @@ const ROOT = join(import.meta.dirname, "..", "..", "..");
  * and the content blocks a tool returns to the model (ADR-0021).
  */
 const NOT_EVENTS: ReadonlySet<string> = new Set(["pkcs8", "spki", "text"]);
+// Its `type` fields are kinds of findings (its closed catalogue), not journal
+// events: the security agent journals only from apps/securite, scanned here.
+const NOT_EVENT_PACKAGES: ReadonlySet<string> = new Set(["packages/securite"]);
 
 function sources(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -28,6 +31,7 @@ function emittedTypes(): Set<string> {
   const found = new Set<string>();
   for (const top of ["apps", "packages"]) {
     for (const pkg of readdirSync(join(ROOT, top))) {
+      if (NOT_EVENT_PACKAGES.has(`${top}/${pkg}`)) continue;
       let files: string[] = [];
       try {
         files = sources(join(ROOT, top, pkg, "src"));

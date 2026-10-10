@@ -33,6 +33,7 @@ Rédigé par Claude le 2026-10-04, sur le modèle des registres de Myriade et de
 | **VPS de la sentinelle** (S2) | Entendre les battements du Mac et me prévenir d'une panne | **Aucune donnée de personne** : un nom de programme et une heure, rien d'autre (refusé sinon) | France (VPS OVH) ; **en service depuis le 2026-10-05** | Ne parle jamais au Mac ; un bot Telegram à lui, pour que le jeton du bot principal ne quitte pas le Mac |
 | **Tailscale** | Nom réseau par lequel les programmes joignent le modèle, sur le même Mac | **Aucun contenu** : le trafic ne quitte pas la machine ; le service de coordination ne voit que des métadonnées de connexion | Hors UE | Ne voit pas les mails |
 | **Flux publics de la veille** (`hnrss.org`, `simonwillison.net`, `rss.arxiv.org`, `www.reddit.com`, `github.com`, liste dans `veille.toml`) | Lire chaque jour les articles et notes de version pour la veille du CTO (J5, ADR-0024) | **Aucune donnée** : une simple lecture (GET) de flux publics, sans compte ni témoin ; ils voient l'adresse IP du Mac | Hors UE pour certains (États-Unis) | Aucune donnée personnelle n'y est envoyée : ce ne sont pas des sous-traitants |
+| **Registre npm, Tailscale, Apple** (`registry.npmjs.org`, `npm audit` ; `tailscale version --upstream` ; `softwareupdate -l`) | Les contrôles de l'agent sécurité (J6a, ADR-0025) : failles des dépendances, versions disponibles | La liste des dépendances de Cénacle (npm, comme à la CI) ; la version installée des logiciels ; **aucune donnée personnelle** | États-Unis | Lectures, sans compte ; ce ne sont pas des sous-traitants |
 
 ## Tables de la base
 
@@ -47,6 +48,7 @@ Chaque table créée par les migrations (`packages/journal/sql/`) est déclarée
 | `proposals` | Les brouillons proposés, leur état, leur signature (T-03, T-04) | `packages/journal/sql/010_purges.sql`, après `texte_brouillon_jours` et `propositions_jours` ; `packages/journal/sql/012_people.sql`, à l'effacement d'une personne |
 | `opposed_keys` | La liste d'opposition : clés HMAC des personnes qui s'opposent, date de la demande, date de la dernière trace (T-07) | `packages/journal/src/purges.ts`, après `opposition_jours` depuis la dernière trace ; `packages/journal/src/people.ts`, quand la personne retire son opposition |
 | `veille_articles` | L'archive de la veille du CTO (J5, ADR-0024) : chaque article réellement envoyé (lien, source, titre, date, note, résumé, projet, idée) ; articles publics et noms de mes projets, aucune donnée de personne ; note, résumé et idée générés par IA | `packages/journal/src/veille-store.ts`, 365 jours après l'envoi (`veille_jours`, `veille.toml`), à chaque veille |
+| `securite_constats` | Les constats de l'agent sécurité (J6a, ADR-0025) : type, cible (paquet, mise à jour, réglage du Mac), occurrence, sévérité, dates, statut, raison d'une acceptation ; aucune donnée de personne | `packages/journal/src/securite-store.ts`, 365 jours après la clôture ; un risque accepté, 90 jours après l'acceptation |
 
 Aucun transfert hors UE de données des correspondants : le contenu ne sort pas de mes machines.
 

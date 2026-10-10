@@ -96,7 +96,10 @@ describe("the LaunchAgent", () => {
       expect(plist).toContain("<key>RunAtLoad</key><true/>");
       expect(plist).not.toContain("StartCalendarInterval");
     }
-    expect(Object.keys(SCHEDULED)).toEqual(["veille"]);
+    expect(Object.keys(SCHEDULED)).toEqual(["veille", "securite"]);
+    expect(buildPlist("securite", deps())).toMatch(
+      /<key>Hour<\/key><integer>7<\/integer>\s*<key>Minute<\/key><integer>30<\/integer>/,
+    );
   });
 
   it("odd paths (spaces, accents, & < > quotes) are escaped, never break the XML", () => {
@@ -190,6 +193,7 @@ describe("the runner", () => {
     ["bot", "bot"],
     ["cto", "cto:serve"],
     ["veille", "veille"],
+    ["securite", "securite"],
   ])("starts %s with exactly the env files of `npm run %s`", (program, npmScript) => {
     const script = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).scripts[npmScript];
     const runner = readFileSync(RUNNER, "utf8");

@@ -2,8 +2,9 @@
  * Cénacle's programs under launchd (ADR-0018, ADR-0019): Iris, the page's
  * server, the Telegram bot, the page and the CTO run all the time, restarted
  * after a crash only (SuccessfulExit false): never after /stop. The CTO's
- * veille (ADR-0024) runs once a day at a fixed time instead, never restarted:
- * a failure is said in its message, and it runs again the next day.
+ * veille (ADR-0024) and the security agent (ADR-0025) run once a day at a
+ * fixed time instead, never restarted: a failure is said in their message,
+ * and they run again the next day.
  * Each LaunchAgent is written on this Mac at install time, from the paths
  * found then — none is stored in the repository. It names files, never
  * values: no secret is ever copied into the plist.
@@ -11,7 +12,7 @@
 import { chmodSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join } from "node:path";
 
-export const PROGRAMS = ["iris", "server", "bot", "web", "cto", "veille"] as const;
+export const PROGRAMS = ["iris", "server", "bot", "web", "cto", "veille", "securite"] as const;
 export type Program = (typeof PROGRAMS)[number];
 
 /**
@@ -20,6 +21,8 @@ export type Program = (typeof PROGRAMS)[number];
  */
 export const SCHEDULED: Readonly<Partial<Record<Program, { hour: number; minute: number }>>> = {
   veille: { hour: 8, minute: 0 },
+  // Before the veille: a finding of the night reaches me first thing (ADR-0025).
+  securite: { hour: 7, minute: 30 },
 };
 
 export interface ServicePaths {
