@@ -101,8 +101,13 @@ async function round(): Promise<void> {
 }
 
 async function list(): Promise<void> {
-  const line = (f: { id: number; severity: keyof typeof SEVERITY_LABEL; title: string }) =>
-    `  n°${f.id} · ${SEVERITY_LABEL[f.severity]} · ${f.title}`;
+  const line = (f: {
+    id: number;
+    severity: keyof typeof SEVERITY_LABEL;
+    title: string;
+    status: string;
+  }) =>
+    `  n°${f.id} · ${SEVERITY_LABEL[f.severity]} · ${f.title}${f.status === "pris_en_charge" ? " (pris en charge)" : ""}`;
   const open = await store.open();
   const accepted = await store.accepted();
   console.log(
