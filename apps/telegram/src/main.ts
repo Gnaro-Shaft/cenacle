@@ -8,7 +8,10 @@ import { askCtoService, ctoSocketPath } from "@cenacle/cto/client";
 import {
   connectOrQuit,
   createJournal,
+  createSecuriteDecisions,
+  createSecuriteStore,
   holdSingleInstance,
+  InvalidEventError,
   readAllEvents,
   watchOrQuit,
 } from "@cenacle/journal";
@@ -18,6 +21,12 @@ import { sleepUnless } from "./backoff.ts";
 import { relayToCto } from "./cto-relay.ts";
 import { handleUpdate } from "./handler.ts";
 import { poll } from "./poll.ts";
+import {
+  handleCallback,
+  handleReasonReply,
+  listFindings,
+  type SecuriteBotDeps,
+} from "./securite-bot.ts";
 
 const allowedChatId = Number(process.env.TELEGRAM_ALLOWED_CHAT_ID);
 if (!Number.isSafeInteger(allowedChatId) || allowedChatId === 0) {
@@ -77,21 +86,70 @@ async function reply(chatId: number, text: string): Promise<void> {
   }
 }
 
+// The security agent's buttons (J6b): decided in the database, never by AI.
+const securite: SecuriteBotDeps = {
+  allowedChatId,
+  api,
+  store: createSecuriteStore(sql),
+  decisions: createSecuriteDecisions(sql),
+  journal,
+  now: () => new Date(),
+};
+/**
+ * A database outage while a button is pressed must not bring the bot down
+ * (the tap would come back after the restart, again and again, as in #75):
+ * nothing was decided, and it is said. A Telegram failure only loses the
+ * answer. An invalid event is our bug: it still throws.
+ */
+async function guarded<T>(work: () => Promise<T>, fallback: T, callbackId?: string): Promise<T> {
+  try {
+    return await work();
+  } catch (error) {
+    if (error instanceof InvalidEventError) throw error;
+    if (error instanceof TelegramError) {
+      const kind: TelegramFailure = error.kind;
+      console.error(`⚠ Bouton : réponse non envoyée (${kind})`);
+      return fallback;
+    }
+    console.error("⚠ Bouton : décision non enregistrée, base injoignable");
+    if (callbackId !== undefined) {
+      await api
+        .answerCallback(callbackId, "⚠ Base injoignable : rien n'a changé, réessaie plus tard.")
+        .catch(() => {});
+    }
+    return fallback;
+  }
+}
+
 console.log("Iris is listening on Telegram (Ctrl+C to stop).");
 // A network cut or a Telegram outage is waited out and retried (poll.ts);
 // anything unexpected still throws, and launchd restarts the bot.
 await poll({
   getUpdates: (offset) => api.getUpdates(offset, 25),
   // A database outage no longer brings the bot down (actions.ts).
-  handle: async (update) =>
-    perform(await handleUpdate(update, { allowedChatId, readStatus }), {
+  handle: async (update) => {
+    const tap = update.callback_query;
+    if (tap !== undefined) {
+      await guarded(() => handleCallback(tap, securite), undefined, tap.id);
+      return;
+    }
+    const message = update.message;
+    if (
+      message !== undefined &&
+      (await guarded(() => handleReasonReply(message, securite), false))
+    ) {
+      return;
+    }
+    await perform(await handleUpdate(update, { allowedChatId, readStatus }), {
       reply,
       askCto: relay,
+      listFindings: (chatId) => guarded(() => listFindings(chatId, securite), undefined),
       record: async (type, payload) => {
         await journal.append({ agent: "cenacle", type, payload });
       },
       log: (line) => console.error(line),
-    }),
+    });
+  },
   stopped: () => stopping,
   sleep: (ms) => sleepUnless(ms, () => stopping),
   log: (line) => console.log(line),

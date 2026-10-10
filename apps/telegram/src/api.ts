@@ -8,11 +8,31 @@ export interface TelegramMessage {
   readonly chat: { readonly id: number; readonly type: string };
   readonly from?: { readonly id: number };
   readonly text?: string;
+  /** The message this one answers (a reason given to the bot's question, J6b). */
+  readonly reply_to_message?: { readonly message_id: number };
+}
+
+export interface InlineButton {
+  readonly text: string;
+  readonly callback_data: string;
+}
+
+/** A tap on a button under one of the bot's messages (J6b). */
+export interface TelegramCallback {
+  readonly id: string;
+  readonly from: { readonly id: number };
+  readonly message?: {
+    readonly message_id: number;
+    readonly chat: { readonly id: number; readonly type: string };
+    readonly reply_markup?: { readonly inline_keyboard?: readonly (readonly InlineButton[])[] };
+  };
+  readonly data?: string;
 }
 
 export interface TelegramUpdate {
   readonly update_id: number;
   readonly message?: TelegramMessage;
+  readonly callback_query?: TelegramCallback;
 }
 
 /**
@@ -45,6 +65,22 @@ function failureOf(status: number): TelegramFailure {
 export interface TelegramApi {
   getUpdates(offset: number, timeoutSeconds: number): Promise<TelegramUpdate[]>;
   sendMessage(chatId: number, text: string): Promise<void>;
+  /** A message with buttons under it; returns its id. */
+  sendWithButtons(
+    chatId: number,
+    text: string,
+    rows: readonly (readonly InlineButton[])[],
+  ): Promise<number>;
+  /** A question the answer to which must be a reply to it; returns its id. */
+  askReply(chatId: number, text: string): Promise<number>;
+  /** Tells Telegram the tap was heard, with a short note shown to me. */
+  answerCallback(callbackId: string, text: string): Promise<void>;
+  /** Replaces the buttons under a message (none: removed). */
+  editButtons(
+    chatId: number,
+    messageId: number,
+    rows: readonly (readonly InlineButton[])[],
+  ): Promise<void>;
 }
 
 const TOKEN_RULE = /^\d{6,12}:[A-Za-z0-9_-]{30,}$/;
@@ -90,9 +126,42 @@ export function createTelegramApi(token: string, fetchFn: typeof fetch = fetch):
 
   return {
     getUpdates: (offset, timeoutSeconds) =>
-      call("getUpdates", { offset, timeout: timeoutSeconds, allowed_updates: ["message"] }),
+      call("getUpdates", {
+        offset,
+        timeout: timeoutSeconds,
+        allowed_updates: ["message", "callback_query"],
+      }),
     async sendMessage(chatId, text) {
       await call("sendMessage", { chat_id: chatId, text });
+    },
+    async sendWithButtons(chatId, text, rows) {
+      const sent = await call<{ message_id: number }>("sendMessage", {
+        chat_id: chatId,
+        text,
+        reply_markup: { inline_keyboard: rows },
+      });
+      return sent.message_id;
+    },
+    async askReply(chatId, text) {
+      const sent = await call<{ message_id: number }>("sendMessage", {
+        chat_id: chatId,
+        text,
+        reply_markup: { force_reply: true, selective: true },
+      });
+      return sent.message_id;
+    },
+    async answerCallback(callbackId, text) {
+      await call("answerCallbackQuery", {
+        callback_query_id: callbackId,
+        text: text.slice(0, 190),
+      });
+    },
+    async editButtons(chatId, messageId, rows) {
+      await call("editMessageReplyMarkup", {
+        chat_id: chatId,
+        message_id: messageId,
+        reply_markup: { inline_keyboard: rows },
+      });
     },
   };
 }

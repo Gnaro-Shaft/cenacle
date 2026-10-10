@@ -1,5 +1,16 @@
 // The security agent (J6, ADR-0025): checks, the finding lifecycle, the
 // closed catalogue of fixes, the CTO's comment and the messages.
+export {
+  ANSWER,
+  type Button,
+  type ButtonAction,
+  keyboard,
+  MAX_BUTTON_DATA,
+  MAX_BUTTON_ROWS,
+  type Pressed,
+  parsePressed,
+  withoutFinding,
+} from "./buttons.ts";
 export { CATALOGUE_TYPES, type Fix, fixFor, UnknownFindingError } from "./catalogue.ts";
 export { buildCommentPrompt, COMMENT_SYSTEM_PROMPT, cleanComment } from "./comment.ts";
 export {

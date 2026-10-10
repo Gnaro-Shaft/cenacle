@@ -19,6 +19,7 @@ import { errorText, refuseForeignSecrets, UsageError } from "@cenacle/core";
 import {
   connectOrQuit,
   createJournal,
+  createSecuriteDecisions,
   createSecuriteStore,
   holdSingleInstance,
   readAllEvents,
@@ -27,6 +28,7 @@ import {
   buildCommentPrompt,
   COMMENT_SYSTEM_PROMPT,
   cleanComment,
+  keyboard,
   SEVERITY_LABEL,
 } from "@cenacle/securite";
 import { createTelegramApi } from "@cenacle/telegram/api";
@@ -76,7 +78,17 @@ async function round(): Promise<void> {
         throw error;
       }
     },
-    send: (text) => telegram.sendMessage(chatId, text),
+    // Buttons under the findings still to fix, each with its single-use token (J6b).
+    send: async (text, buttonsFor) => {
+      const tokens = await createSecuriteDecisions(sql).tokens(buttonsFor);
+      const rows = keyboard([...tokens].map(([id, token]) => ({ id, token })));
+      if (rows.length === 0) return telegram.sendMessage(chatId, text);
+      await telegram.sendWithButtons(
+        chatId,
+        text,
+        rows.map((row) => row.map((b) => ({ text: b.text, callback_data: b.data }))),
+      );
+    },
     journal,
     now: () => new Date(),
     lastWeekly: async () =>
@@ -89,8 +101,13 @@ async function round(): Promise<void> {
 }
 
 async function list(): Promise<void> {
-  const line = (f: { id: number; severity: keyof typeof SEVERITY_LABEL; title: string }) =>
-    `  n°${f.id} · ${SEVERITY_LABEL[f.severity]} · ${f.title}`;
+  const line = (f: {
+    id: number;
+    severity: keyof typeof SEVERITY_LABEL;
+    title: string;
+    status: string;
+  }) =>
+    `  n°${f.id} · ${SEVERITY_LABEL[f.severity]} · ${f.title}${f.status === "pris_en_charge" ? " (pris en charge)" : ""}`;
   const open = await store.open();
   const accepted = await store.accepted();
   console.log(

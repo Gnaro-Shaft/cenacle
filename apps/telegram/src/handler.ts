@@ -15,7 +15,9 @@ export type Action =
   | { readonly kind: "journal"; readonly type: "telegram.rejected"; readonly reason: string }
   | { readonly kind: "journal"; readonly type: "stop.requested" }
   /** A question for the CTO (ADR-0020): relayed without blocking the bot. */
-  | { readonly kind: "ask_cto"; readonly chatId: number; readonly question: string };
+  | { readonly kind: "ask_cto"; readonly chatId: number; readonly question: string }
+  /** The security findings still to fix, with their buttons (J6b). */
+  | { readonly kind: "securite_list"; readonly chatId: number };
 
 export interface HandlerDeps {
   readonly allowedChatId: number;
@@ -33,6 +35,7 @@ const HELP = [
   "/etat — où j'en suis",
   "/stop — arrêt d'urgence (noté dans le journal)",
   "/cto ta question — une question technique au CTO (réponse en 1 à 3 min).",
+  "/constats — les constats de sécurité à traiter, avec leurs boutons",
   "   ⚠ Jamais de nom de client ni de contenu de mail : le texte passe par Telegram.",
   "/aide — cette aide",
 ].join("\n");
@@ -106,6 +109,8 @@ export async function handleUpdate(update: TelegramUpdate, deps: HandlerDeps): P
         ];
       }
     }
+    case "/constats":
+      return [{ kind: "securite_list", chatId: message.chat.id }];
     case "/stop":
       return [
         { kind: "journal", type: "stop.requested" },
@@ -116,6 +121,6 @@ export async function handleUpdate(update: TelegramUpdate, deps: HandlerDeps): P
     case "/help":
       return [reply(HELP)];
     default:
-      return [reply("Je ne comprends que /etat, /cto, /stop et /aide.")];
+      return [reply("Je ne comprends que /etat, /cto, /constats, /stop et /aide.")];
   }
 }

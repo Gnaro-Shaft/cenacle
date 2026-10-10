@@ -4,12 +4,21 @@
  * "signaled" only once its message has really left ("fetching is not
  * hearing", Legion); an accepted risk keeps its reason and date. No personal
  * data. Purged here: closed findings 365 days after closing, accepted ones
- * 90 days after acceptance (the risk is asked again).
+ * 90 days after acceptance, refused ones 30 days after the decision (each is
+ * asked again). My decisions from Telegram: securite-decisions.ts.
  */
 import type { Sql } from "postgres";
 
 type Severity = "info" | "faible" | "moyen" | "eleve" | "critique";
-type Status = "candidat" | "ouvert" | "resolu" | "accepte" | "caduc";
+export type FindingStatus =
+  | "candidat"
+  | "ouvert"
+  | "pris_en_charge"
+  | "resolu"
+  | "accepte"
+  | "refuse"
+  | "caduc";
+type Status = FindingStatus;
 
 export interface SeenFinding {
   readonly check: string;
@@ -44,21 +53,25 @@ export interface StoredFinding {
   readonly closedAt: Date | null;
   readonly reason: string | null;
   readonly acceptedAt: Date | null;
+  /** When I took it in hand or refused it (J6b). */
+  readonly decidedAt: Date | null;
 }
 
 export const CLOSED_KEEP_DAYS = 365;
 export const ACCEPTED_ASK_AGAIN_DAYS = 90;
+export const REFUSED_ASK_AGAIN_DAYS = 30;
 
 export interface SecuriteStore {
-  /** Candidates, open findings and accepted risks: what the lifecycle compares with. */
+  /** Every finding not closed: what the lifecycle compares with. */
   active(): Promise<StoredFinding[]>;
   apply(plan: FindingPlan, now: Date): Promise<void>;
   /** Opened and not yet told; resolved after having been told open, not yet told resolved. */
   toSignal(): Promise<{ opened: StoredFinding[]; resolved: StoredFinding[] }>;
   markSignaled(opened: readonly number[], resolved: readonly number[]): Promise<void>;
+  /** Open, or taken in hand: what is still to fix. */
   open(): Promise<StoredFinding[]>;
   accepted(): Promise<StoredFinding[]>;
-  /** I take the risk of an open finding. False when there is no such open finding. */
+  /** I take the risk of a finding still to fix. False when there is none such. */
   accept(id: number, reason: string, now: Date): Promise<boolean>;
   purge(now: Date): Promise<number>;
 }
@@ -78,10 +91,11 @@ interface Row {
   closed_at: Date | null;
   reason: string | null;
   accepted_at: Date | null;
+  decided_at: Date | null;
 }
 
 const COLUMNS = `id, check_name, type, target, occurrence, severity, title, params, status,
-  first_seen, last_seen, closed_at, reason, accepted_at`;
+  first_seen, last_seen, closed_at, reason, accepted_at, decided_at`;
 
 const finding = (r: Row): StoredFinding => ({
   id: Number(r.id),
@@ -98,6 +112,7 @@ const finding = (r: Row): StoredFinding => ({
   closedAt: r.closed_at,
   reason: r.reason,
   acceptedAt: r.accepted_at,
+  decidedAt: r.decided_at,
 });
 
 const DAY_MS = 24 * 3_600_000;
@@ -109,7 +124,7 @@ export function createSecuriteStore(sql: Sql): SecuriteStore {
       await sql.unsafe<Row[]>(`select ${COLUMNS} from securite_constats where ${where} order by id`)
     ).map(finding);
   return {
-    active: () => select("status in ('candidat', 'ouvert', 'accepte')"),
+    active: () => select("status not in ('resolu', 'caduc')"),
 
     async apply(plan, now) {
       await sql.begin(async (tx) => {
@@ -126,12 +141,13 @@ export function createSecuriteStore(sql: Sql): SecuriteStore {
             set status = case when status = 'candidat' then 'ouvert' else status end,
                 severity = ${seen.severity}, title = ${seen.title}, params = ${tx.json(seen.params ?? {})},
                 last_seen = ${now}, seen_count = seen_count + 1
-            where id = ${id} and status in ('candidat', 'ouvert', 'accepte')`;
+            where id = ${id} and status not in ('resolu', 'caduc')`;
         }
         if (plan.resolve.length > 0) {
           await tx`
-            update securite_constats set status = 'resolu', closed_at = ${now}
-            where id = any(${plan.resolve as number[]}::bigint[]) and status = 'ouvert'`;
+            update securite_constats set status = 'resolu', closed_at = ${now}, button_token = null
+            where id = any(${plan.resolve as number[]}::bigint[])
+              and status in ('ouvert', 'pris_en_charge')`;
         }
         if (plan.drop.length > 0) {
           await tx`
@@ -159,7 +175,7 @@ export function createSecuriteStore(sql: Sql): SecuriteStore {
       }
     },
 
-    open: () => select("status = 'ouvert'"),
+    open: () => select("status in ('ouvert', 'pris_en_charge')"),
     accepted: () => select("status = 'accepte'"),
 
     async accept(id, reason, now) {
@@ -168,18 +184,21 @@ export function createSecuriteStore(sql: Sql): SecuriteStore {
         throw new Error("a reason of 3 to 200 characters is needed");
       }
       const result = await sql`
-        update securite_constats set status = 'accepte', reason = ${why}, accepted_at = ${now}
-        where id = ${id} and status = 'ouvert'`;
+        update securite_constats
+        set status = 'accepte', reason = ${why}, accepted_at = ${now}, button_token = null
+        where id = ${id} and status in ('ouvert', 'pris_en_charge')`;
       return result.count === 1;
     },
 
     async purge(now) {
       const closed = new Date(now.getTime() - CLOSED_KEEP_DAYS * DAY_MS);
       const accepted = new Date(now.getTime() - ACCEPTED_ASK_AGAIN_DAYS * DAY_MS);
+      const refused = new Date(now.getTime() - REFUSED_ASK_AGAIN_DAYS * DAY_MS);
       const result = await sql`
         delete from securite_constats
         where (status in ('resolu', 'caduc') and closed_at < ${closed})
-           or (status = 'accepte' and accepted_at < ${accepted})`;
+           or (status = 'accepte' and accepted_at < ${accepted})
+           or (status = 'refuse' and decided_at < ${refused})`;
       return result.count;
     },
   };
