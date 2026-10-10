@@ -1,15 +1,26 @@
 /**
  * Cénacle's programs under launchd (ADR-0018, ADR-0019): Iris, the page's
- * server, the Telegram bot and the page. Each LaunchAgent is written on this Mac at
- * install time, from the paths found then — none is stored in the repository.
- * It names files, never values: no secret is ever copied into the plist.
- * Restarted after a crash only (SuccessfulExit false): never after /stop.
+ * server, the Telegram bot, the page and the CTO run all the time, restarted
+ * after a crash only (SuccessfulExit false): never after /stop. The CTO's
+ * veille (ADR-0024) runs once a day at a fixed time instead, never restarted:
+ * a failure is said in its message, and it runs again the next day.
+ * Each LaunchAgent is written on this Mac at install time, from the paths
+ * found then — none is stored in the repository. It names files, never
+ * values: no secret is ever copied into the plist.
  */
 import { chmodSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join } from "node:path";
 
-export const PROGRAMS = ["iris", "server", "bot", "web", "cto"] as const;
+export const PROGRAMS = ["iris", "server", "bot", "web", "cto", "veille"] as const;
 export type Program = (typeof PROGRAMS)[number];
+
+/**
+ * Programs started at a fixed time (local), not kept running. Asleep at that
+ * time, the Mac runs it when it wakes, once; off or logged out, that day is skipped.
+ */
+export const SCHEDULED: Readonly<Partial<Record<Program, { hour: number; minute: number }>>> = {
+  veille: { hour: 8, minute: 0 },
+};
 
 export interface ServicePaths {
   readonly label: string;
@@ -75,6 +86,21 @@ export function buildPlist(
   const p = servicePaths(program, deps);
   if (!isAbsolute(deps.nodePath)) throw new Error("nodePath must be an absolute path");
   const path = [dirname(deps.nodePath), "/usr/bin", "/bin"].join(":");
+  const at = SCHEDULED[program];
+  const lifecycle =
+    at === undefined
+      ? `<key>RunAtLoad</key><true/>
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key><false/>
+  </dict>
+  <key>ThrottleInterval</key><integer>${THROTTLE_SECONDS}</integer>`
+      : `<key>RunAtLoad</key><false/>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>${at.hour}</integer>
+    <key>Minute</key><integer>${at.minute}</integer>
+  </dict>`;
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -88,12 +114,7 @@ export function buildPlist(
     <key>PATH</key>${str(path)}
     <key>CENACLE_LOG</key>${str(p.log)}
   </dict>
-  <key>RunAtLoad</key><true/>
-  <key>KeepAlive</key>
-  <dict>
-    <key>SuccessfulExit</key><false/>
-  </dict>
-  <key>ThrottleInterval</key><integer>${THROTTLE_SECONDS}</integer>
+  ${lifecycle}
   <key>ExitTimeOut</key><integer>${EXIT_TIMEOUT_SECONDS}</integer>
   <key>StandardOutPath</key>${str(p.log)}
   <key>StandardErrorPath</key>${str(p.log)}

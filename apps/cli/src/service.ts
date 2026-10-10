@@ -14,6 +14,7 @@ import {
   install,
   PROGRAMS,
   type Program,
+  SCHEDULED,
   type ServiceDeps,
   status,
   THROTTLE_SECONDS,
@@ -28,6 +29,7 @@ const NAMES: Record<Program, string> = {
   bot: "Le bot Telegram",
   web: "La page",
   cto: "Le CTO",
+  veille: "La veille du CTO",
 };
 const COMMANDS = ["install", "uninstall", "status"] as const;
 type Command = (typeof COMMANDS)[number];
@@ -67,6 +69,13 @@ try {
       console.log(`✔ ${name} n'est plus confié(e) à launchd (${p.label} retiré).`);
     } else {
       const s = await status(program, deps);
+      const at = SCHEDULED[program];
+      if (at !== undefined && s.loaded && s.pid === null) {
+        console.log(
+          `${name} : en attente du prochain passage (${at.hour} h${at.minute === 0 ? "" : String(at.minute).padStart(2, "0")}) · dernier code de sortie ${s.lastExitCode ?? "—"}`,
+        );
+        continue;
+      }
       console.log(
         !s.installed && !s.loaded
           ? `${name} : pas confié(e) à launchd`
@@ -76,10 +85,15 @@ try {
       );
     }
   }
-  if (command === "install") {
+  if (command === "install" && programs.some((p) => SCHEDULED[p] === undefined)) {
     console.log("  Démarrage à chaque ouverture de session ; relance seulement après un plantage,");
     console.log(
       `  jamais après /stop, Ctrl+C ou SIGTERM. Un exemplaire lancé à la main garde la main : celui de launchd réessaie toutes les ${THROTTLE_SECONDS} s.`,
+    );
+  }
+  if (command === "install" && programs.some((p) => SCHEDULED[p] !== undefined)) {
+    console.log(
+      "  La veille part chaque jour à 8 h ; Mac en veille à 8 h : au réveil ; éteint ou session fermée : ce jour-là est sauté.",
     );
   }
 } catch (error) {

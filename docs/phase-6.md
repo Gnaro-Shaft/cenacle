@@ -13,7 +13,7 @@ Un jalon = une branche + une pull request, CI verte obligatoire.
 | J2 — La conversation (ADR-0020) | J2a : le CTO en service local, interrogé depuis la page ; J2b : `/cto` sur Telegram, sans donnée de tiers dans les questions | Une question posée depuis la page, puis depuis le téléphone |
 | J3 — Le contrôle qualité (ADR-0021) | Lecture du code et relecture d'une branche (`npm run cto -- --relire <branche>`, expérimentale), par trois outils de lecture seule accordés par le code | Une relecture qui trouve un vrai défaut : un défaut mineur trouvé par la relecture libre ; J3b (par passes) : 2 sur 6 au banc, contre 0 — encore expérimentale |
 | J4 — La conformité (ADR-0022) | Registres, cadre, code et documentation qui concordent : six contrôles déterministes dans `npm run check`, `npm run conformite`, et le regard du CTO (`npm run cto -- --conformite`) | Un écart réel signalé : cinq trouvés par les contrôles (dont `.env.sentinel` non documenté), deux par le CTO, corrigés |
-| J5 — La veille | Ce qui bouge dans mes technos, et ce qui m'est applicable | Un résumé régulier utile ; **la veille actuelle sur n8n est alors supprimée** |
+| J5 — La veille (ADR-0024) | J5a : `npm run veille`, un résumé par article et ce qu'il apporte à un de mes projets, jamais deux fois la même info, archive d'un an (`npm run veille:archive`) ; J5b : chaque jour à 8 h sous launchd | Un résumé régulier utile ; **la veille actuelle sur n8n est alors supprimée** (après trois jours de comparaison) |
 | J6 — L'agent sécurité | Un second agent qui surveille (Mac, VPS, dépendances, failles), supervisé par le CTO | Une faille ou une mise à jour signalée et suivie |
 
 Le périmètre s'élargit à mes autres projets au fil des jalons, un projet à la fois.

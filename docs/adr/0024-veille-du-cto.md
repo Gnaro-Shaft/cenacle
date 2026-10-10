@@ -23,7 +23,7 @@ Le jalon J5 (`docs/phase-6.md`) la reprend dans Cénacle : « ce qui bouge dans 
 - Les flux lus voient l'adresse IP du Mac, rien d'autre ; certains sont hors UE. Aucune donnée personnelle ne leur est envoyée : ce ne sont pas des sous-traitants (registre, services tiers).
 - L'archive ne contient aucune donnée de personne (articles publics, noms de mes projets) ; elle a malgré tout sa durée et sa purge, déclarées au registre (tables).
 - Une invite d'une cinquantaine d'articles et de ma carte de projets : quelques minutes de modèle local par jour.
-- Le lancement quotidien (launchd) et la fin de la veille n8n viennent avec J5b.
+- **J5b — chaque jour à 8 h** : un LaunchAgent à heure fixe (`org.cenacle.veille`, `StartCalendarInterval`), jamais lancé au chargement ni relancé après un échec (le message et le journal l'ont dit ; elle repart le lendemain). Mac en veille à 8 h : elle part au réveil, une fois ; éteint ou session fermée : ce jour-là est sauté. Une seule veille à la fois (verrou d'instance, ADR-0018) : une seconde lancée à la main s'arrête avec 75 sans rien envoyer. Après trois jours de comparaison, la veille n8n est supprimée sur accord explicite, son workflow exporté d'abord.
 
 ## Options écartées
 
