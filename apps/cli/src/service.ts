@@ -30,6 +30,7 @@ const NAMES: Record<Program, string> = {
   web: "La page",
   cto: "Le CTO",
   veille: "La veille du CTO",
+  securite: "L'agent sécurité",
 };
 const COMMANDS = ["install", "uninstall", "status"] as const;
 type Command = (typeof COMMANDS)[number];
@@ -72,7 +73,7 @@ try {
       const at = SCHEDULED[program];
       if (at !== undefined && s.loaded && s.pid === null) {
         console.log(
-          `${name} : en attente du prochain passage (${at.hour} h${at.minute === 0 ? "" : String(at.minute).padStart(2, "0")}) · dernier code de sortie ${s.lastExitCode ?? "—"}`,
+          `${name} : en attente du prochain passage (${at.hour} h${at.minute === 0 ? "" : ` ${String(at.minute).padStart(2, "0")}`}) · dernier code de sortie ${s.lastExitCode ?? "—"}`,
         );
         continue;
       }
@@ -93,7 +94,7 @@ try {
   }
   if (command === "install" && programs.some((p) => SCHEDULED[p] !== undefined)) {
     console.log(
-      "  La veille part chaque jour à 8 h ; Mac en veille à 8 h : au réveil ; éteint ou session fermée : ce jour-là est sauté.",
+      "  La veille part chaque jour à 8 h, l'agent sécurité à 7 h 30 ; Mac en veille : au réveil ; éteint ou session fermée : ce jour-là est sauté.",
     );
   }
 } catch (error) {

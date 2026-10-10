@@ -23,6 +23,9 @@
       "path": "packages/conformite"
     },
     {
+      "path": "packages/securite"
+    },
+    {
       "path": "apps/cli"
     },
     {
@@ -36,6 +39,9 @@
     },
     {
       "path": "apps/veille"
+    },
+    {
+      "path": "apps/securite"
     },
     {
       "path": "apps/cto"

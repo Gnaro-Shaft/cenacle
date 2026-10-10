@@ -1,5 +1,5 @@
 #!/bin/sh
-# Starts a Cénacle program under launchd (ADR-0018, ADR-0019). Usage: run.sh iris|server|bot|web|cto|veille
+# Starts a Cénacle program under launchd (ADR-0018, ADR-0019). Usage: run.sh iris|server|bot|web|cto|veille|securite
 # The repository is found from this file's place: no personal path is written
 # anywhere in the repository. CENACLE_LOG (set by the installer) is the console
 # log: emptied at start beyond 1 MB, so it never grows without bound.
@@ -30,6 +30,10 @@ cto)
 veille)
   # Same files as `npm run veille`: the Telegram token only (ADR-0024).
   exec node --env-file=.env --env-file-if-exists=.env.telegram apps/veille/src/main.ts
+  ;;
+securite)
+  # Same files as `npm run securite`: the Telegram token only (ADR-0025).
+  exec node --env-file=.env --env-file-if-exists=.env.telegram apps/securite/src/main.ts
   ;;
 web)
   # Same as `npm run web` (the "dev" script of apps/web: vite), without npm in between.
