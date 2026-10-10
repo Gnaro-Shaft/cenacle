@@ -93,7 +93,7 @@ export async function runCto(
   view: RepoView,
   deps: CtoDeps,
   options: {
-    readonly kind?: "question" | "review";
+    readonly kind?: "question" | "review" | "conformity";
     readonly maxCalls?: number;
     /** A review in focused passes (J3b): one ask each, results gathered by file. */
     readonly passes?: readonly ReviewPass[];
@@ -121,7 +121,7 @@ export async function runCto(
   const { tools, stats } = createReadTools(view, {
     ...(options.maxCalls === undefined ? {} : { maxCalls: options.maxCalls }),
     // Tools stop well before the model's timeout: he then answers with what he read.
-    windowMs: review ? 240_000 : 120_000,
+    windowMs: review ? 240_000 : options.kind === "conformity" ? 150_000 : 120_000,
     onUse: (use) => tell({ kind: "tool", tool: use.tool, target: use.target.slice(0, 120) }),
   });
   const totals = { calls: 0, refused: 0 };
@@ -179,7 +179,8 @@ export async function runCto(
         journal: deps.journal,
         local: deps.local,
         // Tools mean several model turns: a review reads more.
-        timeoutMs: review ? 900_000 : 300_000,
+        // A review and the compliance look read more; the latter reads all the documentation.
+        timeoutMs: review ? 900_000 : options.kind === "conformity" ? 600_000 : 300_000,
         onProgress: (chars) => tell({ kind: "writing", phase, chars }),
         tools,
       });

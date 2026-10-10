@@ -8,6 +8,7 @@
  */
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { conformityCto } from "@cenacle/conformite";
 import { refuseForeignSecrets } from "@cenacle/core";
 import {
   askCto,
@@ -39,6 +40,8 @@ const service = createCtoService({
   // A local branch against main (ADR-0021): the diff is computed by code.
   review: (branch, onProgress) =>
     reviewCto(branchTarget(ROOT, branch), { root: ROOT, journal, local, onProgress }),
+  // The compliance look (ADR-0022): the deterministic report, then the CTO.
+  conformity: (onProgress) => conformityCto(ROOT, { root: ROOT, journal, local, onProgress }),
 });
 const listener = await listenCto(ctoSocketPath(homedir()), service);
 console.log("Le CTO écoute sur sa prise locale (une question à la fois).");

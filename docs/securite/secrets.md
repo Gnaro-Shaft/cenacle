@@ -14,10 +14,13 @@
 | `.env.obs` | L'administrateur de Grafana | Docker Compose |
 | `.env.page` | La clé privée de la page (ADR-0013) | La page seule |
 | `.env.executor` | Le mot de passe du rôle de l'exécuteur (ADR-0013) | L'exécuteur, les migrations, les tests |
+| `.env.sentinel` | Le jeton partagé avec la sentinelle (S2), qui authentifie les battements ; le VPS en garde la copie dans `/etc/cenacle-sentinel.env`, lisible par root seul | Iris, l'exécuteur |
 
 Tous sont ignorés par git et lisibles par moi seul (droits 600).
 
-**Refus au démarrage** : Iris (boîte, Telegram), la page (boîte, clé privée), l'exécuteur (boîte, son rôle) et le bot (Telegram) refusent de démarrer s'ils trouvent un secret d'une autre famille. Le message nomme la variable, jamais sa valeur.
+**Le lien de la page** (ADR-0019) n'est pas un fichier `.env` mais il porte un secret : le serveur de la page écrit le lien et son jeton de session dans `~/Library/Application Support/cenacle/page-url` (droits 600, dossier 700), une fois son port ouvert, et l'efface à l'arrêt propre ; `npm run page` l'ouvre sans l'afficher. Le jeton change à chaque démarrage du serveur et n'apparaît jamais dans les journaux.
+
+**Refus au démarrage** : Iris (boîte, Telegram, sentinelle), la page (boîte, clé privée), l'exécuteur (boîte, son rôle, sentinelle), le bot (Telegram) et le CTO (aucune famille) refusent de démarrer s'ils trouvent un secret d'une autre famille. Le message nomme la variable, jamais sa valeur.
 
 **Limite assumée** (ADR-0013) : sur un Mac à utilisateur unique, un programme qui tourne sous mon compte peut lire tous ces fichiers. La séparation protège contre une erreur ou une dépendance compromise **dans un processus**, pas contre la prise de mon compte macOS.
 

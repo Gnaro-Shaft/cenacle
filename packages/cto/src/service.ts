@@ -28,6 +28,8 @@ export function createCtoService(options: {
   readonly ask: (question: string, onProgress: (p: CtoProgress) => void) => Promise<CtoReply>;
   /** Reviews a local branch (ADR-0021); absent, a review is refused. */
   readonly review?: (branch: string, onProgress: (p: CtoProgress) => void) => Promise<CtoReply>;
+  /** The compliance look (ADR-0022); absent, it is refused. */
+  readonly conformity?: (onProgress: (p: CtoProgress) => void) => Promise<CtoReply>;
   readonly maxWaiting?: number;
 }): CtoService {
   const maxWaiting = options.maxWaiting ?? MAX_WAITING;
@@ -42,7 +44,11 @@ export function createCtoService(options: {
     async handle(request, send, gone) {
       let run: (onProgress: (p: CtoProgress) => void) => Promise<CtoReply>;
       try {
-        if ("review" in request) {
+        if ("conformity" in request) {
+          const conformity = options.conformity;
+          if (conformity === undefined) throw new ReviewError("la conformité n'est pas branchée");
+          run = (p) => conformity(p);
+        } else if ("review" in request) {
           const branch = validBranch(request.review);
           const review = options.review;
           if (review === undefined) throw new ReviewError("la relecture n'est pas branchée");

@@ -53,6 +53,7 @@
     "floor:bench": "node apps/cli/src/floor-bench.ts",
     "cto": "node --env-file=.env apps/cli/src/cto.ts",
     "cto:bench": "node --env-file=.env apps/cli/src/cto-bench.ts",
+    "conformite": "node apps/cli/src/conformite.ts",
     "personne": "node --env-file=.env --env-file-if-exists=.env.mail apps/cli/src/personne.ts",
     "mesure:rangement": "node --env-file=.env --env-file-if-exists=.env.mail apps/cli/src/mesure-rangement.ts",
     "regles:domaines": "node --env-file=.env --env-file-if-exists=.env.mail apps/cli/src/regles-domaines.ts",

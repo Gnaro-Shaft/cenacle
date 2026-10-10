@@ -2,6 +2,7 @@
  * Ask the CTO a technical question (phase 6 — ADR-0017, ADR-0020).
  * Usage: npm run cto -- "ta question"
  *        npm run cto -- --relire <branche locale>   (J3 — ADR-0021)
+ *        npm run cto -- --conformite                (J4 — ADR-0022)
  *
  * Through the CTO's service when it runs (one question at a time on the shared
  * model); on its own otherwise, with the same checked answer. He holds no
@@ -11,9 +12,11 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { ModelUnavailableError } from "@cenacle/brain";
+import { conformityCto } from "@cenacle/conformite";
 import { errorText, refuseForeignSecrets } from "@cenacle/core";
 import {
   askCto,
+  askCtoConformity,
   askCtoReview,
   askCtoService,
   branchTarget,
@@ -66,12 +69,13 @@ function statusLine() {
 
 /** Without the service: the same circuit, in this process. */
 async function alone(
-  request: { question: string } | { review: string },
+  request: { question: string } | { review: string } | { conformity: true },
   show: (p: CtoProgress) => void,
 ): Promise<CtoReply> {
   const sql = connectAsApp();
   try {
     const deps = { root: ROOT, journal: createJournal(sql), local: ctoModels(), onProgress: show };
+    if ("conformity" in request) return await conformityCto(ROOT, deps);
     return "review" in request
       ? await reviewCto(branchTarget(ROOT, request.review), deps)
       : await askCto(request.question, deps);
@@ -84,17 +88,22 @@ const status = statusLine();
 try {
   const args = process.argv.slice(2);
   const request =
-    args[0] === "--relire"
-      ? { review: validBranch(args[1]) }
-      : { question: validQuestion(args.join(" ")) };
+    args[0] === "--conformite"
+      ? ({ conformity: true } as const)
+      : args[0] === "--relire"
+        ? { review: validBranch(args[1]) }
+        : { question: validQuestion(args.join(" ")) };
+  if ("conformity" in request) console.log("⚖️  Contrôle de conformité (1 à 3 min)…\n");
   if ("review" in request) console.log(`🧐 Relecture de ${request.review} (10 à 15 min)…\n`);
   const socket = ctoSocketPath(homedir());
   let reply: CtoReply;
   try {
     reply =
-      "review" in request
-        ? await askCtoReview(socket, request.review, { onProgress: status.show })
-        : await askCtoService(socket, request.question, { onProgress: status.show });
+      "conformity" in request
+        ? await askCtoConformity(socket, { onProgress: status.show })
+        : "review" in request
+          ? await askCtoReview(socket, request.review, { onProgress: status.show })
+          : await askCtoService(socket, request.question, { onProgress: status.show });
   } catch (error) {
     if (!(error instanceof CtoServiceError) || error.code !== "unreachable") throw error;
     console.log("(service du CTO absent : il répond seul)\n");

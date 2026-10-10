@@ -26,5 +26,6 @@ Elles sont rédigées en français (le code et le README sont en anglais).
 | [0019](0019-services-sous-launchd.md) | Le serveur, le bot et la page lancés par launchd ; le jeton de la page ne passe plus par la console | Acceptée |
 | [0020](0020-cto-en-service.md) | Le CTO devient un service local, que la page interroge | Acceptée |
 | [0021](0021-outils-de-lecture-du-cto.md) | Le CTO lit le code avec trois outils de lecture seule, et relit une branche | Acceptée |
+| [0022](0022-conformite-verifiee-par-le-code.md) | La concordance des registres, du cadre, du code et de la documentation est vérifiée par le code | Acceptée |
 
 Les règles dures qui s'appliquent à tout le code sont dans [`../charte.md`](../charte.md).
