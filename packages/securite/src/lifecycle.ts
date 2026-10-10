@@ -6,15 +6,16 @@
  *  - Seen again at a later run: open, and reported once.
  *  - Open, and no longer seen by a check that ran: resolved, reported once.
  *  - A candidate no longer seen: dropped quietly.
- *  - Accepted (I took the risk): silent while the same occurrence is seen; a
- *    new occurrence is a new finding.
+ *  - Taken in hand ("I'm on it", J6b): followed like an open finding.
+ *  - Accepted (I took the risk) or refused (the proposal does not suit me):
+ *    silent while the same occurrence is seen; a new occurrence is new.
  *  - A check that could not run closes nothing; it is itself a finding
  *    ("check_impossible"), resolved when the check runs again.
  */
 import type { CheckResult, FindingKey, Observation, Severity } from "./types.ts";
 import { keyOf } from "./types.ts";
 
-export type ActiveStatus = "candidat" | "ouvert" | "accepte";
+export type ActiveStatus = "candidat" | "ouvert" | "pris_en_charge" | "accepte" | "refuse";
 
 export interface ActiveFinding extends FindingKey {
   readonly id: number;
@@ -70,7 +71,7 @@ export function reconcile(active: readonly ActiveFinding[], results: readonly Ch
     else plan.touch.push({ id: known.id, seen: o });
   }
   for (const a of active) {
-    if (seen.has(keyOf(a)) || a.status === "accepte") continue;
+    if (seen.has(keyOf(a)) || a.status === "accepte" || a.status === "refuse") continue;
     // Only a check that really ran can say a situation is gone.
     if (!ran.has(a.check)) continue;
     if (a.status === "candidat") plan.drop.push(a.id);

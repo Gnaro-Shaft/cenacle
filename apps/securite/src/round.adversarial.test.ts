@@ -30,6 +30,7 @@ function memoryStore(): SecuriteStore & { rows: (StoredFinding & { so: boolean; 
           closedAt: null,
           reason: null,
           acceptedAt: null,
+          decidedAt: null,
           so: false,
           sc: false,
         });
@@ -159,6 +160,22 @@ describe("a round", () => {
     w.at(day(SATURDAY, 3));
     expect((await runRound(w.deps)).weekly).toBe(false);
     expect(w.sent.filter((t) => t.includes("Bilan sécurité"))).toHaveLength(1);
+  });
+
+  it("the buttons go with the new findings, and only with them", async () => {
+    const w = world(() => [firewallOff]);
+    const asked: (readonly number[])[] = [];
+    const deps = {
+      ...w.deps,
+      send: async (t: string, ids: readonly number[]) => {
+        asked.push(ids);
+        await w.deps.send(t);
+      },
+    };
+    await runRound(deps);
+    w.at(day(SATURDAY, 1));
+    await runRound(deps);
+    expect(asked).toEqual([[1]]);
   });
 
   it("the local model away: the finding still goes, without a word from the CTO", async () => {

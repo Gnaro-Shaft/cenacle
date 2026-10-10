@@ -108,6 +108,8 @@ export async function migrate({
     // The security agent's findings (ADR-0025): followed, closed, purged.
     await sql.unsafe(`REVOKE ALL ON securite_constats FROM ${APP_ROLE}`);
     await sql.unsafe(`GRANT SELECT, INSERT, UPDATE, DELETE ON securite_constats TO ${APP_ROLE}`);
+    await sql.unsafe(`REVOKE ALL ON securite_raisons FROM ${APP_ROLE}`);
+    await sql.unsafe(`GRANT SELECT, INSERT, DELETE ON securite_raisons TO ${APP_ROLE}`);
     // The executor reads what Iris remembers, journals, and moves proposals
     // (claim, sent, failed — refused to every other role by the database).
     await loginRole(sql, EXECUTOR_ROLE, executorPassword, EXECUTOR_PASSWORD_VAR);

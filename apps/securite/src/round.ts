@@ -22,7 +22,8 @@ export interface RoundDeps {
   readonly store: SecuriteStore;
   /** The CTO's word on a finding; null when the local model is away (the round goes on). */
   readonly comment: (f: StoredFinding) => Promise<string | null>;
-  readonly send: (text: string) => Promise<void>;
+  /** Sends a message, with buttons for these findings still to fix (J6b). */
+  readonly send: (text: string, buttonsFor: readonly number[]) => Promise<void>;
   readonly journal: Journal;
   readonly now: () => Date;
   /** When the last weekly review was sent, if ever. */
@@ -49,6 +50,7 @@ const report = (f: StoredFinding, comment?: string | null): ReportFinding => ({
   params: f.params,
   firstSeen: f.firstSeen,
   comment: comment ?? null,
+  takenAt: f.status === "pris_en_charge" ? f.decidedAt : null,
 });
 
 const isMonday = (d: Date) =>
@@ -59,9 +61,7 @@ export async function runRound(deps: RoundDeps): Promise<RoundOutcome> {
   const now = deps.now();
   const results = await deps.checks();
   const active = (await deps.store.active()).flatMap((f) =>
-    f.status === "candidat" || f.status === "ouvert" || f.status === "accepte"
-      ? [{ ...f, status: f.status }]
-      : [],
+    f.status === "resolu" || f.status === "caduc" ? [] : [{ ...f, status: f.status }],
   );
   await deps.store.apply(reconcile(active, results), now);
 
@@ -77,7 +77,10 @@ export async function runRound(deps: RoundDeps): Promise<RoundOutcome> {
   });
   if (daily !== null) {
     // Told once it has left: a message that fails is sent again next round.
-    await deps.send(daily);
+    await deps.send(
+      daily,
+      opened.map((f) => f.id),
+    );
     await deps.store.markSignaled(
       opened.map((f) => f.id),
       resolved.map((f) => f.id),
@@ -88,6 +91,7 @@ export async function runRound(deps: RoundDeps): Promise<RoundOutcome> {
   const weekly = isMonday(now) && (last === null || now.getTime() - last.getTime() > WEEK_GAP_MS);
   if (weekly) {
     const accepted = await deps.store.accepted();
+    const toFix = open.filter((f) => f.status === "ouvert").map((f) => f.id);
     await deps.send(
       formatWeekly({
         date: now,
@@ -98,6 +102,7 @@ export async function runRound(deps: RoundDeps): Promise<RoundOutcome> {
           acceptedAt: f.acceptedAt ?? now,
         })),
       }),
+      toFix,
     );
     await deps.journal.append({
       agent: AGENT,

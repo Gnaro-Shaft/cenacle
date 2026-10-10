@@ -73,6 +73,7 @@ const NEUTRAL_EVENT_TYPES: ReadonlySet<string> = new Set([
   "veille.failed", // the local model did not answer: the message said so
   "securite.ran", // a round of the security agent: counts only (J6)
   "securite.bilan", // the weekly security review was sent
+  "securite.decided", // I decided on a finding from Telegram: its kind only (J6b)
   "send.lapsed",
   "send.cancelled",
   "proposal.skipped", // Iris decided not to propose: nothing waits for me

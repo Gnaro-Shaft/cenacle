@@ -21,11 +21,21 @@ Le dirigeant a fixé la direction (2026-10-10) : l'agent remonte toute incohére
 5. **Les messages** : chaque jour à 7 h 30 (launchd, à heure fixe), seulement s'il y a du nouveau ; chaque lundi, le bilan de ce qui reste ouvert et de ce qui est accepté. `npm run securite -- constats` et `-- accepter <n°> <raison>`. Programme à part, qui ne détient que le jeton Telegram ; une seule exécution à la fois (verrou d'instance).
 6. **L'agent ne corrige jamais rien lui-même** (charte, règle 1). Le journal ne reçoit que des nombres.
 
+## J6b — décider depuis Telegram (2026-10-10)
+
+Sous chaque nouveau constat, et sous `/constats`, trois boutons : **✅ je m'en occupe** (« pris en charge », suivi jusqu'à ce qu'un contrôle le voie corrigé ; le bilan du lundi le rappelle au-delà de 7 jours), **☑ garder le risque** (le bot demande la raison, prise seulement en réponse directe à sa question, dans les 10 minutes), **❌ refuser** (se tait pour cette occurrence, redemandé 30 jours après la décision).
+
+- Seuls mon compte et ma conversation privée sont entendus ; tout autre appui est ignoré, journalisé sans dire qui.
+- Chaque constat offert porte un **jeton aléatoire à usage unique** : la décision ne s'applique qu'avec lui, et seulement à un constat encore à traiter, vérifié et écrit en une seule instruction — un bouton forgé, rejoué, d'un vieux message, ou un double appui ne change rien.
+- La décision est écrite **avant** toute réponse ; si Telegram ne peut pas modifier le message, rien n'est perdu.
+- Une panne de la base pendant un appui ne fait pas tomber le bot (comme en #75) : rien n'est décidé, et c'est dit.
+- Aucune IA dans une décision ; le journal reçoit la sorte de décision, rien d'autre ; l'identifiant de ma conversation n'est pas gardé.
+
 ## Paliers à venir
 
-- **J6b** — accepter depuis Telegram (✅ accepter, ❌ refuser, ☑ accepter le risque), la situation revérifiée au moment de l'accord ; les réglages du Mac restent à moi (jamais de `sudo` pour un agent), les corrections de code passent par une branche et une PR, la fusion restant à moi.
-- **J6c** — des délégations pour les cas simples que je nomme, dans un fichier versionné (`securite.toml`) que le CTO ne peut pas modifier : type exact, révocable, tracé, jamais pour ce qui demande un administrateur.
-- **J6d** — le serveur (bulletin en lecture seule, puis des scripts fixes posés sur le serveur, joignables par une clé restreinte à eux, déclenchés par mon accord ; un redémarrage reste toujours une question), la surveillance de l'agent lui-même, mes autres projets, les bulletins de sécurité.
+- **J6c** — les actions débloquées par mon accord : une correction de code préparée sur une branche, avec une PR et la CI, la fusion restant à moi (accès GitHub à décider) ; les réglages du Mac restent à moi (jamais de `sudo` pour un agent).
+- **J6d** — des délégations pour les cas simples que je nomme, dans un fichier versionné (`securite.toml`) que le CTO ne peut pas modifier : type exact, révocable, tracé, jamais pour ce qui demande un administrateur.
+- **J6e** — le serveur (bulletin en lecture seule, puis des scripts fixes posés sur le serveur, joignables par une clé restreinte à eux, déclenchés par mon accord ; un redémarrage reste toujours une question), la surveillance de l'agent lui-même, mes autres projets, les bulletins de sécurité.
 
 ## Conséquences
 

@@ -59,10 +59,19 @@ export {
 } from "./proposal-store.ts";
 export { createPurges, type Purges } from "./purges.ts";
 export {
+  createSecuriteDecisions,
+  type Decision,
+  type DecisionOutcome,
+  type ReasonOutcome,
+  type SecuriteDecisions,
+} from "./securite-decisions.ts";
+export {
   ACCEPTED_ASK_AGAIN_DAYS,
   CLOSED_KEEP_DAYS,
   createSecuriteStore,
   type FindingPlan,
+  type FindingStatus,
+  REFUSED_ASK_AGAIN_DAYS,
   type SecuriteStore,
   type SeenFinding,
   type StoredFinding,

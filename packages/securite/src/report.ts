@@ -20,6 +20,8 @@ export interface ReportFinding extends FindingKey {
   readonly params: Readonly<Record<string, string>>;
   readonly firstSeen: Date;
   readonly comment?: string | null;
+  /** When I said "I'm on it" (J6b), if I did. */
+  readonly takenAt?: Date | null;
 }
 
 export interface AcceptedFinding extends ReportFinding {
@@ -119,14 +121,24 @@ export interface WeeklyInput {
   readonly accepted: readonly AcceptedFinding[];
 }
 
+const STALE_TAKEN_MS = 7 * 24 * 3_600_000;
+
 export function formatWeekly(input: WeeklyInput): string {
+  const toFix = input.open.filter((f) => f.takenAt == null);
+  const taken = input.open.filter((f) => f.takenAt != null);
   const head = [
     `🛡 Bilan sécurité de la semaine — ${heading(input.date)}`,
     input.open.length === 0
       ? "Aucun constat ouvert."
-      : `${input.open.length} constat(s) ouvert(s), du plus grave au moins grave.`,
+      : `${toFix.length} constat(s) à traiter, ${taken.length} pris en charge.`,
   ].join("\n");
-  const open = worstFirst(input.open).map((f) => openBlock({ ...f, comment: null }, true));
+  const open = [
+    ...worstFirst(toFix).map((f) => openBlock({ ...f, comment: null }, true)),
+    ...worstFirst(taken).map((f) => {
+      const late = input.date.getTime() - (f.takenAt?.getTime() ?? 0) > STALE_TAKEN_MS;
+      return `${late ? "⏰" : "🔧"} Pris en charge le ${day(f.takenAt ?? input.date)}${late ? ", toujours pas corrigé" : ""} · ${f.title} (constat n°${f.id})`;
+    }),
+  ];
   const accepted = input.accepted.map(
     (f) =>
       `☑ Accepté le ${day(f.acceptedAt)} · ${f.title} (constat n°${f.id}) — raison : ${f.reason}`,

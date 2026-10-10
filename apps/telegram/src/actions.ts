@@ -17,6 +17,7 @@ export const STOP_NOT_RECORDED =
 export interface ActionDeps {
   readonly reply: (chatId: number, text: string) => Promise<void>;
   readonly askCto: (chatId: number, question: string) => void;
+  readonly listFindings?: (chatId: number) => Promise<void>;
   readonly record: (type: string, payload: Record<string, unknown>) => Promise<void>;
   readonly log: (line: string) => void;
 }
@@ -30,6 +31,8 @@ export async function perform(actions: readonly Action[], deps: ActionDeps): Pro
       stopNotRecorded = false;
     } else if (action.kind === "ask_cto") {
       deps.askCto(action.chatId, action.question);
+    } else if (action.kind === "securite_list") {
+      await deps.listFindings?.(action.chatId);
     } else {
       try {
         await deps.record(

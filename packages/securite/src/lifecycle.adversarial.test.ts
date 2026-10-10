@@ -177,7 +177,7 @@ describe("the messages", () => {
         { ...finding(4, { title: "Tailscale" }), reason: "mise à jour vendredi", acceptedAt: NOW },
       ],
     });
-    expect(text).toMatch(/1 constat\(s\) ouvert/);
+    expect(text).toMatch(/1 constat\(s\) à traiter, 0 pris en charge/);
     expect(text).toContain("raison : mise à jour vendredi");
     expect(formatWeekly({ date: NOW, open: [], accepted: [] })).toMatch(/Aucun constat ouvert/);
   });
