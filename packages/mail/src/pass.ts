@@ -25,6 +25,8 @@ export interface PassDeps {
   readonly retentionDays: number;
   /** The opposition list (C3), read at each pass. */
   readonly opposedKeys: () => Promise<ReadonlySet<string>>;
+  /** Moves the last trace of the opposed keys met (T-07). */
+  readonly opposedSeen?: (traces: ReadonlyMap<string, Date>) => Promise<void>;
   /** C4: from when the mailbox may be read (readingStartsAt); null for the fictional box. */
   readonly notBefore: Date | null;
   readonly password: string;
@@ -58,6 +60,7 @@ export async function runMailPass(deps: PassDeps): Promise<PassResult> {
     rules: deps.rules,
     retentionDays: deps.retentionDays,
     opposedKeys: await deps.opposedKeys(),
+    ...(deps.opposedSeen === undefined ? {} : { opposedSeen: deps.opposedSeen }),
     notBefore: deps.notBefore,
     noFollowUp: deps.noFollowUp,
     clock,

@@ -42,6 +42,10 @@ propositions_jours = 90
 # Journal events (facts, never content). Must exceed memoire_jours: a proposal
 # stays open at most as long as its mail is remembered, and keeps its events.
 journal_jours = 180
+# The opposition list (T-07): a key, after the person's last trace — their
+# request, or the last mail from or to them met and ignored. Three years: as
+# long as their mails may stay in my mailbox (information notice).
+opposition_jours = 1095
 
 # The OPEN processings, and only them (ADR-0009). None today: only the
 # fictional mailbox is read. A processing opens once its information notice is

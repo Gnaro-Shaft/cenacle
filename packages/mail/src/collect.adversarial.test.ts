@@ -211,6 +211,44 @@ describe("the opposition list (C3)", () => {
     expect((await store.inbox()).map((i) => i.uid)).toEqual([1]);
     expect(JSON.stringify(await store.inbox())).not.toContain(K("b"));
   });
+
+  it("their last trace (T-07): the latest mail's date, from or to them — and nobody else's", async () => {
+    const { deps, store } = setup(
+      () => [
+        ref(1, "client.example"),
+        { ...opposedRef(2), receivedAt: "2026-09-28T08:00:00.000Z" },
+        { ...opposedRef(3), receivedAt: "2026-09-29T08:00:00.000Z" },
+      ],
+      [{ ...sentTo(1, [K("a"), K("b")]), sentAt: "2026-09-30T09:00:00.000Z" }],
+    );
+    const seen: Array<ReadonlyMap<string, Date>> = [];
+    await collectMail({
+      ...deps,
+      opposedKeys: new Set([K("b")]),
+      opposedSeen: async (traces) => {
+        seen.push(traces);
+      },
+    });
+    expect(seen).toHaveLength(1);
+    expect([...(seen[0] ?? new Map())].map(([k, d]) => [k, d.toISOString()])).toEqual([
+      [K("b"), "2026-09-30T09:00:00.000Z"],
+    ]);
+    // Still nothing of theirs remembered.
+    expect(JSON.stringify(await store.inbox())).not.toContain(K("b"));
+  });
+
+  it("no opposed mail met: the trace is not called at all", async () => {
+    const { deps } = setup(() => [ref(1, "client.example")]);
+    let called = 0;
+    await collectMail({
+      ...deps,
+      opposedKeys: new Set([K("b")]),
+      opposedSeen: async () => {
+        called += 1;
+      },
+    });
+    expect(called).toBe(0);
+  });
 });
 
 describe("nothing from before the information notice (C4)", () => {

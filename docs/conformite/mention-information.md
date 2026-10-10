@@ -1,6 +1,8 @@
 # Mention d'information — Cénacle
 
 > **Publiée le 4 octobre 2026** dans les mentions légales du site, et **vérifiée en ligne** le même jour (section « Mon assistant de messagerie », entre « Mon assistant de travail » et « Questions sur les articles » ; « Dernière mise à jour : 4 octobre 2026 »). À l'ouverture du traitement, `cadre.toml` portera `mention_publiee = 2026-10-04` : rien de ce qui est arrivé avant ce jour ne sera lu.
+>
+> **À republier** : le paragraphe « Vos droits » a changé le 2026-10-10 (durée de la liste d'opposition : trois ans après la demande ou le dernier message). Tant que la nouvelle version n'est pas publiée et vérifiée en ligne, la page promet de garder la clé jusqu'au retrait de l'opposition, sans limite.
 
 > Jalon C4 de la phase 5. Rédigé par Claude le 2026-10-04 ; ce n'est pas un avis
 > juridique. **La publication est le geste du responsable**, dans les mentions
@@ -51,7 +53,7 @@ Pour trier ma boîte professionnelle et préparer mes réponses, j'utilise un se
 
 **Pourquoi.** Ne laisser aucun message sans réponse, et vous répondre plus vite. Ce traitement repose sur mon intérêt légitime à organiser mon activité (article 6.1.f du RGPD), qui sert autant votre intérêt que le mien.
 
-**Vos droits.** Les droits décrits plus haut valent aussi ici, à l'adresse indiquée plus haut, avec une réponse sous un mois et la possibilité de saisir la CNIL. Sur demande, je vous remets ce qu'il détient sur vous, dans un format structuré. Si vous demandez l'effacement ou vous opposez à ce traitement, tout ce qu'il retient de vous est effacé, et vos messages ne sont plus jamais lus par lui. Il ne garde alors que la clé dérivée de votre adresse, et seulement pour respecter votre choix, jusqu'à ce que vous reveniez dessus.
+**Vos droits.** Les droits décrits plus haut valent aussi ici, à l'adresse indiquée plus haut, avec une réponse sous un mois et la possibilité de saisir la CNIL. Sur demande, je vous remets ce qu'il détient sur vous, dans un format structuré. Si vous demandez l'effacement ou vous opposez à ce traitement, tout ce qu'il retient de vous est effacé, et vos messages ne sont plus jamais lus par lui. Il ne garde alors que la clé dérivée de votre adresse et la date de votre dernier message, et seulement pour respecter votre choix : jusqu'à ce que vous reveniez dessus, ou trois ans après votre demande ou votre dernier message, le temps que vos messages peuvent rester dans ma boîte.
 
 Ce paragraphe date du _[date de publication]_. L'assistant ne lit que les messages reçus à partir de cette date.
 

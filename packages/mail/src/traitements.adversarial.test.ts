@@ -6,7 +6,7 @@ import { CadreError, parseCadre, readingStartsAt } from "./cadre.ts";
 
 const TODAY = "2026-10-04";
 const CONSERVATION =
-  "[conservation]\nmemoire_jours = 90\ntexte_brouillon_jours = 7\npropositions_jours = 90\njournal_jours = 180\n";
+  "[conservation]\nmemoire_jours = 90\ntexte_brouillon_jours = 7\npropositions_jours = 90\njournal_jours = 180\nopposition_jours = 1095\n";
 const mail = (host: string, address: string) =>
   `[mail]\nsource = "boite-pro"\nhost = "${host}"\nport = 993\nuser = "moi"\nmailbox = "INBOX"\n` +
   `sent_mailbox = "Sent"\nmax_per_fetch = 500\nsmtp_port = 465\naddress = "${address}"\n` +
@@ -76,9 +76,16 @@ describe("a processing is complete, or Cénacle does not start", () => {
 });
 
 describe("retentions", () => {
-  const with_ = (memoire: number, texte: number, propositions: number, journal: number) =>
+  const with_ = (
+    memoire: number,
+    texte: number,
+    propositions: number,
+    journal: number,
+    opposition: number | null = 1095,
+  ) =>
     `${FICTIONAL}[conservation]\nmemoire_jours = ${memoire}\ntexte_brouillon_jours = ${texte}\n` +
-    `propositions_jours = ${propositions}\njournal_jours = ${journal}\n`;
+    `propositions_jours = ${propositions}\njournal_jours = ${journal}\n` +
+    (opposition === null ? "" : `opposition_jours = ${opposition}\n`);
 
   it.each([
     ["missing", FICTIONAL],
@@ -87,8 +94,19 @@ describe("retentions", () => {
     ["a journal shorter than the mail memory (the bubble would go wrong)", with_(90, 7, 90, 90)],
     ["a negative value", with_(90, -1, 90, 180)],
     ["a fraction", with_(90.5, 7, 90, 180)],
+    ["no retention for the opposition list (an older cadre)", with_(90, 7, 90, 180, null)],
+    [
+      "an opposition list shorter than the mail memory (an erasure would not hold)",
+      with_(90, 7, 90, 180, 89),
+    ],
+    ["an opposition list kept for more than ten years", with_(90, 7, 90, 180, 3651)],
   ])("refuses %s", (_label, s) => {
     expect(() => parse(s)).toThrow(CadreError);
+  });
+
+  it("accepts an opposition list as long as the mail memory, and three years", () => {
+    expect(() => parse(with_(90, 7, 90, 180, 90))).not.toThrow();
+    expect(() => parse(with_(90, 7, 90, 180, 1095))).not.toThrow();
   });
 
   it("refuses an unknown retention key", () => {

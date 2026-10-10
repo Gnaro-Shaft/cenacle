@@ -35,6 +35,7 @@ describe("cadre.toml", () => {
       texteBrouillonJours: 7,
       propositionsJours: 90,
       journalJours: 180,
+      oppositionJours: 1095,
     });
     expect(cadre.traitements).toEqual([]);
   });

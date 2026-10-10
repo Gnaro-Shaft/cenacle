@@ -5,6 +5,8 @@
  * Iris holds on them is found by that key, exported, or erased. An erasure
  * also puts the key on the opposition list, which the collection honours from
  * then on: otherwise their mails, still in my mailbox, would be read again.
+ * A key leaves the list `opposition_jours` after the person's last trace
+ * (purges.ts): their request, or the last mail from or to them met and ignored.
  */
 import type { Sql } from "postgres";
 
@@ -43,6 +45,11 @@ export interface People {
   erase(key: string): Promise<Erasure>;
   /** The keys the collection must ignore. */
   opposedKeys(): Promise<ReadonlySet<string>>;
+  /**
+   * The collection met mails from or to opposed people, and ignored them:
+   * each key's last trace moves to the latest mail's date (never ahead of now).
+   */
+  touch(traces: ReadonlyMap<string, Date>): Promise<void>;
   /** The person withdraws their objection. Returns whether they were on the list. */
   withdraw(key: string): Promise<boolean>;
   /** The whole opposition list, for the encrypted backup (keys and dates only). */
@@ -55,6 +62,8 @@ export interface OppositionEntry {
   readonly key: string;
   /** ISO time of the request. */
   readonly since: string;
+  /** ISO date of the last mail met from or to them, if any (older backups have none). */
+  readonly lastSeen?: string | null;
 }
 
 interface MailRow {
@@ -152,10 +161,26 @@ export function createPeople(sql: Sql): People {
       return new Set(rows.map((r) => r.key));
     },
 
+    async touch(traces) {
+      for (const [raw, at] of traces) {
+        const key = checked(raw);
+        if (Number.isNaN(at.getTime())) continue;
+        // A mail dated in the future (a wrong clock, a forged header) counts as now.
+        await sql`
+          update opposed_keys
+          set last_seen = greatest(last_seen, least(${at}::timestamptz, clock_timestamp()))
+          where key = ${key}`;
+      }
+    },
+
     async opposition() {
-      const rows = await sql<{ key: string; since: Date }[]>`
-        select key, since from opposed_keys order by since`;
-      return rows.map((r) => ({ key: r.key, since: r.since.toISOString() }));
+      const rows = await sql<{ key: string; since: Date; last_seen: Date | null }[]>`
+        select key, since, last_seen from opposed_keys order by since`;
+      return rows.map((r) => ({
+        key: r.key,
+        since: r.since.toISOString(),
+        lastSeen: iso(r.last_seen),
+      }));
     },
 
     async restoreOpposition(entries) {
@@ -165,8 +190,12 @@ export function createPeople(sql: Sql): People {
         const since = new Date(e.since);
         if (Number.isNaN(since.getTime()))
           throw new Error("a backed-up opposition has no valid date");
+        const lastSeen = e.lastSeen == null ? null : new Date(e.lastSeen);
+        if (lastSeen !== null && Number.isNaN(lastSeen.getTime()))
+          throw new Error("a backed-up opposition has an invalid last trace");
         const result = await sql`
-          insert into opposed_keys (key, since) values (${key}, ${since}) on conflict (key) do nothing`;
+          insert into opposed_keys (key, since, last_seen) values (${key}, ${since}, ${lastSeen})
+          on conflict (key) do nothing`;
         added += result.count;
       }
       return added;

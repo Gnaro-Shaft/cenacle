@@ -20,6 +20,8 @@ export interface Conservation {
   readonly propositionsJours: number;
   /** Journal events. Longer than the mail memory: an open proposal keeps its events. */
   readonly journalJours: number;
+  /** The opposition list: a key, after the person's last trace (request or mail met). */
+  readonly oppositionJours: number;
 }
 
 export const LEGAL_BASES = [
@@ -69,18 +71,30 @@ function days(table: Record<string, unknown>, key: string, min: number, max: num
 
 export function parseConservation(raw: unknown): Conservation {
   if (!isTable(raw)) throw new TraitementError("missing [conservation] section");
-  const keys = ["memoire_jours", "texte_brouillon_jours", "propositions_jours", "journal_jours"];
+  const keys = [
+    "memoire_jours",
+    "texte_brouillon_jours",
+    "propositions_jours",
+    "journal_jours",
+    "opposition_jours",
+  ];
   onlyKeys(raw, keys, "[conservation]");
   const c = {
     memoireJours: days(raw, "memoire_jours", 1, 365),
     texteBrouillonJours: days(raw, "texte_brouillon_jours", 1, 30),
     propositionsJours: days(raw, "propositions_jours", 1, 365),
     journalJours: days(raw, "journal_jours", 1, 730),
+    oppositionJours: days(raw, "opposition_jours", 1, 3650),
   };
   // A proposal stays open at most as long as its mail is remembered (then it
   // lapses): the journal must outlive it, or the bubble on the page goes wrong.
   if (c.journalJours <= c.memoireJours) {
     throw new TraitementError("conservation.journal_jours must exceed memoire_jours");
+  }
+  // Shorter than the memory, a key would leave while Iris still remembers the
+  // person's mails: their erasure would not hold.
+  if (c.oppositionJours < c.memoireJours) {
+    throw new TraitementError("conservation.opposition_jours must be at least memoire_jours");
   }
   return c;
 }

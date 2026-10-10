@@ -97,6 +97,8 @@ export async function migrate({
     // People's rights (C3): the opposition list, and erasing a person's proposals.
     await sql.unsafe(`REVOKE ALL ON opposed_keys FROM ${APP_ROLE}`);
     await sql.unsafe(`GRANT SELECT, INSERT, DELETE ON opposed_keys TO ${APP_ROLE}`);
+    // Only the last trace changes; the key and the date of the request never do.
+    await sql.unsafe(`GRANT UPDATE (last_seen) ON opposed_keys TO ${APP_ROLE}`);
     await sql.unsafe(
       `GRANT EXECUTE ON FUNCTION erase_proposals_for(TEXT, BIGINT[]) TO ${APP_ROLE}`,
     );

@@ -53,6 +53,8 @@ export interface CollectDeps {
   readonly retentionDays: number;
   /** People who asked to be erased or objected (C3): their mails are never remembered. */
   readonly opposedKeys: ReadonlySet<string>;
+  /** Each opposed key met, with its latest mail's date: the list's last trace (T-07). */
+  readonly opposedSeen?: (traces: ReadonlyMap<string, Date>) => Promise<void>;
   /** C4: mails (received or sent) before the notice was published are not read; null: no limit. */
   readonly notBefore: Date | null;
   /** Domains that never expect a reply by mail ([sans_suivi]). */
@@ -124,6 +126,17 @@ export async function collectMail(deps: CollectDeps): Promise<CollectSummary> {
     const opposed = deps.opposedKeys;
     // C4: nothing from before the information notice; null for the fictional box.
     const since = deps.notBefore?.getTime() ?? Number.NEGATIVE_INFINITY;
+    // Their last trace: the date of the latest mail met from or to them — nothing else.
+    const traces = new Map<string, Date>();
+    const met = (key: string | null, at: string) => {
+      const date = new Date(at);
+      if (key === null || !opposed.has(key) || Number.isNaN(date.getTime())) return;
+      const before = traces.get(key);
+      if (before === undefined || date > before) traces.set(key, date);
+    };
+    for (const r of read.refs) met(r.senderKey, r.receivedAt);
+    for (const r of sent.result.refs) for (const k of r.recipientKeys) met(k, r.sentAt);
+    if (traces.size > 0) await deps.opposedSeen?.(traces);
     const kept = read.refs.filter(
       (r) =>
         (r.senderKey === null || !opposed.has(r.senderKey)) && Date.parse(r.receivedAt) >= since,

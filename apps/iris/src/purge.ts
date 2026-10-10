@@ -3,7 +3,8 @@
  * cadre.toml are applied to what the mail pass does not purge by itself:
  * - the text of proposals closed for `texte_brouillon_jours`;
  * - closed proposals, `propositions_jours` after closing;
- * - journal events older than `journal_jours`.
+ * - journal events older than `journal_jours`;
+ * - opposed keys whose last trace is older than `opposition_jours` (T-07).
  * The mail memory is purged at each collection (collect.ts). What was purged
  * is journaled as counts, never as content. A failure is said, never hidden,
  * and does not stop the rhythm: the next minute tries again.
@@ -28,6 +29,7 @@ export interface PurgeResult {
   readonly texts: number;
   readonly proposals: number;
   readonly events: number;
+  readonly opposition: number;
 }
 
 /** Runs the purge if the last one is a day old (or never ran); null otherwise. */
@@ -43,6 +45,9 @@ export async function purgeDue(deps: PurgeDeps): Promise<PurgeResult | null> {
         new Date(now.getTime() - c.propositionsJours * DAY_MS),
       ),
       events: await deps.purges.events(new Date(now.getTime() - c.journalJours * DAY_MS)),
+      opposition: await deps.purges.opposition(
+        new Date(now.getTime() - c.oppositionJours * DAY_MS),
+      ),
     };
     await deps.journal.append({ agent: AGENT, type: "purge.done", payload: { ...result } });
     return result;

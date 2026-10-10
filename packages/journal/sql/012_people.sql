@@ -4,7 +4,8 @@
 -- or objected. The collection ignores their mails from then on — without it,
 -- an erasure would not hold: their mails stay in my mailbox and would be read
 -- again at the next renumbering. Only the key: no address, no date of mail.
--- Kept until the person withdraws their objection.
+-- Kept until the person withdraws their objection, or `opposition_jours`
+-- after their last trace (015_opposition_trace.sql).
 CREATE TABLE IF NOT EXISTS opposed_keys (
   key   TEXT PRIMARY KEY CHECK (key ~ '^[0-9a-f]{64}$'),
   since TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
