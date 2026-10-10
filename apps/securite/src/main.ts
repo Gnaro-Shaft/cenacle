@@ -22,13 +22,14 @@ import {
   createSecuriteDecisions,
   createSecuriteStore,
   holdSingleInstance,
-  readAllEvents,
+  latestEventAt,
 } from "@cenacle/journal";
 import {
   buildCommentPrompt,
   COMMENT_SYSTEM_PROMPT,
   cleanComment,
   keyboard,
+  LOCAL_CHECKS,
   SEVERITY_LABEL,
 } from "@cenacle/securite";
 import { createTelegramApi } from "@cenacle/telegram/api";
@@ -58,7 +59,13 @@ async function round(): Promise<void> {
   // Darwin 25 is macOS 26: what tells a point release from a new major version.
   const macMajor = Number(release().split(".")[0]) + 1;
   const outcome = await runRound({
-    checks: () => runChecks(specs(ROOT, dirname(process.execPath), macMajor), runProgram()),
+    checks: (network) =>
+      runChecks(
+        specs(ROOT, dirname(process.execPath), macMajor).filter(
+          (s) => network || LOCAL_CHECKS.includes(s.check),
+        ),
+        runProgram(),
+      ),
     store,
     comment: async (f) => {
       try {
@@ -91,12 +98,12 @@ async function round(): Promise<void> {
     },
     journal,
     now: () => new Date(),
-    lastWeekly: async () =>
-      (await readAllEvents(journal, "securite")).findLast((e) => e.type === "securite.bilan")
-        ?.occurredAt ?? null,
+    lastNetwork: () => latestEventAt(sql, "securite", "securite.ran", { network: true }),
+    lastReport: () => latestEventAt(sql, "securite", "securite.rapport"),
+    lastWeekly: () => latestEventAt(sql, "securite", "securite.bilan"),
   });
   console.log(
-    `✔ Sécurité : ${outcome.checks} contrôle(s), ${outcome.impossible} impossible(s) ; ${outcome.opened} nouveau(x), ${outcome.resolved} résolu(s), ${outcome.open} ouvert(s)${outcome.weekly ? " ; bilan de la semaine envoyé" : ""}`,
+    `✔ Ronde : ${outcome.checks} contrôle(s)${outcome.network ? " (dont réseau)" : ""}, ${outcome.impossible} impossible(s) ; ${outcome.urgent} urgent(s) dit(s)${outcome.report ? ", rapport du matin envoyé" : ""} ; ${outcome.open} ouvert(s)${outcome.weekly ? " ; bilan de la semaine envoyé" : ""}`,
   );
 }
 

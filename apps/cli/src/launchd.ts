@@ -2,9 +2,9 @@
  * Cénacle's programs under launchd (ADR-0018, ADR-0019): Iris, the page's
  * server, the Telegram bot, the page and the CTO run all the time, restarted
  * after a crash only (SuccessfulExit false): never after /stop. The CTO's
- * veille (ADR-0024) and the security agent (ADR-0025) run once a day at a
- * fixed time instead, never restarted: a failure is said in their message,
- * and they run again the next day.
+ * veille (ADR-0024) runs once a day at a fixed time instead, and the security
+ * agent's round (ADR-0025) every 15 minutes; neither is restarted: a failure
+ * is said in its message, and it runs again at its next time.
  * Each LaunchAgent is written on this Mac at install time, from the paths
  * found then — none is stored in the repository. It names files, never
  * values: no secret is ever copied into the plist.
@@ -21,8 +21,15 @@ export type Program = (typeof PROGRAMS)[number];
  */
 export const SCHEDULED: Readonly<Partial<Record<Program, { hour: number; minute: number }>>> = {
   veille: { hour: 8, minute: 0 },
-  // Before the veille: a finding of the night reaches me first thing (ADR-0025).
-  securite: { hour: 7, minute: 30 },
+};
+
+/**
+ * Programs started every so many seconds (Legion's ronde). Asleep, the Mac
+ * runs one round when it wakes; a round still running is never overlapped
+ * (the program's own instance lock).
+ */
+export const INTERVALS: Readonly<Partial<Record<Program, number>>> = {
+  securite: 900,
 };
 
 export interface ServicePaths {
@@ -90,15 +97,19 @@ export function buildPlist(
   if (!isAbsolute(deps.nodePath)) throw new Error("nodePath must be an absolute path");
   const path = [dirname(deps.nodePath), "/usr/bin", "/bin"].join(":");
   const at = SCHEDULED[program];
+  const every = INTERVALS[program];
   const lifecycle =
-    at === undefined
-      ? `<key>RunAtLoad</key><true/>
+    every !== undefined
+      ? `<key>RunAtLoad</key><false/>
+  <key>StartInterval</key><integer>${every}</integer>`
+      : at === undefined
+        ? `<key>RunAtLoad</key><true/>
   <key>KeepAlive</key>
   <dict>
     <key>SuccessfulExit</key><false/>
   </dict>
   <key>ThrottleInterval</key><integer>${THROTTLE_SECONDS}</integer>`
-      : `<key>RunAtLoad</key><false/>
+        : `<key>RunAtLoad</key><false/>
   <key>StartCalendarInterval</key>
   <dict>
     <key>Hour</key><integer>${at.hour}</integer>

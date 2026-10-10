@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   buildPlist,
+  INTERVALS,
   install,
   PROGRAMS,
   SCHEDULED,
@@ -90,16 +91,24 @@ describe("the LaunchAgent", () => {
   });
 
   it("every other program stays kept alive, and none of them is scheduled", () => {
-    for (const program of PROGRAMS.filter((p) => SCHEDULED[p] === undefined)) {
+    for (const program of PROGRAMS.filter(
+      (p) => SCHEDULED[p] === undefined && INTERVALS[p] === undefined,
+    )) {
       const plist = buildPlist(program, deps());
       expect(plist).toContain("<key>KeepAlive</key>");
       expect(plist).toContain("<key>RunAtLoad</key><true/>");
       expect(plist).not.toContain("StartCalendarInterval");
     }
-    expect(Object.keys(SCHEDULED)).toEqual(["veille", "securite"]);
-    expect(buildPlist("securite", deps())).toMatch(
-      /<key>Hour<\/key><integer>7<\/integer>\s*<key>Minute<\/key><integer>30<\/integer>/,
-    );
+    expect(Object.keys(SCHEDULED)).toEqual(["veille"]);
+  });
+
+  it("the security agent's round every 15 minutes: never at load, never kept alive", () => {
+    const plist = buildPlist("securite", deps());
+    expect(plist).toContain("<key>StartInterval</key><integer>900</integer>");
+    expect(plist).toContain("<key>RunAtLoad</key><false/>");
+    expect(plist).not.toContain("KeepAlive");
+    expect(plist).not.toContain("StartCalendarInterval");
+    expect(Object.keys(INTERVALS)).toEqual(["securite"]);
   });
 
   it("odd paths (spaces, accents, & < > quotes) are escaped, never break the XML", () => {

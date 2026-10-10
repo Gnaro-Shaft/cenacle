@@ -11,6 +11,7 @@ export {
   createJournal,
   InvalidEventError,
   type Journal,
+  latestEventAt,
   MAX_PAYLOAD_BYTES,
   type NewEvent,
   type Payload,
