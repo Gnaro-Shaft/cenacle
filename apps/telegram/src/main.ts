@@ -6,9 +6,11 @@ import { homedir } from "node:os";
 import { projectStatus, refuseForeignSecrets } from "@cenacle/core";
 import { askCtoService, ctoSocketPath } from "@cenacle/cto/client";
 import { connectOrQuit, createJournal, holdSingleInstance, readAllEvents } from "@cenacle/journal";
-import { createTelegramApi } from "./api.ts";
+import { createTelegramApi, TelegramError, type TelegramFailure } from "./api.ts";
+import { sleepUnless } from "./backoff.ts";
 import { relayToCto } from "./cto-relay.ts";
 import { handleUpdate } from "./handler.ts";
+import { poll } from "./poll.ts";
 
 const allowedChatId = Number(process.env.TELEGRAM_ALLOWED_CHAT_ID);
 if (!Number.isSafeInteger(allowedChatId) || allowedChatId === 0) {
@@ -45,7 +47,6 @@ function relay(chatId: number, question: string): void {
   }).finally(() => relaying.delete(job));
 }
 
-let offset = 0;
 let stopping = false;
 // Ctrl+C, or SIGTERM when macOS logs out or launchd unloads the bot.
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
@@ -55,14 +56,27 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
   });
 }
 
+/** A reply that cannot be sent is lost, said by name; the bot keeps going. */
+async function reply(chatId: number, text: string): Promise<void> {
+  try {
+    await api.sendMessage(chatId, text);
+  } catch (error) {
+    if (!(error instanceof TelegramError)) throw error;
+    // Only the failure's kind, one of four fixed words: never its message.
+    const kind: TelegramFailure = error.kind;
+    console.error(`⚠ Réponse non envoyée (${kind}) : elle est perdue, redemande`);
+  }
+}
+
 console.log("Iris is listening on Telegram (Ctrl+C to stop).");
-while (!stopping) {
-  const updates = await api.getUpdates(offset, 25);
-  for (const update of updates) {
-    offset = update.update_id + 1;
+// A network cut or a Telegram outage is waited out and retried (poll.ts);
+// anything unexpected still throws, and launchd restarts the bot.
+await poll({
+  getUpdates: (offset) => api.getUpdates(offset, 25),
+  handle: async (update) => {
     for (const action of await handleUpdate(update, { allowedChatId, readStatus })) {
       if (action.kind === "reply") {
-        await api.sendMessage(action.chatId, action.text);
+        await reply(action.chatId, action.text);
       } else if (action.kind === "ask_cto") {
         relay(action.chatId, action.question);
       } else {
@@ -73,8 +87,11 @@ while (!stopping) {
         });
       }
     }
-  }
-}
+  },
+  stopped: () => stopping,
+  sleep: (ms) => sleepUnless(ms, () => stopping),
+  log: (line) => console.log(line),
+});
 // A question still on its way is lost with the bot: say so, best effort.
 for (const job of relaying) {
   await api
