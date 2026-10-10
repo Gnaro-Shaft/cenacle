@@ -15,6 +15,7 @@ import { createInterface } from "node:readline/promises";
 import { errorText, UsageError } from "@cenacle/core";
 import { connectOrQuit, createJournal, createPeople } from "@cenacle/journal";
 import { KeyError, keyerFromEnv } from "@cenacle/mail";
+import { ExportLabelError, personExport } from "./person-export.ts";
 
 const [action, flag, out] = process.argv.slice(2);
 const USAGE = "usage : personne export --out <fichier.json> | efface | retire";
@@ -42,16 +43,8 @@ try {
 
   if (action === "export") {
     const held = await people.holdings(key);
-    const document = {
-      exporte_le: new Date().toISOString(),
-      responsable: "Gnaro (EURL)",
-      ce_que_cenacle_detient: held,
-      ce_qui_n_est_pas_inclus: [
-        "L'objet et le corps des mails : Cénacle ne les conserve jamais, il les relit dans la boîte quand il en a besoin.",
-        "Votre adresse en clair : Cénacle ne garde qu'une clé dérivée (HMAC), d'où cette recherche.",
-        "Les mails eux-mêmes : ils sont dans la boîte de messagerie, hors de Cénacle.",
-      ],
-    };
+    // In the notice's words, never Iris's identifiers (person-export.ts).
+    const document = personExport(held, new Date());
     writeFileSync(out ?? "", `${JSON.stringify(document, null, 2)}\n`, { mode: 0o600, flag: "wx" });
     await journal.append({
       agent: "cenacle",
@@ -88,7 +81,7 @@ try {
   }
 } catch (error) {
   // Our own messages only: a database's could quote the address.
-  console.error(`🛑 ${errorText(error, [KeyError])}`);
+  console.error(`🛑 ${errorText(error, [KeyError, ExportLabelError])}`);
   process.exitCode = 1;
 } finally {
   rl.close();
