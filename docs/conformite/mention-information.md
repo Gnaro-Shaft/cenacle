@@ -2,7 +2,7 @@
 
 > **Publiée le 4 octobre 2026** dans les mentions légales du site, et **vérifiée en ligne** le même jour (section « Mon assistant de messagerie », entre « Mon assistant de travail » et « Questions sur les articles » ; « Dernière mise à jour : 4 octobre 2026 »). À l'ouverture du traitement, `cadre.toml` portera `mention_publiee = 2026-10-04` : rien de ce qui est arrivé avant ce jour ne sera lu.
 >
-> **À republier** : le paragraphe « Vos droits » a changé le 2026-10-10 (durée de la liste d'opposition : trois ans après la demande ou le dernier message). Tant que la nouvelle version n'est pas publiée et vérifiée en ligne, la page promet de garder la clé jusqu'au retrait de l'opposition, sans limite.
+> **Republiée le 10 octobre 2026**, et **vérifiée en ligne** le même jour : le paragraphe « Vos droits » donne la durée de la liste d'opposition (la clé dérivée et la date du dernier message, jusqu'au retrait de l'opposition, ou trois ans après la demande ou le dernier message) ; « Dernière mise à jour : 10 octobre 2026 ». La rédaction publiée est plus ramassée que celle ci-dessous, pour le même contenu. `mention_publiee` ne change pas : la date à partir de laquelle la boîte est lue reste le 4 octobre 2026.
 
 > Jalon C4 de la phase 5. Rédigé par Claude le 2026-10-04 ; ce n'est pas un avis
 > juridique. **La publication est le geste du responsable**, dans les mentions
