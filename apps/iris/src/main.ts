@@ -15,6 +15,7 @@ import {
   createPurges,
   holdSingleInstance,
   readAllEvents,
+  watchOrQuit,
 } from "@cenacle/journal";
 import {
   keyerFromEnv,
@@ -42,13 +43,15 @@ const sql = connectOrQuit();
 // One Iris at a time (ADR-0018): its own connection holds the lock for the
 // whole run. Refused = exit 75 ("try again later"): launchd keeps retrying and
 // takes over once the other Iris stops. No database = a crash, retried too.
-const lockSql = connectOrQuit();
+const lockSql = connectOrQuit("lock");
 const instance = await holdSingleInstance(lockSql, "iris");
 if (instance === null) {
   console.error("🛑 Une autre Iris tourne déjà : celle-ci ne démarre pas.");
   await Promise.all([lockSql.end(), sql.end()]);
   process.exit(75);
 }
+// A cut of the database drops the lock silently: checked and taken again (ADR-0023).
+watchOrQuit(instance, "Iris");
 const journal = createJournal(sql);
 const store = createMailStore(sql);
 const locations = createLocationStore(sql);

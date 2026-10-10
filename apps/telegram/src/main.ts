@@ -5,7 +5,13 @@
 import { homedir } from "node:os";
 import { projectStatus, refuseForeignSecrets } from "@cenacle/core";
 import { askCtoService, ctoSocketPath } from "@cenacle/cto/client";
-import { connectOrQuit, createJournal, holdSingleInstance, readAllEvents } from "@cenacle/journal";
+import {
+  connectOrQuit,
+  createJournal,
+  holdSingleInstance,
+  readAllEvents,
+  watchOrQuit,
+} from "@cenacle/journal";
 import { perform } from "./actions.ts";
 import { createTelegramApi, TelegramError, type TelegramFailure } from "./api.ts";
 import { sleepUnless } from "./backoff.ts";
@@ -24,13 +30,15 @@ const sql = connectOrQuit();
 const journal = createJournal(sql);
 // One bot at a time (ADR-0019): Telegram refuses two pollers (409), and the
 // refused one would crash and be restarted every 30 s.
-const lockSql = connectOrQuit();
+const lockSql = connectOrQuit("lock");
 const instance = await holdSingleInstance(lockSql, "bot");
 if (instance === null) {
   console.error("🛑 Un autre bot Telegram tourne déjà : celui-ci ne démarre pas.");
   await Promise.all([lockSql.end(), sql.end()]);
   process.exit(75);
 }
+// A cut of the database drops the lock silently: checked and taken again (ADR-0023).
+watchOrQuit(instance, "Le bot Telegram");
 
 async function readStatus(agent: string) {
   return projectStatus(agent, await readAllEvents(journal, agent));

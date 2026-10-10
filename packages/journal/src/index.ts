@@ -1,5 +1,12 @@
-export { connectAsApp, connectAsExecutor, connectOrQuit } from "./connect.ts";
-export { holdSingleInstance, type InstanceLock, instanceLockKey } from "./instance-lock.ts";
+export { connectAsApp, connectAsExecutor, connectLockAsApp, connectOrQuit } from "./connect.ts";
+export {
+  holdSingleInstance,
+  type InstanceLock,
+  instanceLockKey,
+  LOCK_CHECK_MS,
+  type LockCheck,
+  watchOrQuit,
+} from "./instance-lock.ts";
 export {
   createJournal,
   InvalidEventError,
