@@ -6,6 +6,7 @@ import { homedir } from "node:os";
 import { projectStatus, refuseForeignSecrets } from "@cenacle/core";
 import { askCtoService, ctoSocketPath } from "@cenacle/cto/client";
 import { connectOrQuit, createJournal, holdSingleInstance, readAllEvents } from "@cenacle/journal";
+import { perform } from "./actions.ts";
 import { createTelegramApi, TelegramError, type TelegramFailure } from "./api.ts";
 import { sleepUnless } from "./backoff.ts";
 import { relayToCto } from "./cto-relay.ts";
@@ -73,21 +74,16 @@ console.log("Iris is listening on Telegram (Ctrl+C to stop).");
 // anything unexpected still throws, and launchd restarts the bot.
 await poll({
   getUpdates: (offset) => api.getUpdates(offset, 25),
-  handle: async (update) => {
-    for (const action of await handleUpdate(update, { allowedChatId, readStatus })) {
-      if (action.kind === "reply") {
-        await reply(action.chatId, action.text);
-      } else if (action.kind === "ask_cto") {
-        relay(action.chatId, action.question);
-      } else {
-        await journal.append({
-          agent: "cenacle",
-          type: action.type,
-          payload: action.type === "telegram.rejected" ? { reason: action.reason } : {},
-        });
-      }
-    }
-  },
+  // A database outage no longer brings the bot down (actions.ts).
+  handle: async (update) =>
+    perform(await handleUpdate(update, { allowedChatId, readStatus }), {
+      reply,
+      askCto: relay,
+      record: async (type, payload) => {
+        await journal.append({ agent: "cenacle", type, payload });
+      },
+      log: (line) => console.error(line),
+    }),
   stopped: () => stopping,
   sleep: (ms) => sleepUnless(ms, () => stopping),
   log: (line) => console.log(line),
