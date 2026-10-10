@@ -12,7 +12,7 @@
     "@cenacle/brain": "0.0.0",
     "@cenacle/core": "0.0.0",
     "@cenacle/journal": "0.0.0",
-    "imapflow": "2.2.1",
+    "imapflow": "2.2.5",
     "nodemailer": "10.0.10",
     "postal-mime": "4.0.2",
     "smol-toml": "1.9.0"
