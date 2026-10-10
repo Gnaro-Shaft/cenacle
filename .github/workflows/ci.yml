@@ -11,6 +11,10 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # To pull GreenMail's copy from this repository's GitHub registry.
+      packages: read
     env:
       # Throwaway values for the CI database only — not secrets.
       CENACLE_DB_PORT: "55432"
@@ -34,7 +38,12 @@ jobs:
           --health-cmd "pg_isready -U cenacle_owner -d cenacle"
           --health-interval 5s --health-timeout 3s --health-retries 10
       mail:
-        image: greenmail/standalone:2.1.14
+        # GreenMail has no public mirror: mirror-images.yml copied its official
+        # image here, digest for digest (sha256:1ef9…1626, same as Docker Hub).
+        image: ghcr.io/gnaro-shaft/greenmail-standalone:2.1.14@sha256:1ef95a966418cd09b7ea91d504d8c0826bbe7a2f6e679a75c601a831587c1626
+        credentials:
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
         env:
           GREENMAIL_OPTS: >-
             -Dgreenmail.setup.test.smtp -Dgreenmail.setup.test.imap
