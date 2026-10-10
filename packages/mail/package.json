@@ -13,7 +13,7 @@
     "@cenacle/core": "0.0.0",
     "@cenacle/journal": "0.0.0",
     "imapflow": "2.2.1",
-    "nodemailer": "10.0.10",
+    "nodemailer": "10.0.15",
     "postal-mime": "4.0.2",
     "smol-toml": "1.9.0"
   }
