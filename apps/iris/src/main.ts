@@ -122,6 +122,7 @@ while (!stopping) {
       },
       totals: (now) => mailTotals(store, now),
       send: (text) => telegram.sendMessage(chatId, text),
+      log: (line) => console.log(line),
       ...(drafting === null
         ? {}
         : {

@@ -23,6 +23,7 @@ import {
 } from "@cenacle/core";
 import type { NewEvent, StoredEvent } from "@cenacle/journal";
 import { memoryMailStore } from "@cenacle/mail/test-helpers";
+import { TelegramError } from "@cenacle/telegram/api";
 import { tick } from "./tick.ts";
 
 const MINUTE = 60_000;
@@ -151,7 +152,8 @@ export async function runAlertBench(outages: readonly Outage[] = []): Promise<Be
       },
       totals: async () => ({ waiting: 0, due: 0 }),
       send: async (text) => {
-        if (outages.some((o) => now >= o.from && now < o.to)) throw new Error("telegram down");
+        if (outages.some((o) => now >= o.from && now < o.to))
+          throw new TelegramError("telegram down", "network");
         sent.push({ at: now, text });
       },
     });

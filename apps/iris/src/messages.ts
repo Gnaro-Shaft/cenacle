@@ -19,10 +19,16 @@ export interface RecapInput {
   readonly urgent: number;
   /** Drafts waiting for my validation (phase 4). */
   readonly drafts?: number;
+  /** Sent late (Telegram was unreachable): the local time its numbers are from. */
+  readonly asOf?: { readonly h: number; readonly min: number };
 }
 
-export function recap({ hour, fresh, due, waiting, urgent, drafts = 0 }: RecapInput): string {
-  const lines = [`📬 Iris — récap de ${hour} h`];
+export function recap({ hour, fresh, due, waiting, urgent, drafts = 0, asOf }: RecapInput): string {
+  const late =
+    asOf === undefined
+      ? ""
+      : ` (envoyé en retard, chiffres de ${asOf.h} h ${String(asOf.min).padStart(2, "0")})`;
+  const lines = [`📬 Iris — récap de ${hour} h${late}`];
   const total =
     fresh.clients_prospects + fresh.administratif + fresh.bruit + fresh.a_trier + fresh.pending;
   lines.push(
