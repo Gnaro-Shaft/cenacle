@@ -116,6 +116,7 @@ while (!stopping) {
           cadre: mail,
           retentionDays: conservation.memoireJours,
           opposedKeys: () => createPeople(sql).opposedKeys(),
+          opposedSeen: (traces) => createPeople(sql).touch(traces),
           notBefore: readingStartsAt(cadre),
           password,
           rules,

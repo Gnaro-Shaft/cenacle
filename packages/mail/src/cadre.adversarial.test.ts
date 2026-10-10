@@ -16,7 +16,7 @@ const valid = {
   rang_attendu: "0",
 };
 const CONSERVATION =
-  "[conservation]\nmemoire_jours = 90\ntexte_brouillon_jours = 7\npropositions_jours = 90\njournal_jours = 180\n";
+  "[conservation]\nmemoire_jours = 90\ntexte_brouillon_jours = 7\npropositions_jours = 90\njournal_jours = 180\nopposition_jours = 1095\n";
 const toml = (mail: Record<string, string>, extra = "") =>
   `${extra}[mail]\n${Object.entries(mail)
     .map(([k, v]) => `${k} = ${v}`)

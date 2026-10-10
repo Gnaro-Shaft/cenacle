@@ -14,6 +14,7 @@ const C: Conservation = {
   texteBrouillonJours: 7,
   propositionsJours: 90,
   journalJours: 180,
+  oppositionJours: 1095,
 };
 
 function world(fail = false) {
@@ -29,6 +30,10 @@ function world(fail = false) {
       if (fail) throw new Error("connect ECONNREFUSED 127.0.0.1:55432");
       calls.push(`events<${cutoff.toISOString()}`);
       return 5;
+    },
+    opposition: async (cutoff) => {
+      calls.push(`opposition<${cutoff.toISOString()}`);
+      return 3;
     },
   };
   const deps = {
@@ -55,15 +60,16 @@ function world(fail = false) {
 describe("purgeDue", () => {
   it("applies each retention of cadre.toml, and journals counts only", async () => {
     const w = world();
-    expect(await purgeDue(w.deps)).toEqual({ texts: 1, proposals: 2, events: 5 });
+    expect(await purgeDue(w.deps)).toEqual({ texts: 1, proposals: 2, events: 5, opposition: 3 });
     expect(w.calls).toEqual([
       `texts 7d at ${NOW.toISOString()}`,
       `proposals<${new Date(NOW.getTime() - 90 * DAY).toISOString()}`,
       `events<${new Date(NOW.getTime() - 180 * DAY).toISOString()}`,
+      `opposition<${new Date(NOW.getTime() - 1095 * DAY).toISOString()}`,
     ]);
     expect(w.journal.events.at(-1)).toMatchObject({
       type: "purge.done",
-      payload: { texts: 1, proposals: 2, events: 5 },
+      payload: { texts: 1, proposals: 2, events: 5, opposition: 3 },
     });
   });
 

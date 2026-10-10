@@ -4,7 +4,8 @@
  * The application role may not delete proposals nor journal events: it calls
  * two database functions that run as the owner, erase what is older than the
  * cutoff, and leave in the journal how many and before when — never what.
- * Open proposals are never touched.
+ * Open proposals are never touched. The opposition list (T-07) is purged
+ * directly: its keys leave `opposition_jours` after the person's last trace.
  */
 import type { Sql } from "postgres";
 
@@ -13,6 +14,8 @@ export interface Purges {
   proposals(cutoff: Date): Promise<number>;
   /** Journal events older than the cutoff. Returns how many. */
   events(cutoff: Date): Promise<number>;
+  /** Opposed keys whose last trace (request or mail met) is older than the cutoff. Returns how many. */
+  opposition(cutoff: Date): Promise<number>;
 }
 
 function count(rows: { n: number }[], what: string): number {
@@ -34,6 +37,12 @@ export function createPurges(sql: Sql): Purges {
     },
     async events(cutoff) {
       return count(await sql<{ n: number }[]>`select purge_events(${cutoff}) as n`, "purge_events");
+    },
+    async opposition(cutoff) {
+      // The application role may remove from the list (a withdrawal): no function needed.
+      const result = await sql`
+        delete from opposed_keys where greatest(since, last_seen) < ${cutoff}`;
+      return result.count;
     },
   };
 }

@@ -29,7 +29,7 @@
 | Durées | 90 jours (mémoire), 7 jours (texte des brouillons), 7 jours (traces) | **Partiel** : lignes de propositions et journal sans purge (C1) |
 | Information | Mention publique sur le site, qui couvre aujourd'hui Legion (domaines seulement) | **Non** : à réviser pour Cénacle avant l'ouverture (C4) |
 | Accès, rectification, effacement | `npm run personne` : export JSON, effacement, liste d'opposition qui le fait tenir (C3) | Oui |
-| Opposition, limitation | Liste d'opposition : les mails de la personne ne sont plus lus ; couper la source | Oui |
+| Opposition, limitation | Liste d'opposition : les mails de la personne ne sont plus lus ; couper la source. La clé y reste 3 ans après sa dernière trace (demande ou dernier mail rencontré), le temps que ses mails peuvent rester dans ma boîte (2026-10-10) | Oui |
 
 ## 3. Risques
 

@@ -8,7 +8,7 @@ import { copyToSent, sendReply } from "./sender.ts";
 
 const TODAY = "2026-10-20";
 const CONSERVATION =
-  "[conservation]\nmemoire_jours = 90\ntexte_brouillon_jours = 7\npropositions_jours = 90\njournal_jours = 180\n";
+  "[conservation]\nmemoire_jours = 90\ntexte_brouillon_jours = 7\npropositions_jours = 90\njournal_jours = 180\nopposition_jours = 1095\n";
 const mail = (host: string, address: string, extra = "") =>
   `[mail]\n${extra}source = "boite-pro"\nhost = "${host}"\nport = 993\nuser = "moi"\n` +
   `mailbox = "INBOX"\nsent_mailbox = "Sent"\nmax_per_fetch = 500\nsmtp_port = 465\naddress = "${address}"\n` +
