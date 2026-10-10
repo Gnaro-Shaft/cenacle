@@ -35,6 +35,9 @@
       "path": "apps/telegram"
     },
     {
+      "path": "apps/veille"
+    },
+    {
       "path": "apps/cto"
     },
     {

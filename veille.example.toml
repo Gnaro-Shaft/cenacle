@@ -1,0 +1,13 @@
+# The map of the projects an article may serve (J5, ADR-0024): FICTIONAL.
+# Copy to veille.local.toml (git-ignored) and describe your real projects:
+# a name, one line on what it does, and its stack.
+
+[[projet]]
+nom = "Atelier"
+resume = "Assistant de rédaction pour une agence fictive : génère des brouillons à partir de notes."
+pile = ["TypeScript", "Hono", "PostgreSQL", "SDK Anthropic"]
+
+[[projet]]
+nom = "Boussole"
+resume = "Moteur de recherche documentaire fictif : RAG sur des PDF internes."
+pile = ["Python", "FastAPI", "Qdrant", "LangGraph", "Ollama"]

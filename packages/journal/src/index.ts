@@ -58,3 +58,10 @@ export {
   UNDO_DELAY_MS,
 } from "./proposal-store.ts";
 export { createPurges, type Purges } from "./purges.ts";
+export {
+  type ArchivedArticle,
+  type ArchiveQuery,
+  createVeilleStore,
+  type NewArchivedArticle,
+  type VeilleStore,
+} from "./veille-store.ts";

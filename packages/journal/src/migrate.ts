@@ -102,6 +102,9 @@ export async function migrate({
     await sql.unsafe(
       `GRANT EXECUTE ON FUNCTION erase_proposals_for(TEXT, BIGINT[]) TO ${APP_ROLE}`,
     );
+    // The veille's archive (ADR-0024): written once, read, purged — never changed.
+    await sql.unsafe(`REVOKE ALL ON veille_articles FROM ${APP_ROLE}`);
+    await sql.unsafe(`GRANT SELECT, INSERT, DELETE ON veille_articles TO ${APP_ROLE}`);
     // The executor reads what Iris remembers, journals, and moves proposals
     // (claim, sent, failed — refused to every other role by the database).
     await loginRole(sql, EXECUTOR_ROLE, executorPassword, EXECUTOR_PASSWORD_VAR);

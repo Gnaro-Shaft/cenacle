@@ -69,6 +69,8 @@ const NEUTRAL_EVENT_TYPES: ReadonlySet<string> = new Set([
   "recap.sent",
   "notify.failed", // once per Telegram outage; the messages are retried each minute
   "notify.recovered", // Telegram is back: how many minutes it was away
+  "veille.sent", // the CTO's veille was sent: counts only (J5)
+  "veille.failed", // the local model did not answer: the message said so
   "send.lapsed",
   "send.cancelled",
   "proposal.skipped", // Iris decided not to propose: nothing waits for me

@@ -28,5 +28,6 @@ Elles sont rédigées en français (le code et le README sont en anglais).
 | [0021](0021-outils-de-lecture-du-cto.md) | Le CTO lit le code avec trois outils de lecture seule, et relit une branche | Acceptée |
 | [0022](0022-conformite-verifiee-par-le-code.md) | La concordance des registres, du cadre, du code et de la documentation est vérifiée par le code | Acceptée |
 | [0023](0023-verrou-repris-apres-coupure.md) | Le verrou d'instance est surveillé, et repris après une coupure de la base | Acceptée |
+| [0024](0024-veille-du-cto.md) | La veille du CTO : un programme à part, des flux publics, le modèle local | Acceptée |
 
 Les règles dures qui s'appliquent à tout le code sont dans [`../charte.md`](../charte.md).
