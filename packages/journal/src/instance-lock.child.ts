@@ -3,7 +3,12 @@
 import postgres from "postgres";
 import { holdSingleInstance } from "./instance-lock.ts";
 
-const sql = postgres(process.env.LOCK_URL ?? "", { max: 1, onnotice: () => {} });
+const sql = postgres(process.env.LOCK_URL ?? "", {
+  max: 1,
+  max_lifetime: null,
+  idle_timeout: 0,
+  onnotice: () => {},
+});
 const lock = await holdSingleInstance(sql, process.argv[2] ?? "");
 if (lock === null) process.exit(2);
 process.stdout.write("locked\n");
