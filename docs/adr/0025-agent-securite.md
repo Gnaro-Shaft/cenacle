@@ -34,7 +34,11 @@ Sous chaque nouveau constat, et sous `/constats`, trois boutons : **✅ je m'en 
 ## Paliers à venir
 
 - **J6c** — les actions débloquées par mon accord : une correction de code préparée sur une branche, avec une PR et la CI, la fusion restant à moi (accès GitHub à décider) ; les réglages du Mac restent à moi (jamais de `sudo` pour un agent).
-- **J6d** — des délégations pour les cas simples que je nomme, dans un fichier versionné (`securite.toml`) que le CTO ne peut pas modifier : type exact, révocable, tracé, jamais pour ce qui demande un administrateur.
+- **J6d** — des délégations pour les cas simples que je nomme, dans un fichier versionné (`securite.toml`) que le CTO ne peut pas modifier : type exact, révocable, tracé, jamais pour ce qui demande un administrateur. **La délégation se gagne par un carnet de confiance** (décidé le 2026-10-10) — la récompense d'un agent qui travaille bien est l'autonomie, jamais un réentraînement du modèle (trop lourd en local, et sujet au « piratage de la récompense » : plaire à la mesure plutôt que bien faire) :
+  - par agent et par type d'action, le compte des propositions faites, acceptées, refusées, corrigées après coup et annulées, tenu **à partir de mes décisions** seules — jamais de ce que l'agent dit de lui-même, et l'agent ne peut pas y écrire ;
+  - un seuil fixé par moi dans `securite.toml` (par exemple dix corrections de faille npm acceptées sans retouche) : le CTO me **propose** alors la délégation de ce type ; c'est moi qui l'accorde (PR ou bouton) ;
+  - la confiance se perd : une erreur, une correction annulée ou un refus suspend la délégation de ce type et la rend à mon accord ;
+  - le bilan du lundi montre le carnet.
 - **J6e** — le serveur (bulletin en lecture seule, puis des scripts fixes posés sur le serveur, joignables par une clé restreinte à eux, déclenchés par mon accord ; un redémarrage reste toujours une question), la surveillance de l'agent lui-même, mes autres projets, les bulletins de sécurité.
 
 ## Conséquences
