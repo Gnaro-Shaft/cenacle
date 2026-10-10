@@ -28,6 +28,8 @@ export interface Scored {
   readonly project: string | null;
   /** What I could do with it there; null without a project. */
   readonly idea: string | null;
+  /** The model says it repeats news I already got. */
+  readonly duplicate: boolean;
 }
 
 const RESUME_MAX = 400;
@@ -39,6 +41,7 @@ export function buildVeillePrompt(
   profile: string,
   threshold: number,
   nonce: string,
+  alreadySent: readonly string[] = [],
 ): string {
   const map = projects
     .map((p) => `- ${p.nom} : ${p.resume} (pile : ${p.pile.join(", ")})`)
@@ -49,19 +52,30 @@ export function buildVeillePrompt(
         `${i + 1}. [${it.source}${it.theme === "version" ? ", notes de version" : ""}] ${it.title}\n   ${it.description || "(pas de description)"}`,
     )
     .join("\n\n");
+  const sent =
+    alreadySent.length === 0
+      ? []
+      : [
+          `<<<DEJA ENVOYES ${nonce}>>>`,
+          ...alreadySent.map((t) => `- ${t}`),
+          `<<<FIN DEJA ENVOYES ${nonce}>>>`,
+          'Ces titres lui ont déjà été envoyés : un article qui redit la même information reçoit "deja": true.',
+          "",
+        ];
   return [
     `Le dirigeant : ${profile}`,
     "",
     "Ses projets (utilise leur nom exact) :",
     map,
     "",
+    ...sent,
     `<<<ARTICLES ${nonce}>>>`,
     list,
     `<<<FIN ARTICLES ${nonce}>>>`,
     "",
     `Pour chaque article, rends {"i": numéro, "note": 1 à 10}.`,
     `Si la note est de ${threshold} ou plus, ajoute "resume" (deux phrases en français), "projet" (le nom exact d'un de ses projets à qui il servirait, ou "aucun") et "idee" (une phrase : ce qu'il pourrait en faire dans ce projet).`,
-    `Format : [{"i": 1, "note": 8, "resume": "…", "projet": "…", "idee": "…"}, {"i": 2, "note": 4}]`,
+    `Format : [{"i": 1, "note": 8, "resume": "…", "projet": "…", "idee": "…"}, {"i": 2, "note": 4}, {"i": 3, "note": 9, "deja": true}]`,
   ].join("\n");
 }
 
@@ -124,8 +138,9 @@ export function parseScores(
       continue;
     }
     seen.add(i);
+    const duplicate = e.deja === true;
     if (score < threshold) {
-      scored.push({ index: i - 1, score, resume: null, project: null, idea: null });
+      scored.push({ index: i - 1, score, resume: null, project: null, idea: null, duplicate });
       continue;
     }
     const named =
@@ -137,6 +152,7 @@ export function parseScores(
       resume: clean(e.resume, RESUME_MAX),
       project,
       idea: project === null ? null : clean(e.idee, IDEA_MAX),
+      duplicate,
     });
   }
   return scored;

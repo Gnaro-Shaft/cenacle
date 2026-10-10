@@ -46,6 +46,7 @@ Chaque table créée par les migrations (`packages/journal/sql/`) est déclarée
 | `mail_folders` | Jusqu'où chaque dossier a été lu : clé HMAC du dossier, UID (ADR-0016) | `packages/journal/src/mail-locations.ts`, dès qu'un dossier n'est plus lu (disparu ou exclu) |
 | `proposals` | Les brouillons proposés, leur état, leur signature (T-03, T-04) | `packages/journal/sql/010_purges.sql`, après `texte_brouillon_jours` et `propositions_jours` ; `packages/journal/sql/012_people.sql`, à l'effacement d'une personne |
 | `opposed_keys` | La liste d'opposition : clés HMAC des personnes qui s'opposent, date de la demande, date de la dernière trace (T-07) | `packages/journal/src/purges.ts`, après `opposition_jours` depuis la dernière trace ; `packages/journal/src/people.ts`, quand la personne retire son opposition |
+| `veille_articles` | L'archive de la veille du CTO (J5, ADR-0024) : chaque article réellement envoyé (lien, source, titre, date, note, résumé, projet, idée) ; articles publics et noms de mes projets, aucune donnée de personne ; note, résumé et idée générés par IA | `packages/journal/src/veille-store.ts`, 365 jours après l'envoi (`veille_jours`, `veille.toml`), à chaque veille |
 
 Aucun transfert hors UE de données des correspondants : le contenu ne sort pas de mes machines.
 

@@ -56,7 +56,13 @@ function block({ item, scored }: Kept): string {
 
 const leftOut = (n: number) => `\n\n+ ${n} autre(s) retenu(s), sans place ici.`;
 
-export function formatDigest(input: DigestInput): string {
+export interface Digest {
+  readonly text: string;
+  /** The articles the message really shows: only they are archived as sent. */
+  readonly shown: readonly Kept[];
+}
+
+export function formatDigest(input: DigestInput): Digest {
   const head = [`📰 Veille du CTO — ${dayOf(input.date)}`];
   head.push(
     input.kept.length === 0
@@ -71,13 +77,13 @@ export function formatDigest(input: DigestInput): string {
   // The notice is never cut: the body makes room for it, and for the count.
   const room = TELEGRAM_MAX - footer.length - leftOut(input.kept.length).length;
   let body = head.join("\n").slice(0, room);
-  let shown = 0;
+  const shown: Kept[] = [];
   for (const kept of input.kept) {
     const next = `${body}\n\n${block(kept)}`;
     if (next.length > room) break;
     body = next;
-    shown += 1;
+    shown.push(kept);
   }
-  const left = input.kept.length - shown;
-  return body + (left > 0 ? leftOut(left) : "") + footer;
+  const left = input.kept.length - shown.length;
+  return { text: body + (left > 0 ? leftOut(left) : "") + footer, shown };
 }

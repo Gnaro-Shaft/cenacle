@@ -15,11 +15,13 @@ Le jalon J5 (`docs/phase-6.md`) la reprend dans Cénacle : « ce qui bouge dans 
 3. **Une seule question au modèle local** (le modèle partagé, ADR-0003 ; jamais un autre en cas d'absence) : pour chaque article, une note ; au-dessus du seuil, un résumé de deux phrases et le projet qu'il servirait, avec une idée.
 4. **Le contenu des flux n'est pas fiable** : les articles sont entre des marqueurs tirés au hasard, présentés comme des données ; le modèle ne rend que `{numéro, note, résumé, projet, idée}` ; titres et liens viennent toujours des flux ; toute adresse web écrite par le modèle est retirée ; un projet qu'il invente est ignoré ; le message est en texte brut.
 5. **Le message dit toujours qu'il est généré par IA** (AI Act, art. 50), nomme les sources injoignables, ne dépasse jamais la limite de Telegram (ce qui ne tient pas est compté).
-6. **Le modèle absent** : trois essais à dix minutes d'intervalle, puis un message « veille non faite ». **Rien n'est stocké** ; le journal reçoit des nombres (`veille.sent`, `veille.failed`).
+6. **Le modèle absent** : trois essais à dix minutes d'intervalle, puis un message « veille non faite ». Le journal reçoit des nombres (`veille.sent`, `veille.failed`).
+7. **Jamais deux fois la même info, et une veille réutilisable** (décidé le 2026-10-10) : chaque article **réellement montré** est archivé (`veille_articles` : lien normalisé, source, titre, date, note, résumé, projet, idée), **un an** (`veille_jours` dans `veille.toml`), purgé par la veille elle-même. Un lien déjà envoyé n'est jamais renvoyé, même avec un fragment ou des paramètres de suivi (le code) ; la même info sous un autre lien est écartée par le modèle, à qui l'on donne les titres envoyés la semaine passée, entre marqueurs (pas infaillible). Un envoi raté n'archive rien ; un article « sans place » dans le message n'est pas archivé et peut revenir. `npm run veille:archive` (filtres : date, projet, mots) rend l'archive en Markdown, avec la mention « généré par IA ».
 
 ## Conséquences
 
 - Les flux lus voient l'adresse IP du Mac, rien d'autre ; certains sont hors UE. Aucune donnée personnelle ne leur est envoyée : ce ne sont pas des sous-traitants (registre, services tiers).
+- L'archive ne contient aucune donnée de personne (articles publics, noms de mes projets) ; elle a malgré tout sa durée et sa purge, déclarées au registre (tables).
 - Une invite d'une cinquantaine d'articles et de ma carte de projets : quelques minutes de modèle local par jour.
 - Le lancement quotidien (launchd) et la fin de la veille n8n viennent avec J5b.
 

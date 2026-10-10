@@ -49,7 +49,9 @@ describe("parseScores", () => {
       PROJECTS,
       7,
     );
-    expect(got).toEqual([{ index: 1, score: 3, resume: null, project: null, idea: null }]);
+    expect(got).toEqual([
+      { index: 1, score: 3, resume: null, project: null, idea: null, duplicate: false },
+    ]);
   });
 
   it("a project the model invents is no project, and its idea is dropped", () => {
@@ -128,12 +130,13 @@ const kept = (i: number, size = 0) => ({
     resume: `Résumé ${"r".repeat(size)}`,
     project: "Atelier",
     idea: "essayer",
+    duplicate: false,
   },
 });
 
 describe("formatDigest", () => {
   it("never over Telegram's limit; the AI notice always ends it; the left-out are counted", () => {
-    const text = formatDigest({
+    const { text } = formatDigest({
       date: NOW,
       scanned: 50,
       kept: Array.from({ length: 12 }, (_, i) => kept(i, 380)),
@@ -147,7 +150,13 @@ describe("formatDigest", () => {
   });
 
   it("each article: score, source, title, link, summary, and the project's idea", () => {
-    const text = formatDigest({ date: NOW, scanned: 3, kept: [kept(1)], failed: [], threshold: 7 });
+    const { text } = formatDigest({
+      date: NOW,
+      scanned: 3,
+      kept: [kept(1)],
+      failed: [],
+      threshold: 7,
+    });
     for (const piece of [
       "⭐ 8/10 · Flux",
       "Article 1",
@@ -161,7 +170,7 @@ describe("formatDigest", () => {
   });
 
   it("nothing kept: said, with the count; the fictional projects are flagged", () => {
-    const text = formatDigest({
+    const { text } = formatDigest({
       date: NOW,
       scanned: 9,
       kept: [],
@@ -187,6 +196,7 @@ function world(answers: Array<string | Error>) {
       maxParSource: 8,
       seuil: 7,
       maxRetenus: 12,
+      veilleJours: 365,
       profil: "moi",
     },
     sources: [],
@@ -203,6 +213,12 @@ function world(answers: Array<string | Error>) {
     },
     send: async (t: string) => {
       sent.push(t);
+    },
+    memory: {
+      sentLinks: async () => new Set<string>(),
+      recentTitles: async () => [],
+      record: async (a: readonly unknown[]) => a.length,
+      purge: async () => 0,
     },
     journal: {
       append: async (e: NewEvent) => {
@@ -225,10 +241,14 @@ const GOOD =
 describe("runVeille", () => {
   it("sends the best first, and journals counts only — no title, link nor summary", async () => {
     const w = world([GOOD]);
-    expect(await runVeille(w.deps)).toEqual({ kind: "sent", scanned: 3, kept: 2, failed: 1 });
+    expect(await runVeille(w.deps)).toMatchObject({ kind: "sent", scanned: 3, kept: 2, failed: 1 });
     expect(w.sent[0]?.indexOf("Article 2")).toBeLessThan(w.sent[0]?.indexOf("Article 3") ?? 0);
     expect(w.events).toEqual([
-      { agent: "cto", type: "veille.sent", payload: { scanned: 3, kept: 2, failed: 1 } },
+      {
+        agent: "cto",
+        type: "veille.sent",
+        payload: { scanned: 3, kept: 2, failed: 1, repeated: 0, archived: 2 },
+      },
     ]);
     expect(JSON.stringify(w.events)).not.toMatch(/Article|news\.example|utile/);
   });
@@ -262,7 +282,7 @@ describe("runVeille", () => {
   it("no article at all: the model is not asked, the message says so", async () => {
     const w = world([]);
     const deps = { ...w.deps, read: async () => ({ items: [], failed: [] }) };
-    expect(await runVeille(deps)).toEqual({ kind: "sent", scanned: 0, kept: 0, failed: 0 });
+    expect(await runVeille(deps)).toMatchObject({ kind: "sent", scanned: 0, kept: 0, failed: 0 });
     expect(w.asked()).toBe(0);
     expect(w.sent[0]).toMatch(/Rien de saillant/);
   });

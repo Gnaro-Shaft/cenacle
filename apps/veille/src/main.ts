@@ -17,7 +17,7 @@ import {
   VEILLE_SYSTEM_PROMPT,
   VeilleConfigError,
 } from "@cenacle/cto/veille";
-import { connectOrQuit, createJournal } from "@cenacle/journal";
+import { connectOrQuit, createJournal, createVeilleStore } from "@cenacle/journal";
 import { createTelegramApi } from "@cenacle/telegram/api";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
@@ -40,6 +40,7 @@ const local = createLocalModels({
 });
 const sql = connectOrQuit();
 const journal = createJournal(sql);
+const store = createVeilleStore(sql);
 
 try {
   const config = loadVeilleConfig(ROOT);
@@ -64,6 +65,9 @@ try {
       if (dryRunFile === undefined) return telegram.sendMessage(chatId, text);
       writeFileSync(dryRunFile, `${text}\n`, { mode: 0o600 });
     },
+    // A trial reads the archive (no repeat) but adds nothing to it nor purges it.
+    memory:
+      dryRunFile === undefined ? store : { ...store, record: async () => 0, purge: async () => 0 },
     // Nothing sent, nothing journaled as sent.
     journal:
       dryRunFile === undefined
@@ -85,7 +89,7 @@ try {
   const seconds = Math.round((Date.now() - started) / 1000);
   console.log(
     outcome.kind === "sent"
-      ? `✔ Veille ${dryRunFile === undefined ? "envoyée" : "écrite sans envoi"} en ${seconds} s : ${outcome.kept} retenu(s) sur ${outcome.scanned} lu(s), ${outcome.failed} source(s) injoignable(s)`
+      ? `✔ Veille ${dryRunFile === undefined ? "envoyée" : "écrite sans envoi"} en ${seconds} s : ${outcome.kept} retenu(s) sur ${outcome.scanned} lu(s), ${outcome.repeated} déjà reçu(s) écarté(s), ${outcome.archived} archivé(s), ${outcome.failed} source(s) injoignable(s)`
       : `⚠ Veille non faite (${outcome.reason}) : le message l'a dit`,
   );
 } catch (error) {

@@ -34,6 +34,8 @@ export interface VeilleSettings {
   readonly seuil: number;
   /** …and at most this many in the message. */
   readonly maxRetenus: number;
+  /** How long a sent article stays in the archive (and is never sent again). */
+  readonly veilleJours: number;
   /** Who I am, in one or two sentences: what "useful" means. */
   readonly profil: string;
 }
@@ -119,6 +121,7 @@ export function parseSources(source_: string): {
     maxParSource: int(r, "max_par_source", 1, 80),
     seuil: int(r, "seuil", 1, 10),
     maxRetenus: int(r, "max_retenus", 1, 20),
+    veilleJours: int(r, "veille_jours", 7, 730),
     profil: text(r, "profil", "reglage", 400),
   };
   if (!Array.isArray(raw.source) || raw.source.length === 0) {

@@ -12,6 +12,9 @@ max_par_source = 8
 # Kept from this score (1-10), at most this many in the message.
 seuil = 7
 max_retenus = 12
+# What was sent is archived this long: never sent again, and reusable
+# (npm run veille:archive). One year. Purged by the veille itself.
+veille_jours = 365
 profil = "Ingénieur IA freelance en France (EURL Gnaro) : LLM, agents IA, RAG, intégration au SI, modèles locaux ; développe en TypeScript et en Python."
 
 # ── News ──

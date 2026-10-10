@@ -70,13 +70,30 @@ function linkOf(body: string, atom: boolean): string | null {
   } else {
     raw = field(body, "link");
   }
-  const text = decode(cdata(raw)).trim();
+  return normalizeLink(decode(cdata(raw)).trim());
+}
+
+const TRACKING = /^(utm_[a-z]+|fbclid|gclid|mc_cid|mc_eid|ref_src)$/i;
+
+/**
+ * One article, one link: no fragment, no tracking parameters, no trailing
+ * slash — what the archive compares to never send an article twice. Null
+ * for anything but http(s).
+ */
+export function normalizeLink(text: string): string | null {
+  let url: URL;
   try {
-    const url = new URL(text);
-    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : null;
+    url = new URL(text);
   } catch {
     return null;
   }
+  if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+  url.hash = "";
+  for (const key of [...url.searchParams.keys()]) {
+    if (TRACKING.test(key)) url.searchParams.delete(key);
+  }
+  const out = url.toString();
+  return url.pathname !== "/" && out.endsWith("/") ? out.slice(0, -1) : out;
 }
 
 /** The items of one feed published within `windowMs` before `now`. */
@@ -157,9 +174,8 @@ export async function readFeeds(
   const items: FeedItem[] = [];
   for (const r of results) {
     for (const item of r.items ?? []) {
-      const key = item.link.split("#")[0] ?? item.link;
-      if (seen.has(key)) continue;
-      seen.add(key);
+      if (seen.has(item.link)) continue;
+      seen.add(item.link);
       items.push(item);
     }
   }

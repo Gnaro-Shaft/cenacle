@@ -148,7 +148,7 @@ describe("selectItems", () => {
 });
 
 describe("the configuration", () => {
-  const head = `[reglage]\nfenetre_heures = 30\nmax_articles = 50\nmax_par_source = 8\nseuil = 7\nmax_retenus = 12\nprofil = "moi"\n`;
+  const head = `[reglage]\nfenetre_heures = 30\nmax_articles = 50\nmax_par_source = 8\nseuil = 7\nmax_retenus = 12\nveille_jours = 365\nprofil = "moi"\n`;
   const src = (url: string, nom = "A", theme = "actualite") =>
     `[[source]]\nnom = "${nom}"\nurl = "${url}"\ntheme = "${theme}"\n`;
 
