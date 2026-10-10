@@ -10,6 +10,7 @@ import {
   buildPlist,
   install,
   PROGRAMS,
+  SCHEDULED,
   type ServiceDeps,
   servicePaths,
   status,
@@ -76,6 +77,26 @@ describe("the LaunchAgent", () => {
     expect(plist).toContain("<key>ThrottleInterval</key><integer>30</integer>");
     // The bot ends its 25 s poll before stopping: launchd waits longer than that.
     expect(plist).toContain("<key>ExitTimeOut</key><integer>40</integer>");
+  });
+
+  it("the veille runs once a day at 8:00: never at load, never restarted, never kept alive", () => {
+    const plist = buildPlist("veille", deps());
+    expect(plist).toMatch(
+      /<key>StartCalendarInterval<\/key>\s*<dict>\s*<key>Hour<\/key><integer>8<\/integer>\s*<key>Minute<\/key><integer>0<\/integer>\s*<\/dict>/,
+    );
+    expect(plist).toContain("<key>RunAtLoad</key><false/>");
+    expect(plist).not.toContain("KeepAlive");
+    expect(plist).not.toContain("ThrottleInterval");
+  });
+
+  it("every other program stays kept alive, and none of them is scheduled", () => {
+    for (const program of PROGRAMS.filter((p) => SCHEDULED[p] === undefined)) {
+      const plist = buildPlist(program, deps());
+      expect(plist).toContain("<key>KeepAlive</key>");
+      expect(plist).toContain("<key>RunAtLoad</key><true/>");
+      expect(plist).not.toContain("StartCalendarInterval");
+    }
+    expect(Object.keys(SCHEDULED)).toEqual(["veille"]);
   });
 
   it("odd paths (spaces, accents, & < > quotes) are escaped, never break the XML", () => {
@@ -168,6 +189,7 @@ describe("the runner", () => {
     ["server", "server"],
     ["bot", "bot"],
     ["cto", "cto:serve"],
+    ["veille", "veille"],
   ])("starts %s with exactly the env files of `npm run %s`", (program, npmScript) => {
     const script = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).scripts[npmScript];
     const runner = readFileSync(RUNNER, "utf8");

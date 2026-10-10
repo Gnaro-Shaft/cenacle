@@ -17,7 +17,12 @@ import {
   VEILLE_SYSTEM_PROMPT,
   VeilleConfigError,
 } from "@cenacle/cto/veille";
-import { connectOrQuit, createJournal, createVeilleStore } from "@cenacle/journal";
+import {
+  connectOrQuit,
+  createJournal,
+  createVeilleStore,
+  holdSingleInstance,
+} from "@cenacle/journal";
 import { createTelegramApi } from "@cenacle/telegram/api";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
@@ -39,6 +44,14 @@ const local = createLocalModels({
   maxTokens: 8_000,
 });
 const sql = connectOrQuit();
+// One veille at a time: one run by hand during the 8 o'clock one sends nothing (75).
+const lockSql = connectOrQuit("lock");
+const instance = await holdSingleInstance(lockSql, "veille");
+if (instance === null) {
+  console.error("🛑 Une autre veille tourne déjà : celle-ci ne fait rien.");
+  await Promise.all([lockSql.end(), sql.end()]);
+  process.exit(75);
+}
 const journal = createJournal(sql);
 const store = createVeilleStore(sql);
 
@@ -96,5 +109,6 @@ try {
   console.error(`🛑 ${errorText(error, [VeilleConfigError])} — veille non envoyée`);
   process.exitCode = 1;
 } finally {
-  await sql.end();
+  await instance.release();
+  await Promise.all([lockSql.end(), sql.end()]);
 }
