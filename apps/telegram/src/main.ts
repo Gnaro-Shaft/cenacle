@@ -5,7 +5,7 @@
 import { homedir } from "node:os";
 import { projectStatus, refuseForeignSecrets } from "@cenacle/core";
 import { askCtoService, ctoSocketPath } from "@cenacle/cto/client";
-import { connectAsApp, createJournal, holdSingleInstance, readAllEvents } from "@cenacle/journal";
+import { connectOrQuit, createJournal, holdSingleInstance, readAllEvents } from "@cenacle/journal";
 import { createTelegramApi } from "./api.ts";
 import { relayToCto } from "./cto-relay.ts";
 import { handleUpdate } from "./handler.ts";
@@ -17,11 +17,11 @@ if (!Number.isSafeInteger(allowedChatId) || allowedChatId === 0) {
 const api = createTelegramApi(process.env.TELEGRAM_BOT_TOKEN ?? "");
 // The bot holds its token, and nothing of the mailbox, the page or the database owner (S1).
 refuseForeignSecrets("The Telegram bot", ["telegram"]);
-const sql = connectAsApp();
+const sql = connectOrQuit();
 const journal = createJournal(sql);
 // One bot at a time (ADR-0019): Telegram refuses two pollers (409), and the
 // refused one would crash and be restarted every 30 s.
-const lockSql = connectAsApp();
+const lockSql = connectOrQuit();
 const instance = await holdSingleInstance(lockSql, "bot");
 if (instance === null) {
   console.error("🛑 Un autre bot Telegram tourne déjà : celui-ci ne démarre pas.");

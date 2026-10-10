@@ -14,7 +14,7 @@ import {
   SecretPlacementError,
   UsageError,
 } from "@cenacle/core";
-import { connectAsApp } from "@cenacle/journal";
+import { connectOrQuit } from "@cenacle/journal";
 import { type Decider, forTerminal, measureSorting, type Verdict } from "@cenacle/mail";
 import { readBack } from "./mesure-lecture.ts";
 import { createPrompt } from "./prompt.ts";
@@ -43,7 +43,7 @@ const pct = (r: number | null) => (r === null ? "—" : `${Math.round(r * 1000) 
 const maxArg = process.argv.indexOf("--max");
 const max = maxArg === -1 ? Number.POSITIVE_INFINITY : Number(process.argv[maxArg + 1]);
 refuseForeignSecrets("La mesure du rangement", ["mail"]);
-const sql = connectAsApp();
+const sql = connectOrQuit();
 const prompt = createPrompt();
 try {
   if (!(max > 0)) throw new UsageError("--max attend un nombre positif");

@@ -6,7 +6,7 @@
 
 import { askIris, createLocalModels, localModelConfigFromEnv } from "@cenacle/brain";
 import { errorText } from "@cenacle/core";
-import { connectAsApp, createJournal } from "@cenacle/journal";
+import { connectOrQuit, createJournal } from "@cenacle/journal";
 import { setupTracing } from "@cenacle/observability";
 
 const question = process.argv.slice(2).join(" ").trim();
@@ -16,7 +16,7 @@ if (question === "") {
 }
 
 const tracing = setupTracing("cenacle-cli");
-const sql = connectAsApp();
+const sql = connectOrQuit();
 try {
   const local = createLocalModels(localModelConfigFromEnv());
   console.log(`… Iris asks ${local.model.id} (local)`);

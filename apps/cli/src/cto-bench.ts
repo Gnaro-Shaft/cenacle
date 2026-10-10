@@ -13,7 +13,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { errorText, refuseForeignSecrets } from "@cenacle/core";
 import { ctoModels, rangeTarget, reviewCto } from "@cenacle/cto";
-import { connectAsApp, createJournal } from "@cenacle/journal";
+import { connectOrQuit, createJournal } from "@cenacle/journal";
 import { BENCH, found } from "./cto-bench/cases.ts";
 
 refuseForeignSecrets("Le banc du CTO", []);
@@ -21,7 +21,7 @@ const ROOT = join(import.meta.dirname, "..", "..", "..");
 const only = process.argv[2]?.split(",");
 const cases = BENCH.filter((c) => only === undefined || only.includes(c.id));
 const out = mkdtempSync(join(tmpdir(), "cto-bench-"));
-const sql = connectAsApp();
+const sql = connectOrQuit();
 const journal = createJournal(sql);
 const local = ctoModels();
 let hits = 0;

@@ -9,6 +9,7 @@
     "./test-db": "./src/test-db.ts"
   },
   "dependencies": {
+    "@cenacle/core": "0.0.0",
     "postgres": "3.4.9"
   }
 }

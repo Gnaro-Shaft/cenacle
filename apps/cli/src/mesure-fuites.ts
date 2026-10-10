@@ -10,12 +10,12 @@
  * sent, terminal output. Nothing is written anywhere.
  */
 import { errorText, refuseForeignSecrets, SecretPlacementError } from "@cenacle/core";
-import { connectAsApp } from "@cenacle/journal";
+import { connectOrQuit } from "@cenacle/journal";
 import { findLeaks, type Haystack, type Needle, type NeedleKind, searchable } from "@cenacle/mail";
 import { readBack } from "./mesure-lecture.ts";
 
 refuseForeignSecrets("La mesure des fuites", ["mail"]);
-const sql = connectAsApp();
+const sql = connectOrQuit();
 try {
   const { mails, gone } = await readBack(sql);
   const needles: Needle[] = mails.flatMap((m) => {

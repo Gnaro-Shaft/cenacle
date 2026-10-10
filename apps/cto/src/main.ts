@@ -19,14 +19,14 @@ import {
   listenCto,
   reviewCto,
 } from "@cenacle/cto";
-import { connectAsApp, createJournal, holdSingleInstance } from "@cenacle/journal";
+import { connectOrQuit, createJournal, holdSingleInstance } from "@cenacle/journal";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
 // The CTO reads documentation, never mail: no secret family at all (ADR-0017).
 refuseForeignSecrets("Le CTO", []);
-const sql = connectAsApp();
+const sql = connectOrQuit();
 // One service at a time: a second one would take over the socket of the first.
-const lockSql = connectAsApp();
+const lockSql = connectOrQuit();
 const instance = await holdSingleInstance(lockSql, "cto");
 if (instance === null) {
   console.error("🛑 Un autre service du CTO tourne déjà : celui-ci ne démarre pas.");

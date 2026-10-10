@@ -7,7 +7,7 @@
 import { createLocalModels, localModelConfigFromEnv } from "@cenacle/brain";
 import { countConversations, errorText } from "@cenacle/core";
 import {
-  connectAsApp,
+  connectOrQuit,
   createJournal,
   createLocationStore,
   createMailStore,
@@ -26,7 +26,7 @@ import {
 } from "@cenacle/mail";
 
 const rulesOnly = process.argv.includes("--rules-only");
-const sql = connectAsApp();
+const sql = connectOrQuit();
 try {
   const store = createMailStore(sql);
   const cadre = loadCadre();

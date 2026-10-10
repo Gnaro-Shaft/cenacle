@@ -8,7 +8,7 @@
  * Usage: npm run mail:auth-survey [-- --serveur=<name> --max=300]
  */
 import { errorText, UsageError } from "@cenacle/core";
-import { connectAsApp, createPeople } from "@cenacle/journal";
+import { connectOrQuit, createPeople } from "@cenacle/journal";
 import {
   authShape,
   KeyError,
@@ -71,7 +71,7 @@ function print(s: Survey, opposed: number, beforeLimit: number): void {
   }
 }
 
-const sql = connectAsApp();
+const sql = connectOrQuit();
 try {
   const max = Number(option("max") ?? "300");
   if (!Number.isSafeInteger(max) || max < 1 || max > MAX_SURVEYED) {

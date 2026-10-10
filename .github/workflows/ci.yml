@@ -11,6 +11,10 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # To pull GreenMail's copy from this repository's GitHub registry.
+      packages: read
     env:
       # Throwaway values for the CI database only — not secrets.
       CENACLE_DB_PORT: "55432"
@@ -20,7 +24,10 @@ jobs:
       CENACLE_TEST_MAIL_PASSWORD: ci_test_mailbox_only_000
     services:
       db:
-        image: postgres:18-alpine
+        # From AWS's public mirror of Docker's official images, pinned by digest:
+        # the very image of docker.io/library/postgres:18-alpine (same digest),
+        # without Docker Hub's anonymous pull limit, which failed the CI.
+        image: public.ecr.aws/docker/library/postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
         env:
           POSTGRES_USER: cenacle_owner
           POSTGRES_PASSWORD: ci_owner_only_for_ci_0000
@@ -31,7 +38,12 @@ jobs:
           --health-cmd "pg_isready -U cenacle_owner -d cenacle"
           --health-interval 5s --health-timeout 3s --health-retries 10
       mail:
-        image: greenmail/standalone:2.1.14
+        # GreenMail has no public mirror: mirror-images.yml copied its official
+        # image here, digest for digest (sha256:1ef9…1626, same as Docker Hub).
+        image: ghcr.io/gnaro-shaft/greenmail-standalone:2.1.14@sha256:1ef95a966418cd09b7ea91d504d8c0826bbe7a2f6e679a75c601a831587c1626
+        credentials:
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
         env:
           GREENMAIL_OPTS: >-
             -Dgreenmail.setup.test.smtp -Dgreenmail.setup.test.imap
