@@ -16,6 +16,12 @@ Il ne répond que par son code de sortie : **0** fait, **10** rien à relancer, 
 
 Il a **sa propre clé** : la clé « services » ne redémarre pas, la clé « redémarrer » ne relance pas de services.
 
+## Le troisième script : les mises à jour de sécurité (J6f3)
+
+`cenacle-maj-securite` **lance en tâche de fond** `unattended-upgrade` (qui n'installe que l'origine « sécurité »), dans une unité systemd à part (`cenacle-maj`) qui survit à la connexion, et répond tout de suite. **Jamais de redémarrage** : il refuse si `unattended-upgrade` est réglé pour redémarrer tout seul (`Unattended-Upgrade::Automatic-Reboot`) — le redémarrage reste ton bouton 🔄. Il refuse aussi si une mise à jour de Cénacle tourne déjà, ou s'il reste moins de 1 Go sur `/`. Codes : **0** lancée, **10** `unattended-upgrade` absent (`sudo apt install unattended-upgrades`), **11** refus, **12** échec. La mise à jour elle-même : `journalctl -u cenacle-maj`.
+
+Sa **propre clé** aussi, `vps-b-maj`, sur le même modèle (ligne `command="sudo -n /usr/local/sbin/cenacle-maj-securite",restrict,from=…`).
+
 ## Sur le serveur, une fois
 
 Depuis le Mac, dans le dossier de Cénacle (`ubuntu@` : le compte que tu utilises sur le VPS) :
@@ -77,7 +83,7 @@ Attendu : `code 10` (rien à relancer) ou `code 0` (relancé). Pour le redémarr
 
 ## Relier l'opérateur
 
-Copie `serveurs.local.example.toml` en `serveurs.local.toml` (ignoré par git) et remplis-le : le nom de la machine **tel que la ronde de Legion l'écrit**, son adresse, le compte `cenacle`, le chemin de chaque clé (`cles = { services = "…", redemarrer = "…" }` — une action sans clé n'est jamais lancée), le `known_hosts`. Puis, dans le dossier de Cénacle :
+Copie `serveurs.local.example.toml` en `serveurs.local.toml` (ignoré par git) et remplis-le : le nom de la machine **tel que la ronde de Legion l'écrit**, son adresse, le compte `cenacle`, le chemin de chaque clé (`cles = { services = "…", redemarrer = "…", maj_securite = "…" }` — une action sans clé n'est jamais lancée), le `known_hosts`. Puis, dans le dossier de Cénacle :
 
 ```
 npm run service -- install operateur

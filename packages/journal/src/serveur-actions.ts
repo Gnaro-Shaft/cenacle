@@ -9,7 +9,7 @@
 import { randomBytes } from "node:crypto";
 import type { Sql } from "postgres";
 
-export type ServerAction = "services" | "redemarrer";
+export type ServerAction = "services" | "redemarrer" | "maj_securite";
 export type ServerActionState =
   | "demandee"
   | "confirmee"

@@ -9,7 +9,7 @@
  * else is ignored. The words the bot answers with are fixed here.
  */
 
-export type ButtonAction = "take" | "keep" | "refuse" | "fix" | "server" | "reboot";
+export type ButtonAction = "take" | "keep" | "refuse" | "fix" | "server" | "reboot" | "update";
 
 export interface Button {
   readonly text: string;
@@ -29,6 +29,7 @@ const CODE: Readonly<Record<ButtonAction, string>> = {
   fix: "f",
   server: "v",
   reboot: "b",
+  update: "u",
 };
 const ACTION: Readonly<Record<string, ButtonAction>> = {
   t: "take",
@@ -37,8 +38,9 @@ const ACTION: Readonly<Record<string, ButtonAction>> = {
   f: "fix",
   v: "server",
   b: "reboot",
+  u: "update",
 };
-const DATA = /^s:(\d{1,12}):([tkrfvb]):([0-9a-f]{16})$/;
+const DATA = /^s:(\d{1,12}):([tkrfvbu]):([0-9a-f]{16})$/;
 export const MAX_BUTTON_DATA = 64;
 /** At most this many findings get buttons in one message. */
 export const MAX_BUTTON_ROWS = 10;
@@ -53,7 +55,7 @@ export function keyboard(
     token: string;
     fixable?: boolean;
     /** The catalogue's action on a server answering this finding, when the switch is on. */
-    server?: "services" | "redemarrer" | null;
+    server?: "services" | "redemarrer" | "maj_securite" | null;
   }[],
 ): Button[][] {
   return findings
@@ -69,7 +71,9 @@ export function keyboard(
             ? ([["server", `🔁 n°${id} relancer les services`]] as const)
             : server === "redemarrer"
               ? ([["reboot", `🔄 n°${id} redémarrer`]] as const)
-              : []),
+              : server === "maj_securite"
+                ? ([["update", `⬆ n°${id} mises à jour de sécurité`]] as const)
+                : []),
         ] as const
       ).map(([action, text]) => ({ text, data: `s:${id}:${CODE[action]}:${token}` })),
     );
@@ -147,10 +151,16 @@ export const ANSWER = {
     `❌ Fermeture demandée (constat n°${id}) : la prochaine ronde ferme la PR.`,
   notReady: "Cette PR n'attend pas de décision (CI pas encore verte, ou déjà décidée).",
   server: (id: number) => `🔁 Constat n°${id} : confirme dans les 2 minutes.`,
-  serverAsk: (host: string, id: number, action: "services" | "redemarrer" = "services") =>
-    action === "redemarrer"
-      ? `🔄 Redémarrer ${host} (constat n°${id}) ? Dans une minute, la machine sera coupée 1 à 3 minutes. Le serveur refuse s'il a redémarré depuis moins de 24 h, ou si sa grappe est incomplète.`
-      : `🔁 Relancer les services sur ${host} (constat n°${id}) ? Seuls ceux que needrestart désigne, hors exclusions du serveur.`,
+  serverAsk: (
+    host: string,
+    id: number,
+    action: "services" | "redemarrer" | "maj_securite" = "services",
+  ) =>
+    action === "maj_securite"
+      ? `⬆ Appliquer les mises à jour de sécurité sur ${host} (constat n°${id}) ? Sans redémarrage ; s'il en faut un ensuite, tu auras le bouton 🔄.`
+      : action === "redemarrer"
+        ? `🔄 Redémarrer ${host} (constat n°${id}) ? Dans une minute, la machine sera coupée 1 à 3 minutes. Le serveur refuse s'il a redémarré depuis moins de 24 h, ou si sa grappe est incomplète.`
+        : `🔁 Relancer les services sur ${host} (constat n°${id}) ? Seuls ceux que needrestart désigne, hors exclusions du serveur.`,
   serverConfirmed:
     "✅ Confirmé : l'opérateur s'en charge dans la minute (si le Mac est allumé), et te dira le résultat.",
   serverExpired:

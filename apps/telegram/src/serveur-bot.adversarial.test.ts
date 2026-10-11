@@ -281,3 +281,38 @@ describe("🔄 under a reboot finding (J6f2)", () => {
     ]);
   });
 });
+
+describe("⬆ under a security-update finding (J6f3)", () => {
+  it("an update request for that machine, said without reboot", async () => {
+    const w = world({ findings: [finding(46, "serveur_maj_securite")] });
+    await handleCallback(tap(`s:46:u:${TOKEN}`), w.deps);
+    expect(w.requests).toEqual([{ findingId: 46, host: "v10-essai", at: NOW }]);
+    expect(w.calls.find((c) => c.startsWith("buttons"))).toMatch(
+      /^buttons ⬆ Appliquer les mises à jour de sécurité sur v10-essai \(constat n°46\) \? Sans redémarrage/,
+    );
+  });
+
+  it("⬆ under a reboot finding, or 🔄 under an update finding: refused", async () => {
+    const r = world({ findings: [finding(44, "serveur_redemarrage")] });
+    await handleCallback(tap(`s:44:u:${TOKEN}`), r.deps);
+    expect(r.requests).toEqual([]);
+    const u = world({ findings: [finding(46, "serveur_maj_securite")] });
+    await handleCallback(tap(`s:46:b:${TOKEN}`), u.deps);
+    expect(u.requests).toEqual([]);
+  });
+
+  it("/constats: ⬆ under the update finding only", async () => {
+    const w = world({
+      findings: [finding(46, "serveur_maj_securite"), finding(47, "serveur_port")],
+    });
+    await listFindings(OWNER, w.deps);
+    const data =
+      (w.calls.find((c) => c.startsWith("buttons")) ?? "").split(" ").at(-1)?.split(",") ?? [];
+    expect(
+      data
+        .map(parsePressed)
+        .filter((p) => p?.action === "update")
+        .map((p) => p?.id),
+    ).toEqual([46]);
+  });
+});

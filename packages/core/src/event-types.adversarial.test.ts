@@ -23,7 +23,9 @@ function sources(dir: string): string[] {
     if (entry.isDirectory()) {
       return ["node_modules", "dist"].includes(entry.name) ? [] : sources(path);
     }
-    return /\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name) ? [path] : [];
+    // Tests, and their shared scaffolding (test-world.ts, test-db.ts), write no event.
+    const test = /\.test\.tsx?$/.test(entry.name) || /^test-[a-z-]+\.ts$/.test(entry.name);
+    return /\.tsx?$/.test(entry.name) && !test ? [path] : [];
   });
 }
 

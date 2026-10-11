@@ -189,3 +189,80 @@ describe.skipIf(!docker)("cenacle-redemarrer on a throwaway Ubuntu", () => {
     expect(r.get("nothing_required")).toEqual({ code: 10, shutdown: "" });
   });
 });
+
+// cenacle-maj-securite (J6f3): unattended-upgrade, apt-config, systemctl,
+// systemd-run and df are stand-ins; the update is started, never run inline.
+const UPDATE_HARNESS = String.raw`#!/bin/bash
+set -u
+mkdir -p /fake && chmod 777 /fake
+stub() { printf '#!/bin/sh\n%s\n' "$2" > "$1"; chmod 755 "$1"; }
+stub /usr/bin/unattended-upgrade 'echo ran-inline > /fake/inline'
+stub /usr/bin/apt-config 'cat /fake/aptconf 2>/dev/null'
+stub /usr/bin/systemctl '[ -e /fake/active ] && exit 0; exit 3'
+stub /usr/bin/systemd-run '[ -e /fake/run-fails ] && exit 1; echo "$@" > /fake/run'
+stub /usr/bin/df 'printf "Filesystem 1024-blocks Used Available Capacity Mounted\n/dev/x 9 9 %s 50%% /\n" "$(cat /fake/free)"'
+run() {
+  name=$1; shift
+  rm -f /fake/run /fake/inline
+  /usr/local/sbin/cenacle-maj-securite "$@" >/dev/null 2>&1; code=$?
+  echo "$name|$code|$(cat /fake/run 2>/dev/null)$(cat /fake/inline 2>/dev/null)"
+}
+echo 5000000 > /fake/free
+: > /fake/aptconf; run nominal
+echo 'Unattended-Upgrade::Automatic-Reboot "true";' > /fake/aptconf; run auto_reboot
+echo 'Unattended-Upgrade::Automatic-Reboot "false";' > /fake/aptconf; run reboot_off
+: > /fake/aptconf
+touch /fake/active; run already_running; rm -f /fake/active
+echo 500000 > /fake/free; run disk_full
+echo 'n/a' > /fake/free; run disk_unreadable; echo 5000000 > /fake/free
+run argument now
+touch /fake/run-fails; run start_fails; rm -f /fake/run-fails
+su nobody -s /bin/bash -c '/usr/local/sbin/cenacle-maj-securite' >/dev/null 2>&1; echo "not_root|$?|"
+rm -f /usr/bin/unattended-upgrade; run no_tool
+`;
+
+describe.skipIf(!docker)("cenacle-maj-securite on a throwaway Ubuntu", () => {
+  it("each guard; started in its own unit, never inline, never a reboot", () => {
+    const harness = join(BASE, "update-harness.sh");
+    writeFileSync(harness, UPDATE_HARNESS, { mode: 0o755 });
+    const out = execFileSync(
+      "docker",
+      [
+        "run",
+        "--rm",
+        "--network",
+        "none",
+        "-v",
+        `${join(ROOT, "deploy", "serveurs", "cenacle-maj-securite")}:/usr/local/sbin/cenacle-maj-securite:ro`,
+        "-v",
+        `${harness}:/harness.sh:ro`,
+        "ubuntu:24.04",
+        "/bin/bash",
+        "/harness.sh",
+      ],
+      { encoding: "utf8", timeout: 120_000 },
+    );
+    const results = Object.fromEntries(
+      out
+        .trim()
+        .split("\n")
+        .map((line) => {
+          const [name = "", code = "", seen = ""] = line.split("|");
+          return [name, { code: Number(code), seen: seen.trim() }];
+        }),
+    );
+    const started = "--unit=cenacle-maj --collect --quiet /usr/bin/unattended-upgrade";
+    expect(results).toEqual({
+      nominal: { code: 0, seen: started },
+      auto_reboot: { code: 11, seen: "" },
+      reboot_off: { code: 0, seen: started },
+      already_running: { code: 11, seen: "" },
+      disk_full: { code: 11, seen: "" },
+      disk_unreadable: { code: 11, seen: "" },
+      argument: { code: 11, seen: "" },
+      start_fails: { code: 12, seen: "" },
+      not_root: { code: 11, seen: "" },
+      no_tool: { code: 10, seen: "" },
+    });
+  });
+});

@@ -4,131 +4,10 @@
 // the problem; one action per pass, none while another runs; the exit code
 // alone decides the outcome; a later verdict proves it, an earlier one never;
 // a message that fails goes again; an address or a key path is never told.
-import type { FinalState, ServerActionState, StoredServerAction, Verified } from "@cenacle/journal";
 import { type Observation, parseServers } from "@cenacle/securite";
 import { describe, expect, it } from "vitest";
 import { message, type OperatorDeps, runOperator } from "./run.ts";
-
-const NOW = new Date("2026-10-11T10:00:00Z");
-const MIN = 60_000;
-const CONFIG = parseServers(`known_hosts = "/Users/exemple/.ssh/cenacle/known_hosts"
-[[serveur]]
-nom = "vps-b"
-adresse = "vps-b.exemple.test"
-compte = "cenacle"
-cles = { services = "/Users/exemple/.ssh/cenacle/vps-b-services", redemarrer = "/Users/exemple/.ssh/cenacle/vps-b-redemarrer" }
-`);
-const SEEN: Observation[] = [
-  { type: "serveur_services", target: "vps-b", occurrence: "-", severity: "moyen", title: "x" },
-];
-
-type Row = { -readonly [K in keyof StoredServerAction]: StoredServerAction[K] } & { told: boolean };
-
-function world(over: Partial<OperatorDeps> = {}, hosts: string[] = ["vps-b"]) {
-  const rows: Row[] = hosts.map((host, i) => ({
-    id: i + 1,
-    findingId: 40 + i,
-    host,
-    action: "services",
-    state: "confirmee",
-    requestedAt: NOW,
-    finishedAt: null,
-    exitCode: null,
-    refusal: null,
-    verified: null,
-    told: true,
-  }));
-  const calls: string[][] = [];
-  const sent: string[] = [];
-  const events: Record<string, unknown>[] = [];
-  let verdictAt = NOW.getTime() - 5 * MIN;
-  let seen = SEEN;
-  let hostEtat = "SOUFFRANT";
-  let rebootedRecently = false;
-  const set = (id: number, patch: Partial<Row>) => {
-    const r = rows.find((x) => x.id === id);
-    if (r !== undefined) Object.assign(r, patch);
-  };
-  const FINAL: ServerActionState[] = [
-    "expiree",
-    "faite",
-    "rien_a_faire",
-    "refusee_serveur",
-    "refusee",
-    "echouee",
-  ];
-  const deps: OperatorDeps = {
-    store: {
-      expire: async () => 0,
-      abandonStale: async () => 0,
-      next: async () => rows.find((r) => r.state === "confirmee") ?? null,
-      doneSince: async () => rebootedRecently,
-      claim: async (id) => {
-        if (rows.some((r) => r.state === "en_cours")) return false;
-        set(id, { state: "en_cours" });
-        return true;
-      },
-      refuse: async (id, refusal, now) => {
-        set(id, { state: "refusee", refusal, finishedAt: now, told: false });
-        return true;
-      },
-      finish: async (id, state: FinalState, exitCode, now) => {
-        set(id, { state, exitCode, finishedAt: now, told: false });
-        return true;
-      },
-      toVerify: async () => rows.filter((r) => r.state === "faite" && r.verified === null),
-      verify: async (id, verified: Verified) => {
-        set(id, { verified, told: false });
-        return true;
-      },
-      toTell: async () => rows.filter((r) => !r.told && FINAL.includes(r.state)),
-      markTold: async (ids) => {
-        for (const id of ids) set(id, { told: true });
-      },
-      purge: async () => 0,
-    },
-    active: true,
-    config: CONFIG,
-    verdict: () =>
-      `bulletin=1\ninstant=${Math.floor(verdictAt / 1000)}\nvps-b.etat=${hostEtat}\nfin=1`,
-    parseVerdict: () => seen,
-    keyIsPrivate: () => true,
-    ssh: async (args) => {
-      calls.push([...args]);
-      return 0;
-    },
-    send: async (text) => {
-      sent.push(text);
-    },
-    journal: {
-      append: async (e) => {
-        events.push(e.payload ?? {});
-        return { id: 1n, occurredAt: NOW, agent: e.agent, type: e.type, payload: e.payload ?? {} };
-      },
-    },
-    now: () => NOW,
-    ...over,
-  };
-  return {
-    deps,
-    rows,
-    calls,
-    sent,
-    events,
-    verdictAt: (ms: number) => {
-      verdictAt = ms;
-    },
-    seen: (s: Observation[]) => {
-      seen = s;
-    },
-    hostEtat: (e: string) => {
-      hostEtat = e;
-    },
-    rebootedRecently: () => {
-      rebootedRecently = true;
-    },
-  };
-}
+import { MIN, NOW, type Row, SEEN, world } from "./test-world.ts";
 
 describe("before acting, everything again", () => {
   it("all holds: one fixed ssh call, no command; done, told, journaled as counts", async () => {
@@ -371,5 +250,72 @@ cles = { services = "/Users/exemple/.ssh/cenacle/vps-b-services" }
     await runOperator(w.deps);
     expect(w.rows[0]?.verified).toBe("toujours_la");
     expect(w.sent.at(-1)).toMatch(/demande encore un redémarrage/);
+  });
+});
+
+describe("the security updates (J6f3)", () => {
+  const PENDING: Observation[] = [
+    {
+      type: "serveur_maj_securite",
+      target: "vps-b",
+      occurrence: "-",
+      severity: "eleve",
+      title: "x",
+    },
+  ];
+  const update = () => {
+    const w = world();
+    (w.rows[0] as Row).action = "maj_securite";
+    w.seen(PENDING);
+    return w;
+  };
+
+  it("its own key; started, said as started — never as done", async () => {
+    const w = update();
+    await runOperator(w.deps);
+    expect(w.calls[0]).toContain("/Users/exemple/.ssh/cenacle/vps-b-maj");
+    expect(w.calls[0]?.some((a) => /services|redemarrer/.test(a))).toBe(false);
+    expect(w.sent[0]).toMatch(/^⬆ vps-b \(constat n°40\) : mises à jour de sécurité lancées/);
+  });
+
+  it("no proof before 10 minutes; then gone from the verdict: applied", async () => {
+    const w = update();
+    await runOperator(w.deps);
+    const done = w.rows[0] as Row;
+    done.finishedAt = new Date(NOW.getTime() - 12 * MIN);
+    w.seen([]);
+    w.verdictAt(NOW.getTime() - 5 * MIN);
+    expect((await runOperator(w.deps)).verified).toBe(0);
+    w.verdictAt(NOW.getTime() - MIN);
+    expect((await runOperator(w.deps)).verified).toBe(1);
+    expect(done.verified).toBe("disparu");
+    expect(w.sent.at(-1)).toMatch(/^✅ vps-b .* plus aucune mise à jour de sécurité en attente/);
+  });
+
+  it("still pending: patience until 2 hours, then said once", async () => {
+    const w = update();
+    await runOperator(w.deps);
+    const done = w.rows[0] as Row;
+    w.verdictAt(NOW.getTime());
+    done.finishedAt = new Date(NOW.getTime() - 90 * MIN);
+    expect((await runOperator(w.deps)).verified).toBe(0);
+    done.finishedAt = new Date(NOW.getTime() - 121 * MIN);
+    expect((await runOperator(w.deps)).verified).toBe(1);
+    expect(done.verified).toBe("toujours_la");
+    expect(w.sent.at(-1)).toMatch(/encore en attente 2 heures après/);
+    const told = w.sent.length;
+    await runOperator(w.deps);
+    expect(w.sent).toHaveLength(told);
+  });
+
+  it("the server's guard and the missing tool, said for what they are", async () => {
+    for (const [code, said] of [
+      [11, /redémarrage automatique réglé, mise à jour déjà en cours, ou moins de 1 Go libre/],
+      [10, /unattended-upgrade n'est pas installé/],
+    ] as const) {
+      const w = update();
+      await runOperator({ ...w.deps, ssh: async () => code });
+      expect(w.sent[0]).toMatch(said);
+    }
   });
 });
