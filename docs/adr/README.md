@@ -31,5 +31,6 @@ Elles sont rédigées en français (le code et le README sont en anglais).
 | [0024](0024-veille-du-cto.md) | La veille du CTO : un programme à part, des flux publics, le modèle local | Acceptée |
 | [0025](0025-agent-securite.md) | L'agent sécurité : des contrôles sans IA, des constats suivis, le CTO qui pilote | Acceptée |
 | [0026](0026-delegations-et-carnet-de-confiance.md) | Délégations et carnet de confiance ; la fusion par mon bouton | Acceptée |
+| [0027](0027-actions-sur-les-serveurs.md) | Agir sur les serveurs : un catalogue fermé, mon bouton, des garde-fous sur le serveur | Proposée |
 
 Les règles dures qui s'appliquent à tout le code sont dans [`../charte.md`](../charte.md).

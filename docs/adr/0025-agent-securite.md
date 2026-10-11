@@ -54,6 +54,7 @@ Un quatrième bouton, **🔧 prépare la PR**, seulement sous un constat que le 
 ## Paliers à venir
 - **J6d** — fait : voir l'ADR-0026 (✅ Fusionner par mon bouton, carnet de confiance, délégations dans `securite.toml`).
 - **J6e1** — fait : la sentinelle surveille aussi l'agent (un battement par ronde allée à son terme, 35 minutes de silence ; révision de l'ADR-0002).
+- **J6f** — les actions sur les serveurs : voir l'ADR-0027 (proposée), qui révise « Cénacle ne se connecte à aucun serveur ».
 - **J6e** — suite : le serveur (bulletin en lecture seule, puis des scripts fixes posés sur le serveur, joignables par une clé restreinte à eux, déclenchés par mon accord ; un redémarrage reste toujours une question), mes autres projets, les bulletins de sécurité.
 
 ## Révision du 2026-10-11 — dix minutes entre les deux observations
