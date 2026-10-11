@@ -50,7 +50,7 @@ La menace qui guide la conception : **le Mac, ou mon compte Telegram, compromis*
 ## Paliers
 
 - **J6f0** — cet ADR, pour relecture.
-- **J6f1** — les scripts serveur et leur guide (`deploy/serveurs/`), le programme `operateur`, le bouton et sa confirmation ; **une seule action : relancer les services**. Essai réel sur un VPS qui n'est ni la sentinelle ni l'hôte de Legion.
+- **J6f1** — **une seule action : relancer les services**, en deux temps : **J6f1a** le côté serveur (`deploy/serveurs/` : script, installation, guide, essai à la main) et le programme `operateur` (table `serveur_actions`, interrupteur `[serveurs] actif = false`) ; **J6f1b** le bouton et sa confirmation. Essai réel sur un VPS qui n'est ni la sentinelle ni l'hôte de Legion.
 - **J6f2** — le redémarrage : quorum de la grappe, 24 heures, preuve du retour, alerte si la machine ne revient pas.
 - **J6f3** — les mises à jour de sécurité, sans redémarrage.
 

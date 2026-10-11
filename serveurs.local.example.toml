@@ -1,0 +1,18 @@
+# The servers the operator may act on (J6f, ADR-0027). Copy to
+# serveurs.local.toml (git-ignored: addresses and paths of your machine).
+# See deploy/serveurs/README.md. Nothing runs while securite.toml says
+# [serveurs] actif = false.
+#
+#   known_hosts  Cénacle's own known_hosts, the servers' fingerprints pinned
+#   nom          the machine as Legion's ronde names it (in the findings)
+#   adresse      its host name (Tailscale)
+#   compte       the dedicated account on it, never root
+#   cles         one key per action of the catalogue, readable by you only
+
+known_hosts = "/Users/exemple/.ssh/cenacle/known_hosts"
+
+[[serveur]]
+nom = "vps-b"
+adresse = "vps-b.exemple.test"
+compte = "cenacle"
+cles = { services = "/Users/exemple/.ssh/cenacle/vps-b-services" }

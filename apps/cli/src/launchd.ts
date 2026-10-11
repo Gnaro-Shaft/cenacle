@@ -3,7 +3,8 @@
  * server, the Telegram bot, the page and the CTO run all the time, restarted
  * after a crash only (SuccessfulExit false): never after /stop. The CTO's
  * veille (ADR-0024) runs once a day at a fixed time instead, and the security
- * agent's round (ADR-0025) every 15 minutes; neither is restarted: a failure
+ * agent's round (ADR-0025) every 15 minutes, the operator (ADR-0027) every
+ * minute; none is restarted: a failure
  * is said in its message, and it runs again at its next time.
  * Each LaunchAgent is written on this Mac at install time, from the paths
  * found then — none is stored in the repository. It names files, never
@@ -12,7 +13,16 @@
 import { chmodSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join } from "node:path";
 
-export const PROGRAMS = ["iris", "server", "bot", "web", "cto", "veille", "securite"] as const;
+export const PROGRAMS = [
+  "iris",
+  "server",
+  "bot",
+  "web",
+  "cto",
+  "veille",
+  "securite",
+  "operateur",
+] as const;
 export type Program = (typeof PROGRAMS)[number];
 
 /**
@@ -30,6 +40,8 @@ export const SCHEDULED: Readonly<Partial<Record<Program, { hour: number; minute:
  */
 export const INTERVALS: Readonly<Partial<Record<Program, number>>> = {
   securite: 900,
+  // The operator (ADR-0027): a confirmed request on a server waits a minute at most.
+  operateur: 60,
 };
 
 export interface ServicePaths {

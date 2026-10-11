@@ -70,7 +70,12 @@ export {
   type SeenObservation,
 } from "./lifecycle.ts";
 export { MAX_LEAKS, parseGitleaks } from "./parse-gitleaks.ts";
-export { classifyMotif, LEGION_STALE_MS, parseLegionVerdict } from "./parse-legion.ts";
+export {
+  classifyMotif,
+  LEGION_STALE_MS,
+  LEGION_VERDICT_PATH,
+  parseLegionVerdict,
+} from "./parse-legion.ts";
 export {
   parseFileVault,
   parseFirewall,
@@ -108,6 +113,21 @@ export {
   TELEGRAM_MAX,
   type TrustLine,
 } from "./report.ts";
+export {
+  EXIT,
+  motifPresent,
+  outcomeOf,
+  parseServerSwitch,
+  parseServers,
+  type RunOutcome,
+  SERVER_CATALOGUE,
+  type Server,
+  type ServerActionName,
+  type ServersConfig,
+  ServersConfigError,
+  sshArgs,
+  verdictInstant,
+} from "./servers.ts";
 export {
   CheckOutputError,
   type CheckResult,

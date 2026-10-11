@@ -1,0 +1,55 @@
+#!/bin/bash
+# cenacle-services (J6f, ADR-0027): restarts the services running on a
+# replaced library, as needrestart lists them — never one of the exclusions
+# (ssh, tailscaled, docker, the cluster…), never anything else. Started only
+# through the `cenacle` account's key (forced command, sudo for this script
+# alone); it takes no argument and reads nothing from the caller.
+# Answers by its exit code only: 0 done, 10 nothing to do, 11 refused by a
+# guard, 12 failed. Every run leaves a line in the system journal
+# (journalctl -t cenacle).
+set -u
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+readonly EXCLUSIONS_FILE=/etc/cenacle/services-exclus
+readonly DEFAULT_EXCLUSIONS="ssh.service sshd.service tailscaled.service docker.service containerd.service corosync.service pve-cluster.service"
+readonly MAX_SERVICES=30
+
+log() { /usr/bin/logger -t cenacle -- "services: $*"; }
+
+if [ "$#" -ne 0 ]; then log "refus: un argument a ete passe"; exit 11; fi
+if [ "$(/usr/bin/id -u)" != "0" ]; then log "refus: pas root (sudo attendu)"; exit 11; fi
+if [ ! -x /usr/sbin/needrestart ]; then log "refus: needrestart absent"; exit 11; fi
+
+# Batch mode, list only: lines "NEEDRESTART-SVC: name.service".
+if ! out="$(/usr/sbin/needrestart -r l -b 2>/dev/null)"; then log "echec: needrestart"; exit 12; fi
+if ! printf '%s\n' "$out" | /usr/bin/grep -q '^NEEDRESTART-VER:'; then
+  log "refus: sortie de needrestart illisible"; exit 11
+fi
+
+exclusions=" $DEFAULT_EXCLUSIONS "
+if [ -r "$EXCLUSIONS_FILE" ]; then
+  while IFS= read -r line; do
+    case "$line" in ''|'#'*) continue ;; esac
+    exclusions="$exclusions$line "
+  done < "$EXCLUSIONS_FILE"
+fi
+
+todo=()
+while IFS= read -r svc; do
+  [ -z "$svc" ] && continue
+  if ! [[ "$svc" =~ ^[A-Za-z0-9@._-]{1,100}\.service$ ]]; then
+    log "refus: nom de service inattendu"; exit 11
+  fi
+  case "$exclusions" in *" $svc "*) log "exclu: $svc"; continue ;; esac
+  todo+=("$svc")
+done < <(printf '%s\n' "$out" | /usr/bin/sed -n 's/^NEEDRESTART-SVC: //p')
+
+if [ "${#todo[@]}" -eq 0 ]; then log "rien a relancer"; exit 10; fi
+if [ "${#todo[@]}" -gt "$MAX_SERVICES" ]; then log "refus: ${#todo[@]} services, plus de $MAX_SERVICES"; exit 11; fi
+
+failed=0
+for svc in "${todo[@]}"; do
+  if /usr/bin/systemctl restart -- "$svc"; then log "relance: $svc"; else log "echec: $svc"; failed=1; fi
+done
+if [ "$failed" -ne 0 ]; then exit 12; fi
+log "fait: ${#todo[@]} service(s)"
+exit 0

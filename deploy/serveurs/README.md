@@ -1,0 +1,70 @@
+# Les actions sur les serveurs (J6f — ADR-0027)
+
+Cénacle peut, sur mon bouton confirmé dans Telegram, lancer **un script fixe** sur un serveur. Ce dossier contient ce qu'il faut poser sur chaque serveur, et la façon de relier le Mac. Rien ici ne contient de vraie adresse, de vrai nom ni de clé : `vps-b` est un nom d'exemple.
+
+La sûreté est **sur le serveur** : un compte dédié qui n'est pas root, une clé par action qui ne sait lancer qu'un script, `sudo` pour ce script seul et sans argument, et un script qui refuse de lui-même ce qui est dangereux. Si le Mac était compromis, au pire il relancerait des services que `needrestart` désigne déjà, hors exclusions.
+
+## Le script
+
+`cenacle-services` relance les services qui tournent sur une bibliothèque remplacée (la liste de `needrestart`), **sauf** : `ssh`, `sshd`, `tailscaled`, `docker`, `containerd`, `corosync`, `pve-cluster` — et ce que tu ajoutes dans `/etc/cenacle/services-exclus` (un nom par ligne, `nom.service`). Ceux-là restent à toi, à la main.
+
+Il ne répond que par son code de sortie : **0** fait, **10** rien à relancer, **11** refusé par un garde-fou (argument passé, pas root, sortie de `needrestart` illisible, nom de service inattendu, plus de 30 services), **12** échec. Chaque passage laisse une ligne : `journalctl -t cenacle`.
+
+## Sur le serveur, une fois
+
+Depuis le Mac, dans le dossier de Cénacle (`ubuntu@` : le compte que tu utilises sur le VPS) :
+
+```
+rsync -a deploy/serveurs ubuntu@<vps>:cenacle-serveurs/
+```
+
+Puis sur le serveur :
+
+```
+sudo apt install needrestart
+sudo ~/cenacle-serveurs/serveurs/install.sh
+```
+
+Il crée le compte `cenacle` (sans mot de passe), pose le script dans `/usr/local/sbin`, la liste d'exclusions dans `/etc/cenacle/`, et la règle `sudo` dans `/etc/sudoers.d/cenacle` — vérifiée par `visudo` avant de prendre effet. Le relancer est sans danger.
+
+## Sur le Mac, une clé par action et par machine
+
+```
+mkdir -p -m 700 ~/.ssh/cenacle
+ssh-keygen -t ed25519 -N "" -C "cenacle vps-b services" -f ~/.ssh/cenacle/vps-b-services
+```
+
+La clé n'a pas de phrase de passe (l'opérateur tourne seul) : elle est protégée par FileVault et par ses droits (`600`, l'opérateur refuse une clé lisible par un autre). Elle ne sait lancer qu'un script, depuis le Mac seulement.
+
+Sur le serveur, ajoute **une ligne** à `~cenacle/.ssh/authorized_keys` — la clé publique (`vps-b-services.pub`) précédée de ses verrous ; `<adresse Tailscale du Mac>` est l'adresse `100.x.y.z` du Mac :
+
+```
+command="sudo -n /usr/local/sbin/cenacle-services",restrict,from="<adresse Tailscale du Mac>" ssh-ed25519 AAAA… cenacle vps-b services
+```
+
+Épingle l'empreinte du serveur dans un `known_hosts` à Cénacle, et **compare-la** à celle que le serveur donne lui-même (`ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`, sur le serveur) :
+
+```
+ssh-keyscan -t ed25519 <vps> > ~/.ssh/cenacle/known_hosts
+ssh-keygen -lf ~/.ssh/cenacle/known_hosts
+```
+
+## L'essai à la main, avant tout bouton
+
+Depuis le Mac (`<vps>` : son nom Tailscale) :
+
+```
+ssh -T -F /dev/null -i ~/.ssh/cenacle/vps-b-services -o IdentitiesOnly=yes -o UserKnownHostsFile=~/.ssh/cenacle/known_hosts -l cenacle <vps>; echo "code $?"
+```
+
+Attendu : `code 10` (rien à relancer) ou `code 0` (relancé). Puis la preuve que la clé ne sait rien faire d'autre — la même commande suivie de `ls` doit **encore** lancer le script (même code, aucune liste de fichiers) ; et `-t` à la place de `-T` doit refuser le terminal. Sur le serveur, `journalctl -t cenacle` montre chaque passage.
+
+## Relier l'opérateur
+
+Copie `serveurs.local.example.toml` en `serveurs.local.toml` (ignoré par git) et remplis-le : le nom de la machine **tel que la ronde de Legion l'écrit**, son adresse, le compte `cenacle`, le chemin de la clé, le `known_hosts`. Puis, dans le dossier de Cénacle :
+
+```
+npm run service -- install operateur
+```
+
+Rien ne part tant que `[serveurs] actif = false` dans `securite.toml` : on l'active par une PR, au moment de l'essai par le bouton (J6f1b).

@@ -48,8 +48,8 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
 export function parseDelegations(source: string, today: string): Delegation[] {
   const raw = parse(source);
   for (const key of Object.keys(raw)) {
-    // [bulletins] is read by bulletins.ts (J6e3).
-    if (key !== "delegation" && key !== "bulletins") {
+    // [bulletins] is read by bulletins.ts (J6e3), [serveurs] by servers.ts (J6f).
+    if (key !== "delegation" && key !== "bulletins" && key !== "serveurs") {
       throw new DelegationConfigError(`unknown key "${key}"`);
     }
   }

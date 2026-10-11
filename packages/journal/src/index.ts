@@ -83,6 +83,19 @@ export {
   type StoredFinding,
 } from "./securite-store.ts";
 export {
+  ACTIONS_DAYS,
+  CONFIRM_SECONDS,
+  type ConfirmOutcome,
+  createServeurActions,
+  type FinalState,
+  type ServerAction,
+  type ServerActionState,
+  type ServeurActions,
+  STALE_RUN_MINUTES,
+  type StoredServerAction,
+  type Verified,
+} from "./serveur-actions.ts";
+export {
   type ArchivedArticle,
   type ArchiveQuery,
   createVeilleStore,

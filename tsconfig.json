@@ -44,6 +44,9 @@
       "path": "apps/securite"
     },
     {
+      "path": "apps/operateur"
+    },
+    {
       "path": "apps/cto"
     },
     {

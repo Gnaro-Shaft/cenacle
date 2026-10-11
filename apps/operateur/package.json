@@ -1,0 +1,13 @@
+{
+  "name": "@cenacle/operateur",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "dependencies": {
+    "@cenacle/core": "0.0.0",
+    "@cenacle/journal": "0.0.0",
+    "@cenacle/securite": "0.0.0",
+    "@cenacle/telegram": "0.0.0"
+  }
+}
