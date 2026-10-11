@@ -21,10 +21,19 @@ export function keyIsPrivate(path: string, uid = process.getuid?.() ?? -1): bool
   }
 }
 
-export function runSsh(args: readonly string[], timeoutMs = SSH_TIMEOUT_MS): Promise<number> {
+/**
+ * The exit code of one call. Cut off by the time limit, it is -1 — "state
+ * unknown" — never ssh's own 255, which would read "unreachable" (2026-10-11:
+ * a slow restart was told as an unreachable server).
+ */
+export function runSsh(
+  args: readonly string[],
+  timeoutMs = SSH_TIMEOUT_MS,
+  file: string = SSH,
+): Promise<number> {
   return new Promise((resolve) => {
     execFile(
-      SSH,
+      file,
       [...args],
       {
         timeout: timeoutMs,
@@ -33,6 +42,7 @@ export function runSsh(args: readonly string[], timeoutMs = SSH_TIMEOUT_MS): Pro
       },
       (error) => {
         if (error === null) resolve(0);
+        else if (error.killed === true || error.signal !== null) resolve(-1);
         else if (typeof error.code === "number") resolve(error.code);
         else resolve(-1);
       },

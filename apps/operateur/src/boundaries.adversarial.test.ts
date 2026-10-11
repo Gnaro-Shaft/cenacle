@@ -15,7 +15,7 @@ import {
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { keyIsPrivate, SSH } from "./ssh.ts";
+import { keyIsPrivate, runSsh, SSH } from "./ssh.ts";
 
 const BASE = mkdtempSync(join(tmpdir(), "cenacle-operateur-test-"));
 afterAll(() => rmSync(BASE, { recursive: true, force: true }));
@@ -71,5 +71,26 @@ describe("ssh, and the servers' list, belong to the operator alone", () => {
     expect(SSH).toBe("/usr/bin/ssh");
     const text = readFileSync(join(import.meta.dirname, "ssh.ts"), "utf8");
     expect(text).not.toMatch(/SSH_AUTH_SOCK|\.\.\.process\.env/);
+  });
+});
+
+describe("one call's answer: its exit code, or 'unknown' when cut off", () => {
+  const stand = (name: string, body: string) => {
+    const file = join(BASE, name);
+    writeFileSync(file, `#!/bin/sh\n${body}\n`);
+    chmodSync(file, 0o755);
+    return file;
+  };
+
+  it("the script's code comes back as it is, 255 included", async () => {
+    expect(await runSsh([], 5_000, stand("code10", "exit 10"))).toBe(10);
+    expect(await runSsh([], 5_000, stand("code255", "exit 255"))).toBe(255);
+    expect(await runSsh([], 5_000, stand("code0", "exit 0"))).toBe(0);
+  });
+
+  it("cut off by the time limit: -1 (state unknown), never 255 (unreachable)", async () => {
+    // A program that would answer 255 when stopped, as ssh does.
+    const slow = stand("slow", "trap 'exit 255' TERM\nsleep 5 & wait");
+    expect(await runSsh([], 300, slow)).toBe(-1);
   });
 });

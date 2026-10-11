@@ -59,7 +59,7 @@ const PROXMOX = [
 const HARNESS = `#!/bin/bash
 set -u
 printf '#!/bin/sh\\nprintf "%%b\\\\n" "$(cat /fake/out)"\\n' > /usr/sbin/needrestart
-printf '#!/bin/sh\\n[ "$3" = "panne.service" ] && exit 1\\necho "$3" >> /fake/restarted\\n' > /usr/bin/systemctl
+printf '#!/bin/sh\\n[ "$2" = "--no-block" ] || exit 9\\n[ "$4" = "panne.service" ] && exit 1\\necho "$4" >> /fake/restarted\\n' > /usr/bin/systemctl
 chmod 755 /usr/sbin/needrestart /usr/bin/systemctl
 mkdir -p /fake /etc/cenacle && chmod 777 /fake
 run() {
