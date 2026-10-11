@@ -9,8 +9,11 @@
 # reloaded by hand (systemctl daemon-reexec) or at the next reboot. Started only
 # through the `cenacle` account's key (forced command, sudo for this script
 # alone); it takes no argument and reads nothing from the caller.
-# Answers by its exit code only: 0 done, 10 nothing to do, 11 refused by a
-# guard, 12 failed. Every run leaves a line in the system journal
+# The restarts are queued, not awaited (systemctl --no-block): a slow service
+# (cron waits for its jobs) must not hold the call — the first real run took
+# 2 min 21 s and the Mac cut it. The proof comes from Legion's next verdict.
+# Answers by its exit code only: 0 restarts queued, 10 nothing to do, 11
+# refused by a guard, 12 a restart could not even be queued. Every run leaves a line in the system journal
 # (journalctl -t cenacle).
 set -u
 export PATH=/usr/sbin:/usr/bin:/sbin:/bin
@@ -57,8 +60,8 @@ if [ "${#todo[@]}" -gt "$MAX_SERVICES" ]; then log "refus: ${#todo[@]} services,
 
 failed=0
 for svc in "${todo[@]}"; do
-  if /usr/bin/systemctl restart -- "$svc"; then log "relance: $svc"; else log "echec: $svc"; failed=1; fi
+  if /usr/bin/systemctl restart --no-block -- "$svc"; then log "relance demandee: $svc"; else log "echec: $svc"; failed=1; fi
 done
 if [ "$failed" -ne 0 ]; then exit 12; fi
-log "fait: ${#todo[@]} service(s)"
+log "fait: ${#todo[@]} relance(s) demandee(s)"
 exit 0
