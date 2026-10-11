@@ -136,8 +136,13 @@ export async function handleCallback(cb: TelegramCallback, deps: SecuriteBotDeps
     await deps.api.answerCallback(cb.id, ANSWER.stale);
     return;
   }
-  if (pressed.action === "server" || pressed.action === "reboot") {
-    const action = pressed.action === "reboot" ? "redemarrer" : "services";
+  if (pressed.action === "server" || pressed.action === "reboot" || pressed.action === "update") {
+    const action =
+      pressed.action === "reboot"
+        ? "redemarrer"
+        : pressed.action === "update"
+          ? "maj_securite"
+          : "services";
     await pressServer(cb, chat.id, pressed, action, serverDeps(deps));
     return;
   }

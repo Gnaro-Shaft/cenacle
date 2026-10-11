@@ -38,6 +38,10 @@ export const REBOOT_GAP_MS = 24 * 3_600_000;
 export const BACK_AFTER_MS = 3 * 60_000;
 /** …and without one showing the machine back by then, it is said loud, once. */
 export const NOT_BACK_MS = 30 * 60_000;
+/** Security updates run in the background: no proof before this… */
+export const UPDATE_PROOF_AFTER_MS = 10 * 60_000;
+/** …and still pending this long after: said, to look at. */
+export const UPDATE_GIVE_UP_MS = 2 * 3_600_000;
 
 export interface OperatorDeps {
   readonly store: Pick<
@@ -141,7 +145,8 @@ async function act(deps: OperatorDeps): Promise<{ ran: number; refused: number }
 /**
  * What a verdict says of a done action: services — gone or still there, once
  * the verdict is later than the action; a reboot — back (not MALADE) and no
- * reboot required, from 3 minutes on; not seen back 30 minutes on: said loud.
+ * reboot required, from 3 minutes on; not seen back 30 minutes on: said loud;
+ * security updates — gone from 10 minutes on, still pending 2 hours on: said.
  */
 function proof(
   a: StoredServerAction,
@@ -153,6 +158,12 @@ function proof(
   const finished = a.finishedAt?.getTime() ?? null;
   if (finished === null) return null;
   const finding = SERVER_CATALOGUE[a.action].finding;
+  if (a.action === "maj_securite") {
+    if (raw === null || at === null || seen === null) return null;
+    if (at < finished + UPDATE_PROOF_AFTER_MS) return null;
+    if (!motifPresent(seen, a.host, finding)) return "disparu";
+    return nowMs - finished >= UPDATE_GIVE_UP_MS ? "toujours_la" : null;
+  }
   if (a.action !== "redemarrer") {
     if (raw === null || at === null || seen === null || at <= finished) return null;
     return motifPresent(seen, a.host, finding) ? "toujours_la" : "disparu";

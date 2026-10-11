@@ -1,0 +1,37 @@
+#!/bin/bash
+# cenacle-maj-securite (J6f3, ADR-0027): starts the security updates of this
+# machine in the background — unattended-upgrade, which installs the security
+# origin only, in a systemd unit of its own (cenacle-maj) that outlives the
+# connection. Never a reboot: refused if unattended-upgrade is set to reboot
+# by itself (a reboot stays my 🔄 button). Also refused while one runs, or
+# with less than 1 GB free on /. Started only through the `cenacle` account's
+# key for this script; no argument, nothing read from the caller.
+# Exit code only: 0 started, 10 nothing to do (no unattended-upgrade), 11
+# refused by a guard, 12 failed. journalctl -t cenacle; the update itself:
+# journalctl -u cenacle-maj.
+set -u
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+readonly MIN_FREE_KB=1048576
+
+log() { /usr/bin/logger -t cenacle -- "maj-securite: $*"; }
+
+if [ "$#" -ne 0 ]; then log "refus: un argument a ete passe"; exit 11; fi
+if [ "$(/usr/bin/id -u)" != "0" ]; then log "refus: pas root (sudo attendu)"; exit 11; fi
+if [ ! -x /usr/bin/unattended-upgrade ]; then log "rien a faire: unattended-upgrade absent"; exit 10; fi
+
+# Never a reboot on its own: Automatic-Reboot must not be on.
+if /usr/bin/apt-config dump 2>/dev/null \
+  | /usr/bin/grep -Ei '^Unattended-Upgrade::Automatic-Reboot[[:space:]]+"(true|1|yes|on)"' >/dev/null; then
+  log "refus: unattended-upgrade est regle pour redemarrer tout seul"; exit 11
+fi
+if /usr/bin/systemctl is-active --quiet cenacle-maj.service; then
+  log "refus: une mise a jour de Cenacle tourne deja"; exit 11
+fi
+free_kb="$(/usr/bin/df -Pk / 2>/dev/null | /usr/bin/awk 'NR == 2 { print $4 }')"
+if ! [[ "$free_kb" =~ ^[0-9]{1,15}$ ]]; then log "refus: place libre illisible"; exit 11; fi
+if [ "$free_kb" -lt "$MIN_FREE_KB" ]; then log "refus: moins de 1 Go libre sur /"; exit 11; fi
+
+if /usr/bin/systemd-run --unit=cenacle-maj --collect --quiet /usr/bin/unattended-upgrade >/dev/null 2>&1; then
+  log "fait: mise a jour lancee (journalctl -u cenacle-maj)"; exit 0
+fi
+log "echec: systemd-run"; exit 12

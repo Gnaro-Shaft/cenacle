@@ -135,6 +135,7 @@ describe("a reboot in the catalogue (J6f2)", () => {
   it("each kind of finding has at most one action", () => {
     expect(serverActionFor("serveur_services")).toBe("services");
     expect(serverActionFor("serveur_redemarrage")).toBe("redemarrer");
+    expect(serverActionFor("serveur_maj_securite")).toBe("maj_securite");
     expect(serverActionFor("serveur_disque")).toBeNull();
   });
 

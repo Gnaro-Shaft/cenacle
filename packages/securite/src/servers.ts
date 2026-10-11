@@ -11,7 +11,7 @@ import { isAbsolute, normalize } from "node:path";
 import { parse } from "smol-toml";
 import type { Observation } from "./types.ts";
 
-export type ServerActionName = "services" | "redemarrer";
+export type ServerActionName = "services" | "redemarrer" | "maj_securite";
 
 export const SERVER_CATALOGUE: Readonly<
   Record<
@@ -29,6 +29,12 @@ export const SERVER_CATALOGUE: Readonly<
     finding: "serveur_redemarrage",
     script: "cenacle-redemarrer",
     label: "redémarrer la machine",
+  },
+  // J6f3: the security updates, started in the background on the server; never a reboot.
+  maj_securite: {
+    finding: "serveur_maj_securite",
+    script: "cenacle-maj-securite",
+    label: "appliquer les mises à jour de sécurité",
   },
 };
 
