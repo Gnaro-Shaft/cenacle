@@ -41,6 +41,12 @@ export interface RoundDeps {
   readonly actions?: (network: boolean) => Promise<number>;
   /** The trust record, for the Monday review (J6d). */
   readonly trust?: () => Promise<readonly TrustLine[]>;
+  /**
+   * Tells the sentinel this round went to its end (J6e1): called last, only
+   * when nothing failed — a round failing every time falls silent. Never
+   * fails the round.
+   */
+  readonly alive?: () => Promise<boolean>;
 }
 
 export interface RoundOutcome {
@@ -163,5 +169,6 @@ export async function runRound(deps: RoundDeps): Promise<RoundOutcome> {
     actions,
   };
   await deps.journal.append({ agent: AGENT, type: "securite.ran", payload: { ...outcome } });
+  await deps.alive?.().catch(() => false);
   return outcome;
 }

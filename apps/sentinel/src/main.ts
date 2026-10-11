@@ -7,8 +7,8 @@
  *   SENTINEL_TOKEN           shared with the Mac (CENACLE_SENTINEL_TOKEN)
  *   SENTINEL_TELEGRAM_TOKEN  a bot of its own: the Mac's bot token never leaves the Mac
  *   SENTINEL_CHAT_ID         my chat only
- *   SENTINEL_SILENCE_MINUTES silence before the alert (default 10)
- *   SENTINEL_PROGRAMS        the programs that should run (default iris,executor; iris in M2)
+ *   SENTINEL_SILENCE_MINUTES silence before the alert (default 10; the security agent: 35 at least)
+ *   SENTINEL_PROGRAMS        the programs that should run (default all: iris,executor,securite)
  */
 import { createServer } from "node:http";
 import { createHandler } from "./server.ts";

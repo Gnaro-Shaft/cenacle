@@ -10,12 +10,24 @@
  *   forged beat must not hide a dead Mac.
  * - Only the programs that should run are expected (SENTINEL_PROGRAMS): in M2
  *   the executor does not run on the real box, and its silence is no outage.
+ * - Each program has its own silence: the security agent beats once per
+ *   round, every 15 minutes, so it is late only after two missed rounds
+ *   (J6e1). Silent while others beat: the Mac is up, that program is not.
  */
 
-export const PROGRAMS = ["iris", "executor"] as const;
+export const PROGRAMS = ["iris", "executor", "securite"] as const;
 export type Program = (typeof PROGRAMS)[number];
 
-const LABEL: Readonly<Record<Program, string>> = { iris: "Iris", executor: "l'exécuteur" };
+const LABEL: Readonly<Record<Program, string>> = {
+  iris: "Iris",
+  executor: "l'exécuteur",
+  securite: "l'agent sécurité",
+};
+
+/** The least silence before a program is late, whatever SENTINEL_SILENCE_MINUTES says. */
+export const MIN_SILENCE_MS: Readonly<Partial<Record<Program, number>>> = {
+  securite: 35 * 60_000,
+};
 
 /** SENTINEL_PROGRAMS: a comma list of known programs, each once; all of them when absent. */
 export function parsePrograms(raw: string | undefined): readonly Program[] {
@@ -77,6 +89,8 @@ export interface Watch {
   told(): void;
 }
 
+const silenceOf = (p: Program, base: number): number => Math.max(base, MIN_SILENCE_MS[p] ?? 0);
+
 export function createWatch(opts: {
   readonly silenceMs: number;
   readonly startedAt: Date;
@@ -98,7 +112,9 @@ export function createWatch(opts: {
       if (seen !== undefined && at.getTime() > seen) last.set(program, at.getTime());
     },
     check(now) {
-      const silent = expected.filter((p) => now.getTime() - (last.get(p) ?? 0) > opts.silenceMs);
+      const silent = expected.filter(
+        (p) => now.getTime() - (last.get(p) ?? 0) > silenceOf(p, opts.silenceMs),
+      );
       const same =
         silent.length === toldSilent.length && silent.every((p) => toldSilent.includes(p));
       if (same) {
@@ -110,9 +126,19 @@ export function createWatch(opts: {
         const all = expected.map((p) => LABEL[p]).join(" et ");
         return `✅ Le Mac répond de nouveau : ${all} ${expected.length > 1 ? "battent" : "bat"}.`;
       }
-      const minutes = Math.round(opts.silenceMs / 60_000);
-      const names = silent.map((p) => LABEL[p]).join(" et ");
-      return `🚨 Plus de nouvelles de ${names} depuis plus de ${minutes} min : le Mac est peut-être en panne.`;
+      const names = silent
+        .map(
+          (p) => `${LABEL[p]} (plus de ${Math.round(silenceOf(p, opts.silenceMs) / 60_000)} min)`,
+        )
+        .join(" et ");
+      // The Mac is up only if a program beat within the shortest silence: the
+      // security agent's beat 20 minutes ago proves nothing about now.
+      const beating = expected.filter((p) => now.getTime() - (last.get(p) ?? 0) <= opts.silenceMs);
+      if (beating.length > 0) {
+        const others = beating.map((p) => LABEL[p]).join(" et ");
+        return `🚨 Plus de nouvelles de ${names}, alors que ${others} ${beating.length > 1 ? "battent" : "bat"} : le Mac tourne, mais ${silent.length > 1 ? "ces programmes sont arrêtés ou échouent" : "ce programme est arrêté ou échoue"} à chaque passage.`;
+      }
+      return `🚨 Plus de nouvelles de ${names} : le Mac est peut-être en panne.`;
     },
     told() {
       if (pending !== null) toldSilent = pending;

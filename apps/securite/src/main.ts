@@ -15,7 +15,7 @@ import {
   localModelConfigFromEnv,
   ModelUnavailableError,
 } from "@cenacle/brain";
-import { errorText, refuseForeignSecrets, UsageError } from "@cenacle/core";
+import { errorText, heartbeatFromEnv, refuseForeignSecrets, UsageError } from "@cenacle/core";
 import {
   connectOrQuit,
   createJournal,
@@ -43,7 +43,7 @@ const ROOT = join(import.meta.dirname, "..", "..", "..");
 const USAGE = "usage : npm run securite [-- constats | accepter <n°> <raison>]";
 const [command, ...rest] = process.argv.slice(2);
 
-refuseForeignSecrets("L'agent sécurité", ["telegram"]);
+refuseForeignSecrets("L'agent sécurité", ["telegram", "sentinel"]);
 const sql = connectOrQuit();
 const store = createSecuriteStore(sql);
 
@@ -54,6 +54,13 @@ async function round(): Promise<void> {
   }
   const telegram = createTelegramApi(process.env.TELEGRAM_BOT_TOKEN ?? "");
   const journal = createJournal(sql);
+  // The sentinel hears one beat per round that went to its end (J6e1).
+  const sentinel = heartbeatFromEnv("securite");
+  if (sentinel === null) {
+    console.log(
+      "ℹ Sentinelle non configurée (CENACLE_SENTINEL_URL absent) : aucun battement envoyé.",
+    );
+  }
   const local = createLocalModels({
     ...localModelConfigFromEnv(),
     contextWindow: 8_192,
@@ -112,6 +119,15 @@ async function round(): Promise<void> {
     lastWeekly: () => latestEventAt(sql, "securite", "securite.bilan"),
     // 🔧 The fixes, their pull requests, the delegations (J6c, J6d): never a merge without my button.
     trust: () => trustLines(ROOT, sql, store, new Date()),
+    alive: async () => {
+      if (sentinel === null) return false;
+      const ok = await sentinel.beat();
+      if (!ok)
+        console.error(
+          "⚠ La sentinelle n'a pas pris le battement (injoignable, ou pas encore à jour) : la ronde, elle, a eu lieu.",
+        );
+      return ok;
+    },
     actions: async () =>
       runActions(
         await actionDeps({

@@ -16,6 +16,10 @@ Les modèles tournent sur un Mac à mémoire unifiée, la seule machine équipé
 - **Le sens des flux est imposé** : c'est le Mac qui parle au VPS, jamais l'inverse. L'ACL Tailscale interdit au VPS de joindre une machine du réseau local.
 - **Calendrier** : tout tourne sur le Mac pendant la construction (boîtes de test). La sentinelle arrive avant le branchement d'une vraie boîte. La migration vers la machine définitive se fait avec le même Compose.
 
+## Révision du 2026-10-11 — l'agent sécurité bat aussi (J6e1)
+
+L'agent sécurité (ADR-0025) envoie un battement à la fin de chaque ronde réussie, toutes les 15 minutes ; la sentinelle lui accorde 35 minutes de silence (deux rondes manquées). Un programme muet alors qu'un autre bat est dit arrêté, et non le Mac. Le battement ne dit toujours que le programme et l'heure.
+
 ## Conséquences
 
 - Une coupure de courant ou d'accès internet arrête le cerveau. La sentinelle le signale ; un onduleur et un accès 4G de secours en réduisent la probabilité.
