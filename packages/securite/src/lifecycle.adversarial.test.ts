@@ -1,11 +1,11 @@
 // The finding lifecycle (Legion's propositions): seen once is a candidate,
-// seen again is open; gone from a check that ran is resolved; a check that
+// seen again at least 10 minutes later is open (sooner, still a candidate); gone from a check that ran is resolved; a check that
 // could not run closes nothing and is itself a finding; an accepted risk
 // stays quiet for its occurrence, and a new occurrence is a new finding.
 // The messages: nothing changed, no message; never over Telegram's limit;
 // the command comes from the catalogue, the CTO's word is marked as AI.
 import { describe, expect, it } from "vitest";
-import { type ActiveFinding, reconcile } from "./lifecycle.ts";
+import { type ActiveFinding, DEBOUNCE_MINUTES, reconcile } from "./lifecycle.ts";
 import {
   AI_NOTICE,
   formatDaily,
@@ -34,15 +34,20 @@ const ran = (check: string, observations: Observation[]): CheckResult => ({
   ran: true,
   observations,
 });
+const T = new Date("2026-10-11T10:00:00Z");
+const minutesBefore = (m: number) => new Date(T.getTime() - m * 60_000);
+const rec = (a: readonly ActiveFinding[], r: readonly CheckResult[]) => reconcile(a, r, T);
 const active = (
   id: number,
   check: string,
   o: Observation,
   status: ActiveFinding["status"],
+  firstSeen = minutesBefore(15),
 ): ActiveFinding => ({
   id,
   check,
   status,
+  firstSeen,
   type: o.type,
   target: o.target,
   occurrence: o.occurrence,
@@ -50,24 +55,78 @@ const active = (
 
 describe("reconcile", () => {
   it("seen for the first time: a candidate only (a passing glitch wakes nobody)", () => {
-    const plan = reconcile([], [ran("firewall", [fw])]);
+    const plan = rec([], [ran("firewall", [fw])]);
     expect(plan.insert.map((o) => [o.check, o.type])).toEqual([["firewall", "firewall_off"]]);
     expect([plan.promote, plan.touch, plan.resolve, plan.drop]).toEqual([[], [], [], []]);
   });
 
   it("seen again: the candidate opens; still seen: touched, never opened twice", () => {
     expect(
-      reconcile([active(1, "firewall", fw, "candidat")], [ran("firewall", [fw])]).promote.map(
+      rec([active(1, "firewall", fw, "candidat")], [ran("firewall", [fw])]).promote.map(
         (p) => p.id,
       ),
     ).toEqual([1]);
-    const still = reconcile([active(1, "firewall", fw, "ouvert")], [ran("firewall", [fw])]);
+    const still = rec([active(1, "firewall", fw, "ouvert")], [ran("firewall", [fw])]);
     expect(still.touch.map((p) => p.id)).toEqual([1]);
     expect(still.insert).toEqual([]);
   });
 
+  it("seen again too soon: still a candidate; from 10 minutes on, open", () => {
+    expect(DEBOUNCE_MINUTES).toBe(10);
+    const at = (m: number) =>
+      rec([active(1, "firewall", fw, "candidat", minutesBefore(m))], [ran("firewall", [fw])]);
+    for (const m of [0, 2, 9.99]) {
+      const plan = at(m);
+      expect(plan.promote, `${m} min`).toEqual([]);
+      expect(
+        plan.touch.map((p) => p.id),
+        `${m} min`,
+      ).toEqual([1]);
+    }
+    expect(at(10).promote.map((p) => p.id)).toEqual([1]);
+  });
+
+  it("a first sighting dated in the future (clock moved back) never opens", () => {
+    const plan = rec(
+      [active(1, "firewall", fw, "candidat", minutesBefore(-60))],
+      [ran("firewall", [fw])],
+    );
+    expect(plan.promote).toEqual([]);
+  });
+
+  it("the rule spares no severity, and no impossible check", () => {
+    const critical = { ...fw, type: "filevault_off", severity: "critique" as const };
+    const soon = rec(
+      [active(1, "filevault", critical, "candidat", minutesBefore(3))],
+      [ran("filevault", [critical]), { check: "sip", ran: false }],
+    );
+    expect(soon.promote).toEqual([]);
+    const impossible = {
+      type: "check_impossible",
+      target: "sip",
+      occurrence: "-",
+      severity: "moyen" as const,
+      title: "x",
+    };
+    expect(
+      rec(
+        [active(2, "sip", impossible, "candidat", minutesBefore(3))],
+        [{ check: "sip", ran: false }],
+      ).promote,
+    ).toEqual([]);
+  });
+
+  it("a candidate gone before 10 minutes: dropped quietly, never told", () => {
+    const plan = rec(
+      [active(1, "firewall", fw, "candidat", minutesBefore(2))],
+      [ran("firewall", [])],
+    );
+    expect(plan.drop).toEqual([1]);
+    expect(plan.promote).toEqual([]);
+  });
+
   it("gone from a check that ran: open is resolved, a candidate dropped quietly", () => {
-    const plan = reconcile(
+    const plan = rec(
       [active(1, "firewall", fw, "ouvert"), active(2, "tailscale", ts("1.104.1"), "candidat")],
       [ran("firewall", []), ran("tailscale", [])],
     );
@@ -76,10 +135,7 @@ describe("reconcile", () => {
   });
 
   it("a check that could not run closes nothing, and is itself a finding", () => {
-    const plan = reconcile(
-      [active(1, "firewall", fw, "ouvert")],
-      [{ check: "firewall", ran: false }],
-    );
+    const plan = rec([active(1, "firewall", fw, "ouvert")], [{ check: "firewall", ran: false }]);
     expect(plan.resolve).toEqual([]);
     expect(plan.insert.map((o) => [o.type, o.target])).toEqual([["check_impossible", "firewall"]]);
   });
@@ -92,25 +148,23 @@ describe("reconcile", () => {
       severity: "moyen" as const,
       title: "x",
     };
-    const plan = reconcile([active(9, "firewall", impossible, "ouvert")], [ran("firewall", [])]);
+    const plan = rec([active(9, "firewall", impossible, "ouvert")], [ran("firewall", [])]);
     expect(plan.resolve).toEqual([9]);
   });
 
   it("another check's absence says nothing about this finding", () => {
-    expect(
-      reconcile([active(1, "firewall", fw, "ouvert")], [ran("tailscale", [])]).resolve,
-    ).toEqual([]);
+    expect(rec([active(1, "firewall", fw, "ouvert")], [ran("tailscale", [])]).resolve).toEqual([]);
   });
 
   it("accepted: quiet for its occurrence, never resolved by absence; a new occurrence is new", () => {
     const acc = active(3, "tailscale", ts("1.104.1"), "accepte");
-    const same = reconcile([acc], [ran("tailscale", [ts("1.104.1")])]);
+    const same = rec([acc], [ran("tailscale", [ts("1.104.1")])]);
     expect(same.insert).toEqual([]);
     expect(same.touch.map((t) => t.id)).toEqual([3]);
-    expect(reconcile([acc], [ran("tailscale", [])]).resolve).toEqual([]);
-    expect(
-      reconcile([acc], [ran("tailscale", [ts("1.106.0")])]).insert.map((o) => o.occurrence),
-    ).toEqual(["1.106.0"]);
+    expect(rec([acc], [ran("tailscale", [])]).resolve).toEqual([]);
+    expect(rec([acc], [ran("tailscale", [ts("1.106.0")])]).insert.map((o) => o.occurrence)).toEqual(
+      ["1.106.0"],
+    );
   });
 });
 

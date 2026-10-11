@@ -124,12 +124,17 @@ describe("followed like any finding", () => {
         id: 1,
         check: "legion_ronde",
         status: "ouvert" as const,
+        firstSeen: new Date(0),
         type: first.type,
         target: first.target,
         occurrence: first.occurrence,
       },
     ];
-    const plan = reconcile(active, [{ check: "legion_ronde", ran: true, observations: at(12) }]);
+    const plan = reconcile(
+      active,
+      [{ check: "legion_ronde", ran: true, observations: at(12) }],
+      new Date(),
+    );
     expect(plan.insert).toEqual([]);
     expect(plan.touch[0]?.seen.title).toBe("noeud-a : 12 mise(s) à jour de sécurité en attente");
   });
@@ -140,12 +145,13 @@ describe("followed like any finding", () => {
         id: 1,
         check: "legion_ronde",
         status: "ouvert" as const,
+        firstSeen: new Date(0),
         type: "serveur_disque",
         target: "noeud-a",
         occurrence: "/",
       },
     ];
-    const plan = reconcile(active, [{ check: "legion_ronde", ran: false }]);
+    const plan = reconcile(active, [{ check: "legion_ronde", ran: false }], new Date());
     expect(plan.resolve).toEqual([]);
     expect(plan.insert[0]).toMatchObject({ type: "check_impossible", severity: "eleve" });
     expect(plan.insert[0]?.title).toMatch(/La ronde de Legion ne répond plus/);

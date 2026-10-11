@@ -84,7 +84,7 @@ export async function runRound(deps: RoundDeps): Promise<RoundOutcome> {
   const active = (await deps.store.active()).flatMap((f) =>
     f.status === "resolu" || f.status === "caduc" ? [] : [{ ...f, status: f.status }],
   );
-  await deps.store.apply(reconcile(active, results), now);
+  await deps.store.apply(reconcile(active, results, now), now);
   const actions = (await deps.actions?.(network)) ?? 0;
 
   const pending = await deps.store.toSignal();

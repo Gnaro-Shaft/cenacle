@@ -12,7 +12,7 @@ Le dirigeant a fixé la direction (2026-10-10) : l'agent remonte toute incohére
 
 1. **Des contrôles déterministes, sans IA, en lecture seule, sans `sudo`** : FileVault, pare-feu, SIP, Gatekeeper, mises à jour de logiciels (`softwareupdate -l` ; une nouvelle version majeure de macOS n'est qu'une information), Tailscale (`version --upstream`), `npm audit` et `npm outdated` (une version majeure de retard) de Cénacle. Programmes fixes, chemins absolus, sans shell, environnement réduit, délai et sortie bornés. **Un contrôle qui ne répond pas comme attendu « n'a pas pu tourner »** : il ne prouve rien, ne ferme aucun constat, et devient lui-même un constat.
 2. **Des constats suivis** (`securite_constats`), un seul actif par `(type, cible, occurrence)`, garanti par la base :
-   - vu une fois : **candidat**, rien n'est dit (un raté passager ne réveille personne) ; revu au passage suivant : **ouvert**, dit une fois ;
+   - vu une fois : **candidat**, rien n'est dit (un raté passager ne réveille personne) ; revu **au moins 10 minutes après** sa première observation : **ouvert**, dit une fois (revu plus tôt, il reste candidat — voir la révision du 2026-10-11) ;
    - plus vu par un contrôle qui a tourné : **résolu**, dit une fois ; un candidat disparu : **caduc**, en silence ;
    - **accepté** par moi, avec une raison : il se tait pour cette occurrence ; une nouvelle occurrence (nouvel avis, nouvelle version) est un nouveau constat ; un risque accepté est redemandé après 90 jours ;
    - « dit » seulement **une fois le message parti** : un envoi raté repart au passage suivant.
@@ -54,6 +54,10 @@ Un quatrième bouton, **🔧 prépare la PR**, seulement sous un constat que le 
 ## Paliers à venir
 - **J6d** — fait : voir l'ADR-0026 (✅ Fusionner par mon bouton, carnet de confiance, délégations dans `securite.toml`).
 - **J6e** — la sentinelle qui surveille aussi l'agent depuis le serveur ; le serveur (bulletin en lecture seule, puis des scripts fixes posés sur le serveur, joignables par une clé restreinte à eux, déclenchés par mon accord ; un redémarrage reste toujours une question), mes autres projets, les bulletins de sécurité.
+
+## Révision du 2026-10-11 — dix minutes entre les deux observations
+
+Le principe (deux observations avant de parler) ne change pas ; on précise l'écart minimal entre elles, comme Legion. Une ronde lancée à la main juste après la ronde planifiée avait ouvert un port éphémère du serveur, vu deux fois dans la même minute puis disparu, et l'avait dit comme urgent. Désormais un candidat revu moins de 10 minutes après sa première observation reste candidat ; une première observation datée dans le futur (horloge reculée) n'ouvre jamais. Avec une ronde toutes les 15 minutes, rien ne change en régime normal, critiques compris.
 
 ## Conséquences
 

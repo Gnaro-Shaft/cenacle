@@ -1,5 +1,5 @@
 // The security agent's round (Legion's ronde), end to end with an in-memory
-// store and a controlled clock: debounce over two rounds; a serious finding
+// store and a controlled clock: debounce over two sightings 10 minutes apart; a serious finding
 // speaks at once (critical any hour, high outside quiet hours), the rest
 // waits for the morning report, sent once a day; network checks at most once
 // an hour, and a round without them closes none of their findings; a failed
@@ -209,6 +209,34 @@ describe("speaking at once, or waiting for the morning", () => {
     w.at("2026-10-12T07:30:00");
     await runRound(w.deps);
     expect(w.events.filter((e) => e.type === "securite.rapport")).toHaveLength(2);
+  });
+});
+
+describe("two rounds close together", () => {
+  it("a manual round 2 minutes after: nothing said; the next round, 15 minutes on, says it", async () => {
+    const w = world([finding("sip_off", "eleve")]);
+    await runRound(w.deps);
+    w.at("2026-10-10T10:02:00");
+    expect(await runRound(w.deps)).toMatchObject({ urgent: 0 });
+    expect(w.store.rows[0]?.status).toBe("candidat");
+    expect(w.sent).toEqual([]);
+    w.at("2026-10-10T10:17:00");
+    expect(await runRound(w.deps)).toMatchObject({ urgent: 1 });
+    expect(w.sent).toHaveLength(1);
+  });
+
+  it("a passing port seen twice in the same minute, then gone: never told", async () => {
+    const w = world([finding("port_ouvert", "eleve")]);
+    await runRound(w.deps);
+    w.at("2026-10-10T10:00:30");
+    await runRound(w.deps);
+    w.local.length = 0;
+    w.at("2026-10-10T10:15:00");
+    await runRound(w.deps);
+    w.at("2026-10-11T07:30:00");
+    await runRound(w.deps);
+    expect(w.store.rows[0]?.status).toBe("caduc");
+    expect(JSON.stringify(w.sent)).not.toMatch(/port_ouvert/);
   });
 });
 

@@ -1,5 +1,6 @@
 // The security agent's findings in the real database: one active finding per
-// (type, target, occurrence); a candidate opens on its second sighting;
+// (type, target, occurrence); a candidate opens only when promoted, never
+// when merely seen again (too soon, by the 10-minute rule);
 // "signaled" only when marked after sending; a resolved finding is told only
 // if it had been told open; accepting needs an open finding and a reason;
 // the purge keeps what is open and asks an accepted risk again after 90 days.
@@ -44,6 +45,16 @@ describe("the findings store", () => {
     expect((await store.toSignal()).opened.map((f) => f.id)).toContain(c?.id);
     await store.markSignaled([c?.id ?? 0], []);
     expect((await store.toSignal()).opened.map((f) => f.id)).not.toContain(c?.id);
+  });
+
+  it("a candidate seen again too soon (touched): still a candidate, never told", async () => {
+    await store.apply({ ...empty, insert: [seen(9)] }, T0);
+    const c = await mine(9);
+    await store.apply({ ...empty, touch: [{ id: c?.id ?? 0, seen: seen(9) }] }, T0);
+    expect(await mine(9)).toMatchObject({ status: "candidat" });
+    expect((await store.toSignal()).opened.map((f) => f.id)).not.toContain(c?.id);
+    await store.apply({ ...empty, promote: [{ id: c?.id ?? 0, seen: seen(9) }] }, T0);
+    expect(await mine(9)).toMatchObject({ status: "ouvert" });
   });
 
   it("one active finding per key, enforced by the database", async () => {
