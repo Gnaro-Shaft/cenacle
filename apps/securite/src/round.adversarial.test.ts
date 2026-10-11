@@ -37,6 +37,8 @@ function memoryStore(): SecuriteStore & { rows: Row[] } {
           decidedAt: null,
           actionState: null,
           actionPrUrl: null,
+          actionHeadSha: null,
+          actionDelegated: false,
           so: false,
           sc: false,
         });
@@ -60,6 +62,15 @@ function memoryStore(): SecuriteStore & { rows: Row[] } {
     purge: async () => 0,
     pendingFixes: async () => rows.filter((r) => r.actionState === "demandee"),
     openPullRequests: async () => rows.filter((r) => r.actionState === "pr_ouverte"),
+    prRequests: async () => [],
+    delegateFix: async () => false,
+    actionCounts: async () => ({
+      prepared: 0,
+      mergedClean: 0,
+      mergedEdited: 0,
+      closed: 0,
+      ciFailed: 0,
+    }),
     setAction: async (id, state, prUrl) =>
       set(id, { actionState: state, actionPrUrl: prUrl ?? null }),
   };

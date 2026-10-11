@@ -68,6 +68,30 @@ export function parsePressed(data: unknown): Pressed | null {
   return { id, action, token: m[3] ?? "" };
 }
 
+/** Under a pull request the agent prepared, CI green (J6d): ✅ merge, ❌ close. */
+export type PrAction = "merge" | "close";
+const PR_DATA = /^p:(\d{1,12}):([mc]):([0-9a-f]{16})$/;
+
+export function prKeyboard(id: number, token: string): Button[][] {
+  return [
+    [
+      { text: `✅ Fusionner (constat n°${id})`, data: `p:${id}:m:${token}` },
+      { text: "❌ Fermer", data: `p:${id}:c:${token}` },
+    ],
+  ];
+}
+
+export function parsePrPressed(
+  data: unknown,
+): { id: number; action: PrAction; token: string } | null {
+  if (typeof data !== "string" || data.length > MAX_BUTTON_DATA) return null;
+  const m = PR_DATA.exec(data);
+  if (m === null) return null;
+  const id = Number(m[1]);
+  if (!Number.isSafeInteger(id) || id <= 0) return null;
+  return { id, action: m[2] === "m" ? "merge" : "close", token: m[3] ?? "" };
+}
+
 /** The rows left once a finding is decided: its own row goes, the others stay. */
 export function withoutFinding(rows: readonly Button[][], id: number): Button[][] {
   return rows.filter((row) => !row.some((b) => parsePressed(b.data)?.id === id));
@@ -82,6 +106,11 @@ export const ANSWER = {
   fix: (id: number) =>
     `🔧 Demande notée pour le constat n°${id} : la prochaine ronde (15 min au plus) prépare la PR. Elle ne sera jamais fusionnée sans toi.`,
   notFixable: "🔧 Ce constat ne se corrige pas par une PR : rien n'a changé.",
+  merge: (id: number) =>
+    `✅ Fusion demandée (constat n°${id}) : la prochaine ronde la fait, seulement si rien n'a bougé depuis la CI.`,
+  close: (id: number) =>
+    `❌ Fermeture demandée (constat n°${id}) : la prochaine ronde ferme la PR.`,
+  notReady: "Cette PR n'attend pas de décision (CI pas encore verte, ou déjà décidée).",
   kept: "☑ Risque gardé : le constat se tait jusqu'à une nouvelle occurrence, et sera redemandé dans 90 jours.",
   stale:
     "Ce bouton n'est plus valable (message ancien ou déjà utilisé) : /constats pour les boutons à jour.",

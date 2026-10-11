@@ -52,11 +52,7 @@ Un quatrième bouton, **🔧 prépare la PR**, seulement sous un constat que le 
 - Le journal reçoit l'issue de chaque action (`securite.action`) : les faits dont le carnet de confiance de J6d aura besoin.
 
 ## Paliers à venir
-- **J6d** — des délégations pour les cas simples que je nomme, dans un fichier versionné (`securite.toml`) que le CTO ne peut pas modifier : type exact, révocable, tracé, jamais pour ce qui demande un administrateur. **La délégation se gagne par un carnet de confiance** (décidé le 2026-10-10) — la récompense d'un agent qui travaille bien est l'autonomie, jamais un réentraînement du modèle (trop lourd en local, et sujet au « piratage de la récompense » : plaire à la mesure plutôt que bien faire) :
-  - par agent et par type d'action, le compte des propositions faites, acceptées, refusées, corrigées après coup et annulées, tenu **à partir de mes décisions** seules — jamais de ce que l'agent dit de lui-même, et l'agent ne peut pas y écrire ;
-  - un seuil fixé par moi dans `securite.toml` (par exemple dix corrections de faille npm acceptées sans retouche) : le CTO me **propose** alors la délégation de ce type ; c'est moi qui l'accorde (PR ou bouton) ;
-  - la confiance se perd : une erreur, une correction annulée ou un refus suspend la délégation de ce type et la rend à mon accord ;
-  - le bilan du lundi montre le carnet.
+- **J6d** — fait : voir l'ADR-0026 (✅ Fusionner par mon bouton, carnet de confiance, délégations dans `securite.toml`).
 - **J6e** — la sentinelle qui surveille aussi l'agent depuis le serveur ; le serveur (bulletin en lecture seule, puis des scripts fixes posés sur le serveur, joignables par une clé restreinte à eux, déclenchés par mon accord ; un redémarrage reste toujours une question), mes autres projets, les bulletins de sécurité.
 
 ## Conséquences

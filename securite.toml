@@ -1,0 +1,16 @@
+# The security agent's delegations (J6d, ADR-0026): what the CTO's agent may
+# do without asking me each time. Versioned and reviewed: the agent cannot
+# change this file (its pull requests may touch package files only).
+#
+# A delegation is earned through the trust record: once `seuil` pull requests
+# of this kind were merged without any change of mine and with no failure,
+# the CTO proposes it — once. I grant it by adding `accordee_le` (a date) in
+# a pull request. One failure on a delegated pull request (failed CI, closed
+# without merging, or merged with a change of mine) suspends it at once; only
+# a newer `accordee_le` grants it again. Merging is never delegable.
+
+[[delegation]]
+# Prepare the pull request of an npm advisory fix without a major version
+# change. The merge stays mine (✅ Fusionner on Telegram, PR by PR).
+action = "preparer_pr_npm"
+seuil = 5

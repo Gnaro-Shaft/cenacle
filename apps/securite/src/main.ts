@@ -7,7 +7,7 @@
  * rule 1). It holds the Telegram token and nothing else.
  */
 import { randomBytes } from "node:crypto";
-import { release, tmpdir } from "node:os";
+import { release } from "node:os";
 import { dirname, join } from "node:path";
 import {
   askAgent,
@@ -30,14 +30,13 @@ import {
   cleanComment,
   keyboard,
   LOCAL_CHECKS,
-  parsePrStatus,
   preparedFix,
   SEVERITY_LABEL,
 } from "@cenacle/securite";
 import { createTelegramApi } from "@cenacle/telegram/api";
 import { runActions } from "./actions.ts";
-import { firstExisting, runChecks, runProgram, specs } from "./checks.ts";
-import { prepareFix } from "./fix.ts";
+import { actionDeps, trustLines } from "./actions-deps.ts";
+import { runChecks, runProgram, specs } from "./checks.ts";
 import { runRound } from "./round.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
@@ -111,33 +110,19 @@ async function round(): Promise<void> {
     lastNetwork: () => latestEventAt(sql, "securite", "securite.ran", { network: true }),
     lastReport: () => latestEventAt(sql, "securite", "securite.rapport"),
     lastWeekly: () => latestEventAt(sql, "securite", "securite.bilan"),
-    // 🔧 The fixes I asked for (J6c): a pull request, never a merge.
-    actions: (network) =>
+    // 🔧 The fixes, their pull requests, the delegations (J6c, J6d): never a merge without my button.
+    trust: () => trustLines(ROOT, sql, store, new Date()),
+    actions: async () =>
       runActions(
-        {
+        await actionDeps({
+          root: ROOT,
+          sql,
           store,
-          prepare: (req) =>
-            prepareFix(req, {
-              run: runProgram(300_000),
-              root: ROOT,
-              tmpRoot: tmpdir(),
-              git: firstExisting("/opt/homebrew/bin/git", "/usr/local/bin/git", "/usr/bin/git"),
-              npm: join(dirname(process.execPath), "npm"),
-              gh: firstExisting("/opt/homebrew/bin/gh", "/usr/local/bin/gh"),
-            }),
-          status: async (url) => {
-            const gh = firstExisting("/opt/homebrew/bin/gh", "/usr/local/bin/gh");
-            const out = await runProgram(60_000)(
-              gh,
-              ["pr", "view", url, "--json", "state,statusCheckRollup"],
-              ROOT,
-            );
-            return out.code === 0 ? parsePrStatus(out.stdout) : "unknown";
-          },
-          send: (text) => telegram.sendMessage(chatId, text),
           journal,
-        },
-        network,
+          telegram,
+          chatId,
+          now: () => new Date(),
+        }),
       ),
   });
   console.log(

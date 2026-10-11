@@ -41,3 +41,40 @@ export function parsePrStatus(raw: string): PrStatus {
   }
   return "pending";
 }
+
+/** What a merge must check again, read strictly from `gh pr view --json …`. */
+export interface PrView {
+  readonly status: PrStatus;
+  readonly headSha: string | null;
+  readonly base: string | null;
+  readonly files: readonly string[];
+  readonly commits: number;
+}
+
+export const PR_VIEW_FIELDS = "state,statusCheckRollup,headRefOid,baseRefName,files,commits";
+const SHA = /^[0-9a-f]{40}$/;
+const UNKNOWN: PrView = { status: "unknown", headSha: null, base: null, files: [], commits: 0 };
+
+export function parsePrView(raw: string): PrView {
+  const status = parsePrStatus(raw);
+  if (status === "unknown") return UNKNOWN;
+  const d = JSON.parse(raw) as {
+    headRefOid?: unknown;
+    baseRefName?: unknown;
+    files?: unknown;
+    commits?: unknown;
+  };
+  const files = Array.isArray(d.files)
+    ? d.files.flatMap((f) => {
+        const path = (f as { path?: unknown } | null)?.path;
+        return typeof path === "string" ? [path] : [];
+      })
+    : [];
+  return {
+    status,
+    headSha: typeof d.headRefOid === "string" && SHA.test(d.headRefOid) ? d.headRefOid : null,
+    base: typeof d.baseRefName === "string" ? d.baseRefName : null,
+    files,
+    commits: Array.isArray(d.commits) ? d.commits.length : 0,
+  };
+}

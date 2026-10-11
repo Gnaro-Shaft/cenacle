@@ -12,6 +12,7 @@ import {
   ANSWER,
   keyboard,
   parsePressed,
+  parsePrPressed,
   preparedFix,
   SEVERITY_LABEL,
   withoutFinding,
@@ -79,6 +80,22 @@ export async function handleCallback(cb: TelegramCallback, deps: SecuriteBotDeps
       type: "telegram.rejected",
       payload: { reason: "not_the_owner" },
     });
+    return;
+  }
+  // ✅ Fusionner / ❌ Fermer under an agent's pull request (J6d): recorded here,
+  // done by the security agent's next round — the bot never touches GitHub.
+  const pr = parsePrPressed(cb.data);
+  if (pr !== null) {
+    const asked = await deps.decisions.requestPr(pr.id, pr.token, pr.action, deps.now());
+    if (asked === "done") await decided(deps, pr.action);
+    await deps.api.answerCallback(
+      cb.id,
+      asked === "done"
+        ? ANSWER[pr.action](pr.id)
+        : asked === "not_ready"
+          ? ANSWER.notReady
+          : ANSWER.stale,
+    );
     return;
   }
   const pressed = parsePressed(cb.data);

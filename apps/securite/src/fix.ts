@@ -36,7 +36,7 @@ export interface FixRequest {
   readonly version: string;
 }
 
-const ONLY_PACKAGE_FILES =
+export const ONLY_PACKAGE_FILES =
   /^(?:package\.json|package-lock\.json|(?:apps|packages)\/[a-z0-9-]{1,60}\/package\.json)$/;
 const BRANCH = /^securite\/correctif-[a-z0-9._-]{1,120}$/;
 export const PR_URL =

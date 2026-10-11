@@ -43,6 +43,11 @@ function local(now: Date): { day: string; hour: number; minute: number } {
   };
 }
 
+/** The local day (Paris), YYYY-MM-DD. */
+export function localDay(now: Date): string {
+  return local(now).day;
+}
+
 export function isQuiet(now: Date): boolean {
   const { hour } = local(now);
   return hour >= QUIET_FROM_HOUR || hour < QUIET_UNTIL_HOUR;

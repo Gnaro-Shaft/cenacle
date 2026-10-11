@@ -13,6 +13,7 @@ import type { Sql } from "postgres";
 export type Decision = "take" | "refuse";
 export type DecisionOutcome = "done" | "stale" | "already";
 export type FixOutcome = DecisionOutcome | "not_fixable";
+export type PrOutcome = "done" | "stale" | "not_ready";
 export type ReasonOutcome = "done" | "expired" | "unknown" | "already";
 
 export interface SecuriteDecisions {
@@ -27,6 +28,11 @@ export interface SecuriteDecisions {
    * version, still to fix; the agent's next round does it. Taken in hand meanwhile.
    */
   requestFix(id: number, token: string, now: Date): Promise<FixOutcome>;
+  /**
+   * ✅ Fusionner / ❌ Fermer under an agent's pull request, CI green (J6d): only
+   * then, with the finding's token; the next round does it, after checking again.
+   */
+  requestPr(id: number, token: string, action: "merge" | "close", now: Date): Promise<PrOutcome>;
   /** The bot asked for a reason with this message: only a reply to it counts. */
   askReason(promptMessageId: number, findingId: number, expiresAt: Date): Promise<void>;
   /** The reply that gives the reason: keeps the risk if the question still stands. */
@@ -98,6 +104,19 @@ export function createSecuriteDecisions(sql: Sql): SecuriteDecisions {
       const [row] = await sql<{ type: string; action_state: string | null }[]>`
         select type, action_state from securite_constats where id = ${id}`;
       return row?.type === "npm_advisory" && row.action_state !== null ? "already" : "not_fixable";
+    },
+
+    async requestPr(id, token, action, now) {
+      if (!TOKEN.test(token)) return "stale";
+      const result = await sql`
+        update securite_constats
+        set action_state = ${action === "merge" ? "fusion_demandee" : "fermeture_demandee"},
+            action_requested_at = ${now}
+        where id = ${id} and button_token = ${token} and action_state = 'ci_verte'`;
+      if (result.count === 1) return "done";
+      const [row] = await sql<{ button_token: string | null }[]>`
+        select button_token from securite_constats where id = ${id}`;
+      return row?.button_token === token ? "not_ready" : "stale";
     },
 
     async askReason(promptMessageId, findingId, expiresAt) {
