@@ -3,7 +3,9 @@
  * propositions). Pure: the store applies the plan in one transaction.
  *  - Seen for the first time: a candidate, not reported (debounce: a passing
  *    glitch never wakes me up).
- *  - Seen again at a later run: open, and reported once.
+ *  - Seen again at least DEBOUNCE_MINUTES after its first sighting: open,
+ *    and reported once. Seen again sooner (two rounds close together, a
+ *    passing port): still a candidate.
  *  - Open, and no longer seen by a check that ran: resolved, reported once.
  *  - A candidate no longer seen: dropped quietly.
  *  - Taken in hand ("I'm on it", J6b): followed like an open finding.
@@ -21,7 +23,12 @@ export interface ActiveFinding extends FindingKey {
   readonly id: number;
   readonly check: string;
   readonly status: ActiveStatus;
+  readonly firstSeen: Date;
 }
+
+/** The least time between the two sightings that open a finding (Legion's rule). */
+export const DEBOUNCE_MINUTES = 10;
+const DEBOUNCE_MS = DEBOUNCE_MINUTES * 60_000;
 
 export interface SeenObservation extends Observation {
   readonly check: string;
@@ -52,7 +59,15 @@ const impossible = (check: string): SeenObservation => ({
     : `Le contrôle « ${check} » n'a pas pu tourner`,
 });
 
-export function reconcile(active: readonly ActiveFinding[], results: readonly CheckResult[]): Plan {
+/** Long enough since the first sighting; a first sighting "in the future" never is. */
+const settled = (f: ActiveFinding, now: Date): boolean =>
+  now.getTime() - f.firstSeen.getTime() >= DEBOUNCE_MS;
+
+export function reconcile(
+  active: readonly ActiveFinding[],
+  results: readonly CheckResult[],
+  now: Date,
+): Plan {
   const seen = new Map<string, SeenObservation>();
   const ran = new Set<string>();
   for (const r of results) {
@@ -75,7 +90,8 @@ export function reconcile(active: readonly ActiveFinding[], results: readonly Ch
   for (const [key, o] of seen) {
     const known = byKey.get(key);
     if (known === undefined) plan.insert.push(o);
-    else if (known.status === "candidat") plan.promote.push({ id: known.id, seen: o });
+    else if (known.status === "candidat" && settled(known, now))
+      plan.promote.push({ id: known.id, seen: o });
     else plan.touch.push({ id: known.id, seen: o });
   }
   for (const a of active) {

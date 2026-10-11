@@ -49,6 +49,7 @@ export {
 export {
   type ActiveFinding,
   type ActiveStatus,
+  DEBOUNCE_MINUTES,
   type Plan,
   reconcile,
   type SeenObservation,

@@ -184,10 +184,13 @@ export function createSecuriteStore(sql: Sql): SecuriteStore {
             values (${o.type}, ${o.target}, ${o.occurrence}, ${o.check}, ${o.severity}, ${o.title},
                     ${tx.json(o.params ?? {})}, 'candidat', ${now}, ${now})`;
         }
+        // Only a promotion opens a candidate; a touch keeps the status it has.
+        const promoted = new Set(plan.promote.map((p) => p.id));
         for (const { id, seen } of [...plan.promote, ...plan.touch]) {
+          const opens = promoted.has(id);
           await tx`
             update securite_constats
-            set status = case when status = 'candidat' then 'ouvert' else status end,
+            set status = case when ${opens} and status = 'candidat' then 'ouvert' else status end,
                 severity = ${seen.severity}, title = ${seen.title}, params = ${tx.json(seen.params ?? {})},
                 last_seen = ${now}, seen_count = seen_count + 1
             where id = ${id} and status not in ('resolu', 'caduc')`;
