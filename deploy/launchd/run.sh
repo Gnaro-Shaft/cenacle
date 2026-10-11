@@ -33,7 +33,7 @@ veille)
   ;;
 securite)
   # Same files as `npm run securite`: the Telegram token only (ADR-0025).
-  exec node --env-file=.env --env-file-if-exists=.env.telegram apps/securite/src/main.ts
+  exec node --env-file=.env --env-file-if-exists=.env.telegram --env-file-if-exists=.env.sentinel apps/securite/src/main.ts
   ;;
 web)
   # Same as `npm run web` (the "dev" script of apps/web: vite), without npm in between.

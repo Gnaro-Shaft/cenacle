@@ -1,6 +1,6 @@
 # La sentinelle (phase 5, S2 — ADR-0002)
 
-Un petit programme sur un VPS, en Europe : il entend les battements d'Iris et de l'exécuteur, et me prévient sur Telegram quand ils cessent (une alerte par panne) puis quand ils reprennent. **Il ne voit aucun contenu**, et **ne parle jamais au Mac** : c'est le Mac qui lui parle.
+Un petit programme sur un VPS, en Europe : il entend les battements d'Iris, de l'exécuteur et de l'agent sécurité, et me prévient sur Telegram quand ils cessent (une alerte par panne) puis quand ils reprennent. **Il ne voit aucun contenu**, et **ne parle jamais au Mac** : c'est le Mac qui lui parle.
 
 ## Ce qu'il faut, une fois
 
@@ -20,7 +20,9 @@ Remplir `/etc/cenacle-sentinel.env` (lisible par root seul) :
 - `SENTINEL_LISTEN` : l'adresse **Tailscale** du VPS et le port (`100.x.y.z:8790`) — jamais `0.0.0.0` : le programme le refuse ;
 - `SENTINEL_TOKEN` : le jeton partagé ;
 - `SENTINEL_TELEGRAM_TOKEN` et `SENTINEL_CHAT_ID` : le bot de la sentinelle et mon identifiant de conversation ;
-- `SENTINEL_PROGRAMS` : les programmes qui doivent tourner, séparés par des virgules (`iris,executor` par défaut). Tant que la vraie boîte n'est pas ouverte aux envois (M2), l'exécuteur ne tourne pas : `SENTINEL_PROGRAMS=iris`, sinon son silence est pris pour une panne. À remettre à `iris,executor` à l'ouverture de `[ouverture] envoi` (M3).
+- `SENTINEL_PROGRAMS` : les programmes qui doivent tourner, séparés par des virgules (`iris,executor,securite` par défaut). Tant que la vraie boîte n'est pas ouverte aux envois (M2), l'exécuteur ne tourne pas : `SENTINEL_PROGRAMS=iris,securite`, sinon son silence est pris pour une panne. À remettre à `iris,executor,securite` à l'ouverture de `[ouverture] envoi` (M3).
+- L'agent sécurité (J6e1) bat une fois par ronde **allée à son terme**, toutes les 15 minutes : son silence ne compte qu'au-delà de 35 minutes (deux rondes manquées), quel que soit `SENTINEL_SILENCE_MINUTES` s'il est plus court. Une ronde qui échoue à chaque passage se tait, et finit donc par être signalée.
+- Un programme muet alors qu'un autre a battu dans les `SENTINEL_SILENCE_MINUTES` est dit **arrêté** (le Mac tourne) ; tous muets, c'est **le Mac** qui est peut-être en panne.
 
 Puis `systemctl enable --now cenacle-sentinel`. Le service tourne sous un utilisateur jetable, sans droit d'écriture.
 
@@ -28,7 +30,8 @@ Puis `systemctl enable --now cenacle-sentinel`. Le service tourne sous un utilis
 
 - Dans `.env` : `CENACLE_SENTINEL_URL=http://<nom-tailscale-du-vps>:8790/battement`
 - Dans `.env.sentinel` (600) : `CENACLE_SENTINEL_TOKEN=<le jeton partagé>`
-- Relancer Iris et l'exécuteur. Sans URL, ils le disent au démarrage et n'envoient rien.
+- Relancer Iris et l'exécuteur ; l'agent sécurité prend la configuration à sa ronde suivante. Sans URL, ils le disent et n'envoient rien.
+- **Ordre de mise à jour** : poser d'abord la nouvelle sentinelle (`install.sh`), puis ajouter `securite` à `SENTINEL_PROGRAMS`. Une ancienne sentinelle refuse le battement de l'agent sécurité : la ronde le dit (« la sentinelle n'a pas pris le battement ») et continue.
 
 ## Le sens des flux, imposé par Tailscale
 

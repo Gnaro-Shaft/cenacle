@@ -9,6 +9,9 @@
 export const SENTINEL_URL_VAR = "CENACLE_SENTINEL_URL";
 export const SENTINEL_TOKEN_VAR = "CENACLE_SENTINEL_TOKEN";
 
+/** The programs that beat: the sentinel knows the same list (apps/sentinel). */
+export type HeartbeatProgram = "iris" | "executor" | "securite";
+
 export interface Heartbeat {
   /** Sends one beat. True when the sentinel took it. Never throws. */
   beat(): Promise<boolean>;
@@ -17,7 +20,7 @@ export interface Heartbeat {
 export function createHeartbeat(opts: {
   readonly url: string;
   readonly token: string;
-  readonly program: "iris" | "executor";
+  readonly program: HeartbeatProgram;
   readonly now?: () => Date;
   readonly fetch?: typeof globalThis.fetch;
 }): Heartbeat {
@@ -41,7 +44,7 @@ export function createHeartbeat(opts: {
 }
 
 export function heartbeatFromEnv(
-  program: "iris" | "executor",
+  program: HeartbeatProgram,
   env: NodeJS.ProcessEnv = process.env,
 ): Heartbeat | null {
   const url = env[SENTINEL_URL_VAR] ?? "";

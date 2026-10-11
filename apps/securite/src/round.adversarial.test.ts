@@ -4,7 +4,8 @@
 // waits for the morning report, sent once a day; network checks at most once
 // an hour, and a round without them closes none of their findings; a failed
 // message goes again next round; the Monday review rides on the report; the
-// journal gets counts, never a title.
+// journal gets counts, never a title; the sentinel hears a beat only from a
+// round that went to its end, and an unreachable sentinel fails nothing.
 import type { FindingPlan, NewEvent, SecuriteStore, StoredFinding } from "@cenacle/journal";
 import type { CheckResult, Observation, Severity } from "@cenacle/securite";
 import { describe, expect, it } from "vitest";
@@ -237,6 +238,58 @@ describe("two rounds close together", () => {
     await runRound(w.deps);
     expect(w.store.rows[0]?.status).toBe("caduc");
     expect(JSON.stringify(w.sent)).not.toMatch(/port_ouvert/);
+  });
+});
+
+describe("the beat to the sentinel (J6e1)", () => {
+  it("one beat per round that went to its end, after the round is journaled", async () => {
+    const w = world([]);
+    const order: string[] = [];
+    const append = w.deps.journal.append;
+    const deps = {
+      ...w.deps,
+      journal: {
+        ...w.deps.journal,
+        append: async (e: NewEvent) => {
+          order.push(e.type);
+          return append(e);
+        },
+      },
+      alive: async () => {
+        order.push("beat");
+        return true;
+      },
+    };
+    await runRound(deps);
+    expect(order.at(-1)).toBe("beat");
+    expect(order.filter((o) => o === "beat")).toHaveLength(1);
+  });
+
+  it("a round that fails sends no beat: failing every time falls silent", async () => {
+    const w = world([finding("sip_off", "eleve")]);
+    let beats = 0;
+    const deps = {
+      ...w.deps,
+      alive: async () => {
+        beats += 1;
+        return true;
+      },
+    };
+    await runRound(deps);
+    w.failing(true);
+    w.at("2026-10-10T10:15:00");
+    await expect(runRound(deps)).rejects.toThrow(/Telegram/);
+    expect(beats).toBe(1);
+  });
+
+  it("an unreachable or broken sentinel fails nothing", async () => {
+    for (const alive of [
+      async () => false,
+      async () => Promise.reject(new Error("ECONNREFUSED")),
+    ]) {
+      const w = world([]);
+      await expect(runRound({ ...w.deps, alive })).resolves.toMatchObject({ impossible: 0 });
+    }
   });
 });
 

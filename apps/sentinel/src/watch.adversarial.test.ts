@@ -1,5 +1,8 @@
 // S2: a beat carries no content and cannot lie about time; an outage is told
 // once, a recovery once, and a message that failed to go out is told again.
+// J6e1: the security agent has 35 minutes of silence; a program silent while
+// another one beats is told as that program down, not the Mac — and only a
+// recent beat (within the shortest silence) proves the Mac is up.
 import { describe, expect, it } from "vitest";
 import { BeatError, createWatch, parseBeat, parsePrograms } from "./watch.ts";
 
@@ -34,7 +37,8 @@ describe("parseBeat: exactly { program, at }, honest about time", () => {
 });
 
 describe("the watch tells each change once", () => {
-  const watch = () => createWatch({ silenceMs: 10 * MIN, startedAt: NOW });
+  const watch = () =>
+    createWatch({ silenceMs: 10 * MIN, startedAt: NOW, programs: ["iris", "executor"] });
   const beatBoth = (w: ReturnType<typeof watch>, ms: number) => {
     w.beat({ program: "iris", at: at(ms) });
     w.beat({ program: "executor", at: at(ms) });
@@ -49,7 +53,9 @@ describe("the watch tells each change once", () => {
   it("a Mac that never spoke is down after the silence", () => {
     const w = watch();
     expect(w.check(at(9 * MIN))).toBeNull();
-    expect(w.check(at(11 * MIN))).toMatch(/Iris et l'exécuteur/);
+    expect(w.check(at(11 * MIN))).toMatch(
+      /Iris \(plus de 10 min\) et l'exécuteur \(plus de 10 min\) : le Mac est peut-être en panne/,
+    );
   });
 
   it("one alert per outage, then one message when it is back", () => {
@@ -69,9 +75,11 @@ describe("the watch tells each change once", () => {
     const w = watch();
     beatBoth(w, 0);
     w.beat({ program: "iris", at: at(9 * MIN) });
-    expect(w.check(at(11 * MIN))).toMatch(/de l'exécuteur/);
+    expect(w.check(at(11 * MIN))).toMatch(/de l'exécuteur .*, alors que Iris bat : le Mac tourne/);
     w.told();
-    expect(w.check(at(20 * MIN))).toMatch(/Iris et l'exécuteur/);
+    expect(w.check(at(20 * MIN))).toMatch(
+      /Iris \(.*\) et l'exécuteur \(.*\) : le Mac est peut-être/,
+    );
   });
 
   it("a message that could not be sent is told again at the next check", () => {
@@ -95,8 +103,9 @@ describe("the watch tells each change once", () => {
 // and must not leave the sentinel stuck without a "back" message.
 describe("only the programs that should run (SENTINEL_PROGRAMS)", () => {
   it.each([
-    [undefined, ["iris", "executor"]],
-    ["", ["iris", "executor"]],
+    [undefined, ["iris", "executor", "securite"]],
+    ["", ["iris", "executor", "securite"]],
+    ["iris,securite", ["iris", "securite"]],
     ["iris", ["iris"]],
     [" iris , executor ", ["iris", "executor"]],
   ])("%j expects %j", (raw, programs) => {
@@ -120,7 +129,7 @@ describe("only the programs that should run (SENTINEL_PROGRAMS)", () => {
     const w = createWatch({ silenceMs: 10 * MIN, startedAt: NOW, programs: ["iris"] });
     w.beat({ program: "iris", at: at(5 * MIN) });
     expect(w.check(at(12 * MIN))).toBeNull();
-    expect(w.check(at(16 * MIN))).toMatch(/Plus de nouvelles de Iris depuis/);
+    expect(w.check(at(16 * MIN))).toMatch(/Plus de nouvelles de Iris \(plus de 10 min\)/);
   });
 
   it("Iris alone: the back message names Iris only, and does come", () => {
@@ -135,5 +144,60 @@ describe("only the programs that should run (SENTINEL_PROGRAMS)", () => {
     const w = createWatch({ silenceMs: 10 * MIN, startedAt: NOW, programs: ["iris"] });
     w.beat({ program: "executor", at: at(15 * MIN) });
     expect(w.check(at(15 * MIN))).toMatch(/Plus de nouvelles de Iris/);
+  });
+});
+
+describe("the security agent (J6e1): one beat per round, every 15 minutes", () => {
+  const both = () =>
+    createWatch({ silenceMs: 10 * MIN, startedAt: NOW, programs: ["iris", "securite"] });
+  const irisEvery5 = (w: ReturnType<typeof both>, until: number) => {
+    for (let m = 1; m <= until; m += 5) w.beat({ program: "iris", at: at(m * MIN) });
+  };
+
+  it("its beat is accepted, and holds nothing more than any other", () => {
+    expect(parseBeat({ program: "securite", at: NOW.toISOString() }, NOW).program).toBe("securite");
+  });
+
+  it("a missed round is no outage; 35 minutes of silence is, told as the agent down, not the Mac", () => {
+    const w = both();
+    w.beat({ program: "securite", at: at(1 * MIN) });
+    irisEvery5(w, 40);
+    expect(w.check(at(35 * MIN))).toBeNull();
+    expect(w.check(at(37 * MIN))).toBe(
+      "🚨 Plus de nouvelles de l'agent sécurité (plus de 35 min), alors que Iris bat : le Mac tourne, mais ce programme est arrêté ou échoue à chaque passage.",
+    );
+    w.told();
+    w.beat({ program: "securite", at: at(40 * MIN) });
+    expect(w.check(at(40 * MIN))).toMatch(/✅/);
+  });
+
+  it("a longer SENTINEL_SILENCE_MINUTES wins over the 35 minutes", () => {
+    const w = createWatch({ silenceMs: 60 * MIN, startedAt: NOW, programs: ["iris", "securite"] });
+    w.beat({ program: "securite", at: at(1 * MIN) });
+    irisEvery5(w, 50);
+    expect(w.check(at(50 * MIN))).toBeNull();
+  });
+
+  it("Iris silent: the agent's beat 20 minutes ago does not prove the Mac is up", () => {
+    const w = both();
+    w.beat({ program: "iris", at: at(1 * MIN) });
+    w.beat({ program: "securite", at: at(1 * MIN) });
+    expect(w.check(at(21 * MIN))).toMatch(
+      /de Iris \(plus de 10 min\) : le Mac est peut-être en panne/,
+    );
+  });
+
+  it("an agent that never beat (in its grace) proves nothing either", () => {
+    const w = both();
+    expect(w.check(at(11 * MIN))).toMatch(/de Iris .* : le Mac est peut-être en panne/);
+  });
+
+  it("the agent beating, Iris silent: Iris down, the Mac up", () => {
+    const w = both();
+    w.beat({ program: "iris", at: at(1 * MIN) });
+    w.beat({ program: "securite", at: at(8 * MIN) });
+    expect(w.check(at(12 * MIN))).toMatch(
+      /de Iris .*, alors que l'agent sécurité bat : le Mac tourne/,
+    );
   });
 });
