@@ -6,7 +6,7 @@ La sûreté est **sur le serveur** : un compte dédié qui n'est pas root, une c
 
 ## Le script
 
-`cenacle-services` relance les services qui tournent sur une bibliothèque remplacée (la liste de `needrestart`), **sauf** : `ssh`, `sshd`, `tailscaled`, `docker`, `containerd`, `corosync`, `pve-cluster` — et ce que tu ajoutes dans `/etc/cenacle/services-exclus` (un nom par ligne, `nom.service`). Ceux-là restent à toi, à la main.
+`cenacle-services` relance les services qui tournent sur une bibliothèque remplacée (la liste de `needrestart`), **sauf** ce qui ne se relance pas à chaud : l'accès (`ssh`, `sshd`, `tailscaled`), les conteneurs (`docker`, `containerd`), la grappe et sa haute disponibilité (`corosync`, `pve-cluster`, `pve-ha-lrm`, `pve-ha-crm`), ce que `needrestart` épargne lui-même (`dbus`, `systemd-logind`, `getty@…`, `user@…`, les gestionnaires de réseau, `emergency`, `rescue`) — et ce que tu ajoutes dans `/etc/cenacle/services-exclus` (un nom par ligne, `nom.service`). Ceux-là restent à toi, à la main. **systemd lui-même** (`systemd-manager` dans la liste) n'est pas un service : il est laissé, noté, et se recharge à la main (`systemctl daemon-reexec`) ou au prochain redémarrage.
 
 Il ne répond que par son code de sortie : **0** fait, **10** rien à relancer, **11** refusé par un garde-fou (argument passé, pas root, sortie de `needrestart` illisible, nom de service inattendu, plus de 30 services), **12** échec. Chaque passage laisse une ligne : `journalctl -t cenacle`.
 

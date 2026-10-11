@@ -1,7 +1,12 @@
 #!/bin/bash
 # cenacle-services (J6f, ADR-0027): restarts the services running on a
-# replaced library, as needrestart lists them — never one of the exclusions
-# (ssh, tailscaled, docker, the cluster…), never anything else. Started only
+# replaced library, as needrestart lists them — never one of the exclusions,
+# never anything else. The exclusions keep what must not be restarted live:
+# the way in (ssh, tailscaled), the containers (docker), the cluster and its
+# high availability (corosync, pve-cluster, pve-ha-*), and what needrestart
+# itself spares (dbus, systemd-logind, getty@, user@, the network managers).
+# systemd itself ("systemd-manager") is not a service: it is left, said, and
+# reloaded by hand (systemctl daemon-reexec) or at the next reboot. Started only
 # through the `cenacle` account's key (forced command, sudo for this script
 # alone); it takes no argument and reads nothing from the caller.
 # Answers by its exit code only: 0 done, 10 nothing to do, 11 refused by a
@@ -10,7 +15,7 @@
 set -u
 export PATH=/usr/sbin:/usr/bin:/sbin:/bin
 readonly EXCLUSIONS_FILE=/etc/cenacle/services-exclus
-readonly DEFAULT_EXCLUSIONS="ssh.service sshd.service tailscaled.service docker.service containerd.service corosync.service pve-cluster.service"
+readonly DEFAULT_EXCLUSIONS="ssh.service sshd.service tailscaled.service docker.service containerd.service corosync.service pve-cluster.service pve-ha-lrm.service pve-ha-crm.service dbus.service dbus-broker.service systemd-logind.service networking.service systemd-networkd.service NetworkManager.service wpa_supplicant.service emergency.service rescue.service"
 readonly MAX_SERVICES=30
 
 log() { /usr/bin/logger -t cenacle -- "services: $*"; }
@@ -36,10 +41,14 @@ fi
 todo=()
 while IFS= read -r svc; do
   [ -z "$svc" ] && continue
+  if [ "$svc" = "systemd-manager" ]; then
+    log "laisse: systemd lui-meme (systemctl daemon-reexec, ou au prochain redemarrage)"; continue
+  fi
   if ! [[ "$svc" =~ ^[A-Za-z0-9@._-]{1,100}\.service$ ]]; then
     log "refus: nom de service inattendu"; exit 11
   fi
   case "$exclusions" in *" $svc "*) log "exclu: $svc"; continue ;; esac
+  case "$svc" in getty@*|serial-getty@*|user@*|user-runtime-dir@*) log "exclu: $svc"; continue ;; esac
   todo+=("$svc")
 done < <(printf '%s\n' "$out" | /usr/bin/sed -n 's/^NEEDRESTART-SVC: //p')
 

@@ -25,7 +25,7 @@ La menace qui guide la conception : **le Mac, ou mon compte Telegram, compromis*
    - Une règle `sudo` qui autorise **ce script précis**, sans argument, et rien d'autre.
    - **Le script refuse de lui-même** ce qui est dangereux, quoi que dise le Mac :
      - `cenacle-redemarrer` : refuse si aucun redémarrage n'est demandé (`/var/run/reboot-required` absent), si la machine a redémarré depuis moins de 24 heures, et, sur la grappe, si un autre nœud manque (le quorum serait perdu) ;
-     - `cenacle-services` : ne relance que ce que `needrestart` désigne, jamais le démon SSH ni le service qui porte la grappe ;
+     - `cenacle-services` : ne relance que ce que `needrestart` désigne, jamais le démon SSH ni le service qui porte la grappe (révisé le 2026-10-11, sur la première vraie liste d'un nœud Proxmox : ni la haute disponibilité `pve-ha-*`, ni ce que `needrestart` épargne lui-même — `dbus`, `systemd-logind`, sessions, réseau — ; systemd lui-même, `systemd-manager`, laissé au lieu de faire refuser toute la liste) ;
      - `cenacle-maj-securite` : n'installe que l'origine « security », ne redémarre jamais.
    - Chaque exécution laisse une trace dans le journal système du serveur (`logger -t cenacle`), refus compris.
 
