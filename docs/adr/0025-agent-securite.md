@@ -41,9 +41,17 @@ Sous chaque nouveau constat, et sous `/constats`, trois boutons : **✅ je m'en 
 - Une panne de la base pendant un appui ne fait pas tomber le bot (comme en #75) : rien n'est décidé, et c'est dit.
 - Aucune IA dans une décision ; le journal reçoit la sorte de décision, rien d'autre ; l'identifiant de ma conversation n'est pas gardé.
 
-## Paliers à venir
+## J6c — les corrections débloquées par mon accord (2026-10-11)
 
-- **J6c** — les actions débloquées par mon accord : une correction de code préparée sur une branche, avec une PR et la CI, la fusion restant à moi (accès GitHub à décider) ; les réglages du Mac restent à moi (jamais de `sudo` pour un agent).
+Un quatrième bouton, **🔧 prépare la PR**, seulement sous un constat que le catalogue sait corriger **sans privilège** : une faille d'une dépendance dont une version corrigée est publiée (nom et version vérifiés). Le Mac et les serveurs restent à moi : jamais de `sudo` pour un agent.
+
+- Mon appui ne fait qu'**enregistrer la demande** (le bot ne touche ni au code ni à GitHub) ; la **ronde suivante** l'exécute, après avoir revérifié que la correction s'applique toujours.
+- **Le « conteneur »** : une copie de travail à part (`git worktree`, depuis `origin/main`, dans un dossier temporaire) — jamais le dépôt dont tournent mes services ; seul le fichier de verrouillage y est mis à jour (`npm install <paquet>@<version> --package-lock-only --ignore-scripts`) : **aucun code du paquet ne tourne sur le Mac** ; le changement ne doit toucher que des fichiers de paquets ; une branche `securite/correctif-…`, une PR ; **la CI de GitHub teste**, sur une machine jetable.
+- **Accès GitHub** : l'accès `gh` déjà installé sur le Mac (décidé le 2026-10-11), limité par règle et par test : **jamais de fusion, jamais de poussée sur `main`, jamais de poussée forcée** — un test parcourt le code de l'agent et refuse ces mots.
+- Je reçois le lien de la PR ; la fusion reste à moi ; la ronde voit ensuite la faille disparaître et résout le constat. Une CI qui échoue, une PR fermée sans fusion me sont dites une fois. Tout échec laisse ma copie de travail propre ; une branche qui n'a pas été poussée est supprimée.
+- Le journal reçoit l'issue de chaque action (`securite.action`) : les faits dont le carnet de confiance de J6d aura besoin.
+
+## Paliers à venir
 - **J6d** — des délégations pour les cas simples que je nomme, dans un fichier versionné (`securite.toml`) que le CTO ne peut pas modifier : type exact, révocable, tracé, jamais pour ce qui demande un administrateur. **La délégation se gagne par un carnet de confiance** (décidé le 2026-10-10) — la récompense d'un agent qui travaille bien est l'autonomie, jamais un réentraînement du modèle (trop lourd en local, et sujet au « piratage de la récompense » : plaire à la mesure plutôt que bien faire) :
   - par agent et par type d'action, le compte des propositions faites, acceptées, refusées, corrigées après coup et annulées, tenu **à partir de mes décisions** seules — jamais de ce que l'agent dit de lui-même, et l'agent ne peut pas y écrire ;
   - un seuil fixé par moi dans `securite.toml` (par exemple dix corrections de faille npm acceptées sans retouche) : le CTO me **propose** alors la délégation de ce type ; c'est moi qui l'accorde (PR ou bouton) ;

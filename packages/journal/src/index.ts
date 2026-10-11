@@ -63,11 +63,13 @@ export {
   createSecuriteDecisions,
   type Decision,
   type DecisionOutcome,
+  type FixOutcome,
   type ReasonOutcome,
   type SecuriteDecisions,
 } from "./securite-decisions.ts";
 export {
   ACCEPTED_ASK_AGAIN_DAYS,
+  type ActionState,
   CLOSED_KEEP_DAYS,
   createSecuriteStore,
   type FindingPlan,

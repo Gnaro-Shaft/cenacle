@@ -55,7 +55,12 @@ export interface StoredFinding {
   readonly acceptedAt: Date | null;
   /** When I took it in hand or refused it (J6b). */
   readonly decidedAt: Date | null;
+  /** A fix the agent prepares on my request (J6c), and its pull request. */
+  readonly actionState: ActionState | null;
+  readonly actionPrUrl: string | null;
 }
+
+export type ActionState = "demandee" | "pr_ouverte" | "ci_echouee" | "abandonnee" | "echouee";
 
 export const CLOSED_KEEP_DAYS = 365;
 export const ACCEPTED_ASK_AGAIN_DAYS = 90;
@@ -74,6 +79,12 @@ export interface SecuriteStore {
   /** I take the risk of a finding still to fix. False when there is none such. */
   accept(id: number, reason: string, now: Date): Promise<boolean>;
   purge(now: Date): Promise<number>;
+  /** Fixes I asked for (🔧) and the agent has not prepared yet. */
+  pendingFixes(): Promise<StoredFinding[]>;
+  /** Pull requests opened by the agent, still followed (their CI). */
+  openPullRequests(): Promise<StoredFinding[]>;
+  /** Where a requested fix stands; the PR's link once it is opened. */
+  setAction(id: number, state: ActionState, prUrl?: string): Promise<void>;
 }
 
 interface Row {
@@ -92,10 +103,12 @@ interface Row {
   reason: string | null;
   accepted_at: Date | null;
   decided_at: Date | null;
+  action_state: ActionState | null;
+  action_pr_url: string | null;
 }
 
 const COLUMNS = `id, check_name, type, target, occurrence, severity, title, params, status,
-  first_seen, last_seen, closed_at, reason, accepted_at, decided_at`;
+  first_seen, last_seen, closed_at, reason, accepted_at, decided_at, action_state, action_pr_url`;
 
 const finding = (r: Row): StoredFinding => ({
   id: Number(r.id),
@@ -113,6 +126,8 @@ const finding = (r: Row): StoredFinding => ({
   reason: r.reason,
   acceptedAt: r.accepted_at,
   decidedAt: r.decided_at,
+  actionState: r.action_state,
+  actionPrUrl: r.action_pr_url,
 });
 
 const DAY_MS = 24 * 3_600_000;
@@ -176,6 +191,17 @@ export function createSecuriteStore(sql: Sql): SecuriteStore {
     },
 
     open: () => select("status in ('ouvert', 'pris_en_charge')"),
+    pendingFixes: () =>
+      select("status in ('ouvert', 'pris_en_charge') and action_state = 'demandee'"),
+    openPullRequests: () =>
+      select("status not in ('resolu', 'caduc') and action_state = 'pr_ouverte'"),
+
+    async setAction(id, state, prUrl) {
+      await sql`
+        update securite_constats
+        set action_state = ${state}, action_pr_url = coalesce(${prUrl ?? null}, action_pr_url)
+        where id = ${id}`;
+    },
     accepted: () => select("status = 'accepte'"),
 
     async accept(id, reason, now) {

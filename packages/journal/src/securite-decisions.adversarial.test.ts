@@ -79,6 +79,59 @@ describe("decisions with a token", () => {
   });
 });
 
+describe("🔧 requesting a fix (J6c)", () => {
+  async function npmFinding(withFix = true): Promise<number> {
+    n += 1;
+    const seen: SeenFinding = {
+      check: "npm_audit",
+      type: "npm_advisory",
+      target: `pkg-${run}-${n}`,
+      occurrence: "1101",
+      severity: "eleve",
+      title: "Faille",
+      params: withFix ? { fixName: "left-pad", fixVersion: "1.3.1" } : { auditFix: "1" },
+    };
+    await store.apply({ ...empty, insert: [seen] }, T0);
+    const f = (await store.active()).find((x) => x.target === seen.target);
+    await store.apply({ ...empty, promote: [{ id: f?.id ?? 0, seen }] }, T0);
+    return f?.id ?? 0;
+  }
+
+  it("a dependency with a fix: noted once, taken in hand; again: already", async () => {
+    const id = await npmFinding();
+    const token = (await decisions.tokens([id])).get(id) ?? "";
+    expect(await decisions.requestFix(id, token, T0)).toBe("done");
+    expect(await status(id)).toBe("pris_en_charge");
+    expect((await store.pendingFixes()).map((f) => f.id)).toContain(id);
+    expect(await decisions.requestFix(id, token, T0)).toBe("already");
+  });
+
+  it("anything else: not fixable; a forged token: stale", async () => {
+    const fw = await openFinding();
+    const t1 = (await decisions.tokens([fw])).get(fw) ?? "";
+    expect(await decisions.requestFix(fw, t1, T0)).toBe("not_fixable");
+    const noFix = await npmFinding(false);
+    const t2 = (await decisions.tokens([noFix])).get(noFix) ?? "";
+    expect(await decisions.requestFix(noFix, t2, T0)).toBe("not_fixable");
+    expect(await decisions.requestFix(noFix, "f".repeat(16), T0)).toBe("stale");
+  });
+
+  it("a failed preparation may be asked again; an opened PR is followed", async () => {
+    const id = await npmFinding();
+    const token = (await decisions.tokens([id])).get(id) ?? "";
+    await decisions.requestFix(id, token, T0);
+    await store.setAction(id, "echouee");
+    expect(await decisions.requestFix(id, token, T0)).toBe("done");
+    await store.setAction(id, "pr_ouverte", "https://github.com/o/r/pull/12");
+    expect((await store.openPullRequests()).find((f) => f.id === id)?.actionPrUrl).toBe(
+      "https://github.com/o/r/pull/12",
+    );
+    await expect(
+      store.setAction(id, "pr_ouverte", "https://evil.example/pull/1"),
+    ).rejects.toThrow();
+  });
+});
+
 describe("keeping a risk: the reason", () => {
   it("a reply to the question, in time: the risk is kept, the question gone", async () => {
     const id = await openFinding();

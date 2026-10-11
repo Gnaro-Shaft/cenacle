@@ -12,6 +12,7 @@ import type { Sql } from "postgres";
 
 export type Decision = "take" | "refuse";
 export type DecisionOutcome = "done" | "stale" | "already";
+export type FixOutcome = DecisionOutcome | "not_fixable";
 export type ReasonOutcome = "done" | "expired" | "unknown" | "already";
 
 export interface SecuriteDecisions {
@@ -21,6 +22,11 @@ export interface SecuriteDecisions {
   check(id: number, token: string): Promise<DecisionOutcome>;
   /** ✅ "I'm on it" or ❌ "refused": applied once, with the right token only. */
   decide(id: number, token: string, decision: Decision, now: Date): Promise<DecisionOutcome>;
+  /**
+   * 🔧 Prepare the pull request (J6c): only a dependency finding with a fix
+   * version, still to fix; the agent's next round does it. Taken in hand meanwhile.
+   */
+  requestFix(id: number, token: string, now: Date): Promise<FixOutcome>;
   /** The bot asked for a reason with this message: only a reply to it counts. */
   askReason(promptMessageId: number, findingId: number, expiresAt: Date): Promise<void>;
   /** The reply that gives the reason: keeps the risk if the question still stands. */
@@ -75,6 +81,23 @@ export function createSecuriteDecisions(sql: Sql): SecuriteDecisions {
       // Nothing changed: either a bad button, or the decision was already made.
       const state = await check(id, token);
       return state === "done" ? "already" : state;
+    },
+
+    async requestFix(id, token, now) {
+      if (!TOKEN.test(token)) return "stale";
+      const state = await check(id, token);
+      if (state !== "done") return state;
+      const result = await sql`
+        update securite_constats
+        set status = 'pris_en_charge', decided_at = coalesce(decided_at, ${now}),
+            action_state = 'demandee', action_requested_at = ${now}
+        where id = ${id} and button_token = ${token} and status = any(${TO_FIX}::text[])
+          and type = 'npm_advisory' and params ? 'fixName' and params ? 'fixVersion'
+          and (action_state is null or action_state in ('echouee', 'abandonnee'))`;
+      if (result.count === 1) return "done";
+      const [row] = await sql<{ type: string; action_state: string | null }[]>`
+        select type, action_state from securite_constats where id = ${id}`;
+      return row?.type === "npm_advisory" && row.action_state !== null ? "already" : "not_fixable";
     },
 
     async askReason(promptMessageId, findingId, expiresAt) {

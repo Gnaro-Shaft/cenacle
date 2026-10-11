@@ -21,7 +21,13 @@ export {
   reportSentToday,
   urgentNow,
 } from "./cadence.ts";
-export { CATALOGUE_TYPES, type Fix, fixFor, UnknownFindingError } from "./catalogue.ts";
+export {
+  CATALOGUE_TYPES,
+  type Fix,
+  fixFor,
+  preparedFix,
+  UnknownFindingError,
+} from "./catalogue.ts";
 export { buildCommentPrompt, COMMENT_SYSTEM_PROMPT, cleanComment } from "./comment.ts";
 export {
   type ActiveFinding,
@@ -41,6 +47,7 @@ export {
   plainOutput,
 } from "./parse-mac.ts";
 export { advisoryText, NPM_NAME, parseNpmAudit, parseNpmOutdated, SEMVER } from "./parse-npm.ts";
+export { type PrStatus, parsePrStatus } from "./pr-status.ts";
 export {
   type AcceptedFinding,
   AI_NOTICE,

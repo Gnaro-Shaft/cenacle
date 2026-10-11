@@ -59,7 +59,8 @@ interface Spec {
   readonly parse: (out: string) => Observation[];
 }
 
-const firstExisting = (...paths: string[]) => paths.find((p) => existsSync(p)) ?? paths[0] ?? "";
+export const firstExisting = (...paths: string[]) =>
+  paths.find((p) => existsSync(p)) ?? paths[0] ?? "";
 
 /** Where Legion's reader leaves the raw verdict (the bridge, ADR-0025). */
 export const LEGION_VERDICT_PATH =
