@@ -27,6 +27,13 @@ logiciels = [
   "Python",
 ]
 
+[serveurs]
+# Acting on the servers (J6f, ADR-0027): my button, confirmed, then a fixed
+# script on the server. Off until the server side is in place and tested by
+# hand; turned on by a pull request. The machines and their keys live in
+# serveurs.local.toml (git-ignored).
+actif = false
+
 [[delegation]]
 # Prepare the pull request of an npm advisory fix without a major version
 # change. The merge stays mine (✅ Fusionner on Telegram, PR by PR).

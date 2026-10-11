@@ -110,6 +110,9 @@ export async function migrate({
     await sql.unsafe(`GRANT SELECT, INSERT, UPDATE, DELETE ON securite_constats TO ${APP_ROLE}`);
     await sql.unsafe(`REVOKE ALL ON securite_raisons FROM ${APP_ROLE}`);
     await sql.unsafe(`GRANT SELECT, INSERT, DELETE ON securite_raisons TO ${APP_ROLE}`);
+    // Actions on the servers (ADR-0027): requested, confirmed, run, verified, purged.
+    await sql.unsafe(`REVOKE ALL ON serveur_actions FROM ${APP_ROLE}`);
+    await sql.unsafe(`GRANT SELECT, INSERT, UPDATE, DELETE ON serveur_actions TO ${APP_ROLE}`);
     // The executor reads what Iris remembers, journals, and moves proposals
     // (claim, sent, failed — refused to every other role by the database).
     await loginRole(sql, EXECUTOR_ROLE, executorPassword, EXECUTOR_PASSWORD_VAR);

@@ -108,7 +108,14 @@ describe("the LaunchAgent", () => {
     expect(plist).toContain("<key>RunAtLoad</key><false/>");
     expect(plist).not.toContain("KeepAlive");
     expect(plist).not.toContain("StartCalendarInterval");
-    expect(Object.keys(INTERVALS)).toEqual(["securite"]);
+    expect(Object.keys(INTERVALS)).toEqual(["securite", "operateur"]);
+  });
+
+  it("the operator every minute (ADR-0027): never at load, never kept alive", () => {
+    const plist = buildPlist("operateur", deps());
+    expect(plist).toContain("<key>StartInterval</key><integer>60</integer>");
+    expect(plist).toContain("<key>RunAtLoad</key><false/>");
+    expect(plist).not.toContain("KeepAlive");
   });
 
   it("odd paths (spaces, accents, & < > quotes) are escaped, never break the XML", () => {

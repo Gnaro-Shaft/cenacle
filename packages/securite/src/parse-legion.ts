@@ -12,6 +12,11 @@ import { plainOutput } from "./parse-mac.ts";
 import { CheckOutputError, type Observation, type Severity } from "./types.ts";
 
 export const LEGION_STALE_MS = 45 * 60_000;
+
+/** Where Legion's reader leaves the raw verdict (the bridge, ADR-0025); read by the agent and the operator. */
+export const LEGION_VERDICT_PATH =
+  process.env.LEGION_VERDICT_PATH ??
+  `${process.env.HOME ?? ""}/Library/Caches/fr.gnaro.legion.ronde.verdict`;
 const FUTURE_TOLERANCE_MS = 5 * 60_000;
 const HOST = /^[a-z0-9][a-z0-9-]{0,39}$/;
 const MOUNT = /^\/[A-Za-z0-9._/-]{0,100}$/;

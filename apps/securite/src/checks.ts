@@ -9,6 +9,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   type CheckResult,
+  LEGION_VERDICT_PATH,
   npmCheck,
   type Observation,
   PROJECTS_CHECK,
@@ -72,10 +73,7 @@ interface Spec {
 export const firstExisting = (...paths: string[]) =>
   paths.find((p) => existsSync(p)) ?? paths[0] ?? "";
 
-/** Where Legion's reader leaves the raw verdict (the bridge, ADR-0025). */
-export const LEGION_VERDICT_PATH =
-  process.env.LEGION_VERDICT_PATH ??
-  `${process.env.HOME ?? ""}/Library/Caches/fr.gnaro.legion.ronde.verdict`;
+export { LEGION_VERDICT_PATH } from "@cenacle/securite";
 
 export function specs(root: string, nodeDir: string, macMajor: number): Spec[] {
   const npm = `${nodeDir}/npm`;
