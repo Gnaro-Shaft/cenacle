@@ -76,6 +76,9 @@ function world(over: Partial<SecuriteDecisions> = {}) {
     },
     store: { open: async () => [] },
     decisions,
+    // J6f1b: off here; the server buttons have their own tests (serveur-bot).
+    serverActions: { request: async () => null, confirm: async () => "stale" },
+    serversActive: () => false,
     journal: {
       append: async (e) => {
         events.push(e);
