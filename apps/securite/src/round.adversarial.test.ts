@@ -136,6 +136,21 @@ describe("speaking at once, or waiting for the morning", () => {
     expect(w.sent.filter((s) => s.text.includes("sip_off"))).toHaveLength(1);
   });
 
+  it("high found in the night: not at the 7:15 round, but in the 7:30 report — one message", async () => {
+    const w = world([finding("sip_off", "eleve")]);
+    w.at("2026-10-10T23:00:00");
+    await runRound(w.deps);
+    w.at("2026-10-10T23:15:00");
+    await runRound(w.deps);
+    w.at("2026-10-11T07:15:00");
+    expect(await runRound(w.deps)).toMatchObject({ urgent: 0, report: false });
+    expect(w.sent).toEqual([]);
+    w.at("2026-10-11T07:30:00");
+    expect(await runRound(w.deps)).toMatchObject({ report: true, opened: 1 });
+    expect(w.sent).toHaveLength(1);
+    expect(w.sent[0]?.text).toContain("sip_off");
+  });
+
   it("medium: never at once, told by the next morning report", async () => {
     const w = world([finding("firewall_off", "moyen")]);
     await runRound(w.deps);
