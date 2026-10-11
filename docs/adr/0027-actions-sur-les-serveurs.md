@@ -1,6 +1,6 @@
 # ADR-0027 — Agir sur les serveurs : un catalogue fermé, mon bouton, des garde-fous sur le serveur
 
-**Statut** : proposée (2026-10-11) — jalon J6f de la phase 6 ; révise l'ADR-0025 (le pont : « Cénacle ne se connecte à aucun serveur »)
+**Statut** : acceptée (2026-10-11) — jalon J6f de la phase 6 ; révise l'ADR-0025 (le pont : « Cénacle ne se connecte à aucun serveur »)
 
 ## Contexte
 
