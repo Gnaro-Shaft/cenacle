@@ -24,7 +24,8 @@ done
 install -d -m 0755 /etc/cenacle
 if [ ! -e /etc/cenacle/services-exclus ]; then
   printf '%s\n' "# Services never restarted by cenacle-services, one per line (name.service)," \
-    "# on top of: ssh, sshd, tailscaled, docker, containerd, corosync, pve-cluster." \
+    "# on top of the defaults (cenacle-services: the way in, the containers, the cluster" \
+    "# and its high availability, and what needrestart itself spares)." \
     > /etc/cenacle/services-exclus
   chmod 0644 /etc/cenacle/services-exclus
 fi

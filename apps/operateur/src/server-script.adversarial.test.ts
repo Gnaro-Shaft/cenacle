@@ -26,6 +26,34 @@ afterAll(() => rmSync(BASE, { recursive: true, force: true }));
 const svc = (names: string[]) =>
   ["NEEDRESTART-VER: 3.6", ...names.map((n) => `NEEDRESTART-SVC: ${n}`)].join("\\n");
 const many = Array.from({ length: 31 }, (_, i) => `s${i}.service`);
+// The list needrestart gave on a Proxmox node after its security updates (2026-10-11).
+const PROXMOX = [
+  "cron.service",
+  "dbus.service",
+  "dm-event.service",
+  "nfs-blkmap.service",
+  "proxmox-firewall.service",
+  "pve-cluster.service",
+  "pve-firewall.service",
+  "pve-ha-crm.service",
+  "pve-ha-lrm.service",
+  "pvedaemon.service",
+  "pvefw-logger.service",
+  "pveproxy.service",
+  "pvescheduler.service",
+  "pvestatd.service",
+  "qmeventd.service",
+  "rrdcached.service",
+  "smartmontools.service",
+  "spiceproxy.service",
+  "ssh.service",
+  "systemd-journald.service",
+  "systemd-logind.service",
+  "systemd-manager",
+  "systemd-udevd.service",
+  "unattended-upgrades.service",
+  "zfs-zed.service",
+];
 
 // One container, every case: "name|exit code|services restarted".
 const HARNESS = `#!/bin/bash
@@ -52,6 +80,10 @@ printf '%s' '${svc(["nginx.service", "panne.service"])}' > /fake/out; run failur
 printf '# mine\\nnginx.service\\n' > /etc/cenacle/services-exclus
 printf '%s' '${svc(["nginx.service", "cron.service"])}' > /fake/out; run added_exclusion
 rm /etc/cenacle/services-exclus
+printf '%s' '${svc(PROXMOX)}' > /fake/out; run proxmox
+printf '%s' '${svc(["systemd-manager"])}' > /fake/out; run systemd_only
+printf '%s' '${svc(["systemd-managerx"])}' > /fake/out; run systemd_lookalike
+printf '%s' '${svc(["getty@tty1.service", "user@1000.service", "serial-getty@ttyS0.service", "cron.service"])}' > /fake/out; run sessions
 printf '%s' '${svc(["nginx.service"])}' > /fake/out
 : > /fake/restarted
 su nobody -s /bin/bash -c '/usr/local/sbin/cenacle-services' >/dev/null 2>&1; echo "not_root|$?|$(tr '\\n' ' ' < /fake/restarted)"
@@ -87,7 +119,7 @@ describe.skipIf(!docker)("cenacle-services on a throwaway Ubuntu", () => {
         restarted: restarted.trim().split(" ").filter(Boolean),
       });
     }
-    expect(results.size).toBe(11);
+    expect(results.size).toBe(15);
   });
 
   it.each([
@@ -102,6 +134,33 @@ describe.skipIf(!docker)("cenacle-services on a throwaway Ubuntu", () => {
     ["failure", 12, ["nginx.service"]],
     ["added_exclusion", 0, ["cron.service"]],
     ["not_root", 11, []],
+    [
+      "proxmox",
+      0,
+      [
+        "cron.service",
+        "dm-event.service",
+        "nfs-blkmap.service",
+        "proxmox-firewall.service",
+        "pve-firewall.service",
+        "pvedaemon.service",
+        "pvefw-logger.service",
+        "pveproxy.service",
+        "pvescheduler.service",
+        "pvestatd.service",
+        "qmeventd.service",
+        "rrdcached.service",
+        "smartmontools.service",
+        "spiceproxy.service",
+        "systemd-journald.service",
+        "systemd-udevd.service",
+        "unattended-upgrades.service",
+        "zfs-zed.service",
+      ],
+    ],
+    ["systemd_only", 10, []],
+    ["systemd_lookalike", 11, []],
+    ["sessions", 0, ["cron.service"]],
   ])("%s → exit %i, restarted %j", (name, code, restarted) => {
     expect(results.get(name)).toEqual({ code, restarted });
   });
