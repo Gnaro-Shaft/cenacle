@@ -7,6 +7,7 @@
  * rule 1). It holds the Telegram token and nothing else.
  */
 import { randomBytes } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
 import { release } from "node:os";
 import { dirname, join } from "node:path";
 import {
@@ -30,7 +31,9 @@ import {
   cleanComment,
   keyboard,
   LOCAL_CHECKS,
+  parseServerSwitch,
   preparedFix,
+  SERVER_CATALOGUE,
   SEVERITY_LABEL,
 } from "@cenacle/securite";
 import { createTelegramApi } from "@cenacle/telegram/api";
@@ -48,6 +51,7 @@ import {
 import { runRound } from "./round.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
+const readIfExists = (path: string): string => (existsSync(path) ? readFileSync(path, "utf8") : "");
 const USAGE = "usage : npm run securite [-- constats | accepter <n°> <raison>]";
 const [command, ...rest] = process.argv.slice(2);
 
@@ -117,10 +121,17 @@ async function round(): Promise<void> {
     send: async (text, buttonsFor) => {
       const tokens = await createSecuriteDecisions(sql).tokens(buttonsFor);
       const findings = new Map((await store.active()).map((f) => [f.id, f]));
+      // 🔁 under a server finding when the switch is on (J6f1b); the operator checks the rest.
+      const servers = parseServerSwitch(readIfExists(join(ROOT, "securite.toml")));
       const rows = keyboard(
         [...tokens].map(([id, token]) => {
           const f = findings.get(id);
-          return { id, token, fixable: f !== undefined && preparedFix(f, f.params) !== null };
+          return {
+            id,
+            token,
+            fixable: f !== undefined && preparedFix(f, f.params) !== null,
+            server: servers && f?.type === SERVER_CATALOGUE.services.finding,
+          };
         }),
       );
       if (rows.length === 0) return telegram.sendMessage(chatId, text);

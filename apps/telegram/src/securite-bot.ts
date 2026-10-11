@@ -7,17 +7,20 @@
  * reason, taken only as a direct reply to that question, within 10 minutes.
  * No AI decides anything here.
  */
-import type { Journal, SecuriteDecisions, SecuriteStore } from "@cenacle/journal";
+import type { Journal, SecuriteDecisions, SecuriteStore, ServeurActions } from "@cenacle/journal";
 import {
   ANSWER,
   keyboard,
+  parseOpPressed,
   parsePressed,
   parsePrPressed,
   preparedFix,
+  SERVER_CATALOGUE,
   SEVERITY_LABEL,
   withoutFinding,
 } from "@cenacle/securite";
 import type { InlineButton, TelegramApi, TelegramCallback, TelegramMessage } from "./api.ts";
+import { confirmServer, pressServer, type ServerBotDeps } from "./serveur-bot.ts";
 
 const REASON_DEADLINE_MS = 10 * 60_000;
 const AGENT = "securite";
@@ -30,6 +33,10 @@ export interface SecuriteBotDeps {
   >;
   readonly store: Pick<SecuriteStore, "open">;
   readonly decisions: SecuriteDecisions;
+  /** Actions on the servers (J6f1b): requested and confirmed here, run by the operator. */
+  readonly serverActions: Pick<ServeurActions, "request" | "confirm">;
+  /** `[serveurs] actif` of securite.toml, read at each use. */
+  readonly serversActive: () => boolean;
   readonly journal: Pick<Journal, "append">;
   readonly now: () => Date;
 }
@@ -41,6 +48,10 @@ const fromInline = (rows: readonly (readonly InlineButton[])[] | undefined) =>
 
 const decided = (deps: SecuriteBotDeps, action: string) =>
   deps.journal.append({ agent: AGENT, type: "securite.decided", payload: { action } });
+const serverDeps = (deps: SecuriteBotDeps): ServerBotDeps => ({
+  ...deps,
+  decided: (action) => decided(deps, action),
+});
 
 /** /constats: every finding still to fix, with its buttons. */
 export async function listFindings(chatId: number, deps: SecuriteBotDeps): Promise<void> {
@@ -54,10 +65,18 @@ export async function listFindings(chatId: number, deps: SecuriteBotDeps): Promi
       `n°${f.id} · ${SEVERITY_LABEL[f.severity]} · ${f.title}${f.status === "pris_en_charge" ? " (pris en charge)" : ""}`,
   );
   const tokens = await deps.decisions.tokens(open.map((f) => f.id));
+  const servers = deps.serversActive();
   const rows = keyboard(
     open.flatMap((f) =>
       tokens.has(f.id)
-        ? [{ id: f.id, token: tokens.get(f.id) ?? "", fixable: preparedFix(f, f.params) !== null }]
+        ? [
+            {
+              id: f.id,
+              token: tokens.get(f.id) ?? "",
+              fixable: preparedFix(f, f.params) !== null,
+              server: servers && f.type === SERVER_CATALOGUE.services.finding,
+            },
+          ]
         : [],
     ),
   );
@@ -98,9 +117,19 @@ export async function handleCallback(cb: TelegramCallback, deps: SecuriteBotDeps
     );
     return;
   }
+  // ✅ Confirmer an action on a server (J6f1b): recorded here, run by the operator.
+  const op = parseOpPressed(cb.data);
+  if (op !== null) {
+    await confirmServer(cb, chat.id, op, serverDeps(deps));
+    return;
+  }
   const pressed = parsePressed(cb.data);
   if (pressed === null) {
     await deps.api.answerCallback(cb.id, ANSWER.stale);
+    return;
+  }
+  if (pressed.action === "server") {
+    await pressServer(cb, chat.id, pressed, serverDeps(deps));
     return;
   }
   const now = deps.now();

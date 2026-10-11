@@ -2,7 +2,9 @@
  * Iris on Telegram. Usage: npm run bot
  * Long polling: the Mac calls Telegram, Telegram never calls the Mac.
  */
+import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
+import { join } from "node:path";
 import { projectStatus, refuseForeignSecrets } from "@cenacle/core";
 import { askCtoService, ctoSocketPath } from "@cenacle/cto/client";
 import {
@@ -10,12 +12,14 @@ import {
   createJournal,
   createSecuriteDecisions,
   createSecuriteStore,
+  createServeurActions,
   holdSingleInstance,
   InvalidEventError,
   latestEventAt,
   readAllEvents,
   watchOrQuit,
 } from "@cenacle/journal";
+import { parseServerSwitch } from "@cenacle/securite";
 import { perform } from "./actions.ts";
 import { createTelegramApi, TelegramError, type TelegramFailure } from "./api.ts";
 import { sleepUnless } from "./backoff.ts";
@@ -87,12 +91,23 @@ async function reply(chatId: number, text: string): Promise<void> {
   }
 }
 
+const ROOT = join(import.meta.dirname, "..", "..", "..");
+
 // The security agent's buttons (J6b): decided in the database, never by AI.
 const securite: SecuriteBotDeps = {
   allowedChatId,
   api,
   store: createSecuriteStore(sql),
   decisions: createSecuriteDecisions(sql),
+  // Actions on the servers (J6f1b): the bot records; the operator, alone, acts.
+  serverActions: createServeurActions(sql),
+  serversActive: () => {
+    try {
+      return parseServerSwitch(readFileSync(join(ROOT, "securite.toml"), "utf8"));
+    } catch {
+      return false;
+    }
+  },
   journal,
   now: () => new Date(),
 };

@@ -50,7 +50,7 @@ La menace qui guide la conception : **le Mac, ou mon compte Telegram, compromis*
 ## Paliers
 
 - **J6f0** — cet ADR, pour relecture.
-- **J6f1** — **une seule action : relancer les services**, en deux temps : **J6f1a** le côté serveur (`deploy/serveurs/` : script, installation, guide, essai à la main) et le programme `operateur` (table `serveur_actions`, interrupteur `[serveurs] actif = false`) ; **J6f1b** le bouton et sa confirmation. Essai réel sur un VPS qui n'est ni la sentinelle ni l'hôte de Legion.
+- **J6f1** — **une seule action : relancer les services**, en deux temps : **J6f1a** le côté serveur (`deploy/serveurs/` : script, installation, guide, essai à la main) et le programme `operateur` (table `serveur_actions`, interrupteur `[serveurs] actif = false`) ; **J6f1b** le bouton et sa confirmation (🔁 sous un constat `serveur_services` quand l'interrupteur est allumé, sous tout constat de ce type : seul l'opérateur lit `serveurs.local.toml` et refuse une machine non déclarée ; ✅ Confirmer, jeton à lui, 60 secondes). Essai réel prévu sur un VPS qui n'est ni la sentinelle ni l'hôte de Legion ; dans les faits (2026-10-11), la machine installée est la sentinelle (`v10`), le seul autre VPS n'étant pas sous Tailscale : elle accepte donc cette seule commande fixe, `cenacle-sentinel.service` exclu de toute relance — exception assumée, réversible en désinstallant.
 - **J6f2** — le redémarrage : quorum de la grappe, 24 heures, preuve du retour, alerte si la machine ne revient pas.
 - **J6f3** — les mises à jour de sécurité, sans redémarrage.
 
