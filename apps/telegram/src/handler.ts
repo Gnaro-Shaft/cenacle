@@ -16,8 +16,8 @@ export type Action =
   | { readonly kind: "journal"; readonly type: "stop.requested" }
   /** A question for the CTO (ADR-0020): relayed without blocking the bot. */
   | { readonly kind: "ask_cto"; readonly chatId: number; readonly question: string }
-  /** The security findings still to fix, with their buttons (J6b). */
-  | { readonly kind: "securite_list"; readonly chatId: number };
+  /** The security findings still to fix, with their buttons (J6b) — or one of them, by number. */
+  | { readonly kind: "securite_list"; readonly chatId: number; readonly id?: number };
 
 export interface HandlerDeps {
   readonly allowedChatId: number;
@@ -56,7 +56,7 @@ const HELP = [
   "/etat — où j'en suis",
   "/stop — arrêt d'urgence (noté dans le journal)",
   "/cto ta question — une question technique au CTO (réponse en 1 à 3 min).",
-  "/constats — les constats de sécurité à traiter, avec leurs boutons",
+  "/constats — les constats de sécurité à traiter, avec leurs boutons ; /constats 61 : celui-là seul",
   "   ⚠ Jamais de nom de client ni de contenu de mail : le texte passe par Telegram.",
   "/aide — cette aide",
 ].join("\n");
@@ -130,8 +130,17 @@ export async function handleUpdate(update: TelegramUpdate, deps: HandlerDeps): P
         ];
       }
     }
-    case "/constats":
-      return [{ kind: "securite_list", chatId: message.chat.id }];
+    case "/constats": {
+      // "/constats 61" (or "n°61"): that finding alone, with its buttons, whatever its rank.
+      const rest = (message.text ?? "").trim().replace(/^\S+\s*/, "");
+      if (rest === "") return [{ kind: "securite_list", chatId: message.chat.id }];
+      const m = /^(?:n°\s*)?(\d{1,12})$/i.exec(rest);
+      const id = m === null ? Number.NaN : Number(m[1]);
+      if (!Number.isSafeInteger(id) || id <= 0) {
+        return [reply("Pour un seul constat : /constats 61 (son numéro). Sans numéro : tous.")];
+      }
+      return [{ kind: "securite_list", chatId: message.chat.id, id }];
+    }
     case "/stop":
       return [
         { kind: "journal", type: "stop.requested" },

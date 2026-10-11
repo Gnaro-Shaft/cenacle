@@ -31,11 +31,11 @@ La menace qui guide la conception : **le Mac, ou mon compte Telegram, compromis*
 
 3. **Sur le Mac, mon bouton, confirmé.**
    - Sous un constat serveur venu du pont, et seulement pour l'action qui y répond (un redémarrage demandé → 🔄 Redémarrer ; des services à relancer → 🔁 Relancer les services), un bouton à jeton unique.
-   - Mon appui ne déclenche rien : le bot me demande **« Confirmer … sur noeud-a ? »**, avec un second bouton à usage unique, **valable 60 secondes**. Un appui égaré, ou un message vieux, ne suffit pas.
+   - Mon appui ne déclenche rien : le bot me demande **« Confirmer … sur noeud-a ? »**, avec un second bouton à usage unique, **valable 2 minutes** (60 secondes à l'origine, portées à 2 minutes le 2026-10-11 : la première confirmation réelle est arrivée trop tard). Un appui égaré, ou un message vieux, ne suffit pas.
    - La demande confirmée est seulement **enregistrée** ; le bot ne détient aucune clé.
 
 4. **Un programme à part, `operateur`, seul détenteur des clés.** Lancé par launchd chaque minute, verrou d'instance (ADR-0023). Il ne détient que la famille de secrets `serveurs` (les chemins des clés, un `known_hosts` à lui, `StrictHostKeyChecking=yes`), plus de quoi me répondre sur Telegram. Ni le CTO, ni le bot, ni l'agent sécurité ne lisent les clés.
-   - **Avant d'agir, il revérifie** (charte, règle 5) : le dernier relevé de Legion a moins de 20 minutes et montre **encore** le problème ; sinon rien n'est fait, et il me dit pourquoi.
+   - **Avant d'agir, il revérifie** (charte, règle 5) : le dernier relevé de Legion a moins de **35 minutes** et montre **encore** le problème (20 minutes à l'origine : la ronde de Legion et sa recopie sur le Mac tournant chacune toutes les 15 minutes, le relevé disponible a jusqu'à ~30 minutes en temps normal — l'essai du 2026-10-11 a été refusé à 25 minutes ; 35 reste plus strict que les 45 de l'agent sécurité) ; sinon rien n'est fait, et il me dit pourquoi.
    - **Une seule action à la fois**, toutes machines confondues ; au plus un redémarrage par machine et par 24 heures (le script le refuse aussi).
    - Le code de sortie du script et la règle qui a refusé, s'il y en a une, me sont dits ; jamais une sortie brute du serveur.
 
@@ -50,7 +50,7 @@ La menace qui guide la conception : **le Mac, ou mon compte Telegram, compromis*
 ## Paliers
 
 - **J6f0** — cet ADR, pour relecture.
-- **J6f1** — **une seule action : relancer les services**, en deux temps : **J6f1a** le côté serveur (`deploy/serveurs/` : script, installation, guide, essai à la main) et le programme `operateur` (table `serveur_actions`, interrupteur `[serveurs] actif = false`) ; **J6f1b** le bouton et sa confirmation (🔁 sous un constat `serveur_services` quand l'interrupteur est allumé, sous tout constat de ce type : seul l'opérateur lit `serveurs.local.toml` et refuse une machine non déclarée ; ✅ Confirmer, jeton à lui, 60 secondes). Essai réel prévu sur un VPS qui n'est ni la sentinelle ni l'hôte de Legion ; dans les faits (2026-10-11), la machine installée est la sentinelle (`v10`), le seul autre VPS n'étant pas sous Tailscale : elle accepte donc cette seule commande fixe, `cenacle-sentinel.service` exclu de toute relance — exception assumée, réversible en désinstallant.
+- **J6f1** — **une seule action : relancer les services**, en deux temps : **J6f1a** le côté serveur (`deploy/serveurs/` : script, installation, guide, essai à la main) et le programme `operateur` (table `serveur_actions`, interrupteur `[serveurs] actif = false`) ; **J6f1b** le bouton et sa confirmation (🔁 sous un constat `serveur_services` quand l'interrupteur est allumé, sous tout constat de ce type : seul l'opérateur lit `serveurs.local.toml` et refuse une machine non déclarée ; ✅ Confirmer, jeton à lui, 2 minutes ; `/constats <n°>` montre un constat seul avec ses boutons, quel que soit son rang). Essai réel prévu sur un VPS qui n'est ni la sentinelle ni l'hôte de Legion ; dans les faits (2026-10-11), la machine installée est la sentinelle (`v10`), le seul autre VPS n'étant pas sous Tailscale : elle accepte donc cette seule commande fixe, `cenacle-sentinel.service` exclu de toute relance — exception assumée, réversible en désinstallant.
 - **J6f2** — le redémarrage : quorum de la grappe, 24 heures, preuve du retour, alerte si la machine ne revient pas.
 - **J6f3** — les mises à jour de sécurité, sans redémarrage.
 
@@ -67,7 +67,7 @@ La menace qui guide la conception : **le Mac, ou mon compte Telegram, compromis*
 - **Une seule clé, un shell restreint** : une clé qui sait tout faire est une porte ; une clé par action borne ce qu'un vol permet.
 - **Root ou `sudo` large** : contraire au moindre privilège ; le script, seul autorisé, porte ses propres refus.
 - **Des garde-fous seulement sur le Mac** : ils tombent avec lui.
-- **Un appui unique** : un appui égaré ou un compte détourné suffirait ; la confirmation de 60 secondes coûte un geste.
+- **Un appui unique** : un appui égaré ou un compte détourné suffirait ; la confirmation de 2 minutes coûte un geste.
 - **L'exécution par la ronde de sécurité** (toutes les 15 minutes) : trop lent pour un geste fait du terrain, et l'agent sécurité n'a pas à détenir de clé.
 - **Une action proposée ou composée par le modèle** : interdit par la charte (règle 1).
 - **L'arrêt d'une machine** : hors catalogue — on ne le rallume pas depuis Telegram.

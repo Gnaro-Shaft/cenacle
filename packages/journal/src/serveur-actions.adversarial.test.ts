@@ -1,5 +1,5 @@
 // Actions on the servers, in the real database (J6f): a request is confirmed
-// only with its token, within its 60 seconds, once; two actions never run at
+// only with its token, within its 2 minutes, once; two actions never run at
 // once, whatever the machine — the database refuses the second; a run cut
 // off midway is failed and frees the way; outcomes are told once; a row goes
 // 365 days after the request, never while it is pending.
@@ -41,22 +41,22 @@ const state = async (id: number) =>
   (await sql<{ state: string }[]>`select state from serveur_actions where id = ${id}`)[0]?.state;
 
 describe("my confirmation", () => {
-  it("with its token, within 60 seconds: confirmed; again: already", async () => {
+  it("with its token, within 2 minutes: confirmed; again: already", async () => {
     const r = await actions.request(await finding(), "vps-b", "services", T0);
     if (r === null) throw new Error("no request");
     expect(r.token).toMatch(/^[0-9a-f]{16}$/);
-    expect(await actions.confirm(r.id, r.token, new Date(T0.getTime() + 59 * S))).toBe("done");
+    expect(await actions.confirm(r.id, r.token, new Date(T0.getTime() + 119 * S))).toBe("done");
     expect(await state(r.id)).toBe("confirmee");
-    expect(await actions.confirm(r.id, r.token, new Date(T0.getTime() + 60 * S))).toBe("already");
+    expect(await actions.confirm(r.id, r.token, new Date(T0.getTime() + 120 * S))).toBe("already");
   });
 
-  it("after 60 seconds: expired, never confirmed — before and after the pass marks it", async () => {
+  it("after 2 minutes: expired, never confirmed — before and after the pass marks it", async () => {
     const r = await actions.request(await finding(), "vps-b", "services", T0);
     if (r === null) throw new Error("no request");
-    expect(await actions.confirm(r.id, r.token, new Date(T0.getTime() + 61 * S))).toBe("expired");
-    expect(await actions.expire(new Date(T0.getTime() + 61 * S))).toBeGreaterThanOrEqual(1);
+    expect(await actions.confirm(r.id, r.token, new Date(T0.getTime() + 121 * S))).toBe("expired");
+    expect(await actions.expire(new Date(T0.getTime() + 121 * S))).toBeGreaterThanOrEqual(1);
     expect(await state(r.id)).toBe("expiree");
-    expect(await actions.confirm(r.id, r.token, new Date(T0.getTime() + 62 * S))).toBe("expired");
+    expect(await actions.confirm(r.id, r.token, new Date(T0.getTime() + 122 * S))).toBe("expired");
     expect(await state(r.id)).toBe("expiree");
   });
 
@@ -114,7 +114,7 @@ describe("the purge", () => {
     const old = new Date(T0.getTime() - 366 * 86_400_000);
     const gone = await actions.request(await finding(), "vps-b", "services", old);
     if (gone === null) throw new Error("no request");
-    await actions.expire(new Date(old.getTime() + 61 * S));
+    await actions.expire(new Date(old.getTime() + 121 * S));
     const kept = await actions.request(await finding(), "vps-b", "services", T0);
     await actions.purge(T0);
     expect(await state(gone.id)).toBeUndefined();
