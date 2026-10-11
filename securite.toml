@@ -32,7 +32,7 @@ logiciels = [
 # script on the server. Off until the server side is in place and tested by
 # hand; turned on by a pull request. The machines and their keys live in
 # serveurs.local.toml (git-ignored).
-actif = false
+actif = true
 
 [[delegation]]
 # Prepare the pull request of an npm advisory fix without a major version
