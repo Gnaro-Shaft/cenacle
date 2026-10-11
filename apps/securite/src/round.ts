@@ -16,11 +16,14 @@ import {
   type ReportFinding,
   reconcile,
   reportDue,
+  SEVERITIES,
+  speaksAtOnce,
   type TrustLine,
-  urgentNow,
 } from "@cenacle/securite";
 
 const AGENT = "securite";
+/** The CTO comments the worst few of a message: a first audit of my projects may open dozens. */
+export const MAX_COMMENTS = 5;
 const WEEK_GAP_MS = 6 * 24 * 3_600_000;
 
 export interface RoundDeps {
@@ -99,10 +102,13 @@ export async function runRound(deps: RoundDeps): Promise<RoundOutcome> {
   // The report tells everything not told yet; otherwise only what cannot wait.
   const opened = isReport
     ? pending.opened
-    : pending.opened.filter((f) => urgentNow(f.severity, now, lastReport));
+    : pending.opened.filter((f) => speaksAtOnce(f, now, lastReport));
   const resolved = isReport ? pending.resolved : [];
   const comments = new Map<number, string | null>();
-  for (const f of opened) comments.set(f.id, await deps.comment(f));
+  const worstFirst = [...opened].sort(
+    (a, b) => SEVERITIES.indexOf(b.severity) - SEVERITIES.indexOf(a.severity),
+  );
+  for (const f of worstFirst.slice(0, MAX_COMMENTS)) comments.set(f.id, await deps.comment(f));
   const open = await deps.store.open();
   const daily = formatDaily({
     date: now,

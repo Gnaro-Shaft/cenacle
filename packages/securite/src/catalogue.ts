@@ -142,6 +142,35 @@ const CATALOGUE: Readonly<Record<string, Builder>> = {
     advice: `${on(p)}motif signalé par la ronde de Legion : à examiner sur la machine.`,
     command: null,
   }),
+  // My other projects (J6e2): never a 🔧, the commands are for me to run there.
+  projet_npm: (_k, p) => {
+    const where = `Dans le projet ${p.project ?? "concerné"} : `;
+    if (
+      p.fixName !== undefined &&
+      p.fixVersion !== undefined &&
+      NPM_NAME.test(p.fixName) &&
+      SEMVER.test(p.fixVersion)
+    ) {
+      const major = p.fixMajor === "1" ? " (version majeure : relire les changements avant)" : "";
+      return {
+        advice: `${where}mettre à jour ${p.fixName} en ${p.fixVersion}${major}, puis lancer ses tests.`,
+        command: `npm install ${p.fixName}@${p.fixVersion}`,
+      };
+    }
+    if (p.auditFix === "1")
+      return {
+        advice: `${where}un correctif existe : l'appliquer, puis lancer ses tests.`,
+        command: "npm audit fix",
+      };
+    return {
+      advice: `${where}aucun correctif publié : surveiller l'avis, et évaluer si le chemin vulnérable est atteint.`,
+      command: null,
+    };
+  },
+  projet_fuite: (_k, p) => ({
+    advice: `Dans le projet ${p.project ?? "concerné"} : tenir ce secret pour exposé — le révoquer et en créer un autre, puis le retirer de l'historique si le dépôt est partagé. Un faux positif : ☑ garder le risque, avec la raison.`,
+    command: null,
+  }),
   check_impossible: (k) => ({
     advice: `Le contrôle « ${k.target} » n'a pas pu tourner : rien n'est prouvé tant qu'il ne repasse pas.`,
     command: null,

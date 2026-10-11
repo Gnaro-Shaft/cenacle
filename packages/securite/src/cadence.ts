@@ -68,6 +68,18 @@ export function urgentNow(severity: Severity, now: Date, lastReport: Date | null
   return severity === "eleve" && !isQuiet(now) && reportSentToday(now, lastReport);
 }
 
+/** Findings that never speak at once, whatever their severity: my other projects' dependencies (J6e2). */
+export const REPORT_ONLY_TYPES: readonly string[] = ["projet_npm"];
+
+/** urgentNow, unless the kind of finding always waits for the morning report. */
+export function speaksAtOnce(
+  f: { readonly type: string; readonly severity: Severity },
+  now: Date,
+  lastReport: Date | null,
+): boolean {
+  return !REPORT_ONLY_TYPES.includes(f.type) && urgentNow(f.severity, now, lastReport);
+}
+
 /** The morning report: due from 7:30, once per local day. */
 export function reportDue(now: Date, lastReport: Date | null): boolean {
   const t = local(now);

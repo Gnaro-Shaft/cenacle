@@ -36,7 +36,14 @@ import {
 import { createTelegramApi } from "@cenacle/telegram/api";
 import { runActions } from "./actions.ts";
 import { actionDeps, trustLines } from "./actions-deps.ts";
-import { runChecks, runProgram, specs } from "./checks.ts";
+import {
+  loadProjects,
+  projectSpecs,
+  projectsResult,
+  runChecks,
+  runProgram,
+  specs,
+} from "./checks.ts";
 import { runRound } from "./round.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
@@ -69,13 +76,16 @@ async function round(): Promise<void> {
   // Darwin 25 is macOS 26: what tells a point release from a new major version.
   const macMajor = Number(release().split(".")[0]) + 1;
   const outcome = await runRound({
-    checks: (network) =>
-      runChecks(
-        specs(ROOT, dirname(process.execPath), macMajor).filter(
-          (s) => network || LOCAL_CHECKS.includes(s.check),
-        ),
-        runProgram(),
-      ),
+    checks: async (network) => {
+      // My other projects (J6e2): the list read at each round, their audits once an hour.
+      const projects = loadProjects(ROOT);
+      const nodeDir = dirname(process.execPath);
+      const list = [
+        ...specs(ROOT, nodeDir, macMajor).filter((s) => network || LOCAL_CHECKS.includes(s.check)),
+        ...(network && projects !== null ? projectSpecs(projects, nodeDir) : []),
+      ];
+      return [...(await runChecks(list, runProgram())), projectsResult(projects)];
+    },
     store,
     comment: async (f) => {
       try {
