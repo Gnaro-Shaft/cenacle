@@ -76,6 +76,7 @@ const NEUTRAL_EVENT_TYPES: ReadonlySet<string> = new Set([
   "securite.rapport", // the morning security report was sent
   "securite.decided", // I decided on a finding from Telegram: its kind only (J6b)
   "securite.action", // a fix prepared on my request: its outcome only (J6c)
+  "securite.delegation", // a delegation proposed or suspended (J6d)
   "send.lapsed",
   "send.cancelled",
   "proposal.skipped", // Iris decided not to propose: nothing waits for me

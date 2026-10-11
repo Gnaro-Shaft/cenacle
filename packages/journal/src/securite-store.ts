@@ -58,9 +58,32 @@ export interface StoredFinding {
   /** A fix the agent prepares on my request (J6c), and its pull request. */
   readonly actionState: ActionState | null;
   readonly actionPrUrl: string | null;
+  /** The commit the CI tested when the merge buttons were sent (J6d). */
+  readonly actionHeadSha: string | null;
+  /** Prepared under a delegation, not on my 🔧 (J6d). */
+  readonly actionDelegated: boolean;
 }
 
-export type ActionState = "demandee" | "pr_ouverte" | "ci_echouee" | "abandonnee" | "echouee";
+export type ActionState =
+  | "demandee"
+  | "pr_ouverte"
+  | "ci_echouee"
+  | "abandonnee"
+  | "echouee"
+  | "ci_verte"
+  | "fusion_demandee"
+  | "fermeture_demandee"
+  | "fusionnee"
+  | "fermee";
+
+/** The trust record's counts for one delegable action, from the journal (J6d). */
+export interface ActionCounts {
+  readonly prepared: number;
+  readonly mergedClean: number;
+  readonly mergedEdited: number;
+  readonly closed: number;
+  readonly ciFailed: number;
+}
 
 export const CLOSED_KEEP_DAYS = 365;
 export const ACCEPTED_ASK_AGAIN_DAYS = 90;
@@ -81,10 +104,16 @@ export interface SecuriteStore {
   purge(now: Date): Promise<number>;
   /** Fixes I asked for (🔧) and the agent has not prepared yet. */
   pendingFixes(): Promise<StoredFinding[]>;
-  /** Pull requests opened by the agent, still followed (their CI). */
+  /** Pull requests opened by the agent, still followed (their CI, my merge or closing). */
   openPullRequests(): Promise<StoredFinding[]>;
-  /** Where a requested fix stands; the PR's link once it is opened. */
-  setAction(id: number, state: ActionState, prUrl?: string): Promise<void>;
+  /** Where a requested fix stands; the PR's link once opened; the commit the CI tested. */
+  setAction(id: number, state: ActionState, prUrl?: string, headSha?: string): Promise<void>;
+  /** What I asked from the PR buttons (J6d): a merge or a closing, for the next round. */
+  prRequests(): Promise<StoredFinding[]>;
+  /** A delegation prepares this fix by itself: only an open finding with no action yet. */
+  delegateFix(id: number, now: Date): Promise<boolean>;
+  /** The trust record of a delegable action: the outcomes journaled since then. */
+  actionCounts(delegable: string, since: Date): Promise<ActionCounts>;
 }
 
 interface Row {
@@ -105,10 +134,13 @@ interface Row {
   decided_at: Date | null;
   action_state: ActionState | null;
   action_pr_url: string | null;
+  action_head_sha: string | null;
+  action_delegated: boolean;
 }
 
 const COLUMNS = `id, check_name, type, target, occurrence, severity, title, params, status,
-  first_seen, last_seen, closed_at, reason, accepted_at, decided_at, action_state, action_pr_url`;
+  first_seen, last_seen, closed_at, reason, accepted_at, decided_at, action_state, action_pr_url,
+  action_head_sha, action_delegated`;
 
 const finding = (r: Row): StoredFinding => ({
   id: Number(r.id),
@@ -128,6 +160,8 @@ const finding = (r: Row): StoredFinding => ({
   decidedAt: r.decided_at,
   actionState: r.action_state,
   actionPrUrl: r.action_pr_url,
+  actionHeadSha: r.action_head_sha,
+  actionDelegated: r.action_delegated,
 });
 
 const DAY_MS = 24 * 3_600_000;
@@ -193,14 +227,41 @@ export function createSecuriteStore(sql: Sql): SecuriteStore {
     open: () => select("status in ('ouvert', 'pris_en_charge')"),
     pendingFixes: () =>
       select("status in ('ouvert', 'pris_en_charge') and action_state = 'demandee'"),
-    openPullRequests: () =>
-      select("status not in ('resolu', 'caduc') and action_state = 'pr_ouverte'"),
+    openPullRequests: () => select("action_state in ('pr_ouverte', 'ci_verte')"),
+    prRequests: () => select("action_state in ('fusion_demandee', 'fermeture_demandee')"),
 
-    async setAction(id, state, prUrl) {
+    async setAction(id, state, prUrl, headSha) {
       await sql`
         update securite_constats
-        set action_state = ${state}, action_pr_url = coalesce(${prUrl ?? null}, action_pr_url)
+        set action_state = ${state}, action_pr_url = coalesce(${prUrl ?? null}, action_pr_url),
+            action_head_sha = coalesce(${headSha ?? null}, action_head_sha)
         where id = ${id}`;
+    },
+
+    async delegateFix(id, now) {
+      const result = await sql`
+        update securite_constats
+        set status = 'pris_en_charge', decided_at = coalesce(decided_at, ${now}),
+            action_state = 'demandee', action_requested_at = ${now}, action_delegated = true
+        where id = ${id} and status = 'ouvert' and action_state is null
+          and type = 'npm_advisory' and params ? 'fixName' and params ? 'fixVersion'`;
+      return result.count === 1;
+    },
+
+    async actionCounts(delegable, since) {
+      const rows = await sql<{ outcome: string; n: number }[]>`
+        select payload->>'outcome' as outcome, count(*)::int as n from events
+        where agent = 'securite' and type = 'securite.action'
+          and payload->>'delegable' = ${delegable} and occurred_at >= ${since}
+        group by 1`;
+      const n = (outcome: string) => rows.find((r) => r.outcome === outcome)?.n ?? 0;
+      return {
+        prepared: n("pr_opened"),
+        mergedClean: n("merged_clean"),
+        mergedEdited: n("merged_edited"),
+        closed: n("closed"),
+        ciFailed: n("ci_failed"),
+      };
     },
     accepted: () => select("status = 'accepte'"),
 

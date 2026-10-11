@@ -115,11 +115,34 @@ export function formatDaily(input: DailyInput): string | null {
   return assemble(head, [opened, resolved], tail);
 }
 
+/** One line of the trust record (J6d): a delegable action, its counts, its state. */
+export interface TrustLine {
+  readonly label: string;
+  readonly state: "apprentissage" | "proposable" | "accordee" | "suspendue";
+  readonly seuil: number;
+  readonly prepared: number;
+  readonly mergedClean: number;
+  readonly mergedEdited: number;
+  readonly closed: number;
+  readonly ciFailed: number;
+}
+
 export interface WeeklyInput {
   readonly date: Date;
   readonly open: readonly ReportFinding[];
   readonly accepted: readonly AcceptedFinding[];
+  readonly trust?: readonly TrustLine[];
 }
+
+const TRUST_STATE: Readonly<Record<TrustLine["state"], string>> = {
+  apprentissage: "en apprentissage",
+  proposable: "proposable",
+  accordee: "déléguée",
+  suspendue: "suspendue",
+};
+
+const trustBlock = (t: TrustLine) =>
+  `🤝 Carnet · ${t.label} — ${TRUST_STATE[t.state]} (seuil ${t.seuil}) : ${t.prepared} PR préparée(s), ${t.mergedClean} fusionnée(s) sans retouche, ${t.mergedEdited} retouchée(s), ${t.closed} fermée(s), ${t.ciFailed} CI en échec.`;
 
 const STALE_TAKEN_MS = 7 * 24 * 3_600_000;
 
@@ -143,5 +166,6 @@ export function formatWeekly(input: WeeklyInput): string {
     (f) =>
       `☑ Accepté le ${day(f.acceptedAt)} · ${f.title} (constat n°${f.id}) — raison : ${f.reason}`,
   );
-  return assemble(head, [open, accepted], input.open.length > 0 ? [ACCEPT_HINT] : []);
+  const trust = (input.trust ?? []).map(trustBlock);
+  return assemble(head, [open, accepted, trust], input.open.length > 0 ? [ACCEPT_HINT] : []);
 }

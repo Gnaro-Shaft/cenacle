@@ -38,6 +38,11 @@ function world(over: Partial<SecuriteDecisions> = {}) {
       return prompt === 77 ? "done" : "unknown";
     },
     isAsking: async (prompt) => prompt === 77 || prompt === 78,
+    requestPr: async (id, token, action) => {
+      calls.push(`pr ${id} ${action}`);
+      if (token !== TOKEN) return "stale";
+      return id === 1 ? "done" : "not_ready";
+    },
     requestFix: async (id, token) => {
       calls.push(`fix ${id}`);
       if (token !== TOKEN) return "stale";
@@ -95,6 +100,32 @@ const tap = (
   from: { id: from },
   data,
   message: { message_id: 10, chat, reply_markup: { inline_keyboard: rows } },
+});
+
+describe("✅ Fusionner / ❌ Fermer (J6d)", () => {
+  it("recorded for the next round; the bot itself never touches GitHub", async () => {
+    const w = world();
+    await handleCallback(tap(`p:1:m:${TOKEN}`), w.deps);
+    expect(w.calls).toEqual(["pr 1 merge", expect.stringMatching(/^answer ✅ Fusion demandée/)]);
+    expect(w.events.map((e) => e.payload)).toEqual([{ action: "merge" }]);
+  });
+
+  it("not ready (CI not green, already decided), or a forged token: nothing", async () => {
+    const w = world();
+    await handleCallback(tap(`p:2:c:${TOKEN}`), w.deps);
+    await handleCallback(tap(`p:1:m:${"f".repeat(16)}`), w.deps);
+    expect(w.calls.filter((c) => c.startsWith("answer"))).toEqual([
+      expect.stringMatching(/n'attend pas de décision/),
+      expect.stringMatching(/plus valable/),
+    ]);
+    expect(w.events).toEqual([]);
+  });
+
+  it("from another account: ignored", async () => {
+    const w = world();
+    await handleCallback(tap(`p:1:m:${TOKEN}`, 666), w.deps);
+    expect(w.calls).toEqual([]);
+  });
 });
 
 describe("🔧 prepare the PR (J6c)", () => {

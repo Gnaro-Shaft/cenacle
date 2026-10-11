@@ -16,6 +16,7 @@ import {
   type ReportFinding,
   reconcile,
   reportDue,
+  type TrustLine,
   urgentNow,
 } from "@cenacle/securite";
 
@@ -38,6 +39,8 @@ export interface RoundDeps {
   readonly lastWeekly: () => Promise<Date | null>;
   /** The fixes I asked for (🔧, J6c) and the pull requests followed; how many were done. */
   readonly actions?: (network: boolean) => Promise<number>;
+  /** The trust record, for the Monday review (J6d). */
+  readonly trust?: () => Promise<readonly TrustLine[]>;
 }
 
 export interface RoundOutcome {
@@ -135,6 +138,7 @@ export async function runRound(deps: RoundDeps): Promise<RoundOutcome> {
           reason: f.reason ?? "",
           acceptedAt: f.acceptedAt ?? now,
         })),
+        trust: (await deps.trust?.()) ?? [],
       }),
       toFix,
     );

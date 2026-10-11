@@ -132,6 +132,69 @@ describe("🔧 requesting a fix (J6c)", () => {
   });
 });
 
+describe("✅ / ❌ under a pull request, and delegation (J6d)", () => {
+  async function withPr(state: "ci_verte" | "pr_ouverte"): Promise<[number, string]> {
+    n += 1;
+    const seen: SeenFinding = {
+      check: "npm_audit",
+      type: "npm_advisory",
+      target: `pr-${run}-${n}`,
+      occurrence: "1",
+      severity: "eleve",
+      title: "Faille",
+      params: { fixName: "left-pad", fixVersion: "1.3.1" },
+    };
+    await store.apply({ ...empty, insert: [seen] }, T0);
+    const f = (await store.active()).find((x) => x.target === seen.target);
+    await store.apply({ ...empty, promote: [{ id: f?.id ?? 0, seen }] }, T0);
+    const id = f?.id ?? 0;
+    const token = (await decisions.tokens([id])).get(id) ?? "";
+    await store.setAction(id, state, "https://github.com/o/r/pull/3", "a".repeat(40));
+    return [id, token];
+  }
+
+  it("only once the CI is green, with the right token; then it waits for the round", async () => {
+    const [id, token] = await withPr("ci_verte");
+    expect(await decisions.requestPr(id, "f".repeat(16), "merge", T0)).toBe("stale");
+    expect(await decisions.requestPr(id, token, "merge", T0)).toBe("done");
+    expect((await store.prRequests()).find((f) => f.id === id)?.actionState).toBe(
+      "fusion_demandee",
+    );
+    expect(await decisions.requestPr(id, token, "close", T0)).toBe("not_ready");
+    const [other, t2] = await withPr("pr_ouverte");
+    expect(await decisions.requestPr(other, t2, "merge", T0)).toBe("not_ready");
+  });
+
+  it("a delegation takes only an open advisory with no action yet", async () => {
+    const [id] = await withPr("pr_ouverte");
+    expect(await store.delegateFix(id, T0)).toBe(false);
+    const fresh = await openFinding();
+    expect(await store.delegateFix(fresh, T0)).toBe(false);
+  });
+
+  it("the trust record counts the journaled outcomes of an action, nothing else", async () => {
+    const action = `test_${run}`;
+    for (const outcome of [
+      "pr_opened",
+      "pr_opened",
+      "merged_clean",
+      "closed",
+      "ci_failed",
+      "merged_edited",
+    ]) {
+      await sql`insert into events (agent, type, payload) values ('securite', 'securite.action', ${sql.json({ outcome, delegable: action })})`;
+    }
+    await sql`insert into events (agent, type, payload) values ('securite', 'securite.action', ${sql.json({ outcome: "merged_clean", delegable: "autre" })})`;
+    expect(await store.actionCounts(action, new Date(0))).toEqual({
+      prepared: 2,
+      mergedClean: 1,
+      mergedEdited: 1,
+      closed: 1,
+      ciFailed: 1,
+    });
+  });
+});
+
 describe("keeping a risk: the reason", () => {
   it("a reply to the question, in time: the risk is kept, the question gone", async () => {
     const id = await openFinding();

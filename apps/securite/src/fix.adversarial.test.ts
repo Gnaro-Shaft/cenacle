@@ -122,14 +122,26 @@ describe("preparing a fix", () => {
   });
 });
 
-describe("the security agent never merges, never forces", () => {
-  it("no merge, no force push, no push to main anywhere in its code", () => {
-    const dir = join(import.meta.dirname);
-    for (const file of readdirSync(dir).filter(
-      (f) => f.endsWith(".ts") && !f.endsWith(".test.ts"),
-    )) {
+describe("the security agent merges only on my button, never forces", () => {
+  const dir = join(import.meta.dirname);
+  const sources = readdirSync(dir).filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"));
+
+  it("merging exists in merge.ts only, and only the actions' wiring imports it (J6d)", () => {
+    for (const file of sources) {
       const text = readFileSync(join(dir, file), "utf8");
-      expect(text, file).not.toMatch(/["'`]merge["'`]/);
+      if (file !== "merge.ts") expect(text, file).not.toMatch(/["'`]merge["'`]/);
+      // A type may be shared; the code that merges is imported by the wiring only.
+      if (file !== "actions-deps.ts") {
+        expect(text, file).not.toMatch(/^import (?!type )[^\n]*from "\.\/merge\.ts"/m);
+      }
+    }
+    // The merge names the commit I saw: anything pushed after fails it.
+    expect(readFileSync(join(dir, "merge.ts"), "utf8")).toMatch(/"--match-head-commit",\s*sha/);
+  });
+
+  it("no force push, no push to main anywhere in its code", () => {
+    for (const file of sources) {
+      const text = readFileSync(join(dir, file), "utf8");
       expect(text, file).not.toMatch(/["'`]--force-with-lease["'`]|["'`]-f["'`]/);
       expect(text, file).not.toMatch(/push[^\n]*["'`](?:main|--force)["'`]/);
     }

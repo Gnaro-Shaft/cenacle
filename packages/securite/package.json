@@ -5,7 +5,8 @@
   "license": "Apache-2.0",
   "type": "module",
   "dependencies": {
-    "@cenacle/core": "0.0.0"
+    "@cenacle/core": "0.0.0",
+    "smol-toml": "1.9.0"
   },
   "exports": {
     ".": "./src/index.ts"
