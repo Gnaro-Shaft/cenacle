@@ -15,4 +15,4 @@ known_hosts = "/Users/exemple/.ssh/cenacle/known_hosts"
 nom = "vps-b"
 adresse = "vps-b.exemple.test"
 compte = "cenacle"
-cles = { services = "/Users/exemple/.ssh/cenacle/vps-b-services" }
+cles = { services = "/Users/exemple/.ssh/cenacle/vps-b-services", redemarrer = "/Users/exemple/.ssh/cenacle/vps-b-redemarrer" }

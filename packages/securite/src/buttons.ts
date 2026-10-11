@@ -9,7 +9,7 @@
  * else is ignored. The words the bot answers with are fixed here.
  */
 
-export type ButtonAction = "take" | "keep" | "refuse" | "fix" | "server";
+export type ButtonAction = "take" | "keep" | "refuse" | "fix" | "server" | "reboot";
 
 export interface Button {
   readonly text: string;
@@ -28,6 +28,7 @@ const CODE: Readonly<Record<ButtonAction, string>> = {
   refuse: "r",
   fix: "f",
   server: "v",
+  reboot: "b",
 };
 const ACTION: Readonly<Record<string, ButtonAction>> = {
   t: "take",
@@ -35,8 +36,9 @@ const ACTION: Readonly<Record<string, ButtonAction>> = {
   r: "refuse",
   f: "fix",
   v: "server",
+  b: "reboot",
 };
-const DATA = /^s:(\d{1,12}):([tkrfv]):([0-9a-f]{16})$/;
+const DATA = /^s:(\d{1,12}):([tkrfvb]):([0-9a-f]{16})$/;
 export const MAX_BUTTON_DATA = 64;
 /** At most this many findings get buttons in one message. */
 export const MAX_BUTTON_ROWS = 10;
@@ -46,7 +48,13 @@ export const MAX_BUTTON_ROWS = 10;
  * 🔧 when the finding can be fixed by a prepared pull request.
  */
 export function keyboard(
-  findings: readonly { id: number; token: string; fixable?: boolean; server?: boolean }[],
+  findings: readonly {
+    id: number;
+    token: string;
+    fixable?: boolean;
+    /** The catalogue's action on a server answering this finding, when the switch is on. */
+    server?: "services" | "redemarrer" | null;
+  }[],
 ): Button[][] {
   return findings
     .slice(0, MAX_BUTTON_ROWS)
@@ -57,7 +65,11 @@ export function keyboard(
           ["keep", `☑ n°${id} risque`],
           ["refuse", `❌ n°${id} refuser`],
           ...(fixable === true ? ([["fix", `🔧 n°${id} prépare la PR`]] as const) : []),
-          ...(server === true ? ([["server", `🔁 n°${id} relancer les services`]] as const) : []),
+          ...(server === "services"
+            ? ([["server", `🔁 n°${id} relancer les services`]] as const)
+            : server === "redemarrer"
+              ? ([["reboot", `🔄 n°${id} redémarrer`]] as const)
+              : []),
         ] as const
       ).map(([action, text]) => ({ text, data: `s:${id}:${CODE[action]}:${token}` })),
     );
@@ -135,8 +147,10 @@ export const ANSWER = {
     `❌ Fermeture demandée (constat n°${id}) : la prochaine ronde ferme la PR.`,
   notReady: "Cette PR n'attend pas de décision (CI pas encore verte, ou déjà décidée).",
   server: (id: number) => `🔁 Constat n°${id} : confirme dans les 2 minutes.`,
-  serverAsk: (host: string, id: number) =>
-    `🔁 Relancer les services sur ${host} (constat n°${id}) ? Seuls ceux que needrestart désigne, hors exclusions du serveur.`,
+  serverAsk: (host: string, id: number, action: "services" | "redemarrer" = "services") =>
+    action === "redemarrer"
+      ? `🔄 Redémarrer ${host} (constat n°${id}) ? Dans une minute, la machine sera coupée 1 à 3 minutes. Le serveur refuse s'il a redémarré depuis moins de 24 h, ou si sa grappe est incomplète.`
+      : `🔁 Relancer les services sur ${host} (constat n°${id}) ? Seuls ceux que needrestart désigne, hors exclusions du serveur.`,
   serverConfirmed:
     "✅ Confirmé : l'opérateur s'en charge dans la minute (si le Mac est allumé), et te dira le résultat.",
   serverExpired:

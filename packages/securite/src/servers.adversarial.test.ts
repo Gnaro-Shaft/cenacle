@@ -6,11 +6,13 @@
 import { describe, expect, it } from "vitest";
 import {
   EXIT,
+  hostState,
   motifPresent,
   outcomeOf,
   parseServerSwitch,
   parseServers,
   ServersConfigError,
+  serverActionFor,
   sshArgs,
   verdictInstant,
 } from "./servers.ts";
@@ -126,5 +128,45 @@ describe("Legion's verdict", () => {
     expect(motifPresent(seen, "vps-b", "serveur_services")).toBe(true);
     expect(motifPresent(seen, "vps-c", "serveur_services")).toBe(false);
     expect(motifPresent(seen, "vps-b", "serveur_redemarrage")).toBe(false);
+  });
+});
+
+describe("a reboot in the catalogue (J6f2)", () => {
+  it("each kind of finding has at most one action", () => {
+    expect(serverActionFor("serveur_services")).toBe("services");
+    expect(serverActionFor("serveur_redemarrage")).toBe("redemarrer");
+    expect(serverActionFor("serveur_disque")).toBeNull();
+  });
+
+  it("a machine's state in the verdict: exactly its own line, never a lookalike", () => {
+    const raw = "bulletin=1\nv10.etat=MALADE\nv100.etat=SAIN\nnoeud-a.etat=SOUFFRANT\nfin=1";
+    expect(hostState(raw, "v10")).toBe("MALADE");
+    expect(hostState(raw, "v100")).toBe("SAIN");
+    expect(hostState(raw, "noeud-a")).toBe("SOUFFRANT");
+    expect(hostState(raw, "noeud")).toBeNull();
+    expect(hostState(raw, "10")).toBeNull();
+    expect(hostState(raw, "a")).toBeNull();
+    expect(hostState(raw, "v1.")).toBeNull();
+    expect(hostState(raw, ".*")).toBeNull();
+    expect(hostState("v10.etat=PERDU", "v10")).toBeNull();
+  });
+
+  it("a reboot key and a services key, never the same file", () => {
+    expect(() =>
+      parseServers(
+        ok.replace(
+          'cles = { services = "/Users/exemple/.ssh/cenacle/vps-b-services" }',
+          'cles = { services = "/k", redemarrer = "/k" }',
+        ),
+      ),
+    ).toThrow(/never shared/);
+    expect(
+      parseServers(
+        ok.replace(
+          'cles = { services = "/Users/exemple/.ssh/cenacle/vps-b-services" }',
+          'cles = { redemarrer = "/k2" }',
+        ),
+      ).servers[0]?.keys,
+    ).toEqual({ redemarrer: "/k2" });
   });
 });

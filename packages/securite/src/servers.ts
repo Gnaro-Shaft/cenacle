@@ -11,7 +11,7 @@ import { isAbsolute, normalize } from "node:path";
 import { parse } from "smol-toml";
 import type { Observation } from "./types.ts";
 
-export type ServerActionName = "services";
+export type ServerActionName = "services" | "redemarrer";
 
 export const SERVER_CATALOGUE: Readonly<
   Record<
@@ -24,7 +24,21 @@ export const SERVER_CATALOGUE: Readonly<
     script: "cenacle-services",
     label: "relancer les services sur une bibliothèque remplacée",
   },
+  // J6f2: a reboot, scheduled one minute on; once in 24 hours, never losing the cluster's quorum.
+  redemarrer: {
+    finding: "serveur_redemarrage",
+    script: "cenacle-redemarrer",
+    label: "redémarrer la machine",
+  },
 };
+
+/** The action of the catalogue that answers this kind of finding, if any. */
+export function serverActionFor(findingType: string): ServerActionName | null {
+  for (const [name, entry] of Object.entries(SERVER_CATALOGUE)) {
+    if (entry.finding === findingType) return name as ServerActionName;
+  }
+  return null;
+}
 
 /** The script's answer: its exit code, nothing else is read. */
 export const EXIT = { done: 0, nothing: 10, refused: 11, failed: 12, ssh: 255 } as const;
@@ -171,6 +185,16 @@ export function sshArgs(server: Server, key: string, knownHosts: string): string
 export function verdictInstant(raw: string): number | null {
   const m = /^instant=(\d{9,11})$/m.exec(raw);
   return m === null ? null : Number(m[1]) * 1000;
+}
+
+/** A machine's state in Legion's verdict; MALADE when Legion could not reach it. */
+export function hostState(raw: string, host: string): "SAIN" | "SOUFFRANT" | "MALADE" | null {
+  if (!NAME.test(host)) return null;
+  const m = new RegExp(
+    `^${host.replace(/[.-]/g, "\\$&")}\\.etat=(SAIN|SOUFFRANT|MALADE)$`,
+    "m",
+  ).exec(raw);
+  return (m?.[1] as "SAIN" | "SOUFFRANT" | "MALADE" | undefined) ?? null;
 }
 
 /** Does the verdict still show this kind of finding on this machine? */

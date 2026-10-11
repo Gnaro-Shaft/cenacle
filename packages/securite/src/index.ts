@@ -117,6 +117,7 @@ export {
 } from "./report.ts";
 export {
   EXIT,
+  hostState,
   motifPresent,
   outcomeOf,
   parseServerSwitch,
@@ -127,6 +128,7 @@ export {
   type ServerActionName,
   type ServersConfig,
   ServersConfigError,
+  serverActionFor,
   sshArgs,
   verdictInstant,
 } from "./servers.ts";

@@ -109,6 +109,23 @@ describe("one action at a time, whatever the machine", () => {
   });
 });
 
+describe("a reboot (J6f2)", () => {
+  it("done on a machine within 24 hours is known; another machine, or a services run, is not", async () => {
+    const host = `vps-r${run}`;
+    const r = await actions.request(await finding(), host, "redemarrer", T0);
+    if (r === null) throw new Error("no request");
+    await actions.confirm(r.id, r.token, T0);
+    expect(await actions.claim(r.id, T0)).toBe(true);
+    await actions.finish(r.id, "faite", 0, T0);
+    const since = new Date(T0.getTime() - 24 * 3_600_000);
+    expect(await actions.doneSince(host, "redemarrer", since)).toBe(true);
+    expect(await actions.doneSince(host, "services", since)).toBe(false);
+    expect(await actions.doneSince(`${host}x`, "redemarrer", since)).toBe(false);
+    expect(await actions.doneSince(host, "redemarrer", new Date(T0.getTime() + 1000))).toBe(false);
+    expect(await actions.verify(r.id, "pas_revenue", T0)).toBe(true);
+  });
+});
+
 describe("the purge", () => {
   it("365 days after the request; a recent request is kept", async () => {
     const old = new Date(T0.getTime() - 366 * 86_400_000);

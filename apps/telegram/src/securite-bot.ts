@@ -15,8 +15,8 @@ import {
   parsePressed,
   parsePrPressed,
   preparedFix,
-  SERVER_CATALOGUE,
   SEVERITY_LABEL,
+  serverActionFor,
   withoutFinding,
 } from "@cenacle/securite";
 import type { InlineButton, TelegramApi, TelegramCallback, TelegramMessage } from "./api.ts";
@@ -82,7 +82,7 @@ export async function listFindings(
               id: f.id,
               token: tokens.get(f.id) ?? "",
               fixable: preparedFix(f, f.params) !== null,
-              server: servers && f.type === SERVER_CATALOGUE.services.finding,
+              server: servers ? serverActionFor(f.type) : null,
             },
           ]
         : [],
@@ -136,8 +136,9 @@ export async function handleCallback(cb: TelegramCallback, deps: SecuriteBotDeps
     await deps.api.answerCallback(cb.id, ANSWER.stale);
     return;
   }
-  if (pressed.action === "server") {
-    await pressServer(cb, chat.id, pressed, serverDeps(deps));
+  if (pressed.action === "server" || pressed.action === "reboot") {
+    const action = pressed.action === "reboot" ? "redemarrer" : "services";
+    await pressServer(cb, chat.id, pressed, action, serverDeps(deps));
     return;
   }
   const now = deps.now();

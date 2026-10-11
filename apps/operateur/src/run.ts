@@ -8,8 +8,9 @@
  * outcome is told to me once the message has left, and journaled as counts.
  * No model anywhere.
  */
-import type { Journal, ServeurActions, StoredServerAction } from "@cenacle/journal";
+import type { Journal, ServeurActions, StoredServerAction, Verified } from "@cenacle/journal";
 import {
+  hostState,
   motifPresent,
   type Observation,
   outcomeOf,
@@ -18,6 +19,9 @@ import {
   sshArgs,
   verdictInstant,
 } from "@cenacle/securite";
+import { message } from "./messages.ts";
+
+export { message };
 
 const AGENT = "operateur";
 /**
@@ -28,6 +32,12 @@ const AGENT = "operateur";
  */
 export const FRESH_VERDICT_MS = 35 * 60_000;
 const AHEAD_MS = 5 * 60_000;
+/** A machine rebooted by Cénacle is not rebooted again within this (the script refuses too). */
+export const REBOOT_GAP_MS = 24 * 3_600_000;
+/** A reboot's proof: a verdict written at least this long after it… */
+export const BACK_AFTER_MS = 3 * 60_000;
+/** …and without one showing the machine back by then, it is said loud, once. */
+export const NOT_BACK_MS = 30 * 60_000;
 
 export interface OperatorDeps {
   readonly store: Pick<
@@ -36,6 +46,7 @@ export interface OperatorDeps {
     | "abandonStale"
     | "next"
     | "claim"
+    | "doneSince"
     | "refuse"
     | "finish"
     | "toVerify"
@@ -66,52 +77,16 @@ export interface OperatorOutcome {
   readonly told: number;
 }
 
-const REFUSAL: Readonly<Record<string, string>> = {
-  interrupteur: "les actions sur les serveurs sont coupées ([serveurs] actif dans securite.toml)",
-  configuration: "serveurs.local.toml est absent ou illisible",
-  machine_inconnue: "cette machine n'est pas déclarée dans serveurs.local.toml",
-  pas_de_cle: "aucune clé n'est déclarée pour cette action sur cette machine",
-  cle_mal_protegee: "sa clé est lisible par un autre que toi (chmod 600)",
-  releve_perime: "le relevé de Legion a plus de 35 minutes : rien n'est sûr",
-  releve_illisible: "le relevé de Legion est illisible",
-  plus_de_motif: "le dernier relevé de Legion ne montre plus le problème : rien à faire",
-};
-
-/** What I read on Telegram: the machine, the finding, the outcome — never a server's output. */
-export function message(a: StoredServerAction): string {
-  const on = `${a.host} (constat n°${a.findingId})`;
-  switch (a.state) {
-    case "faite":
-      if (a.verified === "disparu")
-        return `✅ ${on} : le relevé de Legion ne montre plus le problème, l'action a pris.`;
-      if (a.verified === "toujours_la")
-        return `⚠ ${on} : le relevé de Legion montre encore le problème — à regarder sur la machine (journalctl -t cenacle).`;
-      return `🔁 ${on} : ${SERVER_CATALOGUE[a.action].label}, fait. J'attends le prochain relevé de Legion pour le confirmer.`;
-    case "rien_a_faire":
-      return `🔁 ${on} : rien à faire — le script n'a trouvé aucun service à relancer hors de ses exclusions.`;
-    case "refusee_serveur":
-      return `🛑 ${on} : un garde-fou du serveur a refusé, rien n'a été fait (journalctl -t cenacle sur la machine).`;
-    case "refusee":
-      return `🛑 ${on} : rien n'a été fait — ${REFUSAL[a.refusal ?? ""] ?? "refus de l'opérateur"}.`;
-    case "expiree":
-      return `⌛ ${on} : demande non confirmée dans les 2 minutes, rien n'a été fait.`;
-    case "echouee":
-      if (a.exitCode === 255)
-        return `🛑 ${on} : serveur injoignable ou clé refusée — rien n'est sûr, à vérifier.`;
-      if (a.exitCode === -1)
-        return `🛑 ${on} : l'action a été coupée en cours — état inconnu, à vérifier sur la machine.`;
-      return `🛑 ${on} : l'action a échoué (code ${a.exitCode ?? "?"}) — journalctl -t cenacle sur la machine.`;
-    default:
-      return `${on} : ${a.state}`;
-  }
-}
-
 async function record(deps: OperatorDeps, payload: Record<string, string>): Promise<void> {
   await deps.journal.append({ agent: AGENT, type: "serveur.action", payload });
 }
 
 /** Checks again before acting; the refusal's name, or null when all holds. */
-function whyNot(deps: OperatorDeps, a: StoredServerAction, nowMs: number): string | null {
+async function whyNot(
+  deps: OperatorDeps,
+  a: StoredServerAction,
+  nowMs: number,
+): Promise<string | null> {
   if (!deps.active) return "interrupteur";
   if (deps.config === null) return "configuration";
   const server = deps.config.servers.find((s) => s.name === a.host);
@@ -119,6 +94,12 @@ function whyNot(deps: OperatorDeps, a: StoredServerAction, nowMs: number): strin
   const key = server.keys[a.action];
   if (key === undefined) return "pas_de_cle";
   if (!deps.keyIsPrivate(key)) return "cle_mal_protegee";
+  if (
+    a.action === "redemarrer" &&
+    (await deps.store.doneSince(a.host, "redemarrer", new Date(nowMs - REBOOT_GAP_MS)))
+  ) {
+    return "redemarrage_recent";
+  }
   const raw = deps.verdict();
   const at = raw === null ? null : verdictInstant(raw);
   if (raw === null || at === null || nowMs - at > FRESH_VERDICT_MS || at - nowMs > AHEAD_MS) {
@@ -137,7 +118,7 @@ async function act(deps: OperatorDeps): Promise<{ ran: number; refused: number }
   const a = await deps.store.next();
   if (a === null) return { ran: 0, refused: 0 };
   const now = deps.now();
-  const refusal = whyNot(deps, a, now.getTime());
+  const refusal = await whyNot(deps, a, now.getTime());
   if (refusal !== null) {
     await deps.store.refuse(a.id, refusal, now);
     await record(deps, { action: a.action, outcome: "refusee", refusal });
@@ -157,25 +138,52 @@ async function act(deps: OperatorDeps): Promise<{ ran: number; refused: number }
   return { ran: 1, refused: 0 };
 }
 
-/** A done action against a verdict written after it: did the problem go away? */
+/**
+ * What a verdict says of a done action: services — gone or still there, once
+ * the verdict is later than the action; a reboot — back (not MALADE) and no
+ * reboot required, from 3 minutes on; not seen back 30 minutes on: said loud.
+ */
+function proof(
+  a: StoredServerAction,
+  raw: string | null,
+  at: number | null,
+  seen: Observation[] | null,
+  nowMs: number,
+): Verified | null {
+  const finished = a.finishedAt?.getTime() ?? null;
+  if (finished === null) return null;
+  const finding = SERVER_CATALOGUE[a.action].finding;
+  if (a.action !== "redemarrer") {
+    if (raw === null || at === null || seen === null || at <= finished) return null;
+    return motifPresent(seen, a.host, finding) ? "toujours_la" : "disparu";
+  }
+  const usable = raw !== null && at !== null && seen !== null && at >= finished + BACK_AFTER_MS;
+  if (usable && hostState(raw, a.host) !== "MALADE") {
+    return motifPresent(seen, a.host, finding) ? "toujours_la" : "disparu";
+  }
+  return nowMs - finished >= NOT_BACK_MS ? "pas_revenue" : null;
+}
+
 async function verify(deps: OperatorDeps): Promise<number> {
   const pending = await deps.store.toVerify();
   if (pending.length === 0) return 0;
+  const nowMs = deps.now().getTime();
   const raw = deps.verdict();
   const at = raw === null ? null : verdictInstant(raw);
-  if (raw === null || at === null) return 0;
-  let seen: Observation[];
-  try {
-    seen = deps.parseVerdict(raw, deps.now().getTime());
-  } catch {
-    return 0;
+  let seen: Observation[] | null = null;
+  if (raw !== null) {
+    try {
+      seen = deps.parseVerdict(raw, nowMs);
+    } catch {
+      seen = null;
+    }
   }
   let done = 0;
   for (const a of pending) {
-    if (a.finishedAt === null || at <= a.finishedAt.getTime()) continue;
-    const still = motifPresent(seen, a.host, SERVER_CATALOGUE[a.action].finding);
-    if (await deps.store.verify(a.id, still ? "toujours_la" : "disparu", deps.now())) {
-      await record(deps, { action: a.action, outcome: still ? "toujours_la" : "disparu" });
+    const verified = proof(a, raw, at, seen, nowMs);
+    if (verified === null) continue;
+    if (await deps.store.verify(a.id, verified, deps.now())) {
+      await record(deps, { action: a.action, outcome: verified });
       done += 1;
     }
   }

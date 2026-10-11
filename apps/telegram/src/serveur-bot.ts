@@ -1,13 +1,13 @@
 /**
  * The buttons of an action on a server, on the bot's side (J6f1b, ADR-0027).
- * 🔁 under a server finding makes a request — only with the finding's token,
+ * 🔁 (services) or 🔄 (reboot, J6f2) under a server finding makes a request — only with the finding's token,
  * only for a finding of the kind that action answers, only when the switch
  * is on — and asks me to confirm; ✅ Confirmer, within 2 minutes, makes it
  * runnable. The bot holds no key and runs nothing: the operator, alone,
  * acts within the minute. Both taps are written before any answer.
  */
 import type { SecuriteDecisions, SecuriteStore, ServeurActions } from "@cenacle/journal";
-import { ANSWER, opKeyboard, SERVER_CATALOGUE } from "@cenacle/securite";
+import { ANSWER, opKeyboard, SERVER_CATALOGUE, type ServerActionName } from "@cenacle/securite";
 import type { InlineButton, TelegramApi, TelegramCallback } from "./api.ts";
 
 export interface ServerBotDeps {
@@ -24,11 +24,12 @@ export interface ServerBotDeps {
 const inline = (rows: readonly { text: string; data: string }[][]): InlineButton[][] =>
   rows.map((row) => row.map((b) => ({ text: b.text, callback_data: b.data })));
 
-/** 🔁 under a finding: a request waiting for my confirmation. */
+/** 🔁 or 🔄 under a finding: a request waiting for my confirmation. */
 export async function pressServer(
   cb: TelegramCallback,
   chatId: number,
   pressed: { id: number; token: string },
+  action: ServerActionName,
   deps: ServerBotDeps,
 ): Promise<void> {
   if (!deps.serversActive()) {
@@ -41,16 +42,12 @@ export async function pressServer(
     return;
   }
   const finding = (await deps.store.open()).find((f) => f.id === pressed.id);
-  if (finding === undefined || finding.type !== SERVER_CATALOGUE.services.finding) {
+  // The button names its action; the finding must be of the kind that action answers.
+  if (finding === undefined || finding.type !== SERVER_CATALOGUE[action].finding) {
     await deps.api.answerCallback(cb.id, ANSWER.notServer);
     return;
   }
-  const request = await deps.serverActions.request(
-    finding.id,
-    finding.target,
-    "services",
-    deps.now(),
-  );
+  const request = await deps.serverActions.request(finding.id, finding.target, action, deps.now());
   if (request === null) {
     await deps.api.answerCallback(cb.id, ANSWER.serverPending);
     return;
@@ -58,7 +55,7 @@ export async function pressServer(
   await deps.decided("server_request");
   await deps.api.sendWithButtons(
     chatId,
-    ANSWER.serverAsk(finding.target, finding.id),
+    ANSWER.serverAsk(finding.target, finding.id, action),
     inline(opKeyboard(request.id, request.token)),
   );
   await deps.api.answerCallback(cb.id, ANSWER.server(finding.id));
