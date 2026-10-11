@@ -18,6 +18,7 @@ export {
   networkDue,
   REPORT_AT,
   reportDue,
+  reportSentToday,
   urgentNow,
 } from "./cadence.ts";
 export { CATALOGUE_TYPES, type Fix, fixFor, UnknownFindingError } from "./catalogue.ts";

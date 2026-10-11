@@ -24,13 +24,25 @@ describe("quiet hours, 22 h to 7 h in Paris", () => {
 });
 
 describe("who speaks at once", () => {
-  it("critical at any hour; high only outside quiet hours; never the others", () => {
-    expect(urgentNow("critique", summer("03:00:00"))).toBe(true);
-    expect(urgentNow("eleve", summer("03:00:00"))).toBe(false);
-    expect(urgentNow("eleve", summer("10:00:00"))).toBe(true);
+  const reported = summer("07:30:00");
+
+  it("critical at any hour; high only once today's report has gone; never the others", () => {
+    expect(urgentNow("critique", summer("03:00:00"), null)).toBe(true);
+    expect(urgentNow("eleve", summer("03:00:00"), null)).toBe(false);
+    expect(urgentNow("eleve", summer("10:00:00"), reported)).toBe(true);
     for (const s of ["moyen", "faible", "info"] as const) {
-      expect(urgentNow(s, summer("10:00:00"))).toBe(false);
+      expect(urgentNow(s, summer("10:00:00"), reported)).toBe(false);
     }
+  });
+
+  it("high between 7 h and the report waits for the report (one message in the morning)", () => {
+    expect(urgentNow("eleve", summer("07:15:00"), null)).toBe(false);
+    // Yesterday's report does not count for today.
+    expect(urgentNow("eleve", summer("07:15:00"), new Date("2026-07-14T07:30:00+02:00"))).toBe(
+      false,
+    );
+    expect(urgentNow("eleve", summer("07:45:00"), reported)).toBe(true);
+    expect(urgentNow("critique", summer("07:15:00"), null)).toBe(true);
   });
 });
 

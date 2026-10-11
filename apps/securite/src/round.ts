@@ -2,7 +2,7 @@
  * One round of the security agent (J6a, ADR-0025; Legion's ronde), every 15
  * minutes: the local checks each time, the network ones at most once an
  * hour; reconcile with what was known. A new finding speaks at once when it
- * is serious (critical at any hour, high outside quiet hours); the rest waits
+ * is serious (critical at any hour, high once today's report has gone); the rest waits
  * for the morning report, sent by the first round after 7:30, once a day —
  * with the Monday review. Told only once the message has left. Then the
  * purge. Only counts reach the journal.
@@ -80,11 +80,12 @@ export async function runRound(deps: RoundDeps): Promise<RoundOutcome> {
   await deps.store.apply(reconcile(active, results), now);
 
   const pending = await deps.store.toSignal();
-  const isReport = reportDue(now, await deps.lastReport());
+  const lastReport = await deps.lastReport();
+  const isReport = reportDue(now, lastReport);
   // The report tells everything not told yet; otherwise only what cannot wait.
   const opened = isReport
     ? pending.opened
-    : pending.opened.filter((f) => urgentNow(f.severity, now));
+    : pending.opened.filter((f) => urgentNow(f.severity, now, lastReport));
   const resolved = isReport ? pending.resolved : [];
   const comments = new Map<number, string | null>();
   for (const f of opened) comments.set(f.id, await deps.comment(f));
