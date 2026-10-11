@@ -1,0 +1,45 @@
+#!/bin/bash
+# cenacle-redemarrer (J6f2, ADR-0027): schedules a reboot of this machine in
+# one minute — only if a reboot is required, only if the machine has been up
+# for 24 hours, and, on a cluster node, only if the cluster is quorate with
+# every node present (one more node down must not lose the quorum). Started
+# only through the `cenacle` account's key for this script (forced command,
+# sudo for this script alone); no argument, nothing read from the caller.
+# Exit code only: 0 reboot scheduled, 10 nothing to do, 11 refused by a
+# guard, 12 failed. Every run leaves a line: journalctl -t cenacle.
+# The minute lets the connection end cleanly, and leaves time to cancel by
+# hand on the machine: shutdown -c.
+set -u
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+readonly MIN_UPTIME_SECONDS=86400
+
+log() { /usr/bin/logger -t cenacle -- "redemarrer: $*"; }
+
+if [ "$#" -ne 0 ]; then log "refus: un argument a ete passe"; exit 11; fi
+if [ "$(/usr/bin/id -u)" != "0" ]; then log "refus: pas root (sudo attendu)"; exit 11; fi
+if [ ! -e /var/run/reboot-required ]; then log "rien a faire: aucun redemarrage demande"; exit 10; fi
+
+uptime_s="$(/usr/bin/cut -d. -f1 /proc/uptime 2>/dev/null)"
+if ! [[ "$uptime_s" =~ ^[0-9]{1,12}$ ]]; then log "refus: duree de fonctionnement illisible"; exit 11; fi
+if [ "$uptime_s" -lt "$MIN_UPTIME_SECONDS" ]; then
+  log "refus: redemarree il y a moins de 24 h"; exit 11
+fi
+
+# A cluster node: quorate, and every expected vote present.
+if [ -x /usr/bin/pvecm ]; then
+  status="$(/usr/bin/pvecm status 2>/dev/null)" || { log "refus: pvecm status a echoue"; exit 11; }
+  if ! printf '%s\n' "$status" | /usr/bin/grep -Eq '^Quorate:[[:space:]]+Yes'; then
+    log "refus: grappe sans quorum"; exit 11
+  fi
+  expected="$(printf '%s\n' "$status" | /usr/bin/sed -n 's/^Expected votes:[[:space:]]*\([0-9]\{1,4\}\).*/\1/p')"
+  total="$(printf '%s\n' "$status" | /usr/bin/sed -n 's/^Total votes:[[:space:]]*\([0-9]\{1,4\}\).*/\1/p')"
+  if [ -z "$expected" ] || [ -z "$total" ]; then log "refus: sortie de pvecm illisible"; exit 11; fi
+  if [ "$total" -lt "$expected" ]; then
+    log "refus: il manque deja un noeud ($total/$expected votes)"; exit 11
+  fi
+fi
+
+if /usr/sbin/shutdown -r +1 "Cenacle: redemarrage demande (ADR-0027)" >/dev/null 2>&1; then
+  log "fait: redemarrage programme dans 1 minute"; exit 0
+fi
+log "echec: shutdown"; exit 12

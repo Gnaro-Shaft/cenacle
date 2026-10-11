@@ -9,7 +9,7 @@
 import { randomBytes } from "node:crypto";
 import type { Sql } from "postgres";
 
-export type ServerAction = "services";
+export type ServerAction = "services" | "redemarrer";
 export type ServerActionState =
   | "demandee"
   | "confirmee"
@@ -21,7 +21,7 @@ export type ServerActionState =
   | "refusee"
   | "echouee";
 export type FinalState = Exclude<ServerActionState, "demandee" | "confirmee" | "en_cours">;
-export type Verified = "disparu" | "toujours_la";
+export type Verified = "disparu" | "toujours_la" | "pas_revenue";
 export type ConfirmOutcome = "done" | "stale" | "expired" | "already";
 
 export interface StoredServerAction {
@@ -177,6 +177,14 @@ export function createServeurActions(sql: Sql) {
         set state = 'echouee', exit_code = -1, finished_at = ${now}, told = false
         where state = 'en_cours' and started_at < ${before}`;
       return done.count;
+    },
+
+    /** Did this action run on this machine since then? (a reboot: once in 24 hours, J6f2) */
+    async doneSince(host: string, action: ServerAction, since: Date): Promise<boolean> {
+      const rows = await sql<{ n: number }[]>`
+        select count(*)::int as n from serveur_actions
+        where host = ${host} and action = ${action} and state = 'faite' and finished_at >= ${since}`;
+      return (rows[0]?.n ?? 0) > 0;
     },
 
     /** Done, not yet compared with a later verdict of Legion. */

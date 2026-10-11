@@ -231,12 +231,53 @@ describe("where the button appears", () => {
   });
 
   it("the data stays within Telegram's 64 bytes, and reads back exactly", () => {
-    const [row] = keyboard([{ id: 999_999_999_999, token: TOKEN, server: true }]);
+    const [row] = keyboard([{ id: 999_999_999_999, token: TOKEN, server: "redemarrer" }]);
     for (const b of row ?? []) expect(Buffer.byteLength(b.data)).toBeLessThanOrEqual(64);
     expect(parsePressed(`s:41:v:${TOKEN}`)).toEqual({ id: 41, action: "server", token: TOKEN });
     expect(parseOpPressed(`o:7:${OP}`)).toEqual({ id: 7, token: OP });
     expect(parseOpPressed(`o:0:${OP}`)).toBeNull();
     expect(parseOpPressed(`xo:7:${OP}`)).toBeNull();
     expect(parseOpPressed(`s:7:${OP}`)).toBeNull();
+  });
+});
+
+describe("🔄 under a reboot finding (J6f2)", () => {
+  it("a reboot request for that machine, said as a reboot", async () => {
+    const w = world({ findings: [finding(44, "serveur_redemarrage")] });
+    await handleCallback(tap(`s:44:b:${TOKEN}`), w.deps);
+    expect(w.requests).toEqual([{ findingId: 44, host: "v10-essai", at: NOW }]);
+    expect(w.calls.find((c) => c.startsWith("buttons"))).toMatch(
+      /^buttons 🔄 Redémarrer v10-essai \(constat n°44\) \? Dans une minute/,
+    );
+  });
+
+  it("the reboot button under a services finding, or the services one under a reboot finding: refused", async () => {
+    const services = world({ findings: [finding(41, "serveur_services")] });
+    await handleCallback(tap(`s:41:b:${TOKEN}`), services.deps);
+    expect(services.requests).toEqual([]);
+    const reboot = world({ findings: [finding(44, "serveur_redemarrage")] });
+    await handleCallback(tap(`s:44:v:${TOKEN}`), reboot.deps);
+    expect(reboot.requests).toEqual([]);
+    expect(reboot.calls.at(-1)).toMatch(/n'appelle pas cette action/);
+  });
+
+  it("/constats: 🔄 under a reboot finding, 🔁 under a services one, nothing elsewhere", async () => {
+    const w = world({
+      findings: [
+        finding(41, "serveur_services"),
+        finding(44, "serveur_redemarrage"),
+        finding(45, "serveur_disque"),
+      ],
+    });
+    await listFindings(OWNER, w.deps);
+    const data =
+      (w.calls.find((c) => c.startsWith("buttons")) ?? "").split(" ").at(-1)?.split(",") ?? [];
+    const actions = data
+      .map(parsePressed)
+      .filter((p) => p?.action === "server" || p?.action === "reboot");
+    expect(actions.map((p) => [p?.id, p?.action])).toEqual([
+      [41, "server"],
+      [44, "reboot"],
+    ]);
   });
 });

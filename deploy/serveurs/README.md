@@ -10,6 +10,12 @@ La sûreté est **sur le serveur** : un compte dédié qui n'est pas root, une c
 
 Il ne répond que par son code de sortie : **0** fait, **10** rien à relancer, **11** refusé par un garde-fou (argument passé, pas root, sortie de `needrestart` illisible, nom de service inattendu, plus de 30 services), **12** échec. Chaque passage laisse une ligne : `journalctl -t cenacle`.
 
+## Le second script : redémarrer (J6f2)
+
+`cenacle-redemarrer` **programme** un redémarrage dans une minute (`shutdown -r +1`), et seulement si : un redémarrage est demandé (`/var/run/reboot-required`), la machine tourne depuis **24 heures** au moins, et, sur un nœud de la grappe (`pvecm` présent), la grappe a le quorum **avec tous ses nœuds** — un nœud de moins ne doit pas la faire tomber. Codes : **0** programmé, **10** rien à faire, **11** refus d'un garde-fou, **12** échec. Pendant la minute, on peut annuler à la main sur la machine : `sudo shutdown -c`.
+
+Il a **sa propre clé** : la clé « services » ne redémarre pas, la clé « redémarrer » ne relance pas de services.
+
 ## Sur le serveur, une fois
 
 Depuis le Mac, dans le dossier de Cénacle (`ubuntu@` : le compte que tu utilises sur le VPS) :
@@ -49,6 +55,16 @@ ssh-keyscan -t ed25519 <vps> > ~/.ssh/cenacle/known_hosts
 ssh-keygen -lf ~/.ssh/cenacle/known_hosts
 ```
 
+Pour le redémarrage, une **seconde clé** et une **seconde ligne**, verrouillée sur l'autre script :
+
+```
+ssh-keygen -t ed25519 -N "" -C "cenacle vps-b redemarrer" -f ~/.ssh/cenacle/vps-b-redemarrer
+```
+
+```
+command="sudo -n /usr/local/sbin/cenacle-redemarrer",restrict,from="<adresse Tailscale du Mac>" ssh-ed25519 AAAA… cenacle vps-b redemarrer
+```
+
 ## L'essai à la main, avant tout bouton
 
 Depuis le Mac (`<vps>` : son nom Tailscale) :
@@ -57,11 +73,11 @@ Depuis le Mac (`<vps>` : son nom Tailscale) :
 ssh -T -F /dev/null -i ~/.ssh/cenacle/vps-b-services -o IdentitiesOnly=yes -o UserKnownHostsFile=~/.ssh/cenacle/known_hosts -l cenacle <vps>; echo "code $?"
 ```
 
-Attendu : `code 10` (rien à relancer) ou `code 0` (relancé). Puis la preuve que la clé ne sait rien faire d'autre — la même commande suivie de `ls` doit **encore** lancer le script (même code, aucune liste de fichiers) ; et `-t` à la place de `-T` doit refuser le terminal. Sur le serveur, `journalctl -t cenacle` montre chaque passage.
+Attendu : `code 10` (rien à relancer) ou `code 0` (relancé). Pour le redémarrage, la même commande avec la clé `vps-b-redemarrer` : **attention, si un redémarrage est demandé, il sera programmé pour de vrai** (code 0) — `sudo shutdown -c` sur la machine dans la minute pour l'annuler. Sans redémarrage demandé : `code 10`. Puis la preuve que la clé ne sait rien faire d'autre — la même commande suivie de `ls` doit **encore** lancer le script (même code, aucune liste de fichiers) ; et `-t` à la place de `-T` doit refuser le terminal. Sur le serveur, `journalctl -t cenacle` montre chaque passage.
 
 ## Relier l'opérateur
 
-Copie `serveurs.local.example.toml` en `serveurs.local.toml` (ignoré par git) et remplis-le : le nom de la machine **tel que la ronde de Legion l'écrit**, son adresse, le compte `cenacle`, le chemin de la clé, le `known_hosts`. Puis, dans le dossier de Cénacle :
+Copie `serveurs.local.example.toml` en `serveurs.local.toml` (ignoré par git) et remplis-le : le nom de la machine **tel que la ronde de Legion l'écrit**, son adresse, le compte `cenacle`, le chemin de chaque clé (`cles = { services = "…", redemarrer = "…" }` — une action sans clé n'est jamais lancée), le `known_hosts`. Puis, dans le dossier de Cénacle :
 
 ```
 npm run service -- install operateur

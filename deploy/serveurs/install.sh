@@ -17,7 +17,9 @@ passwd -l cenacle >/dev/null
 install -d -m 0700 -o cenacle -g cenacle ~cenacle/.ssh
 [ -e ~cenacle/.ssh/authorized_keys ] || install -m 0600 -o cenacle -g cenacle /dev/null ~cenacle/.ssh/authorized_keys
 
-install -m 0755 -o root -g root "$here/cenacle-services" /usr/local/sbin/cenacle-services
+for script in cenacle-services cenacle-redemarrer; do
+  install -m 0755 -o root -g root "$here/$script" "/usr/local/sbin/$script"
+done
 
 install -d -m 0755 /etc/cenacle
 if [ ! -e /etc/cenacle/services-exclus ]; then
@@ -29,7 +31,9 @@ fi
 
 # sudo for the scripts alone, with no argument (the empty "" forbids any).
 rule="$(mktemp)"
-printf '%s\n' 'cenacle ALL=(root) NOPASSWD: /usr/local/sbin/cenacle-services ""' > "$rule"
+printf '%s\n' \
+  'cenacle ALL=(root) NOPASSWD: /usr/local/sbin/cenacle-services ""' \
+  'cenacle ALL=(root) NOPASSWD: /usr/local/sbin/cenacle-redemarrer ""' > "$rule"
 visudo -cf "$rule" >/dev/null
 install -m 0440 -o root -g root "$rule" /etc/sudoers.d/cenacle
 rm -f "$rule"

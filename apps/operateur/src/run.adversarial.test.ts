@@ -16,7 +16,7 @@ const CONFIG = parseServers(`known_hosts = "/Users/exemple/.ssh/cenacle/known_ho
 nom = "vps-b"
 adresse = "vps-b.exemple.test"
 compte = "cenacle"
-cles = { services = "/Users/exemple/.ssh/cenacle/vps-b-services" }
+cles = { services = "/Users/exemple/.ssh/cenacle/vps-b-services", redemarrer = "/Users/exemple/.ssh/cenacle/vps-b-redemarrer" }
 `);
 const SEEN: Observation[] = [
   { type: "serveur_services", target: "vps-b", occurrence: "-", severity: "moyen", title: "x" },
@@ -43,6 +43,8 @@ function world(over: Partial<OperatorDeps> = {}, hosts: string[] = ["vps-b"]) {
   const events: Record<string, unknown>[] = [];
   let verdictAt = NOW.getTime() - 5 * MIN;
   let seen = SEEN;
+  let hostEtat = "SOUFFRANT";
+  let rebootedRecently = false;
   const set = (id: number, patch: Partial<Row>) => {
     const r = rows.find((x) => x.id === id);
     if (r !== undefined) Object.assign(r, patch);
@@ -60,6 +62,7 @@ function world(over: Partial<OperatorDeps> = {}, hosts: string[] = ["vps-b"]) {
       expire: async () => 0,
       abandonStale: async () => 0,
       next: async () => rows.find((r) => r.state === "confirmee") ?? null,
+      doneSince: async () => rebootedRecently,
       claim: async (id) => {
         if (rows.some((r) => r.state === "en_cours")) return false;
         set(id, { state: "en_cours" });
@@ -86,7 +89,8 @@ function world(over: Partial<OperatorDeps> = {}, hosts: string[] = ["vps-b"]) {
     },
     active: true,
     config: CONFIG,
-    verdict: () => `bulletin=1\ninstant=${Math.floor(verdictAt / 1000)}\nfin=1`,
+    verdict: () =>
+      `bulletin=1\ninstant=${Math.floor(verdictAt / 1000)}\nvps-b.etat=${hostEtat}\nfin=1`,
     parseVerdict: () => seen,
     keyIsPrivate: () => true,
     ssh: async (args) => {
@@ -116,6 +120,12 @@ function world(over: Partial<OperatorDeps> = {}, hosts: string[] = ["vps-b"]) {
     },
     seen: (s: Observation[]) => {
       seen = s;
+    },
+    hostEtat: (e: string) => {
+      hostEtat = e;
+    },
+    rebootedRecently: () => {
+      rebootedRecently = true;
     },
   };
 }
@@ -262,5 +272,104 @@ describe("what must not be lost", () => {
     expect(message({ ...(world().rows[0] as Row), state: "expiree" })).toBe(
       "⌛ vps-b (constat n°40) : demande non confirmée dans les 2 minutes, rien n'a été fait.",
     );
+  });
+});
+
+describe("a reboot (J6f2)", () => {
+  const REBOOT: Observation[] = [
+    {
+      type: "serveur_redemarrage",
+      target: "vps-b",
+      occurrence: "-",
+      severity: "moyen",
+      title: "x",
+    },
+  ];
+  const reboot = (over: Partial<OperatorDeps> = {}) => {
+    const w = world(over);
+    (w.rows[0] as Row).action = "redemarrer";
+    w.seen(REBOOT);
+    return w;
+  };
+
+  it("all holds: its own key, never the services one; scheduled, said", async () => {
+    const w = reboot();
+    await runOperator(w.deps);
+    expect(w.calls[0]).toContain("/Users/exemple/.ssh/cenacle/vps-b-redemarrer");
+    expect(w.calls[0]).not.toContain("/Users/exemple/.ssh/cenacle/vps-b-services");
+    expect(w.sent[0]).toMatch(/^🔄 vps-b \(constat n°40\) : redémarrage programmé dans 1 minute/);
+  });
+
+  it("already rebooted by Cénacle within 24 hours: refused before any call", async () => {
+    const w = reboot();
+    w.rebootedRecently();
+    await runOperator(w.deps);
+    expect(w.rows[0]).toMatchObject({ state: "refusee", refusal: "redemarrage_recent" });
+    expect(w.calls).toEqual([]);
+    expect(w.sent[0]).toMatch(/moins de 24 heures/);
+  });
+
+  it("a machine with a services key only: no reboot", async () => {
+    const services = parseServers(`known_hosts = "/Users/exemple/.ssh/cenacle/known_hosts"
+[[serveur]]
+nom = "vps-b"
+adresse = "vps-b.exemple.test"
+compte = "cenacle"
+cles = { services = "/Users/exemple/.ssh/cenacle/vps-b-services" }
+`);
+    const w = reboot({ config: services });
+    await runOperator(w.deps);
+    expect(w.rows[0]).toMatchObject({ state: "refusee", refusal: "pas_de_cle" });
+    expect(w.calls).toEqual([]);
+  });
+
+  it("the proof: not before 3 minutes; back and nothing required: said back", async () => {
+    const w = reboot();
+    await runOperator(w.deps);
+    const done = w.rows[0] as Row;
+    done.finishedAt = new Date(NOW.getTime() - 10 * MIN);
+    w.verdictAt(NOW.getTime() - 8 * MIN);
+    w.seen([]);
+    w.hostEtat("SAIN");
+    expect((await runOperator(w.deps)).verified).toBe(0);
+    w.verdictAt(NOW.getTime() - 6 * MIN);
+    expect((await runOperator(w.deps)).verified).toBe(1);
+    expect(done.verified).toBe("disparu");
+    expect(w.sent.at(-1)).toMatch(/^✅ vps-b \(constat n°40\) est revenue/);
+  });
+
+  it("still unreachable: patience until 30 minutes, then one loud alert", async () => {
+    const w = reboot();
+    await runOperator(w.deps);
+    const done = w.rows[0] as Row;
+    w.hostEtat("MALADE");
+    done.finishedAt = new Date(NOW.getTime() - 20 * MIN);
+    w.verdictAt(NOW.getTime() - 2 * MIN);
+    expect((await runOperator(w.deps)).verified).toBe(0);
+    done.finishedAt = new Date(NOW.getTime() - 31 * MIN);
+    expect((await runOperator(w.deps)).verified).toBe(1);
+    expect(done.verified).toBe("pas_revenue");
+    expect(w.sent.at(-1)).toMatch(/^🚨 vps-b \(constat n°40\) n'est pas revenue 30 minutes/);
+    const told = w.sent.length;
+    await runOperator(w.deps);
+    expect(w.sent).toHaveLength(told);
+  });
+
+  it("no verdict at all 30 minutes on: the same alert — silence proves nothing", async () => {
+    const w = reboot();
+    await runOperator(w.deps);
+    (w.rows[0] as Row).finishedAt = new Date(NOW.getTime() - 31 * MIN);
+    await runOperator({ ...w.deps, verdict: () => null });
+    expect(w.rows[0]?.verified).toBe("pas_revenue");
+  });
+
+  it("back, but a reboot still required: said, to look at", async () => {
+    const w = reboot();
+    await runOperator(w.deps);
+    (w.rows[0] as Row).finishedAt = new Date(NOW.getTime() - 10 * MIN);
+    w.verdictAt(NOW.getTime());
+    await runOperator(w.deps);
+    expect(w.rows[0]?.verified).toBe("toujours_la");
+    expect(w.sent.at(-1)).toMatch(/demande encore un redémarrage/);
   });
 });

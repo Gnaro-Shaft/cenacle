@@ -33,8 +33,8 @@ import {
   LOCAL_CHECKS,
   parseServerSwitch,
   preparedFix,
-  SERVER_CATALOGUE,
   SEVERITY_LABEL,
+  serverActionFor,
 } from "@cenacle/securite";
 import { createTelegramApi } from "@cenacle/telegram/api";
 import { runActions } from "./actions.ts";
@@ -130,7 +130,7 @@ async function round(): Promise<void> {
             id,
             token,
             fixable: f !== undefined && preparedFix(f, f.params) !== null,
-            server: servers && f?.type === SERVER_CATALOGUE.services.finding,
+            server: servers && f !== undefined ? serverActionFor(f.type) : null,
           };
         }),
       );
