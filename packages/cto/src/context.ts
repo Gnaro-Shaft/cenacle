@@ -37,7 +37,7 @@ export interface ProjectContext {
 }
 
 /** Characters of documentation at most: the local model holds far more, the answer stays fast. */
-export const CONTEXT_BUDGET = 200_000;
+export const CONTEXT_BUDGET = 240_000;
 const MAX_FILE = 200_000;
 
 /** Documentation, by path: the only files ever considered. */
