@@ -36,6 +36,8 @@ export interface RoundDeps {
   readonly lastNetwork: () => Promise<Date | null>;
   readonly lastReport: () => Promise<Date | null>;
   readonly lastWeekly: () => Promise<Date | null>;
+  /** The fixes I asked for (🔧, J6c) and the pull requests followed; how many were done. */
+  readonly actions?: (network: boolean) => Promise<number>;
 }
 
 export interface RoundOutcome {
@@ -51,6 +53,8 @@ export interface RoundOutcome {
   readonly open: number;
   readonly weekly: boolean;
   readonly purged: number;
+  /** Fixes prepared on my request in this round (J6c). */
+  readonly actions: number;
 }
 
 const report = (f: StoredFinding, comment?: string | null): ReportFinding => ({
@@ -78,6 +82,7 @@ export async function runRound(deps: RoundDeps): Promise<RoundOutcome> {
     f.status === "resolu" || f.status === "caduc" ? [] : [{ ...f, status: f.status }],
   );
   await deps.store.apply(reconcile(active, results), now);
+  const actions = (await deps.actions?.(network)) ?? 0;
 
   const pending = await deps.store.toSignal();
   const lastReport = await deps.lastReport();
@@ -151,6 +156,7 @@ export async function runRound(deps: RoundDeps): Promise<RoundOutcome> {
     open: open.length,
     weekly,
     purged: await deps.store.purge(now),
+    actions,
   };
   await deps.journal.append({ agent: AGENT, type: "securite.ran", payload: { ...outcome } });
   return outcome;

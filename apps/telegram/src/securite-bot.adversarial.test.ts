@@ -38,6 +38,11 @@ function world(over: Partial<SecuriteDecisions> = {}) {
       return prompt === 77 ? "done" : "unknown";
     },
     isAsking: async (prompt) => prompt === 77 || prompt === 78,
+    requestFix: async (id, token) => {
+      calls.push(`fix ${id}`);
+      if (token !== TOKEN) return "stale";
+      return id === 1 ? "done" : "not_fixable";
+    },
     purge: async () => 0,
     ...over,
   };
@@ -90,6 +95,25 @@ const tap = (
   from: { id: from },
   data,
   message: { message_id: 10, chat, reply_markup: { inline_keyboard: rows } },
+});
+
+describe("🔧 prepare the PR (J6c)", () => {
+  it("a fixable finding: noted for the next round, journaled as 'fix'", async () => {
+    const w = world();
+    await handleCallback(tap(`s:1:f:${TOKEN}`), w.deps);
+    expect(w.calls).toEqual([
+      "fix 1",
+      expect.stringMatching(/^answer 🔧 Demande notée pour le constat n°1/),
+    ]);
+    expect(w.events.map((e) => e.payload)).toEqual([{ action: "fix" }]);
+  });
+
+  it("a finding that no PR can fix: said, nothing noted", async () => {
+    const w = world();
+    await handleCallback(tap(`s:2:f:${TOKEN}`), w.deps);
+    expect(w.calls).toEqual(["fix 2", expect.stringMatching(/ne se corrige pas par une PR/)]);
+    expect(w.events).toEqual([]);
+  });
 });
 
 describe("a tap on a button", () => {

@@ -7,7 +7,7 @@
  * rule 1). It holds the Telegram token and nothing else.
  */
 import { randomBytes } from "node:crypto";
-import { release } from "node:os";
+import { release, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import {
   askAgent,
@@ -30,10 +30,14 @@ import {
   cleanComment,
   keyboard,
   LOCAL_CHECKS,
+  parsePrStatus,
+  preparedFix,
   SEVERITY_LABEL,
 } from "@cenacle/securite";
 import { createTelegramApi } from "@cenacle/telegram/api";
-import { runChecks, runProgram, specs } from "./checks.ts";
+import { runActions } from "./actions.ts";
+import { firstExisting, runChecks, runProgram, specs } from "./checks.ts";
+import { prepareFix } from "./fix.ts";
 import { runRound } from "./round.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
@@ -88,7 +92,13 @@ async function round(): Promise<void> {
     // Buttons under the findings still to fix, each with its single-use token (J6b).
     send: async (text, buttonsFor) => {
       const tokens = await createSecuriteDecisions(sql).tokens(buttonsFor);
-      const rows = keyboard([...tokens].map(([id, token]) => ({ id, token })));
+      const findings = new Map((await store.active()).map((f) => [f.id, f]));
+      const rows = keyboard(
+        [...tokens].map(([id, token]) => {
+          const f = findings.get(id);
+          return { id, token, fixable: f !== undefined && preparedFix(f, f.params) !== null };
+        }),
+      );
       if (rows.length === 0) return telegram.sendMessage(chatId, text);
       await telegram.sendWithButtons(
         chatId,
@@ -101,6 +111,34 @@ async function round(): Promise<void> {
     lastNetwork: () => latestEventAt(sql, "securite", "securite.ran", { network: true }),
     lastReport: () => latestEventAt(sql, "securite", "securite.rapport"),
     lastWeekly: () => latestEventAt(sql, "securite", "securite.bilan"),
+    // 🔧 The fixes I asked for (J6c): a pull request, never a merge.
+    actions: (network) =>
+      runActions(
+        {
+          store,
+          prepare: (req) =>
+            prepareFix(req, {
+              run: runProgram(300_000),
+              root: ROOT,
+              tmpRoot: tmpdir(),
+              git: firstExisting("/opt/homebrew/bin/git", "/usr/local/bin/git", "/usr/bin/git"),
+              npm: join(dirname(process.execPath), "npm"),
+              gh: firstExisting("/opt/homebrew/bin/gh", "/usr/local/bin/gh"),
+            }),
+          status: async (url) => {
+            const gh = firstExisting("/opt/homebrew/bin/gh", "/usr/local/bin/gh");
+            const out = await runProgram(60_000)(
+              gh,
+              ["pr", "view", url, "--json", "state,statusCheckRollup"],
+              ROOT,
+            );
+            return out.code === 0 ? parsePrStatus(out.stdout) : "unknown";
+          },
+          send: (text) => telegram.sendMessage(chatId, text),
+          journal,
+        },
+        network,
+      ),
   });
   console.log(
     `✔ Ronde : ${outcome.checks} contrôle(s)${outcome.network ? " (dont réseau)" : ""}, ${outcome.impossible} impossible(s) ; ${outcome.urgent} urgent(s) dit(s)${outcome.report ? ", rapport du matin envoyé" : ""} ; ${outcome.open} ouvert(s)${outcome.weekly ? " ; bilan de la semaine envoyé" : ""}`,

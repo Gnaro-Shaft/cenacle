@@ -150,6 +150,22 @@ const CATALOGUE: Readonly<Record<string, Builder>> = {
 
 export const CATALOGUE_TYPES: readonly string[] = Object.keys(CATALOGUE);
 
+/**
+ * The fix an agent may prepare itself (J6c): only a dependency with a
+ * published version, the name and version checked. Anything else — the Mac,
+ * the servers, an `npm audit fix` of unknown reach — stays mine.
+ */
+export function preparedFix(
+  key: FindingKey,
+  params: Readonly<Record<string, string>>,
+): { readonly name: string; readonly version: string } | null {
+  if (key.type !== "npm_advisory") return null;
+  const { fixName, fixVersion } = params;
+  if (fixName === undefined || fixVersion === undefined) return null;
+  if (!NPM_NAME.test(fixName) || !SEMVER.test(fixVersion)) return null;
+  return { name: fixName, version: fixVersion };
+}
+
 export function fixFor(key: FindingKey, params: Readonly<Record<string, string>> = {}): Fix {
   const build = Object.hasOwn(CATALOGUE, key.type) ? CATALOGUE[key.type] : undefined;
   if (build === undefined) throw new UnknownFindingError(key.type);

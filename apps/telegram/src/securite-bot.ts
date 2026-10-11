@@ -8,7 +8,14 @@
  * No AI decides anything here.
  */
 import type { Journal, SecuriteDecisions, SecuriteStore } from "@cenacle/journal";
-import { ANSWER, keyboard, parsePressed, SEVERITY_LABEL, withoutFinding } from "@cenacle/securite";
+import {
+  ANSWER,
+  keyboard,
+  parsePressed,
+  preparedFix,
+  SEVERITY_LABEL,
+  withoutFinding,
+} from "@cenacle/securite";
 import type { InlineButton, TelegramApi, TelegramCallback, TelegramMessage } from "./api.ts";
 
 const REASON_DEADLINE_MS = 10 * 60_000;
@@ -47,7 +54,11 @@ export async function listFindings(chatId: number, deps: SecuriteBotDeps): Promi
   );
   const tokens = await deps.decisions.tokens(open.map((f) => f.id));
   const rows = keyboard(
-    open.flatMap((f) => (tokens.has(f.id) ? [{ id: f.id, token: tokens.get(f.id) ?? "" }] : [])),
+    open.flatMap((f) =>
+      tokens.has(f.id)
+        ? [{ id: f.id, token: tokens.get(f.id) ?? "", fixable: preparedFix(f, f.params) !== null }]
+        : [],
+    ),
   );
   await deps.api.sendWithButtons(
     chatId,
@@ -89,6 +100,19 @@ export async function handleCallback(cb: TelegramCallback, deps: SecuriteBotDeps
       new Date(now.getTime() + REASON_DEADLINE_MS),
     );
     await deps.api.answerCallback(cb.id, "☑ J'attends la raison.");
+    return;
+  }
+  if (pressed.action === "fix") {
+    const asked = await deps.decisions.requestFix(pressed.id, pressed.token, now);
+    if (asked === "done") await decided(deps, "fix");
+    await deps.api.answerCallback(
+      cb.id,
+      asked === "done"
+        ? ANSWER.fix(pressed.id)
+        : asked === "not_fixable"
+          ? ANSWER.notFixable
+          : ANSWER[asked],
+    );
     return;
   }
   const outcome = await deps.decisions.decide(pressed.id, pressed.token, pressed.action, now);
