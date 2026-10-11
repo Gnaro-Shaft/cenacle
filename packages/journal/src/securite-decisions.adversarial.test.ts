@@ -2,7 +2,8 @@
 // only with the finding's token and only to a finding still to fix; a
 // replay, a forged token or a double tap changes nothing; a resolved finding
 // loses its token; a reason counts only as a reply to the question, before
-// its deadline, and of a sensible length.
+// its deadline, and of a sensible length. On a CERT-FR bulletin, ✅ means
+// done: quiet for it, with the reason written for me (J6e3).
 import { randomBytes } from "node:crypto";
 import { afterAll, describe, expect, it } from "vitest";
 import { createSecuriteDecisions } from "./securite-decisions.ts";
@@ -23,11 +24,11 @@ let n = 0;
 let prompt = Math.floor(Math.random() * 1e9);
 
 /** An open finding, as two sightings make it. */
-async function openFinding(): Promise<number> {
+async function openFinding(type = "firewall_off"): Promise<number> {
   n += 1;
   const seen: SeenFinding = {
     check: "firewall",
-    type: "firewall_off",
+    type,
     target: `mac-${run}-${n}`,
     occurrence: "off",
     severity: "moyen",
@@ -41,6 +42,30 @@ async function openFinding(): Promise<number> {
 const status = async (id: number) =>
   (await sql<{ status: string }[]>`select status from securite_constats where id = ${id}`)[0]
     ?.status;
+
+describe("✅ on a CERT-FR bulletin (J6e3)", () => {
+  it("treated: quiet like a kept risk, the reason written; a double tap changes nothing", async () => {
+    for (const type of ["bulletin_alerte", "bulletin_avis"]) {
+      const id = await openFinding(type);
+      const token = (await decisions.tokens([id])).get(id) ?? "";
+      expect(await decisions.decide(id, token, "take", T0)).toBe("treated");
+      const [row] = await sql<{ status: string; reason: string; button_token: string | null }[]>`
+        select status, reason, button_token from securite_constats where id = ${id}`;
+      expect(row).toEqual({ status: "accepte", reason: "Traité (✅)", button_token: null });
+      expect(await decisions.decide(id, token, "take", T0)).toBe("already");
+      expect(await status(id)).toBe("accepte");
+    }
+  });
+
+  it("a forged token on a bulletin: nothing; ❌ on a bulletin: refused as before", async () => {
+    const id = await openFinding("bulletin_avis");
+    expect(await decisions.decide(id, "f".repeat(16), "take", T0)).toBe("stale");
+    expect(await status(id)).toBe("ouvert");
+    const token = (await decisions.tokens([id])).get(id) ?? "";
+    expect(await decisions.decide(id, token, "refuse", T0)).toBe("done");
+    expect(await status(id)).toBe("refuse");
+  });
+});
 
 describe("decisions with a token", () => {
   it("a token is created once and kept; a candidate gets none", async () => {

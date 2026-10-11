@@ -32,6 +32,17 @@ const quoted = (s: string) => `"${s}"`;
 
 type Builder = (key: FindingKey, p: Readonly<Record<string, string>>) => Fix;
 
+const CERTFR_URL =
+  /^https:\/\/www\.cert\.ssi\.gouv\.fr\/(?:alerte|avis)\/CERTFR-\d{4}-(?:ALE|AVI)-\d{1,5}\/$/;
+const bulletin = (p: Readonly<Record<string, string>>): Fix => ({
+  advice: `Lire le bulletin${
+    p.url !== undefined && CERTFR_URL.test(p.url) ? ` (${p.url})` : ""
+  } et appliquer ses correctifs${
+    p.software !== undefined && LABEL.test(p.software) ? ` pour ${p.software}` : ""
+  } ; ✅ quand c'est fait, ☑ si tu n'es pas concerné (avec la raison).`,
+  command: null,
+});
+
 const CATALOGUE: Readonly<Record<string, Builder>> = {
   filevault_off: () => ({
     advice: "Activer FileVault : Réglages Système › Confidentialité et sécurité › FileVault.",
@@ -171,6 +182,9 @@ const CATALOGUE: Readonly<Record<string, Builder>> = {
     advice: `Dans le projet ${p.project ?? "concerné"} : tenir ce secret pour exposé — le révoquer et en créer un autre, puis le retirer de l'historique si le dépôt est partagé. Un faux positif : ☑ garder le risque, avec la raison.`,
     command: null,
   }),
+  // The CERT-FR's bulletins (J6e3): read it, apply its fixes; ✅ means done.
+  bulletin_alerte: (_k, p) => bulletin(p),
+  bulletin_avis: (_k, p) => bulletin(p),
   check_impossible: (k) => ({
     advice: `Le contrôle « ${k.target} » n'a pas pu tourner : rien n'est prouvé tant qu'il ne repasse pas.`,
     command: null,

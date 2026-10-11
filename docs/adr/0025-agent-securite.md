@@ -71,6 +71,17 @@ Chaque projet a ses propres contrôles (`npm_<nom>`, `fuites_<nom>`) : un projet
 
 Hors périmètre : les dépendances Python (J6e2b, avec `pip-audit` installé par moi), le retard de versions majeures des autres projets.
 
+## Révision du 2026-10-11 — les bulletins du CERT-FR (J6e3)
+
+L'agent lit, avec les contrôles réseau (une fois par heure), les deux flux publics du CERT-FR — ses **alertes** (failles activement exploitées) et ses **avis** — par le lecteur de flux de la veille (délai, taille plafonnée). Un bulletin n'est retenu que si son titre nomme, en mot entier, un logiciel de la table `[bulletins]` : celle de `securite.toml` (versionnée : ce que le code dit déjà publiquement) et mes ajouts privés dans `securite.local.toml`. Le titre est nettoyé et plafonné, tu ne vois pas celui qui ressemble à un ordre ; le lien n'est gardé que sous la forme exacte du CERT-FR.
+
+- **Une alerte** (moins d'un an, non marquée « [Clos] ») : élevée, dite tout de suite en journée ; résolue quand le CERT-FR la clôt.
+- **Un avis** (moins de 7 jours) : moyen, au rapport du matin ; sorti du flux, il **expire en silence** (caduc) — rien n'a été corrigé, il n'est plus d'actualité.
+- **✅ sur un bulletin veut dire « traité »** : aucun contrôle ne peut voir qu'un bulletin a été appliqué ; il se tait comme un risque gardé (raison « Traité (✅) »), redemandé après 90 jours s'il est encore publié. ☑ dit « pas concerné », avec la raison.
+- Un flux injoignable, vide ou changé en page web, ou une liste illisible : le contrôle « n'a pas pu tourner », ne ferme rien, et le dit.
+
+Le mot du CTO (modèle local) dit si le bulletin me concerne ; le texte du bulletin lui est donné comme une donnée, il ne donne jamais de commande. Hors périmètre : comparer les versions installées aux versions vulnérables, d'autres sources, toute action déclenchée par un bulletin.
+
 ## Conséquences
 
 - `npm audit` envoie la liste des dépendances au registre npm, `tailscale version --upstream` et `softwareupdate` interrogent leurs éditeurs : aucune donnée personnelle (registre, services tiers).

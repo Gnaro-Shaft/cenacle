@@ -61,6 +61,7 @@ export {
 export { createPurges, type Purges } from "./purges.ts";
 export {
   createSecuriteDecisions,
+  type DecideOutcome,
   type Decision,
   type DecisionOutcome,
   type FixOutcome,

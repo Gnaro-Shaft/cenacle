@@ -40,6 +40,7 @@ export function memoryStore(): SecuriteStore & { rows: Row[] } {
       for (const p of plan.touch) set(p.id, { lastSeen: now });
       for (const id of plan.resolve) set(id, { status: "resolu", closedAt: now });
       for (const id of plan.drop) set(id, { status: "caduc", closedAt: now });
+      for (const id of plan.expire ?? []) set(id, { status: "caduc", closedAt: now });
     },
     toSignal: async () => ({
       opened: rows.filter((r) => r.status === "ouvert" && !r.so),

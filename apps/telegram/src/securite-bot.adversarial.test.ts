@@ -102,6 +102,24 @@ const tap = (
   message: { message_id: 10, chat, reply_markup: { inline_keyboard: rows } },
 });
 
+describe("✅ on a CERT-FR bulletin (J6e3)", () => {
+  it("answered as treated, not taken in hand; the button leaves the message", async () => {
+    const w = world({
+      decide: async (id) => {
+        w.calls.push(`decide ${id}`);
+        return "treated";
+      },
+    });
+    await handleCallback(tap(`s:1:t:${TOKEN}`), w.deps);
+    expect(w.calls).toContain(
+      "answer ✅ Bulletin n°1 noté comme traité : il se tait, et reviendra dans 90 jours s'il est toujours publié.",
+    );
+    expect(w.calls.some((c) => c.includes("pris en charge"))).toBe(false);
+    expect(w.edits()).toBe(1);
+    expect(w.events.map((e) => e.payload)).toEqual([{ action: "take" }]);
+  });
+});
+
 describe("✅ Fusionner / ❌ Fermer (J6d)", () => {
   it("recorded for the next round; the bot itself never touches GitHub", async () => {
     const w = world();

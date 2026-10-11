@@ -57,6 +57,22 @@ describe("the findings store", () => {
     expect(await mine(9)).toMatchObject({ status: "ouvert" });
   });
 
+  it("an advisory out of the feed expires quietly: caduc, never told resolved (J6e3)", async () => {
+    await store.apply({ ...empty, insert: [seen(10), seen(11)] }, T0);
+    const [a, b] = [await mine(10), await mine(11)];
+    await store.apply(
+      { ...empty, promote: [a, b].map((f) => ({ id: f?.id ?? 0, seen: seen(0) })) },
+      T0,
+    );
+    await store.markSignaled([a?.id ?? 0], []);
+    await store.apply({ ...empty, expire: [a?.id ?? 0, b?.id ?? 0] }, T0);
+    const [row] = await sql<
+      { status: string }[]
+    >`select status from securite_constats where id = ${a?.id ?? 0}`;
+    expect(row?.status).toBe("caduc");
+    expect((await store.toSignal()).resolved.map((f) => f.id)).not.toContain(a?.id);
+  });
+
   it("one active finding per key, enforced by the database", async () => {
     await store.apply({ ...empty, insert: [seen(2)] }, T0);
     await expect(store.apply({ ...empty, insert: [seen(2)] }, T0)).rejects.toThrow();

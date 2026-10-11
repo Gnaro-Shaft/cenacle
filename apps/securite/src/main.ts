@@ -36,6 +36,7 @@ import {
 import { createTelegramApi } from "@cenacle/telegram/api";
 import { runActions } from "./actions.ts";
 import { actionDeps, trustLines } from "./actions-deps.ts";
+import { bulletinResults, loadSoftware } from "./bulletins-check.ts";
 import {
   loadProjects,
   projectSpecs,
@@ -84,7 +85,14 @@ async function round(): Promise<void> {
         ...specs(ROOT, nodeDir, macMajor).filter((s) => network || LOCAL_CHECKS.includes(s.check)),
         ...(network && projects !== null ? projectSpecs(projects, nodeDir) : []),
       ];
-      return [...(await runChecks(list, runProgram())), projectsResult(projects)];
+      const [checked, bulletins] = await Promise.all([
+        runChecks(list, runProgram()),
+        // The CERT-FR's bulletins (J6e3), with the network checks.
+        network
+          ? bulletinResults(loadSoftware(ROOT), { fetch, now: () => Date.now() })
+          : Promise.resolve([]),
+      ]);
+      return [...checked, ...bulletins, projectsResult(projects)];
     },
     store,
     comment: async (f) => {

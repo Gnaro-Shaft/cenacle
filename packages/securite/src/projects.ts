@@ -42,8 +42,10 @@ export function parseProjects(text: string): Project[] {
   } catch {
     throw new ProjectsConfigError("not valid TOML");
   }
-  const extra = Object.keys(data).filter((k) => k !== "projet");
-  if (extra.length > 0) throw new ProjectsConfigError("only [[projet]] tables are expected");
+  // [bulletins] is read by bulletins.ts (J6e3).
+  const extra = Object.keys(data).filter((k) => k !== "projet" && k !== "bulletins");
+  if (extra.length > 0)
+    throw new ProjectsConfigError("only [[projet]] and [bulletins] are expected");
   const list = data.projet ?? [];
   if (!Array.isArray(list)) throw new ProjectsConfigError("projet must be [[projet]] tables");
   if (list.length > MAX_PROJECTS) throw new ProjectsConfigError(`at most ${MAX_PROJECTS} projects`);

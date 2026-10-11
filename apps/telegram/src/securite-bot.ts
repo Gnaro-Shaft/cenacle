@@ -133,14 +133,17 @@ export async function handleCallback(cb: TelegramCallback, deps: SecuriteBotDeps
     return;
   }
   const outcome = await deps.decisions.decide(pressed.id, pressed.token, pressed.action, now);
-  if (outcome !== "done") {
+  if (outcome === "stale" || outcome === "already") {
     await deps.api.answerCallback(cb.id, ANSWER[outcome]);
     return;
   }
   await decided(deps, pressed.action);
   // Written already: what follows only tidies the message, and may fail.
   try {
-    await deps.api.answerCallback(cb.id, ANSWER[pressed.action](pressed.id));
+    await deps.api.answerCallback(
+      cb.id,
+      outcome === "treated" ? ANSWER.treated(pressed.id) : ANSWER[pressed.action](pressed.id),
+    );
     const message = cb.message;
     if (message !== undefined) {
       const left = withoutFinding(fromInline(message.reply_markup?.inline_keyboard), pressed.id);

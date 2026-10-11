@@ -99,6 +99,8 @@ export function withoutFinding(rows: readonly Button[][], id: number): Button[][
 
 export const ANSWER = {
   take: (id: number) => `✅ Constat n°${id} pris en charge : je te dirai quand il sera corrigé.`,
+  treated: (id: number) =>
+    `✅ Bulletin n°${id} noté comme traité : il se tait, et reviendra dans 90 jours s'il est toujours publié.`,
   refuse: (id: number) =>
     `❌ Constat n°${id} refusé : il se tait pour cette occurrence, et reviendra dans 30 jours s'il persiste.`,
   askReason: (id: number) =>
