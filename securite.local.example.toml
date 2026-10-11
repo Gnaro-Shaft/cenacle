@@ -1,0 +1,24 @@
+# My other projects, watched by the security agent (J6e2, ADR-0025).
+# Copy to securite.local.toml (git-ignored: it holds paths of your machine).
+# Read at each round; the audits run with the network checks, once an hour.
+# Read-only: nothing is installed or changed in a project.
+#
+#   nom      lowercase letters and _ (30 at most): it names the findings,
+#            never the path ("audit" and "outdated" are taken)
+#   chemin   the project's absolute path (a git repository for secrets)
+#   npm      true: npm audit on its package-lock.json (the dependency list
+#            goes to the npm registry, as for Cénacle)
+#   secrets  true: gitleaks on its git history, on the Mac; only the rule,
+#            file, line and commit are kept, never the value
+
+[[projet]]
+nom = "monsite"
+chemin = "/chemin/vers/monsite"
+npm = true
+secrets = true
+
+[[projet]]
+nom = "outils_python"
+chemin = "/chemin/vers/outils-python"
+npm = false
+secrets = true

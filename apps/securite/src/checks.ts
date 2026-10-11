@@ -5,19 +5,27 @@
  * unexpected makes its check "could not run" — never "all is well".
  */
 import { execFile } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   type CheckResult,
+  npmCheck,
   type Observation,
+  PROJECTS_CHECK,
+  type Project,
   parseFileVault,
   parseFirewall,
   parseGatekeeper,
+  parseGitleaks,
   parseLegionVerdict,
   parseNpmAudit,
   parseNpmOutdated,
+  parseProjectNpmAudit,
+  parseProjects,
   parseSip,
   parseSoftwareUpdate,
   parseTailscale,
+  secretsCheck,
 } from "@cenacle/securite";
 
 export interface Run {
@@ -56,6 +64,8 @@ interface Spec {
   readonly cwd?: string;
   /** Exit codes that still carry an answer. */
   readonly codes: readonly number[];
+  /** What must hold before the program can prove anything; otherwise the check could not run. */
+  readonly ready?: () => boolean;
   readonly parse: (out: string) => Observation[];
 }
 
@@ -136,10 +146,85 @@ export function specs(root: string, nodeDir: string, macMajor: number): Spec[] {
   ];
 }
 
+/** My other projects (J6e2): securite.local.toml at the root; absent, no project. */
+export const PROJECTS_FILE = "securite.local.toml";
+
+export function loadProjects(root: string): Project[] | null {
+  const file = join(root, PROJECTS_FILE);
+  if (!existsSync(file)) return [];
+  try {
+    return parseProjects(readFileSync(file, "utf8"));
+  } catch {
+    // Said as a finding ("projets" could not run), never a failed round.
+    return null;
+  }
+}
+
+export const GITLEAKS = firstExisting("/opt/homebrew/bin/gitleaks", "/usr/local/bin/gitleaks");
+
+/** Read-only audits in each project, with the network checks (once an hour). */
+export function projectSpecs(
+  projects: readonly Project[],
+  nodeDir: string,
+  gitleaks: string = GITLEAKS,
+): Spec[] {
+  const npm = `${nodeDir}/npm`;
+  return projects.flatMap((p): Spec[] => [
+    ...(p.npm
+      ? [
+          {
+            check: npmCheck(p.name),
+            file: npm,
+            // The lock file only: nothing installed, nothing changed in the project.
+            args: ["audit", "--json", "--package-lock-only"],
+            cwd: p.path,
+            codes: [0, 1],
+            parse: (out: string) => parseProjectNpmAudit(out, p.name),
+          },
+        ]
+      : []),
+    ...(p.secrets
+      ? [
+          {
+            check: secretsCheck(p.name),
+            file: gitleaks,
+            // Committed history only; the secret is masked, and never read anyway.
+            args: [
+              "git",
+              "--redact",
+              "--no-banner",
+              "--report-format",
+              "json",
+              "--report-path",
+              "-",
+              "--exit-code",
+              "2",
+              "--log-level",
+              "error",
+              p.path,
+            ],
+            cwd: p.path,
+            codes: [0, 2],
+            // Outside a git repository gitleaks answers "nothing found": that proves nothing.
+            ready: () => existsSync(join(p.path, ".git")),
+            parse: (out: string) => parseGitleaks(out, p.name),
+          },
+        ]
+      : []),
+  ]);
+}
+
+/** The list itself, as a check: unreadable, it is a finding; readable again, that one resolves. */
+export const projectsResult = (projects: readonly Project[] | null): CheckResult =>
+  projects === null
+    ? { check: PROJECTS_CHECK, ran: false }
+    : { check: PROJECTS_CHECK, ran: true, observations: [] };
+
 export async function runChecks(list: readonly Spec[], run: Run): Promise<CheckResult[]> {
   return Promise.all(
     list.map(async (s): Promise<CheckResult> => {
       try {
+        if (s.ready !== undefined && !s.ready()) return { check: s.check, ran: false };
         const { code, stdout } = await run(s.file, s.args, s.cwd);
         if (!s.codes.includes(code)) return { check: s.check, ran: false };
         return { check: s.check, ran: true, observations: s.parse(stdout) };

@@ -60,6 +60,17 @@ Un quatrième bouton, **🔧 prépare la PR**, seulement sous un constat que le 
 
 Le principe (deux observations avant de parler) ne change pas ; on précise l'écart minimal entre elles, comme Legion. Une ronde lancée à la main juste après la ronde planifiée avait ouvert un port éphémère du serveur, vu deux fois dans la même minute puis disparu, et l'avait dit comme urgent. Désormais un candidat revu moins de 10 minutes après sa première observation reste candidat ; une première observation datée dans le futur (horloge reculée) n'ouvre jamais. Avec une ronde toutes les 15 minutes, rien ne change en régime normal, critiques compris.
 
+## Révision du 2026-10-11 — mes autres projets (J6e2)
+
+L'agent surveille aussi les projets que je déclare dans `securite.local.toml` (ignoré par git : il contient des chemins de ma machine ; un exemple versionné, `securite.local.example.toml`). Pour chacun, en lecture seule, avec les contrôles réseau (une fois par heure) :
+
+- **les failles de ses dépendances** : `npm audit --package-lock-only`, sur le fichier de verrouillage seul — rien n'est installé ni changé dans le projet ; la liste des dépendances part au registre npm, comme pour Cénacle ;
+- **les secrets commités** : `gitleaks git --redact` sur l'historique git, sur le Mac. Seuls la règle, le fichier, la ligne et le commit sont lus ; la valeur, l'auteur, son adresse et le message du commit ne le sont jamais. Hors d'un dépôt git, gitleaks répond « rien trouvé » : le contrôle est alors tenu pour « n'a pas pu tourner ».
+
+Chaque projet a ses propres contrôles (`npm_<nom>`, `fuites_<nom>`) : un projet en panne ne ferme rien ailleurs, et le constat nomme le projet, jamais son chemin. Une liste illisible est elle-même un constat, jamais une ronde en échec. **Pas de 🔧** : la préparation de PR ne connaît que le dépôt de Cénacle ; le catalogue donne la commande à lancer dans le projet. Les failles de dépendances des autres projets **attendent le rapport du matin**, quelle que soit leur gravité ; **un secret commité parle tout de suite** (élevé, en journée), parce qu'il faut le changer. Au plus 20 secrets par projet, puis un constat « et d'autres » ; le CTO commente au plus les **5 constats les plus graves** d'un message.
+
+Hors périmètre : les dépendances Python (J6e2b, avec `pip-audit` installé par moi), le retard de versions majeures des autres projets.
+
 ## Conséquences
 
 - `npm audit` envoie la liste des dépendances au registre npm, `tailscale version --upstream` et `softwareupdate` interrogent leurs éditeurs : aucune donnée personnelle (registre, services tiers).

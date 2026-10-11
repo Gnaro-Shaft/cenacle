@@ -46,7 +46,23 @@ export interface Plan {
 const IMPOSSIBLE_TITLE: Readonly<Record<string, string>> = {
   legion_ronde:
     "La ronde de Legion ne répond plus : verdict absent, périmé ou illisible — plus rien ne surveille les serveurs",
+  projets:
+    "La liste de tes projets (securite.local.toml) est illisible : aucun projet n'est contrôlé tant qu'elle n'est pas corrigée",
 };
+
+/** My other projects (J6e2): the check names say which project, in plain words. */
+function impossibleTitle(check: string): string {
+  if (Object.hasOwn(IMPOSSIBLE_TITLE, check)) return IMPOSSIBLE_TITLE[check] ?? "";
+  const npm = /^npm_([a-z_]+)$/.exec(check);
+  if (npm !== null && check !== "npm_audit" && check !== "npm_outdated") {
+    return `L'audit des dépendances du projet « ${npm[1]} » n'a pas pu tourner (dossier introuvable, ou package-lock.json absent ?)`;
+  }
+  const leaks = /^fuites_([a-z_]+)$/.exec(check);
+  if (leaks !== null) {
+    return `La recherche de secrets dans le projet « ${leaks[1]} » n'a pas pu tourner (dossier introuvable, ou pas un dépôt git ?)`;
+  }
+  return `Le contrôle « ${check} » n'a pas pu tourner`;
+}
 
 const impossible = (check: string): SeenObservation => ({
   check,
@@ -54,9 +70,7 @@ const impossible = (check: string): SeenObservation => ({
   target: check,
   occurrence: "-",
   severity: (check === "legion_ronde" ? "eleve" : "moyen") as Severity,
-  title: Object.hasOwn(IMPOSSIBLE_TITLE, check)
-    ? (IMPOSSIBLE_TITLE[check] ?? "")
-    : `Le contrôle « ${check} » n'a pas pu tourner`,
+  title: impossibleTitle(check),
 });
 
 /** Long enough since the first sighting; a first sighting "in the future" never is. */

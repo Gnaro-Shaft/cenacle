@@ -21,8 +21,10 @@ export {
   NETWORK_EVERY_MS,
   networkDue,
   REPORT_AT,
+  REPORT_ONLY_TYPES,
   reportDue,
   reportSentToday,
+  speaksAtOnce,
   urgentNow,
 } from "./cadence.ts";
 export {
@@ -54,6 +56,7 @@ export {
   reconcile,
   type SeenObservation,
 } from "./lifecycle.ts";
+export { MAX_LEAKS, parseGitleaks } from "./parse-gitleaks.ts";
 export { classifyMotif, LEGION_STALE_MS, parseLegionVerdict } from "./parse-legion.ts";
 export {
   parseFileVault,
@@ -72,6 +75,17 @@ export {
   parsePrStatus,
   parsePrView,
 } from "./pr-status.ts";
+export {
+  MAX_PROJECTS,
+  npmCheck,
+  PROJECT_NAME,
+  PROJECTS_CHECK,
+  type Project,
+  ProjectsConfigError,
+  parseProjectNpmAudit,
+  parseProjects,
+  secretsCheck,
+} from "./projects.ts";
 export {
   type AcceptedFinding,
   AI_NOTICE,
