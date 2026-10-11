@@ -12,6 +12,8 @@ import type { Sql } from "postgres";
 
 export type Decision = "take" | "refuse";
 export type DecisionOutcome = "done" | "stale" | "already";
+/** "treated": a CERT-FR bulletin, closed by ✅ — no check can see it applied (J6e3). */
+export type DecideOutcome = DecisionOutcome | "treated";
 export type FixOutcome = DecisionOutcome | "not_fixable";
 export type PrOutcome = "done" | "stale" | "not_ready";
 export type ReasonOutcome = "done" | "expired" | "unknown" | "already";
@@ -22,7 +24,7 @@ export interface SecuriteDecisions {
   /** Whether this button may still act on this finding (keeping a risk, step 1). */
   check(id: number, token: string): Promise<DecisionOutcome>;
   /** ✅ "I'm on it" or ❌ "refused": applied once, with the right token only. */
-  decide(id: number, token: string, decision: Decision, now: Date): Promise<DecisionOutcome>;
+  decide(id: number, token: string, decision: Decision, now: Date): Promise<DecideOutcome>;
   /**
    * 🔧 Prepare the pull request (J6c): only a dependency finding with a fix
    * version, still to fix; the agent's next round does it. Taken in hand meanwhile.
@@ -74,6 +76,16 @@ export function createSecuriteDecisions(sql: Sql): SecuriteDecisions {
 
     async decide(id, token, decision, now) {
       if (!TOKEN.test(token)) return "stale";
+      if (decision === "take") {
+        // A bulletin: ✅ means done. Quiet for this bulletin, like a kept risk (J6e3).
+        const treated = await sql`
+          update securite_constats
+          set status = 'accepte', reason = 'Traité (✅)', accepted_at = ${now},
+              decided_at = ${now}, button_token = null
+          where id = ${id} and button_token = ${token} and status = 'ouvert'
+            and type in ('bulletin_alerte', 'bulletin_avis')`;
+        if (treated.count === 1) return "treated";
+      }
       const result =
         decision === "take"
           ? await sql`

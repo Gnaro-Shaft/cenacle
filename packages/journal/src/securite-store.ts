@@ -36,6 +36,8 @@ export interface FindingPlan {
   readonly touch: readonly { readonly id: number; readonly seen: SeenFinding }[];
   readonly resolve: readonly number[];
   readonly drop: readonly number[];
+  /** Open, gone, nothing to tell (a CERT-FR advisory out of the feed): closed quietly. */
+  readonly expire?: readonly number[];
 }
 
 export interface StoredFinding {
@@ -205,6 +207,12 @@ export function createSecuriteStore(sql: Sql): SecuriteStore {
           await tx`
             update securite_constats set status = 'caduc', closed_at = ${now}
             where id = any(${plan.drop as number[]}::bigint[]) and status = 'candidat'`;
+        }
+        if ((plan.expire?.length ?? 0) > 0) {
+          await tx`
+            update securite_constats set status = 'caduc', closed_at = ${now}, button_token = null
+            where id = any(${(plan.expire ?? []) as number[]}::bigint[])
+              and status in ('ouvert', 'pris_en_charge')`;
         }
       });
     },

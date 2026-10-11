@@ -13,6 +13,8 @@
  *    silent while the same occurrence is seen; a new occurrence is new.
  *  - A check that could not run closes nothing; it is itself a finding
  *    ("check_impossible"), resolved when the check runs again.
+ *  - A CERT-FR advisory out of the feed is not "resolved" — nothing was
+ *    fixed: it expires, quietly (J6e3).
  */
 import type { CheckResult, FindingKey, Observation, Severity } from "./types.ts";
 import { keyOf } from "./types.ts";
@@ -40,12 +42,21 @@ export interface Plan {
   readonly touch: readonly { readonly id: number; readonly seen: SeenObservation }[];
   readonly resolve: readonly number[];
   readonly drop: readonly number[];
+  /** Open, gone, and nothing to tell: closed quietly (caduc). */
+  readonly expire: readonly number[];
 }
+
+/** Kinds whose absence means "no longer current", never "fixed". */
+export const EXPIRE_ON_ABSENCE: readonly string[] = ["bulletin_avis"];
 
 /** Clearer words for the checks whose failure says something by itself. */
 const IMPOSSIBLE_TITLE: Readonly<Record<string, string>> = {
   legion_ronde:
     "La ronde de Legion ne répond plus : verdict absent, périmé ou illisible — plus rien ne surveille les serveurs",
+  certfr_alertes:
+    "Les alertes du CERT-FR n'ont pas pu être lues (site injoignable, flux vide ou liste [bulletins] illisible)",
+  certfr_avis:
+    "Les avis du CERT-FR n'ont pas pu être lus (site injoignable, flux vide ou liste [bulletins] illisible)",
   projets:
     "La liste de tes projets (securite.local.toml) est illisible : aucun projet n'est contrôlé tant qu'elle n'est pas corrigée",
 };
@@ -94,12 +105,13 @@ export function reconcile(
     }
   }
   const byKey = new Map(active.map((a) => [keyOf(a), a]));
-  const plan = { insert: [], promote: [], touch: [], resolve: [], drop: [] } as {
+  const plan = { insert: [], promote: [], touch: [], resolve: [], drop: [], expire: [] } as {
     insert: SeenObservation[];
     promote: { id: number; seen: SeenObservation }[];
     touch: { id: number; seen: SeenObservation }[];
     resolve: number[];
     drop: number[];
+    expire: number[];
   };
   for (const [key, o] of seen) {
     const known = byKey.get(key);
@@ -113,6 +125,7 @@ export function reconcile(
     // Only a check that really ran can say a situation is gone.
     if (!ran.has(a.check)) continue;
     if (a.status === "candidat") plan.drop.push(a.id);
+    else if (EXPIRE_ON_ABSENCE.includes(a.type)) plan.expire.push(a.id);
     else plan.resolve.push(a.id);
   }
   return plan;

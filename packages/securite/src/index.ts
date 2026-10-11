@@ -1,5 +1,17 @@
 // The security agent (J6, ADR-0025): checks, the finding lifecycle, the
 // closed catalogue of fixes, the CTO's comment and the messages.
+
+export {
+  BULLETIN_DAYS,
+  BULLETIN_FEEDS,
+  BulletinConfigError,
+  type BulletinItem,
+  type BulletinKind,
+  bulletinCheck,
+  bulletinObservations,
+  matchSoftware,
+  parseBulletinSoftware,
+} from "./bulletins.ts";
 export {
   ANSWER,
   type Button,
@@ -52,6 +64,7 @@ export {
   type ActiveFinding,
   type ActiveStatus,
   DEBOUNCE_MINUTES,
+  EXPIRE_ON_ABSENCE,
   type Plan,
   reconcile,
   type SeenObservation,

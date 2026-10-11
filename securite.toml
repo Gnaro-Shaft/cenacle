@@ -9,6 +9,24 @@
 # without merging, or merged with a change of mine) suspends it at once; only
 # a newer `accordee_le` grants it again. Merging is never delegable.
 
+[bulletins]
+# The CERT-FR's bulletins (J6e3): kept when their title names one of these,
+# as a whole word. What Cénacle and its servers run, already public in the
+# code; private additions go in securite.local.toml, under the same key.
+logiciels = [
+  "macOS",
+  "Apple",
+  "Node.js",
+  "PostgreSQL",
+  "Docker",
+  "Tailscale",
+  "OpenSSH",
+  "Ubuntu",
+  "Debian",
+  "Proxmox",
+  "Python",
+]
+
 [[delegation]]
 # Prepare the pull request of an npm advisory fix without a major version
 # change. The merge stays mine (✅ Fusionner on Telegram, PR by PR).
