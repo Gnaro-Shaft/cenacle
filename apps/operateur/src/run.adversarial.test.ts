@@ -1,6 +1,6 @@
 // The operator's pass (J6f), with an in-memory store, a stand-in ssh and a
 // controlled verdict: before acting, everything is checked again — the
-// switch, the machine, its key, a verdict under 20 minutes that still shows
+// switch, the machine, its key, a verdict under 35 minutes that still shows
 // the problem; one action per pass, none while another runs; the exit code
 // alone decides the outcome; a later verdict proves it, an earlier one never;
 // a message that fails goes again; an address or a key path is never told.
@@ -137,7 +137,7 @@ describe("before acting, everything again", () => {
     ["the switch off", { active: false }, "interrupteur", /coupées/],
     ["no configuration", { config: null }, "configuration", /serveurs\.local\.toml/],
     ["a key others can read", { keyIsPrivate: () => false }, "cle_mal_protegee", /chmod 600/],
-    ["no verdict", { verdict: () => null }, "releve_perime", /plus de 20 minutes/],
+    ["no verdict", { verdict: () => null }, "releve_perime", /plus de 35 minutes/],
     [
       "a verdict that cannot be read",
       {
@@ -164,8 +164,12 @@ describe("before acting, everything again", () => {
     expect(w.calls).toEqual([]);
   });
 
-  it("a verdict over 20 minutes old, or from the future: refused", async () => {
-    for (const at of [NOW.getTime() - 21 * MIN, NOW.getTime() + 6 * MIN]) {
+  it("a verdict 34 minutes old acts (two 15-minute cycles); 36 old, or from the future: refused", async () => {
+    const ok = world();
+    ok.verdictAt(NOW.getTime() - 34 * MIN);
+    await runOperator(ok.deps);
+    expect(ok.rows[0]).toMatchObject({ state: "faite" });
+    for (const at of [NOW.getTime() - 36 * MIN, NOW.getTime() + 6 * MIN]) {
       const w = world();
       w.verdictAt(at);
       await runOperator(w.deps);
@@ -256,7 +260,7 @@ describe("what must not be lost", () => {
 
   it("an expired request is said plainly", () => {
     expect(message({ ...(world().rows[0] as Row), state: "expiree" })).toBe(
-      "⌛ vps-b (constat n°40) : demande non confirmée dans les 60 secondes, rien n'a été fait.",
+      "⌛ vps-b (constat n°40) : demande non confirmée dans les 2 minutes, rien n'a été fait.",
     );
   });
 });

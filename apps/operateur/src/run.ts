@@ -2,7 +2,7 @@
  * One pass of the operator (J6f, ADR-0027), every minute: expire what I did
  * not confirm in time; free a run cut off midway; take the oldest confirmed
  * request and, before acting, check everything again — the switch, the
- * machine, its key, a verdict of Legion under 20 minutes that still shows
+ * machine, its key, a verdict of Legion under 35 minutes that still shows
  * the problem (charter, rule 5); then one fixed ssh call, whose exit code
  * alone is read. A later verdict tells whether the problem went away. Every
  * outcome is told to me once the message has left, and journaled as counts.
@@ -20,8 +20,13 @@ import {
 } from "@cenacle/securite";
 
 const AGENT = "operateur";
-/** Older than this, a verdict proves nothing about now. */
-export const FRESH_VERDICT_MS = 20 * 60_000;
+/**
+ * Older than this, a verdict proves nothing about now. Legion's ronde runs
+ * every 15 minutes and the Mac copies its verdict every 15 minutes: the copy
+ * is up to ~30 minutes old in ordinary times — 35 leaves a margin, and stays
+ * stricter than the security agent's 45 (revised 2026-10-11, from 20).
+ */
+export const FRESH_VERDICT_MS = 35 * 60_000;
 const AHEAD_MS = 5 * 60_000;
 
 export interface OperatorDeps {
@@ -67,7 +72,7 @@ const REFUSAL: Readonly<Record<string, string>> = {
   machine_inconnue: "cette machine n'est pas déclarée dans serveurs.local.toml",
   pas_de_cle: "aucune clé n'est déclarée pour cette action sur cette machine",
   cle_mal_protegee: "sa clé est lisible par un autre que toi (chmod 600)",
-  releve_perime: "le relevé de Legion a plus de 20 minutes : rien n'est sûr",
+  releve_perime: "le relevé de Legion a plus de 35 minutes : rien n'est sûr",
   releve_illisible: "le relevé de Legion est illisible",
   plus_de_motif: "le dernier relevé de Legion ne montre plus le problème : rien à faire",
 };
@@ -89,7 +94,7 @@ export function message(a: StoredServerAction): string {
     case "refusee":
       return `🛑 ${on} : rien n'a été fait — ${REFUSAL[a.refusal ?? ""] ?? "refus de l'opérateur"}.`;
     case "expiree":
-      return `⌛ ${on} : demande non confirmée dans les 60 secondes, rien n'a été fait.`;
+      return `⌛ ${on} : demande non confirmée dans les 2 minutes, rien n'a été fait.`;
     case "echouee":
       if (a.exitCode === 255)
         return `🛑 ${on} : serveur injoignable ou clé refusée — rien n'est sûr, à vérifier.`;

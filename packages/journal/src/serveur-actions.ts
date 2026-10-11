@@ -1,6 +1,6 @@
 /**
  * Actions on the servers (J6f, ADR-0027), in the database: my button makes a
- * request, my confirmation within 60 seconds makes it runnable, the operator
+ * request, my confirmation within 2 minutes makes it runnable, the operator
  * claims it (one at a time, whatever the machine — the database refuses a
  * second), runs it, and records the outcome; Legion's next verdict tells
  * whether the problem went away. Every step is a guarded update: a stale
@@ -37,8 +37,8 @@ export interface StoredServerAction {
   readonly verified: Verified | null;
 }
 
-/** How long a confirmation stays possible. */
-export const CONFIRM_SECONDS = 60;
+/** How long a confirmation stays possible (revised 2026-10-11, from 60 seconds). */
+export const CONFIRM_SECONDS = 120;
 /** A run longer than this was cut off (the operator stopped mid-run): it failed. */
 export const STALE_RUN_MINUTES = 5;
 export const ACTIONS_DAYS = 365;
@@ -101,7 +101,7 @@ export function createServeurActions(sql: Sql) {
       return id === undefined ? null : { id: Number(id), token };
     },
 
-    /** My confirmation: only with its token, only within its 60 seconds, only once. */
+    /** My confirmation: only with its token, only within its 2 minutes, only once. */
     async confirm(id: number, token: string, now: Date): Promise<ConfirmOutcome> {
       if (!TOKEN.test(token)) return "stale";
       const done = await sql`

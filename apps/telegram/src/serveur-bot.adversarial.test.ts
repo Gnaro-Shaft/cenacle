@@ -1,7 +1,7 @@
 // The buttons of an action on a server, through the bot (J6f1b): 🔁 makes a
 // request only with the finding's token, only under a server finding of that
 // kind, only when the switch is on, once per finding; ✅ Confirmer works
-// within its 60 seconds, once, with its own token; anyone but me is ignored;
+// within its 2 minutes, once, with its own token; anyone but me is ignored;
 // the bot never runs anything — the operator does. The buttons appear only
 // where they belong.
 import type { ConfirmOutcome, StoredFinding } from "@cenacle/journal";
@@ -33,7 +33,7 @@ function world(
 ) {
   const calls: string[] = [];
   const requests: { findingId: number; host: string; at: Date }[] = [];
-  let until = NOW.getTime() + 60_000;
+  let until = NOW.getTime() + 120_000;
   let confirmed = false;
   const deps: SecuriteBotDeps = {
     allowedChatId: OWNER,
@@ -121,7 +121,7 @@ describe("🔁 under a server finding", () => {
     expect(w.calls).toEqual([
       'journal {"action":"server_request"}',
       `buttons 🔁 Relancer les services sur v10-essai (constat n°41) ? Seuls ceux que needrestart désigne, hors exclusions du serveur. o:7:${OP}`,
-      "answer 🔁 Constat n°41 : confirme dans les 60 secondes.",
+      "answer 🔁 Constat n°41 : confirme dans les 2 minutes.",
     ]);
   });
 
@@ -152,7 +152,7 @@ describe("🔁 under a server finding", () => {
 });
 
 describe("✅ Confirmer", () => {
-  it("within 60 seconds: confirmed, journaled, the button gone; again: already", async () => {
+  it("within 2 minutes: confirmed, journaled, the button gone; again: already", async () => {
     const w = world();
     await handleCallback(tap(`o:7:${OP}`), w.deps);
     expect(w.calls).toEqual([
@@ -169,7 +169,7 @@ describe("✅ Confirmer", () => {
     w.late();
     await handleCallback(tap(`o:7:${OP}`), w.deps);
     expect(w.calls).toEqual([
-      "answer ⌛ Délai de 60 secondes dépassé : rien ne sera fait. Rappuie sur 🔁 pour recommencer.",
+      "answer ⌛ Délai de 2 minutes dépassé : rien ne sera fait. Rappuie sur 🔁 pour recommencer.",
       "edit 0",
     ]);
   });
@@ -208,6 +208,26 @@ describe("where the button appears", () => {
           .map((p) => p?.id),
       ).toEqual(expected);
     }
+  });
+
+  it("/constats 61: that finding alone, with its buttons, whatever its rank; unknown: said", async () => {
+    const many = Array.from({ length: 12 }, (_, i) => finding(i + 1, "npm_advisory"));
+    const w = world({ findings: [...many, finding(61, "serveur_services")] });
+    await listFindings(OWNER, w.deps, 61);
+    const sent = w.calls.find((c) => c.startsWith("buttons")) ?? "";
+    expect(sent).toMatch(/n°61 · moyen/);
+    expect(sent).not.toMatch(/n°1 · /);
+    expect(
+      sent
+        .split(" ")
+        .at(-1)
+        ?.split(",")
+        .map(parsePressed)
+        .map((p) => p?.action),
+    ).toEqual(["take", "keep", "refuse", "server"]);
+    const none = world({ findings: many });
+    await listFindings(OWNER, none.deps, 61);
+    expect(none.calls).toEqual(["send 🛡 Aucun constat ouvert n°61."]);
   });
 
   it("the data stays within Telegram's 64 bytes, and reads back exactly", () => {

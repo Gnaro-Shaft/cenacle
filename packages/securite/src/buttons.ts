@@ -3,7 +3,7 @@
  * — and 🔧 prepare the pull request (J6c), only under a finding the closed
  * catalogue can fix without privilege; 🔁 restart the services (J6f1b,
  * ADR-0027), only under a server finding of that kind, when the switch is on —
- * then a second button confirms, within 60 seconds.
+ * then a second button confirms, within 2 minutes.
  * A button's data names the finding, the action and the finding's random
  * token — at most 64 bytes, Telegram's limit — and is read strictly: anything
  * else is ignored. The words the bot answers with are fixed here.
@@ -97,11 +97,11 @@ export function parsePrPressed(
   return { id, action: m[2] === "m" ? "merge" : "close", token: m[3] ?? "" };
 }
 
-/** The confirmation of an action on a server (J6f1b): one button, its own token, 60 seconds. */
+/** The confirmation of an action on a server (J6f1b): one button, its own token, 2 minutes. */
 const OP_DATA = /^o:(\d{1,12}):([0-9a-f]{16})$/;
 
 export function opKeyboard(requestId: number, token: string): Button[][] {
-  return [[{ text: "✅ Confirmer (60 s)", data: `o:${requestId}:${token}` }]];
+  return [[{ text: "✅ Confirmer (2 min)", data: `o:${requestId}:${token}` }]];
 }
 
 export function parseOpPressed(data: unknown): { id: number; token: string } | null {
@@ -134,13 +134,13 @@ export const ANSWER = {
   close: (id: number) =>
     `❌ Fermeture demandée (constat n°${id}) : la prochaine ronde ferme la PR.`,
   notReady: "Cette PR n'attend pas de décision (CI pas encore verte, ou déjà décidée).",
-  server: (id: number) => `🔁 Constat n°${id} : confirme dans les 60 secondes.`,
+  server: (id: number) => `🔁 Constat n°${id} : confirme dans les 2 minutes.`,
   serverAsk: (host: string, id: number) =>
     `🔁 Relancer les services sur ${host} (constat n°${id}) ? Seuls ceux que needrestart désigne, hors exclusions du serveur.`,
   serverConfirmed:
     "✅ Confirmé : l'opérateur s'en charge dans la minute (si le Mac est allumé), et te dira le résultat.",
   serverExpired:
-    "⌛ Délai de 60 secondes dépassé : rien ne sera fait. Rappuie sur 🔁 pour recommencer.",
+    "⌛ Délai de 2 minutes dépassé : rien ne sera fait. Rappuie sur 🔁 pour recommencer.",
   serverAlready: "Cette demande est déjà confirmée, ou terminée.",
   serverPending: "Une demande attend déjà pour ce constat : rien de plus.",
   serverOff:

@@ -2,7 +2,7 @@
  * The buttons of an action on a server, on the bot's side (J6f1b, ADR-0027).
  * 🔁 under a server finding makes a request — only with the finding's token,
  * only for a finding of the kind that action answers, only when the switch
- * is on — and asks me to confirm; ✅ Confirmer, within 60 seconds, makes it
+ * is on — and asks me to confirm; ✅ Confirmer, within 2 minutes, makes it
  * runnable. The bot holds no key and runs nothing: the operator, alone,
  * acts within the minute. Both taps are written before any answer.
  */
@@ -64,7 +64,7 @@ export async function pressServer(
   await deps.api.answerCallback(cb.id, ANSWER.server(finding.id));
 }
 
-/** ✅ Confirmer: within its 60 seconds, once. The button goes either way. */
+/** ✅ Confirmer: within its 2 minutes, once. The button goes either way. */
 export async function confirmServer(
   cb: TelegramCallback,
   chatId: number,

@@ -130,3 +130,43 @@ describe("the token never leaks", () => {
     expect((error as Error).message).not.toContain(TOKEN);
   });
 });
+
+describe("/constats with a number (one finding alone)", () => {
+  const text = (t: string, from = OWNER): TelegramUpdate => ({
+    update_id: 1,
+    message: { message_id: 1, chat: { id: OWNER, type: "private" }, from: { id: from }, text: t },
+  });
+  const ok = { ...deps, readStatus: deps.readStatus };
+
+  it.each([
+    ["/constats", undefined],
+    ["/constats 61", 61],
+    ["/constats n°61", 61],
+    ["/constats@cenacle_bot  61 ", 61],
+  ])("%j → the list (id %s)", async (t, id) => {
+    const [action] = await handleUpdate(text(t), ok);
+    expect(action).toEqual({
+      kind: "securite_list",
+      chatId: OWNER,
+      ...(id === undefined ? {} : { id }),
+    });
+  });
+
+  it.each([
+    "/constats tout",
+    "/constats 0",
+    "/constats -3",
+    "/constats 61 62",
+    "/constats 61; drop table",
+    "/constats 1234567890123",
+  ])("%j: how to ask, nothing listed", async (t) => {
+    const [action] = await handleUpdate(text(t), ok);
+    expect(action).toMatchObject({ kind: "reply" });
+    expect(action?.kind === "reply" && action.text).toMatch(/\/constats 61/);
+  });
+
+  it("from a stranger: nothing listed, journaled", async () => {
+    const [action] = await handleUpdate(text("/constats 61", STRANGER), ok);
+    expect(action).toEqual({ kind: "journal", type: "telegram.rejected", reason: "not_the_owner" });
+  });
+});

@@ -53,11 +53,19 @@ const serverDeps = (deps: SecuriteBotDeps): ServerBotDeps => ({
   decided: (action) => decided(deps, action),
 });
 
-/** /constats: every finding still to fix, with its buttons. */
-export async function listFindings(chatId: number, deps: SecuriteBotDeps): Promise<void> {
-  const open = await deps.store.open();
+/** /constats: every finding still to fix, with its buttons — or one alone (`/constats 61`). */
+export async function listFindings(
+  chatId: number,
+  deps: SecuriteBotDeps,
+  only?: number,
+): Promise<void> {
+  const all = await deps.store.open();
+  const open = only === undefined ? all : all.filter((f) => f.id === only);
   if (open.length === 0) {
-    await deps.api.sendMessage(chatId, "🛡 Aucun constat ouvert.");
+    await deps.api.sendMessage(
+      chatId,
+      only === undefined ? "🛡 Aucun constat ouvert." : `🛡 Aucun constat ouvert n°${only}.`,
+    );
     return;
   }
   const lines = open.map(

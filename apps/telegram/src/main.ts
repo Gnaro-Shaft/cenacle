@@ -165,7 +165,7 @@ await poll({
       {
         reply,
         askCto: relay,
-        listFindings: (chatId) => guarded(() => listFindings(chatId, securite), undefined),
+        listFindings: (chatId, id) => guarded(() => listFindings(chatId, securite, id), undefined),
         record: async (type, payload) => {
           await journal.append({ agent: "cenacle", type, payload });
         },
