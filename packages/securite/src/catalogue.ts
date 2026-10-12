@@ -129,6 +129,17 @@ const CATALOGUE: Readonly<Record<string, Builder>> = {
       };
     }
     const num = port === null ? null : (PORT.exec(port)?.[1] ?? null);
+    if (port?.startsWith("local/")) {
+      // The loopback only (Legion's ronde, 2026-10-12): a random port of the
+      // ephemeral range is a tool picking one at each start (llama-server).
+      const ephemeral = num !== null && num !== "*" && Number(num) >= 32768;
+      return {
+        advice: ephemeral
+          ? `${on(p)}port de la boucle locale tiré au hasard (un outil qui en change à chaque lancement, comme llama-server) : s'il est voulu, déclarer le joker local/tcp/* pour cet hôte dans la ronde de Legion (maison.toml) — il ne couvre que la boucle locale, à partir de 32768.`
+          : `${on(p)}service de la boucle locale sur un port fixe : identifier ce qui écoute ; si c'est normal, déclarer ${port} attendu dans la ronde de Legion (maison.toml).`,
+        command: num !== null && num !== "*" ? `sudo ss -lntp | grep ':${num} '` : null,
+      };
+    }
     return {
       advice: `${on(p)}identifier ce qui écoute sur ${port ?? "ce port"} ; si c'est normal, le déclarer attendu dans la ronde de Legion (maison.toml) ; sinon, arrêter ce service.`,
       command: num !== null && num !== "*" ? `sudo ss -lntup | grep ':${num} '` : null,
