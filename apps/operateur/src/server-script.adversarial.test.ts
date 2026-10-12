@@ -26,7 +26,8 @@ afterAll(() => rmSync(BASE, { recursive: true, force: true }));
 const svc = (names: string[]) =>
   ["NEEDRESTART-VER: 3.6", ...names.map((n) => `NEEDRESTART-SVC: ${n}`)].join("\\n");
 const many = Array.from({ length: 31 }, (_, i) => `s${i}.service`);
-// The list needrestart gave on a Proxmox node after its security updates (2026-10-11).
+// The lists needrestart gave on two Proxmox nodes after their security updates
+// (homeserv03 on 2026-10-11; homeserv01 on 2026-10-12 adds "systemd-user").
 const PROXMOX = [
   "cron.service",
   "dbus.service",
@@ -81,7 +82,10 @@ printf '# mine\\nnginx.service\\n' > /etc/cenacle/services-exclus
 printf '%s' '${svc(["nginx.service", "cron.service"])}' > /fake/out; run added_exclusion
 rm /etc/cenacle/services-exclus
 printf '%s' '${svc(PROXMOX)}' > /fake/out; run proxmox
+printf '%s' '${svc([...PROXMOX, "systemd-user"])}' > /fake/out; run proxmox_with_users
 printf '%s' '${svc(["systemd-manager"])}' > /fake/out; run systemd_only
+printf '%s' '${svc(["systemd-user", "systemd-manager"])}' > /fake/out; run systemd_both
+printf '%s' '${svc(["systemd-users"])}' > /fake/out; run systemd_user_lookalike
 printf '%s' '${svc(["systemd-managerx"])}' > /fake/out; run systemd_lookalike
 printf '%s' '${svc(["getty@tty1.service", "user@1000.service", "serial-getty@ttyS0.service", "cron.service"])}' > /fake/out; run sessions
 printf '%s' '${svc(["nginx.service"])}' > /fake/out
@@ -119,7 +123,7 @@ describe.skipIf(!docker)("cenacle-services on a throwaway Ubuntu", () => {
         restarted: restarted.trim().split(" ").filter(Boolean),
       });
     }
-    expect(results.size).toBe(15);
+    expect(results.size).toBe(18);
   });
 
   it.each([
@@ -158,6 +162,32 @@ describe.skipIf(!docker)("cenacle-services on a throwaway Ubuntu", () => {
         "zfs-zed.service",
       ],
     ],
+    [
+      "proxmox_with_users",
+      0,
+      [
+        "cron.service",
+        "dm-event.service",
+        "nfs-blkmap.service",
+        "proxmox-firewall.service",
+        "pve-firewall.service",
+        "pvedaemon.service",
+        "pvefw-logger.service",
+        "pveproxy.service",
+        "pvescheduler.service",
+        "pvestatd.service",
+        "qmeventd.service",
+        "rrdcached.service",
+        "smartmontools.service",
+        "spiceproxy.service",
+        "systemd-journald.service",
+        "systemd-udevd.service",
+        "unattended-upgrades.service",
+        "zfs-zed.service",
+      ],
+    ],
+    ["systemd_both", 10, []],
+    ["systemd_user_lookalike", 11, []],
     ["systemd_only", 10, []],
     ["systemd_lookalike", 11, []],
     ["sessions", 0, ["cron.service"]],
