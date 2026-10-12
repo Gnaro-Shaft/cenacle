@@ -2,7 +2,9 @@
 # cenacle-redemarrer (J6f2, ADR-0027): schedules a reboot of this machine in
 # one minute — only if a reboot is required, only if the machine has been up
 # for 24 hours, and, on a cluster node, only if the cluster is quorate with
-# every node present (one more node down must not lose the quorum). Started
+# every node present (one more node down must not lose the quorum), and no
+# virtual machine or container still runs on it — a reboot would stop them;
+# the node is emptied by hand first (migrate or stop), never by Cénacle. Started
 # only through the `cenacle` account's key for this script (forced command,
 # sudo for this script alone); no argument, nothing read from the caller.
 # Exit code only: 0 reboot scheduled, 10 nothing to do, 11 refused by a
@@ -37,6 +39,20 @@ if [ -x /usr/bin/pvecm ]; then
   if [ "$total" -lt "$expected" ]; then
     log "refus: il manque deja un noeud ($total/$expected votes)"; exit 11
   fi
+fi
+
+# Proxmox guests still running on this node (qm: VMs, pct: containers).
+running=0
+if [ -x /usr/sbin/qm ]; then
+  vms="$(/usr/sbin/qm list 2>/dev/null)" || { log "refus: qm list a echoue"; exit 11; }
+  running=$((running + $(printf '%s\n' "$vms" | /usr/bin/awk 'NR > 1 && $3 == "running" { c++ } END { print c + 0 }')))
+fi
+if [ -x /usr/sbin/pct ]; then
+  cts="$(/usr/sbin/pct list 2>/dev/null)" || { log "refus: pct list a echoue"; exit 11; }
+  running=$((running + $(printf '%s\n' "$cts" | /usr/bin/awk 'NR > 1 && $2 == "running" { c++ } END { print c + 0 }')))
+fi
+if [ "$running" -gt 0 ]; then
+  log "refus: $running invite(s) en marche sur ce noeud (a migrer ou arreter d abord)"; exit 11
 fi
 
 if /usr/sbin/shutdown -r +1 "Cenacle: redemarrage demande (ADR-0027)" >/dev/null 2>&1; then

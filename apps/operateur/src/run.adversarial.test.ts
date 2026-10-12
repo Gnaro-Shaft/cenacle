@@ -319,3 +319,53 @@ describe("the security updates (J6f3)", () => {
     }
   });
 });
+
+describe("the proof of a restart, counted (2026-10-12)", () => {
+  const services = (n: number): Observation[] => [
+    {
+      type: "serveur_services",
+      target: "vps-b",
+      occurrence: "-",
+      severity: "moyen",
+      title: "x",
+      params: { count: String(n) },
+    },
+  ];
+  const run = async (before: number, after: number) => {
+    const w = world();
+    w.seen(services(before));
+    await runOperator(w.deps);
+    (w.rows[0] as Row).finishedAt = new Date(NOW.getTime() - MIN);
+    w.verdictAt(NOW.getTime());
+    w.seen(services(after));
+    await runOperator(w.deps);
+    return w;
+  };
+
+  it("26 → 8: fewer, the spared ones remain — said as done, with both counts", async () => {
+    const w = await run(26, 8);
+    expect(w.rows[0]).toMatchObject({ verified: "reduit", beforeCount: 26, afterCount: 8 });
+    expect(w.sent.at(-1)).toMatch(/^✅ vps-b \(constat n°40\) : 26 → 8 service\(s\)/);
+  });
+
+  it("8 → 8, or more after: still there, to look at", async () => {
+    for (const [before, after] of [
+      [8, 8],
+      [8, 9],
+    ] as const) {
+      const w = await run(before, after);
+      expect(w.rows[0]?.verified).toBe("toujours_la");
+      expect(w.sent.at(-1)).toMatch(/^⚠ vps-b/);
+    }
+  });
+
+  it("no count before: never claimed fewer", async () => {
+    const w = world();
+    await runOperator(w.deps);
+    (w.rows[0] as Row).finishedAt = new Date(NOW.getTime() - MIN);
+    w.verdictAt(NOW.getTime());
+    w.seen(services(3));
+    await runOperator(w.deps);
+    expect(w.rows[0]?.verified).toBe("toujours_la");
+  });
+});

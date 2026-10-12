@@ -11,6 +11,7 @@
 import type { Journal, ServeurActions, StoredServerAction, Verified } from "@cenacle/journal";
 import {
   hostState,
+  motifCount,
   motifPresent,
   type Observation,
   outcomeOf,
@@ -135,9 +136,24 @@ async function act(deps: OperatorDeps): Promise<{ ran: number; refused: number }
   if (server === undefined || key === undefined || deps.config === null) {
     throw new Error("the checked server vanished");
   }
+  // What Legion counted before, so the proof can tell "fewer" from "still there".
+  const raw = deps.verdict();
+  let before: number | null = null;
+  try {
+    before =
+      raw === null
+        ? null
+        : motifCount(
+            deps.parseVerdict(raw, now.getTime()),
+            a.host,
+            SERVER_CATALOGUE[a.action].finding,
+          );
+  } catch {
+    before = null;
+  }
   const code = await deps.ssh(sshArgs(server, key, deps.config.knownHosts));
   const outcome = outcomeOf(code);
-  await deps.store.finish(a.id, outcome, code, deps.now());
+  await deps.store.finish(a.id, outcome, code, deps.now(), before);
   await record(deps, { action: a.action, outcome });
   return { ran: 1, refused: 0 };
 }
@@ -147,8 +163,26 @@ async function act(deps: OperatorDeps): Promise<{ ran: number; refused: number }
  * the verdict is later than the action; a reboot — back (not MALADE) and no
  * reboot required, from 3 minutes on; not seen back 30 minutes on: said loud;
  * security updates — gone from 10 minutes on, still pending 2 hours on: said.
+ * Services fewer than before but not none: "reduit" — the spared ones remain.
  */
 function proof(
+  a: StoredServerAction,
+  raw: string | null,
+  at: number | null,
+  seen: Observation[] | null,
+  nowMs: number,
+): { verified: Verified; after: number | null } | null {
+  const verified = proved(a, raw, at, seen, nowMs);
+  if (verified === null) return null;
+  const after = seen === null ? null : motifCount(seen, a.host, SERVER_CATALOGUE[a.action].finding);
+  if (verified === "toujours_la" && a.action === "services") {
+    const fewer = a.beforeCount !== null && after !== null && after < a.beforeCount;
+    return { verified: fewer ? "reduit" : "toujours_la", after };
+  }
+  return { verified, after };
+}
+
+function proved(
   a: StoredServerAction,
   raw: string | null,
   at: number | null,
@@ -191,10 +225,10 @@ async function verify(deps: OperatorDeps): Promise<number> {
   }
   let done = 0;
   for (const a of pending) {
-    const verified = proof(a, raw, at, seen, nowMs);
-    if (verified === null) continue;
-    if (await deps.store.verify(a.id, verified, deps.now())) {
-      await record(deps, { action: a.action, outcome: verified });
+    const found = proof(a, raw, at, seen, nowMs);
+    if (found === null) continue;
+    if (await deps.store.verify(a.id, found.verified, deps.now(), found.after)) {
+      await record(deps, { action: a.action, outcome: found.verified });
       done += 1;
     }
   }

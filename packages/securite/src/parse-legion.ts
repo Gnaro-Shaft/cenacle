@@ -85,6 +85,7 @@ export function classifyMotif(host: string, motif: string): Observation[] {
         "-",
         "eleve",
         `${host} : ${m[1]} mise(s) à jour de sécurité en attente`,
+        { count: String(Number(m[1])) },
       ),
     ];
   }
@@ -122,6 +123,8 @@ export function classifyMotif(host: string, motif: string): Observation[] {
         "-",
         "moyen",
         `${host} : ${m[1]} service(s) sur une bibliothèque remplacée`,
+        // The count, for the operator's proof: 26 → 8 is not "still there" (J6f).
+        { count: String(Number(m[1])) },
       ),
     ];
   }

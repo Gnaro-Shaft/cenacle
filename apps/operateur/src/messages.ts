@@ -43,6 +43,8 @@ function done(a: StoredServerAction, on: string): string {
         : `⚠ ${on} : le relevé de Legion montre encore le problème — à regarder sur la machine (journalctl -t cenacle).`;
     case "pas_revenue":
       return `🚨 ${on} n'est pas revenue 30 minutes après le redémarrage : à vérifier tout de suite.`;
+    case "reduit":
+      return `✅ ${on} : ${a.beforeCount ?? "?"} → ${a.afterCount ?? "?"} service(s) sur une bibliothèque remplacée. Les ${a.afterCount ?? ""} restants sont sans doute ceux que le script épargne (dbus, systemd, la grappe…) — à relancer à la main, ou au prochain redémarrage (journalctl -t cenacle pour le détail).`;
     default:
       return reboot
         ? `🔄 ${on} : redémarrage programmé dans 1 minute. J'attends son retour dans les relevés de Legion (jusqu'à 30 minutes).`
@@ -68,7 +70,7 @@ export function message(a: StoredServerAction): string {
         return `🛑 ${on} : un garde-fou du serveur a refusé (redémarrage automatique réglé, mise à jour déjà en cours, ou moins de 1 Go libre) — rien n'a été lancé (journalctl -t cenacle).`;
       }
       return reboot
-        ? `🛑 ${on} : un garde-fou du serveur a refusé (redémarrée depuis moins de 24 h, ou grappe incomplète) — rien n'a été fait (journalctl -t cenacle).`
+        ? `🛑 ${on} : un garde-fou du serveur a refusé (redémarrée depuis moins de 24 h, grappe incomplète, ou invités encore en marche sur le nœud) — rien n'a été fait (journalctl -t cenacle).`
         : `🛑 ${on} : un garde-fou du serveur a refusé, rien n'a été fait (journalctl -t cenacle sur la machine).`;
     case "refusee":
       return `🛑 ${on} : rien n'a été fait — ${REFUSAL[a.refusal ?? ""] ?? "refus de l'opérateur"}.`;

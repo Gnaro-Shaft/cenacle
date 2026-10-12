@@ -159,7 +159,7 @@ export const ANSWER = {
     action === "maj_securite"
       ? `⬆ Appliquer les mises à jour de sécurité sur ${host} (constat n°${id}) ? Sans redémarrage ; s'il en faut un ensuite, tu auras le bouton 🔄.`
       : action === "redemarrer"
-        ? `🔄 Redémarrer ${host} (constat n°${id}) ? Dans une minute, la machine sera coupée 1 à 3 minutes. Le serveur refuse s'il a redémarré depuis moins de 24 h, ou si sa grappe est incomplète.`
+        ? `🔄 Redémarrer ${host} (constat n°${id}) ? Dans une minute, la machine sera coupée 1 à 3 minutes. Le serveur refuse s'il a redémarré depuis moins de 24 h, si sa grappe est incomplète, ou, sur un nœud Proxmox, s'il y tourne encore des machines virtuelles ou des conteneurs (à migrer ou arrêter d'abord).`
         : `🔁 Relancer les services sur ${host} (constat n°${id}) ? Seuls ceux que needrestart désigne, hors exclusions du serveur.`,
   serverConfirmed:
     "✅ Confirmé : l'opérateur s'en charge dans la minute (si le Mac est allumé), et te dira le résultat.",

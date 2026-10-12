@@ -118,6 +118,7 @@ export {
 export {
   EXIT,
   hostState,
+  motifCount,
   motifPresent,
   outcomeOf,
   parseServerSwitch,
