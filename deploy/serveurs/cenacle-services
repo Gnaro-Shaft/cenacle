@@ -5,8 +5,11 @@
 # the way in (ssh, tailscaled), the containers (docker), the cluster and its
 # high availability (corosync, pve-cluster, pve-ha-*), and what needrestart
 # itself spares (dbus, systemd-logind, getty@, user@, the network managers).
-# systemd itself ("systemd-manager") is not a service: it is left, said, and
-# reloaded by hand (systemctl daemon-reexec) or at the next reboot. Started only
+# needrestart's two special entries are not services: systemd itself
+# ("systemd-manager") and the users' systemd instances ("systemd-user"). They
+# are left, said, and reload by hand (systemctl daemon-reexec), at the next
+# session, or at the next reboot. Any other name that is not a service still
+# refuses the whole list. Started only
 # through the `cenacle` account's key (forced command, sudo for this script
 # alone); it takes no argument and reads nothing from the caller.
 # The restarts are queued, not awaited (systemctl --no-block): a slow service
@@ -46,6 +49,9 @@ while IFS= read -r svc; do
   [ -z "$svc" ] && continue
   if [ "$svc" = "systemd-manager" ]; then
     log "laisse: systemd lui-meme (systemctl daemon-reexec, ou au prochain redemarrage)"; continue
+  fi
+  if [ "$svc" = "systemd-user" ]; then
+    log "laisse: les instances systemd des utilisateurs (a la prochaine session, ou au redemarrage)"; continue
   fi
   if ! [[ "$svc" =~ ^[A-Za-z0-9@._-]{1,100}\.service$ ]]; then
     log "refus: nom de service inattendu"; exit 11
