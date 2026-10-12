@@ -182,6 +182,18 @@ describe("the catalogue for the servers", () => {
         { host: "n", port: "tailnet/tcp/36157" },
       ),
     ).toMatchObject({ command: null, advice: expect.stringMatching(/joker tailnet\/tcp\/\*/) });
+    // The loopback (2026-10-12): a random ephemeral port → the local joker; a fixed one → declare it.
+    const local = (port: string) =>
+      fixFor({ type: "serveur_port", target: "n", occurrence: "x" }, { host: "n", port });
+    expect(local("local/tcp/41833")).toMatchObject({
+      command: "sudo ss -lntp | grep ':41833 '",
+      advice: expect.stringMatching(/joker local\/tcp\/\* pour cet hôte/),
+    });
+    expect(local("local/tcp/4444").advice).toMatch(
+      /port fixe .* déclarer local\/tcp\/4444 attendu/,
+    );
+    expect(local("local/tcp/32767").advice).not.toMatch(/joker/);
+    expect(local("local/tcp/41833").advice).not.toMatch(/tailnet/);
     expect(
       fixFor({ type: "serveur_redemarrage", target: "n", occurrence: "-" }, { host: "n" }).command,
     ).toBeNull();
