@@ -12,7 +12,7 @@ Il **demande** les relances sans les attendre (`systemctl restart --no-block`) :
 
 ## Le second script : redémarrer (J6f2)
 
-`cenacle-redemarrer` **programme** un redémarrage dans une minute (`shutdown -r +1`), et seulement si : un redémarrage est demandé (`/var/run/reboot-required`), la machine tourne depuis **24 heures** au moins, et, sur un nœud de la grappe (`pvecm` présent), la grappe a le quorum **avec tous ses nœuds** — un nœud de moins ne doit pas la faire tomber. Codes : **0** programmé, **10** rien à faire, **11** refus d'un garde-fou, **12** échec. Pendant la minute, on peut annuler à la main sur la machine : `sudo shutdown -c`.
+`cenacle-redemarrer` **programme** un redémarrage dans une minute (`shutdown -r +1`), et seulement si : un redémarrage est demandé (`/var/run/reboot-required`), la machine tourne depuis **24 heures** au moins, et, sur un nœud de la grappe (`pvecm` présent), la grappe a le quorum **avec tous ses nœuds** — un nœud de moins ne doit pas la faire tomber — et **aucune machine virtuelle ni aucun conteneur ne tourne encore sur le nœud** (`qm list`, `pct list`) : un redémarrage les arrêterait. Le nœud se vide à la main d'abord (migration ou arrêt), jamais par Cénacle. Codes : **0** programmé, **10** rien à faire, **11** refus d'un garde-fou, **12** échec. Pendant la minute, on peut annuler à la main sur la machine : `sudo shutdown -c`.
 
 Il a **sa propre clé** : la clé « services » ne redémarre pas, la clé « redémarrer » ne relance pas de services.
 

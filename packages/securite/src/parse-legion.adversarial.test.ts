@@ -193,3 +193,15 @@ describe("the catalogue for the servers", () => {
     ).toMatchObject({ command: null, advice: expect.stringMatching(/^Sur la machine/) });
   });
 });
+
+describe("the counts the operator's proof needs (2026-10-12)", () => {
+  it("services and updates carry their count; nothing else invents one", () => {
+    expect(
+      classifyMotif("noeud-a", "26 service(s) tournent sur une bibliotheque remplacee")[0]?.params,
+    ).toMatchObject({ count: "26" });
+    expect(
+      classifyMotif("noeud-a", "007 mise(s) a jour de securite en attente")[0]?.params,
+    ).toMatchObject({ count: "7" });
+    expect(classifyMotif("noeud-a", "redemarrage requis")[0]?.params?.count).toBeUndefined();
+  });
+});

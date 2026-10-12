@@ -34,6 +34,8 @@ export function world(over: Partial<OperatorDeps> = {}, hosts: string[] = ["vps-
     exitCode: null,
     refusal: null,
     verified: null,
+    beforeCount: null,
+    afterCount: null,
     told: true,
   }));
   const calls: string[][] = [];
@@ -70,13 +72,13 @@ export function world(over: Partial<OperatorDeps> = {}, hosts: string[] = ["vps-
         set(id, { state: "refusee", refusal, finishedAt: now, told: false });
         return true;
       },
-      finish: async (id, state: FinalState, exitCode, now) => {
-        set(id, { state, exitCode, finishedAt: now, told: false });
+      finish: async (id, state: FinalState, exitCode, now, beforeCount = null) => {
+        set(id, { state, exitCode, finishedAt: now, told: false, beforeCount });
         return true;
       },
       toVerify: async () => rows.filter((r) => r.state === "faite" && r.verified === null),
-      verify: async (id, verified: Verified) => {
-        set(id, { verified, told: false });
+      verify: async (id, verified: Verified, _now, afterCount = null) => {
+        set(id, { verified, told: false, afterCount });
         return true;
       },
       toTell: async () => rows.filter((r) => !r.told && FINAL.includes(r.state)),

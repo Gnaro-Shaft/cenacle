@@ -21,7 +21,7 @@ export type ServerActionState =
   | "refusee"
   | "echouee";
 export type FinalState = Exclude<ServerActionState, "demandee" | "confirmee" | "en_cours">;
-export type Verified = "disparu" | "toujours_la" | "pas_revenue";
+export type Verified = "disparu" | "toujours_la" | "pas_revenue" | "reduit";
 export type ConfirmOutcome = "done" | "stale" | "expired" | "already";
 
 export interface StoredServerAction {
@@ -35,6 +35,9 @@ export interface StoredServerAction {
   readonly exitCode: number | null;
   readonly refusal: string | null;
   readonly verified: Verified | null;
+  /** What Legion counted before the action and after it (services, updates), when it counts. */
+  readonly beforeCount: number | null;
+  readonly afterCount: number | null;
 }
 
 /** How long a confirmation stays possible (revised 2026-10-11, from 60 seconds). */
@@ -64,9 +67,11 @@ interface Row {
   exit_code: number | null;
   refusal: string | null;
   verified: Verified | null;
+  before_count: number | null;
+  after_count: number | null;
 }
 const COLUMNS =
-  "id, finding_id, host, action, state, requested_at, finished_at, exit_code, refusal, verified";
+  "id, finding_id, host, action, state, requested_at, finished_at, exit_code, refusal, verified, before_count, after_count";
 const toAction = (r: Row): StoredServerAction => ({
   id: Number(r.id),
   findingId: Number(r.finding_id),
@@ -78,6 +83,8 @@ const toAction = (r: Row): StoredServerAction => ({
   exitCode: r.exit_code,
   refusal: r.refusal,
   verified: r.verified,
+  beforeCount: r.before_count,
+  afterCount: r.after_count,
 });
 
 export function createServeurActions(sql: Sql) {
@@ -158,13 +165,20 @@ export function createServeurActions(sql: Sql) {
       return done.count === 1;
     },
 
-    async finish(id: number, state: FinalState, exitCode: number, now: Date): Promise<boolean> {
+    async finish(
+      id: number,
+      state: FinalState,
+      exitCode: number,
+      now: Date,
+      beforeCount: number | null = null,
+    ): Promise<boolean> {
       if (!FINAL.includes(state) || state === "refusee" || state === "expiree") {
         throw new Error(`not an outcome of a run: ${state}`);
       }
       const done = await sql`
         update serveur_actions
-        set state = ${state}, exit_code = ${exitCode}, finished_at = ${now}, told = false
+        set state = ${state}, exit_code = ${exitCode}, finished_at = ${now}, told = false,
+            before_count = ${beforeCount}
         where id = ${id} and state = 'en_cours'`;
       return done.count === 1;
     },
@@ -195,9 +209,15 @@ export function createServeurActions(sql: Sql) {
       return rows.map(toAction);
     },
 
-    async verify(id: number, verified: Verified, now: Date): Promise<boolean> {
+    async verify(
+      id: number,
+      verified: Verified,
+      now: Date,
+      afterCount: number | null = null,
+    ): Promise<boolean> {
       const done = await sql`
-        update serveur_actions set verified = ${verified}, verified_at = ${now}, told = false
+        update serveur_actions
+        set verified = ${verified}, verified_at = ${now}, told = false, after_count = ${afterCount}
         where id = ${id} and state = 'faite' and verified is null`;
       return done.count === 1;
     },

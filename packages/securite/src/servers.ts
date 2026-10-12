@@ -203,6 +203,17 @@ export function hostState(raw: string, host: string): "SAIN" | "SOUFFRANT" | "MA
   return (m?.[1] as "SAIN" | "SOUFFRANT" | "MALADE" | undefined) ?? null;
 }
 
+/** How many the verdict counts for this kind of finding on this machine (services, updates), or null. */
+export function motifCount(
+  observations: readonly Observation[],
+  host: string,
+  findingType: string,
+): number | null {
+  const count = observations.find((o) => o.type === findingType && o.target === host)?.params
+    ?.count;
+  return count !== undefined && /^\d{1,5}$/.test(count) ? Number(count) : null;
+}
+
 /** Does the verdict still show this kind of finding on this machine? */
 export const motifPresent = (
   observations: readonly Observation[],

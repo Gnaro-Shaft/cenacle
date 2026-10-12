@@ -218,6 +218,26 @@ pvecm 'Quorate:          No\nExpected votes:   3\nTotal votes:      1\n'; run cl
 pvecm 'Quorate:          No\nExpected votes:   3\nTotal votes:      3\n'; run cluster_not_quorate_full
 pvecm 'nothing useful\n'; run cluster_garbage
 touch /fake/pvecm-fails; run cluster_fails; rm -f /fake/pvecm-fails /usr/bin/pvecm
+guests() { printf '#!/bin/sh
+[ -e /fake/qm-fails ] && exit 1
+printf "%%b" "$(cat /fake/qm)"
+' > /usr/sbin/qm; printf '#!/bin/sh
+printf "%%b" "$(cat /fake/pct)"
+' > /usr/sbin/pct; chmod 755 /usr/sbin/qm /usr/sbin/pct; printf '%s' "$1" > /fake/qm; printf '%s' "$2" > /fake/pct; }
+guests 'VMID NAME STATUS MEM(MB) BOOTDISK(GB) PID
+100 docker-stack running 8192 64.00 1234
+' 'VMID Status Lock Name
+'; run guest_vm
+guests 'VMID NAME STATUS MEM(MB) BOOTDISK(GB) PID
+' 'VMID Status Lock Name
+200 running  web
+'; run guest_ct
+guests 'VMID NAME STATUS MEM(MB) BOOTDISK(GB) PID
+100 vieux stopped 512 8.00 0
+' 'VMID Status Lock Name
+201 stopped  ancien
+'; run guests_stopped
+touch /fake/qm-fails; run guests_unreadable; rm -f /fake/qm-fails /usr/sbin/qm /usr/sbin/pct
 run argument now
 touch /fake/shutdown-fails; run shutdown_fails; rm -f /fake/shutdown-fails
 su nobody -s /bin/bash -c '/usr/local/sbin/cenacle-redemarrer' >/dev/null 2>&1; echo "not_root|$?|"
@@ -266,6 +286,10 @@ describe.skipIf(!docker)("cenacle-redemarrer on a throwaway Ubuntu", () => {
       cluster_not_quorate_full: { code: 11, shutdown: "" },
       cluster_garbage: { code: 11, shutdown: "" },
       cluster_fails: { code: 11, shutdown: "" },
+      guest_vm: { code: 11, shutdown: "" },
+      guest_ct: { code: 11, shutdown: "" },
+      guests_stopped: { code: 0, shutdown: "-r +1" },
+      guests_unreadable: { code: 11, shutdown: "" },
       argument: { code: 11, shutdown: "" },
       shutdown_fails: { code: 12, shutdown: "" },
       not_root: { code: 11, shutdown: "" },
