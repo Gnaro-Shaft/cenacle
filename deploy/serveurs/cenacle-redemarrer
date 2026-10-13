@@ -2,7 +2,7 @@
 # cenacle-redemarrer (J6f2, ADR-0027): schedules a reboot of this machine in
 # one minute — only if a reboot is required, only if the machine has been up
 # for 24 hours, and, on a cluster node, only if the cluster is quorate with
-# every node present (one more node down must not lose the quorum), and no
+# every node present and enough votes left while it is down, and no
 # virtual machine or container still runs on it — a reboot would stop them;
 # the node is emptied by hand first (migrate or stop), never by Cénacle. Started
 # only through the `cenacle` account's key for this script (forced command,
@@ -27,7 +27,9 @@ if [ "$uptime_s" -lt "$MIN_UPTIME_SECONDS" ]; then
   log "refus: redemarree il y a moins de 24 h"; exit 11
 fi
 
-# A cluster node: quorate, and every expected vote present.
+# A cluster node: quorate, every expected vote present, and the votes left
+# while this node is down still a strict majority — on two nodes without a
+# QDevice, rebooting one would leave the other without quorum.
 if [ -x /usr/bin/pvecm ]; then
   status="$(/usr/bin/pvecm status 2>/dev/null)" || { log "refus: pvecm status a echoue"; exit 11; }
   if ! printf '%s\n' "$status" | /usr/bin/grep -Eq '^Quorate:[[:space:]]+Yes'; then
@@ -38,6 +40,11 @@ if [ -x /usr/bin/pvecm ]; then
   if [ -z "$expected" ] || [ -z "$total" ]; then log "refus: sortie de pvecm illisible"; exit 11; fi
   if [ "$total" -lt "$expected" ]; then
     log "refus: il manque deja un noeud ($total/$expected votes)"; exit 11
+  fi
+  own="$(printf '%s\n' "$status" | /usr/bin/sed -n 's/^[[:space:]]*0x[0-9a-fA-F]\{1,8\}[[:space:]]\{1,\}\([0-9]\{1,4\}\)[[:space:]].*(local)[[:space:]]*$/\1/p')"
+  if ! [[ "$own" =~ ^[0-9]{1,4}$ ]]; then log "refus: votes de ce noeud illisibles"; exit 11; fi
+  if [ $(( (total - own) * 2 )) -le "$expected" ]; then
+    log "refus: redemarrer ce noeud ferait perdre le quorum ($((total - own))/$expected votes restants)"; exit 11
   fi
 fi
 
