@@ -83,6 +83,14 @@ L'agent lit, avec les contrôles réseau (une fois par heure), les deux flux pub
 
 Le mot du CTO (modèle local) dit si le bulletin me concerne ; le texte du bulletin lui est donné comme une donnée, il ne donne jamais de commande. Hors périmètre : comparer les versions installées aux versions vulnérables, d'autres sources, toute action déclenchée par un bulletin.
 
+## Révision du 2026-10-14 — l'opérateur bloqué ou silencieux
+
+Deux types de constats nouveaux, de sévérité élevée, nés d'un vide observé : du 12 au 14 octobre, `serveurs.local.toml` faisait refuser toutes les actions sur les serveurs, et rien ne le disait tant qu'on ne demandait rien. L'opérateur (ADR-0027) laisse à chaque passage un petit fichier d'état sur le Mac (`instant`, `config=ok` ou la sorte d'erreur, `fin=1` — jamais une adresse, un chemin, un nom de machine) ; l'agent de sécurité le lit à chaque ronde, avec l'interrupteur `[serveurs] actif` de `securite.toml` — jamais `serveurs.local.toml`, qui reste à l'opérateur seul.
+
+- **`operateur_config`** : l'interrupteur est actif et l'opérateur refuse sa liste ; l'occurrence est la sorte d'erreur. Correctif : `npm run serveurs:verifier`, à lancer soi-même.
+- **`operateur_silencieux`** : l'interrupteur est actif et l'état est absent, illisible, daté du futur ou vieux de plus de 10 minutes (dix passages manqués). Correctif : vérifier le service (`launchctl list | grep org.cenacle.operateur`).
+- Interrupteur coupé : aucun constat. Le cycle de vie est l'ordinaire : 10 minutes avant de compter, un message tout de suite le jour et au rapport la nuit (élevé, pas critique : rien n'est cassé, on ne peut seulement plus agir), résolu dès que l'état redit `ok`.
+
 ## Conséquences
 
 - `npm audit` envoie la liste des dépendances au registre npm, `tailscale version --upstream` et `softwareupdate` interrogent leurs éditeurs : aucune donnée personnelle (registre, services tiers).

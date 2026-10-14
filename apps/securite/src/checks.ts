@@ -12,6 +12,7 @@ import {
   LEGION_VERDICT_PATH,
   npmCheck,
   type Observation,
+  operatorObservations,
   PROJECTS_CHECK,
   type Project,
   parseFileVault,
@@ -23,6 +24,7 @@ import {
   parseNpmOutdated,
   parseProjectNpmAudit,
   parseProjects,
+  parseServerSwitch,
   parseSip,
   parseSoftwareUpdate,
   parseTailscale,
@@ -217,6 +219,24 @@ export const projectsResult = (projects: readonly Project[] | null): CheckResult
   projects === null
     ? { check: PROJECTS_CHECK, ran: false }
     : { check: PROJECTS_CHECK, ran: true, observations: [] };
+
+/**
+ * The operator, blocked or silent (2026-10-14): its state file, read every
+ * round with the switch of securite.toml — never serveurs.local.toml itself,
+ * which is the operator's alone. Always "ran": an absent state is a finding.
+ */
+export const OPERATOR_CHECK = "operateur";
+export function operatorResult(
+  state: string | null,
+  securiteToml: string,
+  nowMs: number,
+): CheckResult {
+  return {
+    check: OPERATOR_CHECK,
+    ran: true,
+    observations: operatorObservations(state, parseServerSwitch(securiteToml), nowMs),
+  };
+}
 
 export async function runChecks(list: readonly Spec[], run: Run): Promise<CheckResult[]> {
   return Promise.all(

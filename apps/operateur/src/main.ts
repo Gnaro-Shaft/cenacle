@@ -17,6 +17,7 @@ import {
 } from "@cenacle/journal";
 import {
   LEGION_VERDICT_PATH,
+  OPERATOR_STATE_PATH,
   parseLegionVerdict,
   parseServerSwitch,
   parseServers,
@@ -27,6 +28,7 @@ import {
 import { createTelegramApi } from "@cenacle/telegram/api";
 import { runOperator } from "./run.ts";
 import { keyIsPrivate, runSsh } from "./ssh.ts";
+import { publishState } from "./state.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
 
@@ -59,10 +61,13 @@ async function pass(sql: ReturnType<typeof connectOrQuit>): Promise<void> {
     throw new UsageError("TELEGRAM_ALLOWED_CHAT_ID is missing or not a number (see .env.example)");
   }
   const telegram = createTelegramApi(process.env.TELEGRAM_BOT_TOKEN ?? "");
+  const config = servers();
+  // Said at every pass, so a blocked list is found without waiting for a request.
+  publishState(OPERATOR_STATE_PATH, config, Date.now());
   const outcome = await runOperator({
     store: createServeurActions(sql),
     active: parseServerSwitch(read(join(ROOT, "securite.toml")) ?? ""),
-    config: servers(),
+    config,
     verdict: () => read(LEGION_VERDICT_PATH),
     parseVerdict: parseLegionVerdict,
     keyIsPrivate: (path) => keyIsPrivate(path),
