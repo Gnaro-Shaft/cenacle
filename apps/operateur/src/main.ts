@@ -21,6 +21,8 @@ import {
   parseServerSwitch,
   parseServers,
   type ServersConfig,
+  ServersConfigError,
+  type ServersConfigProblem,
 } from "@cenacle/securite";
 import { createTelegramApi } from "@cenacle/telegram/api";
 import { runOperator } from "./run.ts";
@@ -38,14 +40,16 @@ const read = (path: string): string | null => {
   }
 };
 
-function servers(): ServersConfig | null {
+function servers(): ServersConfig | ServersConfigProblem {
   const text = read(join(ROOT, "serveurs.local.toml"));
-  if (text === null) return null;
+  if (text === null) return "absent";
   try {
     return parseServers(text);
-  } catch {
-    // Said at the first request ("serveurs.local.toml est illisible"), never a failed pass.
-    return null;
+  } catch (e) {
+    // Said at the first request, by its kind (npm run serveurs:verifier for the
+    // detail), never a failed pass.
+    if (e instanceof ServersConfigError) return e.problem;
+    throw e;
   }
 }
 

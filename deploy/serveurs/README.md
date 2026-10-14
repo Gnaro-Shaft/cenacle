@@ -89,4 +89,12 @@ Copie `serveurs.local.example.toml` en `serveurs.local.toml` (ignoré par git) e
 npm run service -- install operateur
 ```
 
+**Après chaque modification de `serveurs.local.toml`** :
+
+```
+npm run serveurs:verifier
+```
+
+Il relit le fichier comme l'opérateur : la liste des machines et de leurs actions, ou l'erreur exacte (numéro du bloc compris), code 1. Le fichier est strict — une clé inconnue (une liste `ports` de Legion collée là, par exemple) ou une machine sans `cles` font refuser **toutes** les actions jusqu'à correction ; une machine sur laquelle on n'agit pas n'y figure pas. Sur Telegram, le refus dit la sorte d'erreur, jamais le détail.
+
 Rien ne part tant que `[serveurs] actif = false` dans `securite.toml` : on l'active par une PR, au moment de l'essai par le bouton (J6f1b).

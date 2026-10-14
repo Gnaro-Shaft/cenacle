@@ -11,6 +11,7 @@ import {
   outcomeOf,
   parseServerSwitch,
   parseServers,
+  SERVERS_CONFIG_PROBLEMS,
   ServersConfigError,
   serverActionFor,
   sshArgs,
@@ -40,30 +41,70 @@ describe("my machines", () => {
     });
   });
 
+  const block = ok.replace(KH, "");
   it.each([
-    ["root", ok.replace('"cenacle"', '"root"')],
-    ["an address that is an ssh option", ok.replace('"vps-b.exemple.test"', '"-oProxyCommand=x"')],
-    ["an address with a user", ok.replace('"vps-b.exemple.test"', '"root@vps-b"')],
-    ["an address with a port", ok.replace('"vps-b.exemple.test"', '"vps-b:2222"')],
-    ["an address with a space", ok.replace('"vps-b.exemple.test"', '"vps-b x"')],
-    ["a name in capitals", ok.replace('"vps-b"', '"VPS-B"')],
+    ["root", ok.replace('"cenacle"', '"root"'), "compte"],
+    [
+      "an address that is an ssh option",
+      ok.replace('"vps-b.exemple.test"', '"-oProxyCommand=x"'),
+      "adresse",
+    ],
+    ["an address with a user", ok.replace('"vps-b.exemple.test"', '"root@vps-b"'), "adresse"],
+    ["an address with a port", ok.replace('"vps-b.exemple.test"', '"vps-b:2222"'), "adresse"],
+    ["an address with a space", ok.replace('"vps-b.exemple.test"', '"vps-b x"'), "adresse"],
+    ["a name in capitals", ok.replace('"vps-b"', '"VPS-B"'), "nom"],
     [
       "a relative key",
       ok.replace('"/Users/exemple/.ssh/cenacle/vps-b-services"', '"vps-b-services"'),
+      "chemin",
     ],
-    ["a key path climbing out", ok.replace("/cenacle/vps-b-services", "/../../etc/x")],
-    ["an action outside the catalogue", ok.replace("services =", "reboot =")],
-    ["a misspelt key", ok.replace("compte", "account")],
-    ["another table", `${ok}[autre]\nx = 1\n`],
-    ["a relative known_hosts", ok.replace(KH, 'known_hosts = "known_hosts"\n')],
-    ["no known_hosts", ok.replace(KH, "")],
-    ["not TOML", "[[serveur]\nnom ="],
-  ])("refuses %s", (_label, text) => {
-    expect(() => parseServers(text)).toThrow(ServersConfigError);
+    ["a key path climbing out", ok.replace("/cenacle/vps-b-services", "/../../etc/x"), "chemin"],
+    ["an action outside the catalogue", ok.replace("services =", "reboot ="), "action"],
+    ["a misspelt key", ok.replace("compte", "account"), "cle_inconnue"],
+    // 2026-10-12: Legion's port list pasted into a block refused every action for two days.
+    [
+      "Legion's ports in a block",
+      ok.replace("cles =", 'ports = ["tcp/22"]\ncles ='),
+      "cle_inconnue",
+    ],
+    ["a machine without cles", ok.replace(/cles = .*\n/, ""), "cles"],
+    [
+      "one key for two actions",
+      ok.replace(
+        'cles = { services = "/Users/exemple/.ssh/cenacle/vps-b-services" }',
+        'cles = { services = "/Users/exemple/.ssh/k", redemarrer = "/Users/exemple/.ssh/k" }',
+      ),
+      "partagee",
+    ],
+    ["another table", `${ok}[autre]\nx = 1\n`, "racine"],
+    ["serveur as a plain value", `${KH}serveur = "vps-b"\n`, "bloc"],
+    ["a block that is not a table", `${KH}serveur = [1]\n`, "bloc"],
+    [
+      "21 machines",
+      KH + Array.from({ length: 21 }, (_, i) => block.replace(/vps-b/g, `vps-${i}`)).join(""),
+      "trop",
+    ],
+    ["a relative known_hosts", ok.replace(KH, 'known_hosts = "known_hosts"\n'), "chemin"],
+    ["no known_hosts", ok.replace(KH, ""), "chemin"],
+    ["not TOML", "[[serveur]\nnom =", "toml"],
+  ])("refuses %s, and says which kind (%s)", (_label, text, problem) => {
+    let thrown: unknown;
+    try {
+      parseServers(text);
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(ServersConfigError);
+    expect((thrown as ServersConfigError).problem).toBe(problem);
+  });
+
+  it("names no kind outside the closed list", () => {
+    expect(SERVERS_CONFIG_PROBLEMS).toContain("cle_inconnue");
+    for (const p of SERVERS_CONFIG_PROBLEMS) expect(p).toMatch(/^[a-z_]{1,33}$/);
   });
 
   it("refuses the same machine twice", () => {
-    expect(() => parseServers(`${ok}${ok.replace(KH, "")}`)).toThrow(/twice/);
+    expect(() => parseServers(`${ok}${block}`)).toThrow(/twice/);
   });
 });
 

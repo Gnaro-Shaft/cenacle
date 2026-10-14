@@ -70,10 +70,34 @@ export interface ServersConfig {
   readonly servers: readonly Server[];
 }
 
+/**
+ * What can be wrong with serveurs.local.toml, as a closed list: the operator
+ * stores it as its refusal and names it on Telegram, where neither a value nor
+ * a block number goes ("absent" is the operator's, never thrown here).
+ */
+export const SERVERS_CONFIG_PROBLEMS = [
+  "absent",
+  "toml",
+  "racine",
+  "trop",
+  "bloc",
+  "cle_inconnue",
+  "nom",
+  "adresse",
+  "compte",
+  "cles",
+  "action",
+  "partagee",
+  "chemin",
+] as const;
+export type ServersConfigProblem = (typeof SERVERS_CONFIG_PROBLEMS)[number];
+
 export class ServersConfigError extends Error {
-  constructor(message: string) {
+  readonly problem: Exclude<ServersConfigProblem, "absent">;
+  constructor(problem: Exclude<ServersConfigProblem, "absent">, message: string) {
     super(`serveurs.local.toml: ${message}`);
     this.name = "ServersConfigError";
+    this.problem = problem;
   }
 }
 
@@ -93,7 +117,7 @@ function plainPath(p: unknown, what: string): string {
     p.split("/").includes("..") ||
     normalize(p) !== p
   ) {
-    throw new ServersConfigError(`${what} must be a plain absolute path`);
+    throw new ServersConfigError("chemin", `${what} must be a plain absolute path`);
   }
   return p;
 }
@@ -106,43 +130,48 @@ export function parseServers(text: string): ServersConfig {
   try {
     data = parse(text) as Record<string, unknown>;
   } catch {
-    throw new ServersConfigError("not valid TOML");
+    throw new ServersConfigError("toml", "not valid TOML");
   }
   if (Object.keys(data).some((k) => k !== "known_hosts" && k !== "serveur")) {
-    throw new ServersConfigError("only known_hosts and [[serveur]] are expected");
+    throw new ServersConfigError("racine", "only known_hosts and [[serveur]] are expected");
   }
   const knownHosts = plainPath(data.known_hosts, "known_hosts");
   const list = data.serveur ?? [];
-  if (!Array.isArray(list) || list.length > 20)
-    throw new ServersConfigError("[[serveur]], 20 at most");
+  if (!Array.isArray(list))
+    throw new ServersConfigError("bloc", "serveur must be [[serveur]] blocks");
+  if (list.length > 20) throw new ServersConfigError("trop", "[[serveur]], 20 at most");
   const names = new Set<string>();
   const servers = list.map((raw, i): Server => {
     const at = `serveur n°${i + 1}`;
-    if (!table(raw)) throw new ServersConfigError(`${at} is not a table`);
+    if (!table(raw)) throw new ServersConfigError("bloc", `${at} is not a table`);
     if (Object.keys(raw).some((k) => !["nom", "adresse", "compte", "cles"].includes(k))) {
-      throw new ServersConfigError(`${at}: unknown key`);
+      throw new ServersConfigError("cle_inconnue", `${at}: unknown key`);
     }
     const { nom, adresse, compte, cles } = raw;
-    if (typeof nom !== "string" || !NAME.test(nom)) throw new ServersConfigError(`${at}: nom`);
-    if (names.has(nom)) throw new ServersConfigError(`${at}: nom ${nom} twice`);
+    if (typeof nom !== "string" || !NAME.test(nom))
+      throw new ServersConfigError("nom", `${at}: nom`);
+    if (names.has(nom)) throw new ServersConfigError("nom", `${at}: nom ${nom} twice`);
     names.add(nom);
     if (typeof adresse !== "string" || !ADDRESS.test(adresse)) {
-      throw new ServersConfigError(`${at}: adresse must be a host name`);
+      throw new ServersConfigError("adresse", `${at}: adresse must be a host name`);
     }
     if (typeof compte !== "string" || !ACCOUNT.test(compte) || compte === "root") {
-      throw new ServersConfigError(`${at}: compte must be a plain account, never root`);
+      throw new ServersConfigError("compte", `${at}: compte must be a plain account, never root`);
     }
-    if (!table(cles)) throw new ServersConfigError(`${at}: cles must be a table`);
+    if (!table(cles)) throw new ServersConfigError("cles", `${at}: cles must be a table`);
     const keys: Partial<Record<ServerActionName, string>> = {};
     for (const [action, path] of Object.entries(cles)) {
       if (!Object.hasOwn(SERVER_CATALOGUE, action)) {
-        throw new ServersConfigError(`${at}: no action "${action.slice(0, 30)}" in the catalogue`);
+        throw new ServersConfigError(
+          "action",
+          `${at}: no action "${action.slice(0, 30)}" in the catalogue`,
+        );
       }
       keys[action as ServerActionName] = plainPath(path, `${at}: cles.${action}`);
     }
     const paths = Object.values(keys);
     if (new Set(paths).size !== paths.length) {
-      throw new ServersConfigError(`${at}: one key per action, never shared`);
+      throw new ServersConfigError("partagee", `${at}: one key per action, never shared`);
     }
     return { name: nom, address: adresse, account: compte, keys };
   });

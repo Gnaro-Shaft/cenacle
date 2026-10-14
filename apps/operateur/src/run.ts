@@ -17,6 +17,7 @@ import {
   outcomeOf,
   SERVER_CATALOGUE,
   type ServersConfig,
+  type ServersConfigProblem,
   sshArgs,
   verdictInstant,
 } from "@cenacle/securite";
@@ -62,8 +63,8 @@ export interface OperatorDeps {
   >;
   /** `[serveurs] actif` of securite.toml. */
   readonly active: boolean;
-  /** serveurs.local.toml; null when it is absent or unreadable. */
-  readonly config: ServersConfig | null;
+  /** serveurs.local.toml, or what is wrong with it. */
+  readonly config: ServersConfig | ServersConfigProblem;
   /** Legion's raw verdict, or null when it cannot be read. */
   readonly verdict: () => string | null;
   /** The verdict's findings; throws when it is not a valid, fresh verdict. */
@@ -93,7 +94,7 @@ async function whyNot(
   nowMs: number,
 ): Promise<string | null> {
   if (!deps.active) return "interrupteur";
-  if (deps.config === null) return "configuration";
+  if (typeof deps.config === "string") return `config_${deps.config}`;
   const server = deps.config.servers.find((s) => s.name === a.host);
   if (server === undefined) return "machine_inconnue";
   const key = server.keys[a.action];
@@ -131,9 +132,10 @@ async function act(deps: OperatorDeps): Promise<{ ran: number; refused: number }
   }
   // Another action running on any machine: this one waits for the next minute.
   if (!(await deps.store.claim(a.id, now))) return { ran: 0, refused: 0 };
-  const server = deps.config?.servers.find((s) => s.name === a.host);
+  const config = typeof deps.config === "string" ? null : deps.config;
+  const server = config?.servers.find((s) => s.name === a.host);
   const key = server?.keys[a.action];
-  if (server === undefined || key === undefined || deps.config === null) {
+  if (server === undefined || key === undefined || config === null) {
     throw new Error("the checked server vanished");
   }
   // What Legion counted before, so the proof can tell "fewer" from "still there".
@@ -151,7 +153,7 @@ async function act(deps: OperatorDeps): Promise<{ ran: number; refused: number }
   } catch {
     before = null;
   }
-  const code = await deps.ssh(sshArgs(server, key, deps.config.knownHosts));
+  const code = await deps.ssh(sshArgs(server, key, config.knownHosts));
   const outcome = outcomeOf(code);
   await deps.store.finish(a.id, outcome, code, deps.now(), before);
   await record(deps, { action: a.action, outcome });

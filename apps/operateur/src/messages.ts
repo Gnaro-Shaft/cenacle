@@ -4,10 +4,11 @@
  * or a key path. One wording per action of the catalogue where it matters.
  */
 import type { StoredServerAction } from "@cenacle/journal";
-import { SERVER_CATALOGUE } from "@cenacle/securite";
+import { SERVER_CATALOGUE, type ServersConfigProblem } from "@cenacle/securite";
 
 const REFUSAL: Readonly<Record<string, string>> = {
   interrupteur: "les actions sur les serveurs sont coupées ([serveurs] actif dans securite.toml)",
+  // Before 2026-10-14 the kind was not kept: older refusals still read this way.
   configuration: "serveurs.local.toml est absent ou illisible",
   machine_inconnue: "cette machine n'est pas déclarée dans serveurs.local.toml",
   pas_de_cle: "aucune clé n'est déclarée pour cette action sur cette machine",
@@ -17,6 +18,32 @@ const REFUSAL: Readonly<Record<string, string>> = {
   plus_de_motif: "le dernier relevé de Legion ne montre plus le problème : rien à faire",
   redemarrage_recent: "Cénacle l'a déjà redémarrée il y a moins de 24 heures",
 };
+
+/** What is wrong with serveurs.local.toml, by kind; the detail stays on the Mac. */
+const CONFIG: Readonly<Record<ServersConfigProblem, string>> = {
+  absent: "serveurs.local.toml est absent",
+  toml: "serveurs.local.toml n'est pas un TOML valide",
+  racine: "serveurs.local.toml n'admet que known_hosts et des blocs [[serveur]] au premier niveau",
+  trop: "serveurs.local.toml a plus de 20 blocs [[serveur]]",
+  bloc: "un bloc [[serveur]] de serveurs.local.toml n'est pas une table",
+  cle_inconnue:
+    "un bloc [[serveur]] de serveurs.local.toml contient une clé inconnue : seules nom, adresse, compte et cles sont admises",
+  nom: "un bloc [[serveur]] de serveurs.local.toml a un nom invalide ou en double",
+  adresse: "un bloc [[serveur]] de serveurs.local.toml a une adresse invalide",
+  compte: "un bloc [[serveur]] de serveurs.local.toml a un compte invalide (jamais root)",
+  cles: "un bloc [[serveur]] de serveurs.local.toml n'a pas de table cles : une machine sans clé n'y figure pas",
+  action: "serveurs.local.toml déclare une clé pour une action hors du catalogue",
+  partagee: "serveurs.local.toml donne la même clé à deux actions : une clé par action",
+  chemin: "serveurs.local.toml contient un chemin de clé qui n'est pas un chemin absolu simple",
+};
+
+function refusal(code: string | null): string {
+  const problem = code?.startsWith("config_") ? code.slice("config_".length) : null;
+  if (problem !== null && Object.hasOwn(CONFIG, problem)) {
+    return `${CONFIG[problem as ServersConfigProblem]} (détail : npm run serveurs:verifier)`;
+  }
+  return REFUSAL[code ?? ""] ?? "refus de l'opérateur";
+}
 
 function updated(a: StoredServerAction, on: string): string {
   switch (a.verified) {
@@ -73,7 +100,7 @@ export function message(a: StoredServerAction): string {
         ? `🛑 ${on} : un garde-fou du serveur a refusé (redémarrée depuis moins de 24 h, grappe incomplète, ou invités encore en marche sur le nœud) — rien n'a été fait (journalctl -t cenacle).`
         : `🛑 ${on} : un garde-fou du serveur a refusé, rien n'a été fait (journalctl -t cenacle sur la machine).`;
     case "refusee":
-      return `🛑 ${on} : rien n'a été fait — ${REFUSAL[a.refusal ?? ""] ?? "refus de l'opérateur"}.`;
+      return `🛑 ${on} : rien n'a été fait — ${refusal(a.refusal)}.`;
     case "expiree":
       return `⌛ ${on} : demande non confirmée dans les 2 minutes, rien n'a été fait.`;
     case "echouee":
