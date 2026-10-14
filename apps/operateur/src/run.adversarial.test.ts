@@ -24,7 +24,7 @@ describe("before acting, everything again", () => {
 
   it.each([
     ["the switch off", { active: false }, "interrupteur", /coupées/],
-    ["no configuration", { config: null }, "configuration", /serveurs\.local\.toml/],
+    ["no configuration", { config: "absent" }, "config_absent", /serveurs\.local\.toml est absent/],
     ["a key others can read", { keyIsPrivate: () => false }, "cle_mal_protegee", /chmod 600/],
     ["no verdict", { verdict: () => null }, "releve_perime", /plus de 35 minutes/],
     [
