@@ -31,6 +31,7 @@ import {
   cleanComment,
   keyboard,
   LOCAL_CHECKS,
+  OPERATOR_STATE_PATH,
   parseServerSwitch,
   preparedFix,
   SEVERITY_LABEL,
@@ -42,6 +43,7 @@ import { actionDeps, trustLines } from "./actions-deps.ts";
 import { bulletinResults, loadSoftware } from "./bulletins-check.ts";
 import {
   loadProjects,
+  operatorResult,
   projectSpecs,
   projectsResult,
   runChecks,
@@ -96,7 +98,15 @@ async function round(): Promise<void> {
           ? bulletinResults(loadSoftware(ROOT), { fetch, now: () => Date.now() })
           : Promise.resolve([]),
       ]);
-      return [...checked, ...bulletins, projectsResult(projects)];
+      const state = existsSync(OPERATOR_STATE_PATH)
+        ? readFileSync(OPERATOR_STATE_PATH, "utf8")
+        : null;
+      return [
+        ...checked,
+        ...bulletins,
+        projectsResult(projects),
+        operatorResult(state, readIfExists(join(ROOT, "securite.toml")), Date.now()),
+      ];
     },
     store,
     comment: async (f) => {

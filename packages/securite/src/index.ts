@@ -71,6 +71,15 @@ export {
   reconcile,
   type SeenObservation,
 } from "./lifecycle.ts";
+export {
+  formatOperatorState,
+  OPERATOR_SILENCE_MS,
+  OPERATOR_STATE_PATH,
+  type OperatorConfig,
+  type OperatorState,
+  operatorObservations,
+  parseOperatorState,
+} from "./operator-state.ts";
 export { MAX_LEAKS, parseGitleaks } from "./parse-gitleaks.ts";
 export {
   classifyMotif,

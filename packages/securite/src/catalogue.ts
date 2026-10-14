@@ -196,6 +196,17 @@ const CATALOGUE: Readonly<Record<string, Builder>> = {
   // The CERT-FR's bulletins (J6e3): read it, apply its fixes; ✅ means done.
   bulletin_alerte: (_k, p) => bulletin(p),
   bulletin_avis: (_k, p) => bulletin(p),
+  // The operator, blocked or silent (2026-10-14): fixed by hand on the Mac.
+  operateur_config: () => ({
+    advice:
+      "Dans le dossier de Cénacle : lire l'erreur exacte, corriger serveurs.local.toml, puis relancer la vérification jusqu'à « lisible ». Une machine sur laquelle on n'agit pas n'y figure pas.",
+    command: "npm run serveurs:verifier",
+  }),
+  operateur_silencieux: () => ({
+    advice:
+      "Vérifier que le service de l'opérateur est chargé ; s'il manque : npm run service -- install operateur (dans le dossier de Cénacle). Son journal : ~/Library/Logs/cenacle/operateur.log.",
+    command: "launchctl list | grep org.cenacle.operateur",
+  }),
   check_impossible: (k) => ({
     advice: `Le contrôle « ${k.target} » n'a pas pu tourner : rien n'est prouvé tant qu'il ne repasse pas.`,
     command: null,
