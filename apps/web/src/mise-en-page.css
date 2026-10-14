@@ -1,0 +1,86 @@
+/* The page in two columns, as in Myriade: what to do on the left, the team on the right. */
+.page {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 1.2rem 1rem 2rem;
+}
+.entete {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--trait);
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+}
+.colonnes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18rem;
+  gap: 1.2rem;
+  align-items: start;
+}
+.principal {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+.equipe {
+  background: var(--panneau);
+  border: 1px solid var(--trait);
+  border-radius: 4px;
+  padding: 0.9rem 1rem;
+}
+.equipe > h2 {
+  margin-bottom: 0.7rem;
+}
+
+/* A block: a card on the paper, hairline border. */
+.bloc {
+  background: var(--carte);
+  border: 1px solid var(--trait);
+  border-radius: 4px;
+  padding: 0.9rem 1rem;
+  margin: 0;
+}
+.bloc > h2,
+.bloc-titre {
+  margin-bottom: 0.6rem;
+}
+.bloc-titre {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.bloc-titre h2 {
+  margin: 0;
+}
+/* Waiting on me: the only red frame of the page. */
+.bloc.decide {
+  border-color: var(--accent);
+  background: linear-gradient(var(--lavis), var(--lavis)), var(--carte);
+}
+.compte-rouge {
+  font-family: var(--titres);
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--accent);
+}
+.verrou {
+  color: var(--encre-douce);
+}
+.message {
+  border-left: 2px solid var(--trait);
+  padding: 0.2rem 0.7rem;
+  margin: 0.5rem 0;
+}
+
+/* Narrow screens: the team first, then the rest, one column. */
+@media (max-width: 1100px) {
+  .colonnes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .equipe {
+    order: -1;
+  }
+}

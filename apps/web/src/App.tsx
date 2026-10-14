@@ -4,6 +4,12 @@ import { CtoAsk } from "./CtoAsk.tsx";
 import { Proposals } from "./Proposals.tsx";
 import { takeToken } from "./token.ts";
 
+const TODAY = new Intl.DateTimeFormat("fr-FR", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+});
+
 export function App() {
   const [token, setToken] = useState<string | null>(() => takeToken());
   // The link pasted into an already open page changes only the part after #.
@@ -17,22 +23,30 @@ export function App() {
   }, []);
   return (
     <main className="page">
-      <h1>Cénacle</h1>
-      <section className="grid" aria-label="Les agents">
-        <AgentBox agent="iris" title="Iris" duty="Courrier" />
-        <AgentBox agent="cto" title="CTO" duty="Conseil technique" />
-      </section>
-      {token === null ? (
-        <p className="detail locked">
-          🔒 Pour voir les brouillons et parler au CTO, ouvre la page avec <code>npm run page</code>{" "}
-          (le lien change à chaque démarrage du serveur).
-        </p>
-      ) : (
-        <>
-          <CtoAsk token={token} onLost={() => setToken(null)} />
-          <Proposals token={token} onLost={() => setToken(null)} />
-        </>
-      )}
+      <header className="entete">
+        <h1>Cénacle</h1>
+        <span className="date">{TODAY.format(new Date())}</span>
+      </header>
+      <div className="colonnes">
+        <div className="principal">
+          {token === null ? (
+            <p className="bloc verrou">
+              Pour voir les brouillons et parler au CTO, ouvre la page avec{" "}
+              <code>npm run page</code> (le lien change à chaque démarrage du serveur).
+            </p>
+          ) : (
+            <>
+              <Proposals token={token} onLost={() => setToken(null)} />
+              <CtoAsk token={token} onLost={() => setToken(null)} />
+            </>
+          )}
+        </div>
+        <aside className="equipe" aria-label="L'équipe">
+          <h2>L'équipe</h2>
+          <AgentBox agent="iris" title="Iris" duty="Courrier" emblem="iris" />
+          <AgentBox agent="cto" title="Le CTO" duty="Conseil technique" emblem="cto" />
+        </aside>
+      </div>
     </main>
   );
 }

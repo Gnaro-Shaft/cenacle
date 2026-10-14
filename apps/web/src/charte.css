@@ -1,0 +1,151 @@
+/*
+ * The identity of Legion, gnaro.fr and Myriade (2026-10-14): warm paper,
+ * brown ink, Fraunces for titles, Newsreader for text — served by the page
+ * itself, nothing fetched elsewhere. Red only for what matters: what waits on
+ * me, and what is broken. Amber for work in progress. Ink for the rest.
+ */
+@font-face {
+  font-family: "Fraunces";
+  src: url("/polices/fraunces.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Newsreader";
+  src: url("/polices/newsreader.woff2") format("woff2");
+  font-weight: 200 800;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Newsreader";
+  src: url("/polices/newsreader-italique.woff2") format("woff2");
+  font-weight: 200 800;
+  font-style: italic;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light dark;
+  --papier: #f6f2ea;
+  --encre: #1b1a17;
+  --encre-douce: #5f5a51;
+  --trait: #d8d1c3;
+  --carte: #fffdf8;
+  --panneau: #efe9de;
+  --survol: rgba(27, 26, 23, 0.06);
+  --accent: #b8261a;
+  --accent-fort: #8a1a10;
+  --lavis: rgba(184, 38, 26, 0.06);
+  --tiede: #8a6805;
+  --titres: "Fraunces", Georgia, serif;
+  --police: "Newsreader", Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --papier: #171613;
+    --encre: #ece7dd;
+    --encre-douce: #9a938a;
+    --trait: #322f2a;
+    --carte: #1e1c19;
+    --panneau: #1a1916;
+    --survol: rgba(236, 231, 221, 0.06);
+    --accent: #e0574a;
+    --accent-fort: #f07a6e;
+    --lavis: rgba(224, 87, 74, 0.08);
+    --tiede: #c9a227;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--papier);
+  color: var(--encre);
+  font-family: var(--police);
+  font-size: 1.05rem;
+  line-height: 1.6;
+}
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--titres);
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 0;
+}
+h1 {
+  font-size: 1.4rem;
+}
+h2 {
+  font-size: 1.1rem;
+}
+h3 {
+  font-size: 1rem;
+}
+h4 {
+  font-size: 0.9rem;
+}
+a {
+  color: inherit;
+}
+code,
+.to {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.88em;
+}
+
+/* Buttons and fields: hairlines, square-ish corners, no colour of their own. */
+button {
+  font-family: var(--titres);
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 0.3rem 0.9rem;
+  border: 1px solid var(--encre);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--encre);
+  cursor: pointer;
+}
+button:hover:not(:disabled) {
+  background: var(--survol);
+}
+button.accept {
+  background: var(--encre);
+  color: var(--papier);
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+button:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--encre);
+  outline-offset: 2px;
+}
+textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 0.3rem;
+  font: inherit;
+  color: var(--encre);
+  background: var(--panneau);
+  border: 1px solid var(--trait);
+  border-radius: 2px;
+  padding: 0.5rem 0.6rem;
+}
+
+/* Small print: italic, in soft ink. Errors: red, said in words too. */
+.detail,
+.role,
+.date {
+  color: var(--encre-douce);
+  font-style: italic;
+  font-size: 0.85rem;
+  margin: 0.15rem 0 0;
+}
+.erreur,
+.countdown.failed {
+  color: var(--accent);
+}

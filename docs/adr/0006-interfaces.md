@@ -19,3 +19,11 @@
 - **Validation dans Telegram avec le contenu** : le contenu transiterait en clair chez Telegram.
 - **Validation par bouton Telegram sans contenu** : ce serait valider à l'aveugle.
 - **ntfy auto-hébergé** : une brique de plus à maintenir, pour un gain marginal sur la PWA.
+
+## Révision du 2026-10-14 — l'allure de la page, dans l'esprit de Myriade
+
+Le personnage provisoire en formes CSS (phase 1, J5) laisse place à l'identité de Legion, gnaro.fr et Myriade : papier chaud et encre brune, Fraunces pour les titres, Newsreader pour le texte, **le rouge seulement pour ce qui compte** (ce qui attend ma décision, ce qui est en panne), l'ambre pour le travail en cours. Chaque agent est un emblème au trait dans un anneau — une enveloppe pour Iris, une boussole pour le CTO — dont la couleur dit l'état et que la carte redit toujours en mots ; une seule animation, la pulsation de l'anneau au travail, coupée quand le système demande moins de mouvement. La page passe en deux colonnes : « À décider » et la question au CTO à gauche, l'équipe et le courrier à droite ; une seule colonne sur un écran étroit.
+
+- Les polices sont servies par la page elle-même (`apps/web/public/polices/`) : aucun appel à un tiers. Le dépôt étant public, elles y sont redistribuées avec le texte complet de leur licence (SIL OFL 1.1).
+- Une page d'aperçu (`/apercu.html`, serveur de développement seulement) montre tous les états avec des données fictives ; elle remplace `fetch` par un refus avant tout rendu et n'ouvre aucun flux.
+- Rien ne change dans l'API, le jeton, le port ni la réponse du CTO en texte brut (ADR-0019, ADR-0020).
