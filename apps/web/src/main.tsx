@@ -1,7 +1,10 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App.tsx";
-import "./styles.css";
+import "./charte.css";
+import "./mise-en-page.css";
+import "./agents.css";
+import "./brouillons.css";
 
 const root = document.getElementById("root");
 if (root === null) throw new Error("#root is missing from index.html");

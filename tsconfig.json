@@ -35,6 +35,9 @@
       "path": "apps/web"
     },
     {
+      "path": "apps/web/tsconfig.test.json"
+    },
+    {
       "path": "apps/telegram"
     },
     {

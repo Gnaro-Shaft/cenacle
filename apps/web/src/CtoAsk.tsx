@@ -30,9 +30,9 @@ export function CtoAsk({ token, onLost }: { readonly token: string; readonly onL
   };
 
   return (
-    <section className="proposals" aria-label="Demander au CTO">
+    <section className="bloc cto" aria-label="Demander au CTO">
       <h2>Demander au CTO</h2>
-      <div className="proposal">
+      <div>
         <label className="draft-label" htmlFor="cto-question">
           Ta question technique (aucune donnée de client ni contenu de mail)
         </label>
@@ -54,16 +54,15 @@ export function CtoAsk({ token, onLost }: { readonly token: string; readonly onL
             {pending ? "Le CTO réfléchit… (1 à 3 min)" : "Demander"}
           </button>
         </div>
-        {error !== null && <p className="message">🛑 {error}</p>}
+        {error !== null && <p className="message erreur">✕ {error}</p>}
         {reply !== null && (
           <>
-            <div className="draft-text" aria-live="polite">
-              {reply.text}
+            <div className="reponse" aria-live="polite">
+              <span className="ia">ia</span> {reply.text}
             </div>
             {reply.cut && (
               <p className="message">
-                ⚠ Réponse coupée à la limite de longueur : demande-lui d'approfondir un point
-                précis.
+                Réponse coupée à la limite de longueur : demande-lui d'approfondir un point précis.
               </p>
             )}
             <p className="detail">

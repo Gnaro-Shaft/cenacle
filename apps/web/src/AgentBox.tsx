@@ -1,13 +1,8 @@
-import type { MailCounts, ViewNote, VisualState } from "@cenacle/core";
-import { MailCounters } from "./MailCounters.tsx";
+import type { MailCounts, ViewNote } from "@cenacle/core";
+import { AgentCard } from "./AgentCard.tsx";
+import type { Emblem } from "./Avatar.tsx";
+import type { Visual } from "./presence.ts";
 import { useAgentStream } from "./useAgentStream.ts";
-
-const LABELS: Record<VisualState | "offline", string> = {
-  resting: "au repos",
-  working: "en activité",
-  sick: "malade",
-  offline: "hors ligne",
-};
 
 const NOTES: Record<ViewNote, string> = {
   waiting_for_mac: "en attente du Mac",
@@ -19,12 +14,14 @@ interface Props {
   readonly agent: string;
   readonly title: string;
   readonly duty: string;
+  readonly emblem: Emblem;
 }
 
-export function AgentBox({ agent, title, duty }: Props) {
+/** An agent, live: its stream turned into what the card shows. */
+export function AgentBox({ agent, title, duty, emblem }: Props) {
   const stream = useAgentStream(agent);
 
-  let visual: VisualState | "offline" = "offline";
+  let visual: Visual = "offline";
   let detail: string | null = null;
   let pending = 0;
   let mail: MailCounts | null = null;
@@ -43,27 +40,14 @@ export function AgentBox({ agent, title, duty }: Props) {
   }
 
   return (
-    <article className={`box ${visual}`} aria-label={`${title}, ${LABELS[visual]}`}>
-      {pending > 0 && (
-        <a className="bubble" href="#brouillons" aria-label={`${pending} brouillon(s) à valider`}>
-          {pending}
-        </a>
-      )}
-      <div className="character" aria-hidden="true">
-        <div className="head">
-          <span className="eye left" />
-          <span className="eye right" />
-          <span className="mouth" />
-        </div>
-        <div className="scarf" />
-        {visual === "working" && <span className="gear">⚙</span>}
-        {visual === "sick" && <span className="thermometer">🌡</span>}
-      </div>
-      <h2>{title}</h2>
-      <p className="duty">{duty}</p>
-      <p className="state">{LABELS[visual]}</p>
-      {detail !== null && <p className="detail">{detail}</p>}
-      {mail !== null && <MailCounters counts={mail} />}
-    </article>
+    <AgentCard
+      title={title}
+      duty={duty}
+      emblem={emblem}
+      visual={visual}
+      pending={pending}
+      detail={detail}
+      mail={mail}
+    />
   );
 }

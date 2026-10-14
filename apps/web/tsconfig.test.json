@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "dist/test",
+    "types": ["node", "vite/client"]
+  },
+  "include": ["src/**/*.test.ts", "src/presence.ts"],
+  "exclude": []
+}

@@ -1,0 +1,133 @@
+/*
+ * The team: each agent an emblem in a ring (Myriade's equipe). The ring's
+ * colour says the state and the card says it again in words: ink-grey at
+ * rest, amber pulsing at work, red when it waits on me or is sick, dashed
+ * when offline. The pulse is the page's only animation; it stops when the
+ * system asks for less motion.
+ */
+.agent {
+  padding: 0.6rem 0;
+  border-top: 1px solid var(--trait);
+}
+.equipe > h2 + .agent,
+.bloc > h2 + .agent {
+  border-top: none;
+  padding-top: 0;
+}
+.agent-tete {
+  display: flex;
+  gap: 0.7rem;
+  align-items: flex-start;
+}
+.agent h3 {
+  font-size: 1rem;
+}
+.agent .etat {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--encre-douce);
+}
+.avatar {
+  flex: none;
+  width: 2.8rem;
+  height: 2.8rem;
+}
+.anneau {
+  fill: none;
+  stroke-width: 1.6;
+  stroke: var(--trait);
+}
+.embleme {
+  fill: none;
+  stroke: var(--encre);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.anneau-travail .anneau {
+  stroke: var(--tiede);
+  animation: equipe-pouls 1.6s ease-in-out infinite;
+}
+.etat-travail .etat {
+  color: var(--tiede);
+  font-weight: 600;
+}
+.anneau-accord .anneau,
+.anneau-malade .anneau {
+  stroke: var(--accent);
+}
+.etat-accord .etat,
+.etat-malade .etat {
+  color: var(--accent);
+  font-weight: 600;
+}
+.anneau-absent .anneau {
+  stroke: var(--encre-douce);
+  stroke-dasharray: 4 3;
+}
+.anneau-absent .embleme {
+  stroke: var(--encre-douce);
+}
+.etat-absent h3 {
+  color: var(--encre-douce);
+}
+
+@keyframes equipe-pouls {
+  50% {
+    stroke-opacity: 0.35;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .anneau-travail .anneau {
+    animation: none;
+  }
+}
+
+.a-decider {
+  display: inline-block;
+  margin-top: 0.3rem;
+  font-family: var(--titres);
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--accent);
+}
+
+/* Iris's mail: four sober numbers; a follow-up in red only when it is due. */
+.courrier {
+  margin-top: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px dotted var(--trait);
+}
+.courrier h4 {
+  margin-bottom: 0.2rem;
+}
+.courrier dl {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  row-gap: 0.1rem;
+  margin: 0;
+  max-width: 18rem;
+  font-size: 0.9rem;
+}
+.compte {
+  display: contents;
+}
+.compte dt {
+  color: var(--encre-douce);
+}
+.compte dd {
+  margin: 0;
+  font-family: var(--titres);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.relances {
+  margin: 0.4rem 0 0;
+  font-size: 0.85rem;
+  color: var(--encre-douce);
+}
+.relances .echue {
+  color: var(--accent);
+  font-weight: 600;
+}

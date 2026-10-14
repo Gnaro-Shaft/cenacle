@@ -1,0 +1,86 @@
+/* The drafts to decide on (phase 4, B3) and the question to the CTO (ADR-0020). */
+.proposal {
+  border-top: 1px solid var(--trait);
+  padding: 0.7rem 0;
+}
+.proposal:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+.proposal.accepted,
+.proposal.sending {
+  color: var(--encre-douce);
+}
+.proposal header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.8rem;
+  align-items: baseline;
+}
+.proposal header strong {
+  font-family: var(--titres);
+  font-weight: 600;
+}
+.proposal .from,
+.proposal .trame,
+.proposal .lock {
+  color: var(--encre-douce);
+  font-style: italic;
+  font-size: 0.9rem;
+}
+.proposal .to {
+  flex-basis: 100%;
+}
+.flags {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0;
+}
+.flags li {
+  margin: 0.2rem 0;
+  font-size: 0.95rem;
+}
+.flags .red {
+  color: var(--accent);
+  font-weight: 600;
+}
+.draft-label {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--encre-douce);
+}
+.draft-text {
+  white-space: pre-wrap;
+  font: inherit;
+  margin: 0.4rem 0;
+  padding: 0.5rem 0.6rem;
+  background: var(--panneau);
+  border: 1px solid var(--trait);
+  border-radius: 2px;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+.countdown {
+  font-family: var(--titres);
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin: 0.4rem 0;
+}
+
+/* The CTO's answer: plain text, marked as written by an AI. */
+.reponse {
+  white-space: pre-wrap;
+  margin-top: 0.7rem;
+}
+.ia {
+  font-family: var(--titres);
+  font-variant: small-caps;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  color: var(--encre-douce);
+  margin-right: 0.3rem;
+}

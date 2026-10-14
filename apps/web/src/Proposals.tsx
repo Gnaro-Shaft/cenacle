@@ -20,7 +20,7 @@ function useNow(ms: number): number {
   return now;
 }
 
-function Card({
+export function Card({
   p,
   token,
   onDone,
@@ -57,8 +57,8 @@ function Card({
         <pre className="draft-text">{p.draft}</pre>
         <p className={p.status === "failed" ? "countdown failed" : "countdown"}>
           {p.status === "sending"
-            ? "📤 Envoi en cours…"
-            : "❌ L'envoi a échoué. Il n'est jamais réessayé tout seul : réponds depuis ta messagerie si besoin."}
+            ? "Envoi en cours…"
+            : "✕ L'envoi a échoué. Il n'est jamais réessayé tout seul : réponds depuis ta messagerie si besoin."}
         </p>
       </article>
     );
@@ -75,8 +75,8 @@ function Card({
         <pre className="draft-text">{p.draft}</pre>
         <p className="countdown">
           {left > 0
-            ? `✅ Accepté — annulable encore ${Math.floor(left / 60)} min ${String(left % 60).padStart(2, "0")} s`
-            : "✅ Accepté — l'exécuteur l'envoie à son prochain passage (npm run executor)"}
+            ? `✓ Accepté — annulable encore ${Math.floor(left / 60)} min ${String(left % 60).padStart(2, "0")} s`
+            : "✓ Accepté — l'exécuteur l'envoie à son prochain passage (npm run executor)"}
         </p>
         {left > 0 && (
           <button
@@ -106,7 +106,7 @@ function Card({
         <strong>{p.mail?.subject ?? "(mail introuvable)"}</strong>
         <span className="from">{p.mail?.fromName}</span>
         <span className="to" title="Imposé : toujours l'expéditeur du mail">
-          À : {p.mail?.to ?? "—"} <span className="lock">🔒</span>
+          À : {p.mail?.to ?? "—"} <span className="lock">(imposé)</span>
         </span>
       </header>
       <ul className="flags">
@@ -202,9 +202,22 @@ export function Proposals({
     return () => clearInterval(t);
   }, [load]);
 
+  // Red only when something waits on me (the spirit of Myriade).
+  const waiting = items?.filter((p) => p.status === "pending").length ?? 0;
   return (
-    <section id="brouillons" className="proposals" aria-label="Brouillons à valider">
-      <h2>Brouillons à valider</h2>
+    <section
+      id="brouillons"
+      className={waiting > 0 ? "bloc decide" : "bloc"}
+      aria-label="Brouillons à décider"
+    >
+      <div className="bloc-titre">
+        <h2>À décider</h2>
+        {waiting > 0 && (
+          <span className="compte-rouge">
+            {waiting} brouillon{waiting > 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
       {message !== null && (
         <p className="message" role="status">
           {message}
