@@ -33,7 +33,7 @@ const quoted = (s: string) => `"${s}"`;
 type Builder = (key: FindingKey, p: Readonly<Record<string, string>>) => Fix;
 
 const CERTFR_URL =
-  /^https:\/\/www\.cert\.ssi\.gouv\.fr\/(?:alerte|avis)\/CERTFR-\d{4}-(?:ALE|AVI)-\d{1,5}\/$/;
+  /^https:\/\/(?:www\.cert\.ssi\.gouv\.fr|cert\.cyber\.gouv\.fr)\/(?:alerte|avis)\/CERTFR-\d{4}-(?:ALE|AVI)-\d{1,5}\/$/;
 const bulletin = (p: Readonly<Record<string, string>>): Fix => ({
   advice: `Lire le bulletin${
     p.url !== undefined && CERTFR_URL.test(p.url) ? ` (${p.url})` : ""

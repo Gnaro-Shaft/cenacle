@@ -83,6 +83,10 @@ L'agent lit, avec les contrôles réseau (une fois par heure), les deux flux pub
 
 Le mot du CTO (modèle local) dit si le bulletin me concerne ; le texte du bulletin lui est donné comme une donnée, il ne donne jamais de commande. Hors périmètre : comparer les versions installées aux versions vulnérables, d'autres sources, toute action déclenchée par un bulletin.
 
+## Révision du 2026-10-16 — le nouveau domaine du CERT-FR
+
+Le CERT-FR a déménagé sur `cert.cyber.gouv.fr` ; l'ancien domaine redirige, et ses flux portent encore des liens vers l'ancien. L'agent lit désormais les flux sur le nouveau domaine, reconnaît les liens des deux domaines (toujours en `https`, jamais un sosie), et construit le lien du constat sur le nouveau. Surtout : un flux qui contient des bulletins dont **aucun** lien n'a la forme du CERT-FR rend le contrôle « n'a pas pu tourner », au lieu d'un silencieux « rien trouvé » — le prochain changement de format se verra le jour même. Les constats déjà enregistrés gardent leur lien de l'ancien domaine, toujours affiché.
+
 ## Révision du 2026-10-14 — l'opérateur bloqué ou silencieux
 
 Deux types de constats nouveaux, de sévérité élevée, nés d'un vide observé : du 12 au 14 octobre, `serveurs.local.toml` faisait refuser toutes les actions sur les serveurs, et rien ne le disait tant qu'on ne demandait rien. L'opérateur (ADR-0027) laisse à chaque passage un petit fichier d'état sur le Mac (`instant`, `config=ok` ou la sorte d'erreur, `fin=1` — jamais une adresse, un chemin, un nom de machine) ; l'agent de sécurité le lit à chaque ronde, avec l'interrupteur `[serveurs] actif` de `securite.toml` — jamais `serveurs.local.toml`, qui reste à l'opérateur seul.

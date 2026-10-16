@@ -9,8 +9,10 @@ export {
   type BulletinKind,
   bulletinCheck,
   bulletinObservations,
+  CERTFR_HOST,
   matchSoftware,
   parseBulletinSoftware,
+  recognizedLinks,
 } from "./bulletins.ts";
 export {
   ANSWER,

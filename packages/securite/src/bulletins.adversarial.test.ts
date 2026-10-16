@@ -1,5 +1,6 @@
 // The CERT-FR's bulletins (J6e3): kept only when the title names my software
-// as a whole word; the link only in the CERT-FR's exact form; an old or
+// as a whole word; the link only in the CERT-FR's exact form, on its old host
+// or its new one (2026-10-16), the finding's link always on the new one; an old or
 // closed alert left out; a title giving an order not shown; an alert speaks
 // at once and is resolved once closed, an advisory waits for the morning and
 // expires quietly; the list refuses anything doubtful.
@@ -9,6 +10,7 @@ import {
   bulletinObservations,
   matchSoftware,
   parseBulletinSoftware,
+  recognizedLinks,
 } from "./bulletins.ts";
 import { speaksAtOnce } from "./cadence.ts";
 import { fixFor, preparedFix } from "./catalogue.ts";
@@ -65,14 +67,14 @@ describe("a bulletin, as a finding", () => {
         id: "CERTFR-2026-AVI-1252",
         kind: "avis",
         software: "Ubuntu",
-        url: "https://www.cert.ssi.gouv.fr/avis/CERTFR-2026-AVI-1252/",
+        url: "https://cert.cyber.gouv.fr/avis/CERTFR-2026-AVI-1252/",
       },
     });
     if (o === undefined) throw new Error("no finding");
     expect(preparedFix(o, o.params ?? {})).toBeNull();
     expect(fixFor(o, o.params)).toEqual({
       advice:
-        "Lire le bulletin (https://www.cert.ssi.gouv.fr/avis/CERTFR-2026-AVI-1252/) et appliquer ses correctifs pour Ubuntu ; ✅ quand c'est fait, ☑ si tu n'es pas concerné (avec la raison).",
+        "Lire le bulletin (https://cert.cyber.gouv.fr/avis/CERTFR-2026-AVI-1252/) et appliquer ses correctifs pour Ubuntu ; ✅ quand c'est fait, ☑ si tu n'es pas concerné (avec la raison).",
       command: null,
     });
   });
@@ -83,6 +85,15 @@ describe("a bulletin, as a finding", () => {
     ["a look-alike host", "https://www.cert.ssi.gouv.fr.example.test/avis/CERTFR-2026-AVI-1"],
     ["a path after the id", "https://www.cert.ssi.gouv.fr/avis/CERTFR-2026-AVI-1/../x"],
     ["the other feed's kind", "https://www.cert.ssi.gouv.fr/alerte/CERTFR-2026-ALE-1"],
+    ["plain http on the new host", "http://cert.cyber.gouv.fr/avis/CERTFR-2026-AVI-1"],
+    [
+      "a look-alike of the new host",
+      "https://cert.cyber.gouv.fr.example.test/avis/CERTFR-2026-AVI-1",
+    ],
+    ["a prefix before the new host", "https://evil-cert.cyber.gouv.fr/avis/CERTFR-2026-AVI-1"],
+    ["the new host without its dots", "https://certXcyberXgouvXfr/avis/CERTFR-2026-AVI-1"],
+    ["the old host without www", "https://cert.ssi.gouv.fr/avis/CERTFR-2026-AVI-1"],
+    ["a path after the id, new host", "https://cert.cyber.gouv.fr/avis/CERTFR-2026-AVI-1/../x"],
     [
       "another site carrying the CERT-FR's link",
       "https://evil.example.test/?u=https://www.cert.ssi.gouv.fr/avis/CERTFR-2026-AVI-1",
@@ -95,6 +106,53 @@ describe("a bulletin, as a finding", () => {
       NOW,
     );
     expect(found).toEqual([]);
+  });
+
+  it("both hosts give the same finding, its link on the new host", () => {
+    const at = (host: string) =>
+      bulletinObservations(
+        [
+          {
+            title: "Vulnérabilité dans Ubuntu",
+            link: `https://${host}/avis/CERTFR-2026-AVI-7/`,
+            publishedAt: NOW - DAY,
+          },
+        ],
+        "avis",
+        SOFTWARE,
+        NOW,
+      );
+    const old = at("www.cert.ssi.gouv.fr");
+    expect(old).toEqual(at("cert.cyber.gouv.fr"));
+    expect(old[0]?.params?.url).toBe("https://cert.cyber.gouv.fr/avis/CERTFR-2026-AVI-7/");
+  });
+
+  it("a finding stored with the old host still shows its link in the advice", () => {
+    const fix = fixFor(
+      { type: "bulletin_avis", target: "CERTFR-2026-AVI-3", occurrence: "-" },
+      { url: "https://www.cert.ssi.gouv.fr/avis/CERTFR-2026-AVI-3/", software: "Ubuntu" },
+    );
+    expect(fix.advice).toContain("(https://www.cert.ssi.gouv.fr/avis/CERTFR-2026-AVI-3/)");
+    const fake = fixFor(
+      { type: "bulletin_avis", target: "CERTFR-2026-AVI-3", occurrence: "-" },
+      {
+        url: "https://cert.cyber.gouv.fr.example.test/avis/CERTFR-2026-AVI-3/",
+        software: "Ubuntu",
+      },
+    );
+    expect(fake.advice).not.toContain("example.test");
+  });
+
+  it("counts the links in the CERT-FR's form, of this kind only, whatever their software", () => {
+    const items = [
+      item("avis", 1, "Vulnérabilité dans Windows"),
+      { ...item("avis", 2, "x"), link: "https://cert.cyber.gouv.fr/avis/CERTFR-2026-AVI-2/" },
+      { ...item("avis", 3, "x"), link: "https://ailleurs.example.test/avis/CERTFR-2026-AVI-3/" },
+      item("alerte", 4, "x"),
+    ];
+    expect(recognizedLinks(items, "avis")).toBe(2);
+    expect(recognizedLinks(items, "alerte")).toBe(1);
+    expect(recognizedLinks([], "avis")).toBe(0);
   });
 
   it("an alert: high; older than a year or closed by the CERT-FR, left out", () => {
