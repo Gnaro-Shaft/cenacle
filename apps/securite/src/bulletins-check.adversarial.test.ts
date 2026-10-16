@@ -1,6 +1,7 @@
 // The CERT-FR's feeds at the round (J6e3), with a stand-in fetch: read
-// through the veille's reader; a feed down, empty or turned into a web page
-// proves nothing (could not run); an unreadable list of my software stops
+// through the veille's reader, on the CERT-FR's new host; a feed down, empty,
+// turned into a web page, or whose links no longer have the CERT-FR's form
+// proves nothing (could not run — never a silent "nothing found"); an unreadable list of my software stops
 // both checks; the versioned list is valid as it stands.
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -25,6 +26,65 @@ function fetchFrom(pages: { alerte: string | number; avis: string | number }): t
     return new Response(page, { status: 200 });
   }) as typeof fetch;
 }
+
+const linked = (kind: string, id: string, link: string) =>
+  `<item><title>Vulnérabilité dans Ubuntu</title><link>${link}</link><pubDate>Fri, 09 Oct 2026 00:00:00 +0000</pubDate><description>x</description></item>`;
+
+describe("the CERT-FR's form of links", () => {
+  it("both feeds are read on the new host", async () => {
+    const asked: string[] = [];
+    await bulletinResults(["Ubuntu"], {
+      fetch: (async (url: string | URL) => {
+        asked.push(String(url));
+        return new Response(rss(""), { status: 200 });
+      }) as typeof fetch,
+      now: () => NOW,
+    });
+    expect(asked.sort()).toEqual([
+      "https://cert.cyber.gouv.fr/alerte/feed/",
+      "https://cert.cyber.gouv.fr/avis/feed/",
+    ]);
+  });
+
+  it("items, but no link in the CERT-FR's form: could not run, not 'nothing found'", async () => {
+    const odd = rss(
+      linked(
+        "avis",
+        "CERTFR-2026-AVI-1",
+        "https://cert.gouv.example.test/avis/CERTFR-2026-AVI-1/",
+      ) + linked("avis", "CERTFR-2026-AVI-2", "https://cert.cyber.gouv.fr/bulletin/2026-2/"),
+    );
+    const results = await bulletinResults(["Ubuntu"], {
+      fetch: fetchFrom({ alerte: odd, avis: odd }),
+      now: () => NOW,
+    });
+    expect(results.map((r) => [r.check, r.ran])).toEqual([
+      ["certfr_alertes", false],
+      ["certfr_avis", false],
+    ]);
+  });
+
+  it("one link in the form among odd ones: it runs, and keeps that one", async () => {
+    const mixed = rss(
+      linked(
+        "avis",
+        "CERTFR-2026-AVI-1",
+        "https://cert.gouv.example.test/avis/CERTFR-2026-AVI-1/",
+      ) + linked("avis", "CERTFR-2026-AVI-9", "https://cert.cyber.gouv.fr/avis/CERTFR-2026-AVI-9/"),
+    );
+    const results = await bulletinResults(["Ubuntu"], {
+      fetch: fetchFrom({
+        alerte: rss(entry("alerte", "CERTFR-2026-ALE-1", "Windows")),
+        avis: mixed,
+      }),
+      now: () => NOW,
+    });
+    expect(results.map((r) => [r.check, r.ran && r.observations.map((o) => o.target)])).toEqual([
+      ["certfr_alertes", []],
+      ["certfr_avis", ["CERTFR-2026-AVI-9"]],
+    ]);
+  });
+});
 
 describe("the feeds", () => {
   it("read both; what names my software becomes a finding of its own check", async () => {

@@ -3,7 +3,9 @@
  * exploited flaws) and its advisories, kept only when their title names a
  * software of my list, as a whole word. A bulletin is outside text: its title
  * is cleaned and capped, never shown when it reads like an order, and its
- * link kept only in the CERT-FR's exact form. An alert speaks at once (high);
+ * link kept only in the CERT-FR's exact form — on its old host or its new
+ * one (cert.cyber.gouv.fr since October 2026), the finding's link always on
+ * the new one. An alert speaks at once (high);
  * an advisory (medium) waits for the morning report, and closes quietly once out of
  * the feed (lifecycle.ts). Pure.
  */
@@ -13,9 +15,11 @@ import type { Observation } from "./types.ts";
 
 export type BulletinKind = "alerte" | "avis";
 
+/** Where the CERT-FR lives since October 2026; the old host redirects here. */
+export const CERTFR_HOST = "cert.cyber.gouv.fr";
 export const BULLETIN_FEEDS: Readonly<Record<BulletinKind, string>> = {
-  alerte: "https://www.cert.ssi.gouv.fr/alerte/feed/",
-  avis: "https://www.cert.ssi.gouv.fr/avis/feed/",
+  alerte: `https://${CERTFR_HOST}/alerte/feed/`,
+  avis: `https://${CERTFR_HOST}/avis/feed/`,
 };
 /** An alert is followed for a year; an advisory for a week. */
 export const BULLETIN_DAYS: Readonly<Record<BulletinKind, number>> = { alerte: 365, avis: 7 };
@@ -25,7 +29,16 @@ export const bulletinCheck = (kind: BulletinKind) =>
 const DAY_MS = 86_400_000;
 /** The feed reader drops the trailing slash; the identifier is what counts. */
 const LINK =
-  /^https:\/\/www\.cert\.ssi\.gouv\.fr\/(alerte|avis)\/(CERTFR-\d{4}-(?:ALE|AVI)-\d{1,5})\/?$/;
+  /^https:\/\/(?:www\.cert\.ssi\.gouv\.fr|cert\.cyber\.gouv\.fr)\/(alerte|avis)\/(CERTFR-\d{4}-(?:ALE|AVI)-\d{1,5})\/?$/;
+
+/**
+ * How many items of a feed carry a link of this kind in the CERT-FR's form.
+ * None at all in a feed that has items: its form changed, and the check could
+ * not run — never a silent "nothing found".
+ */
+export function recognizedLinks(items: readonly BulletinItem[], kind: BulletinKind): number {
+  return items.filter((item) => LINK.exec(item.link)?.[1] === kind).length;
+}
 const SOFTWARE = /^[A-Za-z0-9][A-Za-z0-9 .+#-]{0,39}$/;
 const MAX_SOFTWARE = 60;
 
@@ -105,7 +118,7 @@ export function bulletinObservations(
       title: `CERT-FR, ${kind === "alerte" ? "alerte" : "avis"} ${id} (${name}) : ${
         words ?? "texte du bulletin non affiché"
       }`,
-      params: { id, kind, software: name, url: `https://www.cert.ssi.gouv.fr/${kind}/${id}/` },
+      params: { id, kind, software: name, url: `https://${CERTFR_HOST}/${kind}/${id}/` },
     });
   }
   return [...out.values()];

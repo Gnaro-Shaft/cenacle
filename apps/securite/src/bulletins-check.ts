@@ -16,6 +16,7 @@ import {
   bulletinObservations,
   type CheckResult,
   parseBulletinSoftware,
+  recognizedLinks,
 } from "@cenacle/securite";
 
 const FILES = ["securite.toml", "securite.local.toml"] as const;
@@ -58,6 +59,8 @@ export async function bulletinResults(
         deps,
       );
       if (read.failed.length > 0 || read.items.length === 0) return { check, ran: false };
+      // Items, but none in the CERT-FR's form: the format changed, nothing is proved.
+      if (recognizedLinks(read.items, kind) === 0) return { check, ran: false };
       return {
         check,
         ran: true,
