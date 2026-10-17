@@ -12,7 +12,7 @@
     "@cenacle/core": "0.0.0",
     "@cenacle/journal": "0.0.0",
     "@earendil-works/pi-agent-core": "1.0.0",
-    "@earendil-works/pi-ai": "1.0.0",
+    "@earendil-works/pi-ai": "1.0.4",
     "@opentelemetry/api": "1.9.1"
   },
   "devDependencies": {
