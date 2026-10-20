@@ -5,6 +5,7 @@
  * Nothing is journaled: this is a diagnostic tool, not Iris.
  */
 import { localModelConfigFromEnv } from "@cenacle/brain";
+import { type Completion, reasoningShown } from "./probe-thinking/reasoning.ts";
 
 const { baseUrl, modelId } = localModelConfigFromEnv();
 const QUESTION = "Présente-toi en une phrase.";
@@ -18,14 +19,6 @@ const VARIANTS: Record<string, Record<string, unknown>> = {
   "/no_think in the system prompt": { __systemSuffix: " /no_think" },
   'reasoning_effort="none" (what Iris now sends)': { reasoning_effort: "none" },
 };
-
-interface Completion {
-  choices?: { message?: { content?: string; reasoning_content?: string } }[];
-  usage?: {
-    completion_tokens?: number;
-    completion_tokens_details?: { reasoning_tokens?: number };
-  };
-}
 
 const REPEAT = Number(process.argv[2] ?? 3);
 
@@ -46,14 +39,11 @@ for (const [label, extra] of Object.entries(VARIANTS)) {
         ...fields,
       }),
     });
-    const data = (await response.json()) as Completion;
+    const data = (await response.json()) as Completion | null;
     const seconds = ((Date.now() - started) / 1000).toFixed(1);
-    const message = data.choices?.[0]?.message;
-    const reasoning =
-      data.usage?.completion_tokens_details?.reasoning_tokens ??
-      (message?.reasoning_content ? `~${message.reasoning_content.length} chars` : 0);
+    const reasoning = reasoningShown(data);
     console.log(
-      `${label.padEnd(46)} #${run} ${seconds.padStart(5)} s  ${String(data.usage?.completion_tokens ?? "?").padStart(4)} tokens  reasoning: ${reasoning}`,
+      `${label.padEnd(46)} #${run} ${seconds.padStart(5)} s  ${String(data?.usage?.completion_tokens ?? "?").padStart(4)} tokens  reasoning: ${reasoning}`,
     );
   }
 }
