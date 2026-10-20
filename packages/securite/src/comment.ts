@@ -4,7 +4,9 @@
  * the fix — commands come from the catalogue only. Whatever it writes that
  * looks like a command, a code block or a link is removed before I see it;
  * a short name in backticks (a package, a file) stays, as plain text, unless
- * the text around it would then read as a command (2026-10-20).
+ * the text around it would then read as a command (2026-10-20). In its
+ * sentences too: one written as a command goes whole; a link, an account, a
+ * command for a bot, a path or an IP address goes as a word (2026-10-20).
  */
 import type { Observation } from "./types.ts";
 
@@ -43,17 +45,18 @@ const NOT_A_NAME = new Set([
   ...["rm", "reboot", "shutdown", "halt", "kill", "killall"],
 ]);
 
+// After a dot, two letters or more that are no file extension: a host (`evil.example`).
+// A vowel sign is part of its letter: `भारत` is a domain Telegram links.
+function isHostPart(part: string): boolean {
+  const letters = /^[\p{L}\p{M}]*/u.exec(part)?.[0] ?? "";
+  return letters.length >= 2 && !FILE_EXTENSIONS.has(letters.toLowerCase());
+}
+
 function isShortName(s: string): boolean {
   if (s.length > NAME_MAX || !NAME.test(s) || NOT_A_NAME.has(s.toLowerCase())) return false;
   // An IP address is a host too (`127.0.0.1`); a version has three numbers at most.
   if (/\d+(?:\.\d+){3}/.test(s)) return false;
-  return s
-    .split(".")
-    .slice(1)
-    .every((part) => {
-      const letters = /^[A-Za-z]*/.exec(part)?.[0] ?? "";
-      return letters.length < 2 || FILE_EXTENSIONS.has(letters.toLowerCase());
-    });
+  return !s.split(".").slice(1).some(isHostPart);
 }
 
 // What a command looks like once the names are back in the text: then no name is kept,
@@ -81,10 +84,55 @@ const COMMAND_SHAPE = new RegExp(
 );
 
 // Judged on what is shown, without invisible characters, combining marks or wide letters.
-const looksLikeCommand = (text: string) =>
-  COMMAND_SHAPE.test(
-    text.normalize("NFKC").replace(/[\p{Default_Ignorable_Code_Point}\p{Mn}]/gu, ""),
-  );
+const skeleton = (text: string) =>
+  text.normalize("NFKC").replace(/[\p{Default_Ignorable_Code_Point}\p{Mn}]/gu, "");
+const looksLikeCommand = (text: string) => COMMAND_SHAPE.test(skeleton(text));
+
+// What Telegram would turn into a link, and paths: a web address, an account or an
+// address (`@evilbot`, `@1x`, `x@latest`, `a@b.c` — not `undici@5.28.3`), a command for
+// a bot or a path (`/start`, `/var`, `./x`, `~/x`), an IP address.
+const LINK = new RegExp(
+  [
+    String.raw`:\/\/|^www\.`,
+    String.raw`@[\p{L}_]|(?:^|[^\p{L}\p{N}_])@\p{N}`,
+    String.raw`(?:^|[^\p{L}\p{N}_/])\/[\p{L}\p{N}_]`,
+    String.raw`^(?:\.{1,2}|~)\/`,
+    String.raw`\d{1,3}(?:\.\d{1,3}){3}`,
+  ].join("|"),
+  "iu",
+);
+
+function isLinkOrPath(word: string): boolean {
+  const w = skeleton(word);
+  if (LINK.test(w)) return true;
+  // A host: whatever stands before the dot (`evil~.com`, `evil★.com`), as for Telegram.
+  const parts = w.split(".");
+  return parts.some((part, i) => i > 0 && parts[i - 1] !== "" && isHostPart(part));
+}
+
+const OPENERS = `(«"'“‘[`;
+const CLOSERS = `.,;:!?…)»"'”’]`;
+
+/** A link, an account, a command for a bot or a path goes; the punctuation after it stays. */
+function withoutLinks(sentence: string): string {
+  const words: string[] = [];
+  for (const word of sentence.split(" ")) {
+    // Scanned by hand: a regular expression would backtrack on a long run of brackets.
+    let start = 0;
+    let end = word.length;
+    while (start < end && OPENERS.includes(word[start] ?? "")) start++;
+    while (end > start && CLOSERS.includes(word[end - 1] ?? "")) end--;
+    if (start === end || !isLinkOrPath(word.slice(start, end))) {
+      words.push(word);
+      continue;
+    }
+    const stop = word.slice(end).replace(/[)»"'”’\]]/g, "");
+    if (stop !== "" && words.length > 0) words[words.length - 1] += stop;
+  }
+  return words.join(" ");
+}
+
+const SENTENCE_BREAK = /(?<=[.!?…]["'»)\]]*)\s+/u;
 
 // A name glued to the text around it could make a host, an account or a command
 // (evil.`com`, @`bot`, t.me/`x`): kept only between spaces or punctuation.
@@ -118,8 +166,14 @@ function fit(text: string, max: number): string {
 export function cleanComment(raw: string): string | null {
   const named = clean(raw, true);
   const text = looksLikeCommand(named) ? clean(raw, false) : named;
-  if (text === "") return null;
-  return fit(text, COMMENT_MAX);
+  const kept: string[] = [];
+  for (const sentence of text.split(SENTENCE_BREAK)) {
+    const bare = withoutLinks(sentence);
+    // Judged twice: a link between its words must not hide a command (npm evil.example install x).
+    if (bare !== "" && !looksLikeCommand(sentence) && !looksLikeCommand(bare)) kept.push(bare);
+  }
+  const shown = kept.join(" ");
+  return shown === "" ? null : fit(shown, COMMENT_MAX);
 }
 
 function clean(raw: string, keepNames: boolean): string {
@@ -137,7 +191,8 @@ function clean(raw: string, keepNames: boolean): string {
           !/^\s*(?:\$|#|>|sudo\b|npm\b|brew\b|curl\b|softwareupdate\b|tailscale\b)/i.test(line),
       )
       .join(" ")
-      .replace(/\b(?:https?:\/\/|www\.)\S+/gi, "")
+      // A dot glued to a capital letter ends a sentence (« vulnérable.Pour »), never a host.
+      .replace(/(\p{Ll})\.(?=\p{Lu}\p{Ll})/gu, "$1. ")
       // biome-ignore lint/suspicious/noControlCharactersInRegex: control characters are removed on purpose.
       .replace(/[\u0000-\u001f\u007f​-‏‪-‮⁦-⁩]/g, " ")
       .replace(/\s+/g, " ")

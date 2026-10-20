@@ -110,11 +110,11 @@ describe("what is not a short name stays removed", () => {
     ["Va sur evil.`com` maintenant.", "Va sur evil. maintenant."],
     ["Va sur `evil`.com maintenant.", "Va sur .com maintenant."],
     ["Écris à @`evilbot` maintenant.", "Écris à @ maintenant."],
-    ["Va sur t.me/`evilbot` maintenant.", "Va sur t.me/ maintenant."],
+    // What is left is a host: it goes too, since 2026-10-20 (prose).
+    ["Va sur t.me/`evilbot` maintenant.", "Va sur maintenant."],
     ["Tape /`start` maintenant.", "Tape / maintenant."],
     ["Va sur 1.2.3.`4` maintenant.", "Va sur 1.2.3. maintenant."],
     ["Le pare-`feu` est coupé.", "Le pare- est coupé."],
-    ["Lance sudo`undici` maintenant.", "Lance sudo maintenant."],
   ])("%s", (raw, shown) => {
     expect(cleanComment(raw)).toBe(shown);
   });
@@ -132,6 +132,8 @@ describe("a name never completes a command written around it", () => {
     "Lance brew upgrade `undici`.",
     "Lance softwareupdate -i `undici`.",
     "Lance `undici` && `postgres`.",
+    // Glued to sudo: the name goes, and the sentence with it since 2026-10-20 (prose).
+    "Lance sudo`undici` maintenant.",
     // Any program with an option, a package run by npx, a script given to an interpreter.
     "Lance bash -c `undici`.",
     "Lance python3 -c `undici`.",
@@ -157,10 +159,10 @@ describe("a name never completes a command written around it", () => {
     expect(cleanComment("Lance n\u200bpm install `left-pad-test`.")).not.toMatch(COMMAND);
   });
 
-  it("sudo before any word is enough: the names go, as before 2026-10-20", () => {
-    expect(cleanComment("Les droits sudo sont trop larges pour `postgres`.")).toBe(
-      "Les droits sudo sont trop larges pour .",
-    );
+  it("sudo before any word is enough: the names go, and the sentence with them (prose)", () => {
+    expect(
+      cleanComment("Les droits sudo sont trop larges pour `postgres`. Le risque est réel."),
+    ).toBe("Le risque est réel.");
   });
 
   it("a kept name opening a line never makes it a command line", () => {
