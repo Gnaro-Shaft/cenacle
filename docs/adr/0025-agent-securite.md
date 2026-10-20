@@ -95,6 +95,16 @@ Deux types de constats nouveaux, de sévérité élevée, nés d'un vide observ�
 - **`operateur_silencieux`** : l'interrupteur est actif et l'état est absent, illisible, daté du futur ou vieux de plus de 10 minutes (dix passages manqués). Correctif : vérifier le service (`launchctl list | grep org.cenacle.operateur`).
 - Interrupteur coupé : aucun constat. Le cycle de vie est l'ordinaire : 10 minutes avant de compter, un message tout de suite le jour et au rapport la nuit (élevé, pas critique : rien n'est cassé, on ne peut seulement plus agir), résolu dès que l'état redit `ok`.
 
+## Révision du 2026-10-20 — le nom du paquet gardé, la coupe à la phrase
+
+L'évaluation des modèles du 20/10 a montré deux défauts du nettoyage du mot du CTO : tout ce qui était entre accents graves disparaissait, nom du paquet compris (« Le paquet , utilisé pour les requêtes HTTP »), et le texte était coupé en pleine phrase à 400 caractères (les deux modèles écrivent deux phrases d'environ 430 caractères ; coupé à la phrase sous 400, le risque se perdait une fois sur deux).
+
+- **Un nom court entre accents graves est gardé, en texte simple** : un seul mot de 40 caractères au plus, en lettres et chiffres ASCII avec `. _ - +`, un `@` seulement devant un numéro de version, isolé entre des espaces ou de la ponctuation (collé au texte, il ferait un domaine ou un compte : evil.\`com\`, @\`bot\`). Jamais un chemin, un signe du shell, une option (`-rf`), un mot qui est une commande à lui seul ou en lance une (`sudo`, `rm`, `sh`, `reboot`…), ni ce que Telegram changerait en lien : un domaine (`evil.example`, `install.sh` ; seules des extensions de fichier connues passent, aucune n'étant un domaine de premier niveau au 20/10 : `dev.ts`, `.env`, `Node.js`), une adresse IP, un compte (`@types/node`, `x@latest`).
+- **Un nom ne complète jamais une commande** : si le texte, noms remis, a la forme d'une commande (`sudo` suivi d'un mot, `npm install`, `npx` suivi d'un nom, un interpréteur suivi d'un script, une option `-x` ou `+x` quel que soit le programme, `curl -…`, `| sh`, `&&`…), jugée sans caractères invisibles, marques combinantes ni lettres larges, tous les noms sont retirés, comme avant.
+- **Le mot du CTO s'arrête à sa dernière phrase complète, 600 caractères au plus** ; une première phrase plus longue est coupée au dernier mot, suivie de « … ». Un message trop long pour Telegram reporte déjà les constats suivants dans « + N autre(s) constat(s) ».
+
+Reste ouvert, hors de cette révision : une commande ou un domaine écrits en pleine phrase, sans accents graves, passent encore.
+
 ## Conséquences
 
 - `npm audit` envoie la liste des dépendances au registre npm, `tailscale version --upstream` et `softwareupdate` interrogent leurs éditeurs : aucune donnée personnelle (registre, services tiers).

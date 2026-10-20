@@ -5,7 +5,7 @@
 // checked values; the CTO's comment never carries a command.
 import { describe, expect, it } from "vitest";
 import { fixFor, UnknownFindingError } from "./catalogue.ts";
-import { cleanComment } from "./comment.ts";
+import { COMMENT_MAX, cleanComment } from "./comment.ts";
 import {
   parseFileVault,
   parseFirewall,
@@ -213,6 +213,6 @@ describe("the CTO's comment", () => {
     );
     expect(got).toBe("Le pare-feu est coupé : tout service ouvert est joignable. Lance . Voir");
     expect(cleanComment("```\nexit\n```")).toBeNull();
-    expect(cleanComment("x".repeat(900))?.length).toBeLessThanOrEqual(400);
+    expect(cleanComment("x".repeat(900))?.length).toBeLessThanOrEqual(COMMENT_MAX);
   });
 });
