@@ -4,6 +4,15 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # The default of 5 was reached on 2026-10-09: from then on, no new update
+    # was proposed at all.
+    open-pull-requests-limit: 10
+    groups:
+      # Patch releases come as one PR; minor and major ones stay apart, each
+      # read on its own (a minor release of pi has carried breaking changes).
+      patches:
+        update-types:
+          - patch
   - package-ecosystem: github-actions
     directory: /
     schedule:
