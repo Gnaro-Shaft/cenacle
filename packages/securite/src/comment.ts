@@ -7,6 +7,10 @@
  * the text around it would then read as a command (2026-10-20). In its
  * sentences too: one written as a command goes whole; a link, an account, a
  * command for a bot, a path or an IP address goes as a word (2026-10-20).
+ * Quotes, backslashes, Markdown emphasis or the shell's expansions hide no
+ * command, and a file kept in the text never completes one; a dash between
+ * spaces, a file whose extension is no top-level domain, a capital letter
+ * opening a line are prose (2026-10-21).
  */
 import type { Observation } from "./types.ts";
 
@@ -35,9 +39,24 @@ const NAME_MAX = 40;
 // before a version: Telegram turns `@types` or `x@latest` into a link to an account.
 const NAME = /^\.?[A-Za-z0-9][\w.+-]*(?:@\d[\w.+-]*)?$/;
 // After a dot, letters are a file extension, or a host Telegram would turn into a link.
+// None of these is a top-level domain (IANA list, version 2026102000); `.java`, `.py`,
+// `.sh`, `.md`, `.pub`, `.tf`, `.zip` are, and stay hosts.
 const FILE_EXTENSIONS = new Set([
   ...["cjs", "conf", "env", "ini", "js", "json", "jsx", "local", "lock", "log", "mjs"],
   ...["plist", "toml", "ts", "tsx", "txt", "yaml", "yml"],
+  // Keys and certificates, what a leaked secret is often kept in.
+  ...["asc", "cer", "crt", "csr", "der", "gpg", "jks", "kdbx", "key", "keystore", "ovpn"],
+  ...["pem", "pfx", "pgp", "ppk"],
+  // Settings.
+  ...["cfg", "cnf", "config", "dockerignore", "envrc", "gitignore", "gradle", "hcl"],
+  ...["htaccess", "htpasswd", "netrc", "npmrc", "pgpass", "tfstate", "tfvars", "xcconfig"],
+  ...["yarnrc"],
+  // Code and web pages.
+  ...["cpp", "cs", "css", "dart", "go", "hpp", "htm", "html", "ipynb", "kt", "kts", "less"],
+  ...["lua", "php", "rb", "rst", "sass", "scala", "scss", "sql", "svelte", "swift", "vue"],
+  ...["xml"],
+  // Data and copies.
+  ...["bak", "csv", "db", "diff", "dump", "orig", "patch", "sqlite", "swp", "tsv"],
 ]);
 // Words that are a command on their own, or that run the next one.
 const NOT_A_NAME = new Set([
@@ -63,12 +82,22 @@ function isShortName(s: string): boolean {
 // so a name never completes a command written around it (`sudo npm install -g` + `x`).
 const COMMAND_SHAPE = new RegExp(
   [
-    String.raw`(?:sudo|doas)\s+[\p{L}\p{N}./~-]`,
-    String.raw`(?:npm|npx|pnpm|yarn|bun|brew|pipx?|pip3|gem|cargo|apt(?:-get)?)\s+(?:-\S*\s+)*(?:i|install|add|ci|update|upgrade|uninstall|remove|rm|exec|run|dlx|link|reinstall|tap|audit\s+fix)(?![\p{L}\p{N}_-])`,
+    // Before a word, a path, a variable (`$SHELL`) or the shell's history (`!!`, `!-1`);
+    // a dot, a slash or a dash between spaces is prose (« jamais « sudo ». »).
+    String.raw`(?:sudo|doas)\s+(?:[\p{L}\p{N}$]|[./~-](?=\S)|![!#$*\p{L}\p{N}-])`,
+    // With npm's own aliases (`x`, `in`, `isntall`); a few options at most, never a long search.
+    String.raw`(?:npm|npx|pnpm|yarn|bun|brew|pipx?|pip3|gem|cargo|apt(?:-get)?)\s+(?:-\S*\s+){0,8}(?:i|in|ins|inst|insta|instal|install|isnt|isnta|isntal|isntall|add|ci|update|upgrade|uninstall|remove|rm|exec|x|run|dlx|link|reinstall|tap|publish|audit\s+fix)(?![\p{L}\p{N}_-])`,
     String.raw`(?:npx|bunx|pnpx)\s+[\p{L}\p{N}@./-]`,
     String.raw`(?:node|deno|bun|tsx|ts-node|python3?|ruby|perl|php|bash|sh|zsh|osascript)\s+\S+\.(?:[cm]?[jt]sx?|py|rb|pl|php|sh|scpt)(?![\p{L}\p{N}])`,
-    String.raw`(?:curl|wget)\s+(?:-|https?:|www\.|[\w-]+\.[a-z]{2,}|\S+\s*\|)`,
-    String.raw`(?:softwareupdate|tailscale|launchctl|defaults|pfctl|fdesetup|spctl|csrutil|chmod|chown|killall|kill|shutdown|reboot|osascript|git|ssh|scp|rm)\s+-`,
+    String.raw`(?:curl|wget)\s+(?:-(?=\S)|https?:|www\.|[\w-]+\.[a-z]{2,}|\S+\s*\|)`,
+    // An option glued to its dash: between spaces, a dash is prose (« Tailscale - ton VPN - »).
+    String.raw`(?:softwareupdate|tailscale|launchctl|defaults|pfctl|fdesetup|spctl|csrutil|chmod|chown|killall|kill|shutdown|reboot|osascript|git|ssh|scp)\s+-(?=\S)`,
+    // For rm, a lone dash is a file name: `rm - x` removes x.
+    String.raw`rm\s+-`,
+    // A program that runs, opens, moves or deletes the file named after it (`rm cert.pem`):
+    // a file kept in the text never completes a command.
+    String.raw`(?:rm|mv|cp|ln|open|sqlite3|go\s+run|swift|lua|dart|kotlinc?|scala|git\s+(?:apply|am))\s+\S*\.\p{L}`,
+    String.raw`(?:chmod|chown|chgrp)\s+\S+\s+\S*\.\p{L}`,
     String.raw`(?:defaults\s+write|tailscale\s+(?:up|down|set|serve|funnel)|fdesetup\s+(?:enable|disable)|launchctl\s+(?:load|unload|bootout|bootstrap|enable|disable|kickstart)|chmod\s+[0-7+]|git\s+(?:clone|pull|checkout|reset|push|config))(?![\p{L}\p{N}_-])`,
   ]
     .map((shape) => String.raw`(?<![\p{L}\p{N}_-])${shape}`)
@@ -77,6 +106,8 @@ const COMMAND_SHAPE = new RegExp(
       String.raw`(?<!\S)(?:--?|\+)[a-z]`,
       String.raw`\|\s*(?:sudo\s+)?(?:ba|z|da|k)?sh(?![\p{L}\p{N}_-])`,
       String.raw`\$\(`,
+      // What the shell expands to a word or to nothing: `$'sudo'`, `su${x}do`, `s$1udo`, `{sudo,reboot}`.
+      String.raw`\$[{'"]|\p{L}\$[\d@*#?]|\{[^\s{}]*,[^\s{}]*\}`,
       "&&",
     ])
     .join("|"),
@@ -86,7 +117,14 @@ const COMMAND_SHAPE = new RegExp(
 // Judged on what is shown, without invisible characters, combining marks or wide letters.
 const skeleton = (text: string) =>
   text.normalize("NFKC").replace(/[\p{Default_Ignorable_Code_Point}\p{Mn}]/gu, "");
-const looksLikeCommand = (text: string) => COMMAND_SHAPE.test(skeleton(text));
+// Quotes and backslashes the shell removes (`su\do`, `sudo "reboot"`), quotes and Markdown
+// emphasis a reader skips (`sudo “reboot”`, `sudo **reboot**`): judged without them, and with
+// them too, since « l'npm » without its apostrophe would be no word.
+const QUOTES = /["'\\`“”„‟‘’‚‛«»‹›❛❜❝❞「」『』〝〞〟′″❮❯*_]/g;
+const looksLikeCommand = (text: string) => {
+  const shown = skeleton(text);
+  return COMMAND_SHAPE.test(shown) || COMMAND_SHAPE.test(shown.replace(QUOTES, ""));
+};
 
 // What Telegram would turn into a link, and paths: a web address, an account or an
 // address (`@evilbot`, `@1x`, `x@latest`, `a@b.c` — not `undici@5.28.3`), a command for
@@ -186,9 +224,11 @@ function clean(raw: string, keepNames: boolean): string {
           : " ",
       )
       .split("\n")
+      // A command line as typed in a terminal: a prompt, or a program in small letters.
+      // « Tailscale n'est pas à jour » is a sentence, judged as one below.
       .filter(
         (line) =>
-          !/^\s*(?:\$|#|>|sudo\b|npm\b|brew\b|curl\b|softwareupdate\b|tailscale\b)/i.test(line),
+          !/^\s*(?:\$|#|>|sudo\b|npm\b|brew\b|curl\b|softwareupdate\b|tailscale\b)/.test(line),
       )
       .join(" ")
       // A dot glued to a capital letter ends a sentence (« vulnérable.Pour »), never a host.

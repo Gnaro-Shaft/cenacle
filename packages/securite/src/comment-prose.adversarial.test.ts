@@ -2,16 +2,23 @@
 // as a command goes whole; a link, an account, a command for a bot, a path or
 // an IP address goes as a word, its punctuation kept; judged on what is shown,
 // without invisible or wide letters, and once more without its links, so a
-// link never hides a command it would leave behind.
+// link never hides a command it would leave behind. Since 2026-10-21, the
+// random mixes hide commands behind quotes too; the rules of that day are in
+// comment-shell.adversarial.test.ts.
 import { describe, expect, it } from "vitest";
 import { COMMENT_MAX, cleanComment } from "./comment.ts";
 
 const RISK = "Le risque est réel.";
 // Any command my traps hide, as it would read once shown.
 const COMMAND =
-  /\b(?:sudo|doas)\s+[\p{L}\p{N}./~-]|\b(?:npm|npx|brew|pip)\s+(?:-\S+\s+)*(?:i|install|add|update|upgrade)\b|\bcurl\s+-|\|\s*(?:ba|z)?sh\b|\brm\s+-|\$\(/iu;
+  /\b(?:sudo|doas)\s+(?:[\p{L}\p{N}$]|[./~-](?=\S)|![!#$*\p{L}\p{N}-])|\b(?:npm|npx|brew|pip)\s+(?:-\S+\s+)*(?:i|install|add|update|upgrade)\b|\bcurl\s+-(?=\S)|\|\s*(?:ba|z)?sh\b|\brm\s+-|\b(?:rm|go\s+run)\s+\S*\.\p{L}|\$\(/iu;
+// As the shell or a reader would take it: no invisible or wide letters, no quotes, no
+// backslashes, no Markdown emphasis.
 const shown = (text: string) =>
-  text.normalize("NFKC").replace(/[\p{Default_Ignorable_Code_Point}\p{Mn}]/gu, "");
+  text
+    .normalize("NFKC")
+    .replace(/[\p{Default_Ignorable_Code_Point}\p{Mn}]/gu, "")
+    .replace(/["'\\`“”„‟‘’‚‛«»‹›❛❜❝❞「」『』〝〞〟′″❮❯*_]/g, "");
 
 describe("a command written in a sentence takes the sentence with it", () => {
   it.each([
@@ -137,13 +144,15 @@ describe("what is no link, no path and no command stays", () => {
 });
 
 describe("random mixes never show a command, a link or a path", () => {
-  const PROSE = ["Le pare-feu", "est coupé", "et le risque", "réel", "pour ce Mac.", "Lance"];
+  const PROSE = ["Le pare-feu", "est coupé", "et le risque", "réel", "pour ce Mac.", "Lance", "-"];
   const KEPT = ["Tape", "maintenant.", "Node.js", "dev.ts", "undici@5.28.3", "CI/CD", "1.92.0"];
   const TRAPS = [
     ...["sudo", "ｓｕｄｏ", "npm", "np⁠m", "install", "i", "-g", "left-pad-test", "curl"],
     ...["| sh", "rm", "-rf", "evil.example", "evil.example/fix", "evil．example", "t.me/evilbot"],
     ...["@evilbot", "secu@evil.example", "/start", "./install", "~/.ssh", "203.0.113.7"],
-    ...["https://evil.example", "www.evil.example"],
+    ...["https://evil.example", "www.evil.example", "cert.pem", "Main.java"],
+    ...['"sudo"', "su\\do", "'i'", "\\install", "“npm”", "« sudo »", "!!", "$SHELL"],
+    ...["**sudo**", "_i_", "s$'u'do", "{sudo,reboot}", "go run", "main.go"],
   ];
   const FRAGMENTS = [...PROSE, ...KEPT, ...TRAPS];
 
@@ -161,7 +170,10 @@ describe("random mixes never show a command, a link or a path", () => {
       if (text === null) continue;
       expect(text.length, raw).toBeLessThanOrEqual(COMMENT_MAX);
       expect(shown(text), raw).not.toMatch(COMMAND);
-      expect(shown(text), raw).not.toMatch(/evil|https?:|www\.|(?:^|\s)[.~]?\/|\d+(?:\.\d+){3}/);
+      expect(text, raw).not.toMatch(/\$['{]|\{[^\s{}]*,/);
+      expect(shown(text), raw).not.toMatch(
+        /evil|https?:|www\.|(?:^|\s)[.~]?\/|\d+(?:\.\d+){3}|Main\.java/,
+      );
     }
   });
 });
@@ -174,6 +186,7 @@ describe("long or strange words are judged quickly", () => {
     cleanComment(`${"@".repeat(50_000)}x ${"/".repeat(50_000)}x ${"1.".repeat(50_000)}`);
     cleanComment(`${RISK} `.repeat(20_000));
     cleanComment(`${"(".repeat(50_000)}evil.example${")".repeat(50_000)}.`);
+    cleanComment(`sudo ${`"'\\«`.repeat(25_000)}x ${"- ".repeat(50_000)}`);
     expect(performance.now() - started).toBeLessThan(1000);
   });
 });
