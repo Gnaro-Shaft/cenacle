@@ -6,7 +6,7 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { CONTEXT_BUDGET, loadProjectContext, orderDocumentation } from "./context.ts";
+import { CONTEXT_BUDGET, DENIED, loadProjectContext, orderDocumentation } from "./context.ts";
 
 let root = "";
 let outside = "";
@@ -185,6 +185,15 @@ describe("loadProjectContext", () => {
       "docs/adr/0001-a.md",
     ]);
     expect(c.skipped).toEqual([{ path: "docs/phase-1.md", reason: "budget" }]);
+  });
+
+  it("measurement reports stay out of the prompt, yet are not denied to the tools", () => {
+    put("docs/mesures/rapport.md", "Des chiffres, rien que des chiffres.");
+    put("docs/mesuresvoisines.md", "Pas un rapport de mesure.");
+    const tracked = () => ["docs/mesures/rapport.md", "docs/mesuresvoisines.md", "docs/guide.md"];
+    const c = loadProjectContext(root, { tracked });
+    expect(c.files.map((f) => f.path)).toEqual(["docs/guide.md", "docs/mesuresvoisines.md"]);
+    expect(DENIED.test("docs/mesures/rapport.md")).toBe(false);
   });
 
   it("the real repository fits in the budget: nothing is left out for lack of room", () => {
