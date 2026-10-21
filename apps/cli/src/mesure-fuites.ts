@@ -9,10 +9,21 @@
  * Not covered here: OpenTelemetry traces (Tempo), Telegram messages already
  * sent, terminal output. Nothing is written anywhere.
  */
+import { existsSync, readFileSync } from "node:fs";
 import { errorText, refuseForeignSecrets, SecretPlacementError } from "@cenacle/core";
 import { connectOrQuit } from "@cenacle/journal";
-import { findLeaks, type Haystack, type Needle, type NeedleKind, searchable } from "@cenacle/mail";
+import {
+  declaredHosts,
+  findLeaks,
+  type Haystack,
+  type Needle,
+  type NeedleKind,
+  searchable,
+} from "@cenacle/mail";
 import { readBack } from "./mesure-lecture.ts";
+
+/** Versioned, public: the only places a domain can be declared public (never *.local.toml). */
+const PUBLIC_CONFIG = ["veille.toml", "securite.toml"];
 
 refuseForeignSecrets("La mesure des fuites", ["mail"]);
 const sql = connectOrQuit();
@@ -40,7 +51,14 @@ try {
     scanned.push(`${t.name} (${rows.length})`);
   }
   const unreadable = tables.filter((t) => !t.readable).map((t) => t.name);
-  const leaks = findLeaks(needles, haystacks);
+  // Hosts Cénacle reads public pages from: a sender domain that is one of
+  // them is no leak where it only appears in links to itself.
+  const hosts = declaredHosts(
+    PUBLIC_CONFIG.map((p) => (existsSync(p) ? readFileSync(p, "utf8") : "")),
+  );
+  const hits = findLeaks(needles, haystacks, hosts);
+  const leaks = hits.filter((l) => l.publicLink !== true);
+  const publicLinks = hits.filter((l) => l.publicLink === true);
   const count = (kind: NeedleKind) => kept.filter((n) => n.kind === kind).length;
 
   console.log(`Mesure des fuites — ${new Date().toISOString().slice(0, 10)}`);
@@ -53,7 +71,12 @@ try {
   console.log(`Tables fouillées (lignes) : ${scanned.join(", ") || "aucune"}`);
   console.log(`Tables non lisibles : ${unreadable.join(", ") || "aucune"}`);
   for (const l of leaks) console.log(`  ✘ un ${l.kind} trouvé dans ${l.where}`);
+  for (const l of publicLinks)
+    console.log(`  · un domaine public trouvé dans ${l.where}, seulement dans des liens vers lui`);
   console.log(`Fuites : ${leaks.length}`);
+  console.log(
+    `Domaines publics, seulement en lien : ${publicLinks.length} (hôtes déclarés dans ${PUBLIC_CONFIG.join(", ")})`,
+  );
   if (kept.length === 0) {
     console.error("🛑 rien à chercher : aucun mail relu, la mesure ne prouve rien");
     process.exitCode = 1;

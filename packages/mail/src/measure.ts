@@ -10,6 +10,7 @@
  *   sequences, line breaks, direction overrides).
  */
 import { CATEGORIES, type Category } from "@cenacle/core";
+import { isPublicDomain, withoutLinksTo } from "./public-domains.ts";
 
 export type Decider = "rule" | "unreadable" | "model" | "set_aside" | "unauthenticated";
 const DECIDERS: readonly Decider[] = [
@@ -108,6 +109,11 @@ export interface Haystack {
 export interface Leak {
   readonly kind: NeedleKind;
   readonly where: string;
+  /**
+   * Set only for a domain declared public found there in links to it and
+   * nowhere else (public-domains.ts): counted apart, no leak.
+   */
+  readonly publicLink?: true;
 }
 
 /** Shorter skeletons match by chance: not searched (and counted as such). */
@@ -149,15 +155,36 @@ export function searchable(needles: readonly Needle[]): { kept: Needle[]; tooSho
   return { kept, tooShort };
 }
 
-/** Every (kind, where) where a value read from the mails is found. Never the value. */
-export function findLeaks(needles: readonly Needle[], haystacks: readonly Haystack[]): Leak[] {
+/**
+ * Every (kind, where) where a value read from the mails is found. Never the value.
+ * With `publicHosts` (declared in the versioned configuration), a sender domain
+ * that is public and only appears in links to itself is marked `publicLink`; a
+ * real leak in the same place always wins.
+ */
+export function findLeaks(
+  needles: readonly Needle[],
+  haystacks: readonly Haystack[],
+  publicHosts: ReadonlySet<string> = new Set(),
+): Leak[] {
   const { kept } = searchable(needles);
+  // Skeleton → the domain as written, for the public ones only.
+  const publicDomains = new Map<string, string>();
+  for (const n of needles) {
+    if (n.kind === "domaine" && isPublicDomain(n.value, publicHosts))
+      publicDomains.set(skeleton(n.value), n.value);
+  }
   const leaks = new Map<string, Leak>();
   for (const h of haystacks) {
     const text = skeleton(h.text);
     for (const n of kept) {
-      if (text.includes(n.value))
-        leaks.set(`${n.kind}\u0000${h.where}`, { kind: n.kind, where: h.where });
+      if (!text.includes(n.value)) continue;
+      const key = `${n.kind}\u0000${h.where}`;
+      const domain = n.kind === "domaine" ? publicDomains.get(n.value) : undefined;
+      if (domain !== undefined && !skeleton(withoutLinksTo(h.text, domain)).includes(n.value)) {
+        if (!leaks.has(key)) leaks.set(key, { kind: n.kind, where: h.where, publicLink: true });
+        continue;
+      }
+      leaks.set(key, { kind: n.kind, where: h.where });
     }
   }
   return [...leaks.values()];
