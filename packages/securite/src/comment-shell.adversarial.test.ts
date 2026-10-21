@@ -2,7 +2,8 @@
 // quotes, backslashes, Markdown emphasis and the shell's expansions hide no
 // command, and a file kept in the text never completes one; a dash between
 // spaces, a file whose extension is no top-level domain and a capital letter
-// opening a line are prose.
+// opening a line are prose; chmod before a mode, in digits or in letters, is a
+// command.
 import { describe, expect, it } from "vitest";
 import { cleanComment } from "./comment.ts";
 
@@ -223,12 +224,100 @@ describe("a capital letter opening a line is prose, judged as a sentence", () =>
   });
 });
 
+describe("chmod before a mode is a command, in digits or in letters", () => {
+  // As this Mac's chmod takes them: any leading zero; who, how and what, in letters.
+  it.each([
+    "chmod 777 secret",
+    "chmod 0777 secret",
+    "chmod 00644 secret",
+    "chmod 4755 binaire",
+    "chmod 1777 dossier",
+    "chmod u+s secret",
+    "chmod go-w secret",
+    "chmod a=r secret",
+    "chmod a+rwx secret",
+    "chmod ug+rwX secret",
+    "chmod +t dossier",
+    // Another trio's rights, an empty list, several actions, several clauses.
+    "chmod g+u secret",
+    "chmod o=g secret",
+    "chmod go= secret",
+    "chmod a= secret",
+    "chmod =r secret",
+    "chmod u+r-w secret",
+    "chmod u+x,g-w secret",
+    // Signs in a row are a mode, even before a comma: `=+r`, `==` (no right left), `=,u+r`.
+    "chmod =+r secret",
+    "chmod == secret",
+    "chmod =,u+r secret",
+    "chmod +,u+s secret",
+    // In capitals, between quotes, in wide digits, with an invisible character, alone.
+    "Chmod 777 secret",
+    "CHMOD U+S secret",
+    'chmod "777" secret',
+    "chmod ７７７ secret",
+    "chmod 7​77 secret",
+    "chmod 777",
+    "chmod u+s",
+  ])("%s", (command) => {
+    expect(cleanComment(`${RISK} Lance ${command} maintenant.`)).toBe(RISK);
+  });
+
+  it.each([
+    `${RISK} Lance chmod 777.`,
+    `${RISK} Lance chmod u+s.`,
+    `${RISK} Lance chmod 00644, puis relance.`,
+    `${RISK}\nchmod 777 secret\nFin.`,
+  ])("at the end of a clause or on its own line: %s", (raw) => {
+    expect(cleanComment(raw)).toBe(RISK);
+  });
+
+  it.each([
+    "Les droits 644 du fichier sont corrects.",
+    "Un chmod trop large expose la clé.",
+    "Le chmod a été appliqué hier.",
+    "Le chmod a-t-il été appliqué ?",
+    "Un chmod au hasard est risqué.",
+    "Le chmod augmente les droits.",
+    "Un chmod ou deux ont suffi.",
+    "Les bits setuid (u+s) sont posés sur le binaire.",
+    "Le binaire chmod 8.32 est ancien.",
+    // A lone sign between spaces is prose, as a dash is.
+    "Les outils chmod + chown règlent les droits.",
+    "Le chmod - celui du système - est ancien.",
+    "Le chmod = l'outil des droits.",
+    "Les outils chmod +/- règlent les droits.",
+  ])("no mode, the sentence stays: %s", (sentence) => {
+    expect(cleanComment(sentence)).toBe(sentence);
+  });
+
+  // The broad shape: even to explain, the sentence goes.
+  it.each([
+    "Un chmod 777 serait trop large.",
+    "Le réglage chmod 644 est le bon.",
+    "Un chmod u+s rend le binaire dangereux.",
+  ])("written as a command, the sentence goes: %s", (sentence) => {
+    expect(cleanComment(`${sentence} ${RISK}`)).toBe(RISK);
+  });
+});
+
 describe("a long run of options is judged quickly", () => {
   it("npm before many options and words", () => {
     const started = performance.now();
     cleanComment(`Le npm${" -1/npm".repeat(15_000)} ?`);
     cleanComment(`Le npm${" -1'/npm".repeat(15_000)} ?`);
     cleanComment(`Le npm${" -1.npm".repeat(15_000)} ?`);
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+
+  it("chmod before a long mode", () => {
+    const started = performance.now();
+    cleanComment(`Le chmod ${"+r".repeat(20_000)}z ?`);
+    cleanComment(`Le chmod ${"7".repeat(40_000)}z ?`);
+    cleanComment(`Le chmod a${"-t".repeat(20_000)}-il ?`);
+    cleanComment(`Le chmod ${"=+".repeat(20_000)}z ?`);
+    cleanComment(`Le chmod ${"+,".repeat(20_000)}z ?`);
+    cleanComment(`Le${" chmod".repeat(8_000)} ?`);
     expect(performance.now() - started).toBeLessThan(1000);
   });
 });

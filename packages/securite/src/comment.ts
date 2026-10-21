@@ -10,7 +10,8 @@
  * Quotes, backslashes, Markdown emphasis or the shell's expansions hide no
  * command, and a file kept in the text never completes one; a dash between
  * spaces, a file whose extension is no top-level domain, a capital letter
- * opening a line are prose (2026-10-21).
+ * opening a line are prose (2026-10-21). chmod before a mode, in digits or in
+ * letters, is a command; a lone sign between spaces is prose (2026-10-21).
  */
 import type { Observation } from "./types.ts";
 
@@ -98,7 +99,10 @@ const COMMAND_SHAPE = new RegExp(
     // a file kept in the text never completes a command.
     String.raw`(?:rm|mv|cp|ln|open|sqlite3|go\s+run|swift|lua|dart|kotlinc?|scala|git\s+(?:apply|am))\s+\S*\.\p{L}`,
     String.raw`(?:chmod|chown|chgrp)\s+\S+\s+\S*\.\p{L}`,
-    String.raw`(?:defaults\s+write|tailscale\s+(?:up|down|set|serve|funnel)|fdesetup\s+(?:enable|disable)|launchctl\s+(?:load|unload|bootout|bootstrap|enable|disable|kickstart)|chmod\s+[0-7+]|git\s+(?:clone|pull|checkout|reset|push|config))(?![\p{L}\p{N}_-])`,
+    // A mode in digits (with any leading zero: this Mac takes `00644`) or in letters (`u+s`,
+    // `go-w`, `g+u`, `go=`, `u+r-w`, `=+r`); a lone `+`, `-` or `=` between spaces is prose.
+    String.raw`chmod\s+(?:[0-7]+|(?![+=-](?![rwxXstugo,+=-]))[ugoa]*(?:[+=-][rwxXstugo]*)+)(?![\p{L}\p{N}_-])`,
+    String.raw`(?:defaults\s+write|tailscale\s+(?:up|down|set|serve|funnel)|fdesetup\s+(?:enable|disable)|launchctl\s+(?:load|unload|bootout|bootstrap|enable|disable|kickstart)|git\s+(?:clone|pull|checkout|reset|push|config))(?![\p{L}\p{N}_-])`,
   ]
     .map((shape) => String.raw`(?<![\p{L}\p{N}_-])${shape}`)
     .concat([
