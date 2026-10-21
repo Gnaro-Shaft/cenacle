@@ -6,7 +6,7 @@
   "type": "module",
   "dependencies": {
     "@cenacle/core": "0.0.0",
-    "smol-toml": "1.9.0"
+    "smol-toml": "1.9.1"
   },
   "exports": {
     ".": "./src/index.ts"
