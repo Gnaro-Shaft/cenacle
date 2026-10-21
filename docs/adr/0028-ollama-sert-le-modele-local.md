@@ -22,7 +22,7 @@ L'évaluation du 2026-10-20 (`docs/mesures/bascule-qwen36.md`, données fictives
 ## Conséquences
 
 - Une seule copie du modèle en mémoire : environ 18 Go rendus au Mac.
-- Le CTO peut répondre juste un peu moins souvent qu'avec LM Studio. `npm run cto:bench` sur Ollama doit le dire ; l'écart se suit sur mes vraies questions.
+- Le CTO peut répondre juste un peu moins souvent qu'avec LM Studio. `npm run cto:bench` sur Ollama, le 2026-10-21 : 2 / 6 à la lecture honnête, contre 0 / 6 sur LM Studio la veille (`docs/mesures/bascule-qwen36.md`) ; l'écart se suit sur mes vraies questions.
 - Les journaux d'Ollama (`~/.ollama/logs`, niveau `INFO`) n'écrivent pas le texte des prompts (vérifié le 2026-10-20).
 - Les versions d'Ollama sont déjà suivies par la veille (`veille.toml`). Une mise à jour peut changer le gabarit du modèle : on repasse alors `npm run probe:thinking` et `npm run mail:bench`.
 - Le registre IA, le registre des traitements, le README et `deploy/launchd/README.md` nomment Ollama.
