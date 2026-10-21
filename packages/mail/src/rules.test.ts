@@ -60,9 +60,10 @@ describe("rules", () => {
     expect(counts).toEqual({
       clients_prospects: 38,
       administratif: 43,
-      bruit: 57,
+      // m152 and m154 (ads of administratif domains) and m166 go to the model (ADR-0030).
+      bruit: 55,
       a_trier: 0,
-      remaining: 27,
+      remaining: 30,
     });
     expect(Object.keys(counts)).toEqual([...CATEGORIES, "remaining"]);
   });

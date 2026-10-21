@@ -8,6 +8,8 @@ import { readFileSync } from "node:fs";
 import { classifyMail, createLocalModels, localModelConfigFromEnv } from "@cenacle/brain";
 import { CATEGORIES, errorText, loadFixtureMailbox } from "@cenacle/core";
 import {
+  capped,
+  ceilingOf,
   EXAMPLE_RULES_PATH,
   fixtureForModel,
   fixtureListFields,
@@ -56,7 +58,14 @@ try {
     const setAside = keptFromModel(view);
     const result = setAside
       ? { category: "a_trier" as const, valid: true, durationMs: 0 }
-      : await classifyMail(view, { local });
+      : await classifyMail(view, { local }).then((r) => ({
+          ...r,
+          // ADR-0030: never above the rule of a mass mail's domain, as in production.
+          category: capped(
+            r.category,
+            ceilingOf(isMassMail(fixtureListFields(fixture)), view.domain, rules),
+          ),
+        }));
     items.push({
       id: fixture.id,
       expected: fixture.expected.category,

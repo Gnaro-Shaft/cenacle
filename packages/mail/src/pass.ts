@@ -3,16 +3,16 @@
  * reads — ADR-0016 — and Sent, read-only), sort it by rules, then by the local model for the rest, and
  * publish the totals. Shared by `npm run mail:sort` and Iris's own rhythm.
  */
-import { type LocalModels, type ModelSort, sortByModel } from "@cenacle/brain";
+import { classifyMail, type LocalModels, type ModelSort, sortByModel } from "@cenacle/brain";
 import type { Journal, LocationStore, MailStore } from "@cenacle/journal";
 import type { MailCadre } from "./cadre.ts";
 import { type CollectSummary, collectMail, mailTotals } from "./collect.ts";
 import { keptFromModel } from "./floor.ts";
 import { listFolders } from "./folders.ts";
 import type { Keyer } from "./keys.ts";
-import { createLocator, readMailsForModelAt } from "./located.ts";
+import { createLocator, readMailsForSortingAt } from "./located.ts";
 import { fetchMailRefs, fetchSentRefs } from "./postman.ts";
-import type { Rules } from "./rules.ts";
+import { capped, ceilingOf, type Rules } from "./rules.ts";
 
 export interface PassDeps {
   readonly journal: Journal;
@@ -34,6 +34,8 @@ export interface PassDeps {
   readonly noFollowUp: ReadonlySet<string>;
   /** The local model, or null to sort by rules only. */
   readonly local: LocalModels | null;
+  /** Stands in for the model in tests; the real one otherwise. */
+  readonly classify?: typeof classifyMail;
   readonly clock?: () => Date;
 }
 
@@ -73,7 +75,13 @@ export async function runMailPass(deps: PassDeps): Promise<PassResult> {
   if (local === null || collected.uncategorized.length === 0) return { collected, model: null };
 
   const locator = createLocator({ cadre, password, keyer, locations });
-  const read = await readMailsForModelAt(locator, cadre, password, collected.uncategorized);
+  // The same source gives the model's view and the mass flag: a mail left from an
+  // earlier pass gets its ceiling back without anything stored (ADR-0030).
+  const sources = await readMailsForSortingAt(locator, cadre, password, collected.uncategorized);
+  const read = sources.map((s) => s.view);
+  const ceilings = new Map(
+    sources.map((s) => [s.view.uid, ceilingOf(s.mass, s.view.domain, deps.rules)]),
+  );
   // C2: the article 9 floor (and empty or unreadable mails) — never given to the
   // model, put in "À trier" for me, with one mark that does not say why.
   const setAside = read.filter(keptFromModel);
@@ -89,6 +97,11 @@ export async function runMailPass(deps: PassDeps): Promise<PassResult> {
   const model = await sortByModel(mails, {
     journal,
     local,
+    // Capped before anything is stored or journaled: base, journal and counters agree.
+    classify: async (mail, options) => {
+      const r = await (deps.classify ?? classifyMail)(mail, options);
+      return { ...r, category: capped(r.category, ceilings.get(mail.uid)) };
+    },
     onClassified: async (r) => {
       await store.categorize(r.uid, r.category, "model");
     },

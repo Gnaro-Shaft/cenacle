@@ -54,7 +54,7 @@ export {
   createLocator,
   type MailLocator,
   readMailsForModelAt,
-  readMailsForSimulationAt,
+  readMailsForSortingAt,
   readReplyContextsAt,
   readReplyTargetsAt,
 } from "./located.ts";
@@ -101,10 +101,10 @@ export { declaredHosts, isPublicDomain, withoutLinksTo } from "./public-domains.
 export {
   fixtureForModel,
   MAX_SOURCE_BYTES,
-  type MailForSimulation,
+  type MailForSorting,
   massOfSource,
   readMailsForModel,
-  readMailsForSimulation,
+  readMailsForSorting,
 } from "./reader.ts";
 export {
   type ReplyContext,
@@ -117,6 +117,8 @@ export {
 } from "./reply-target.ts";
 export { fixtureListFields, sentToRfc822, toRfc822 } from "./rfc822.ts";
 export {
+  capped,
+  ceilingOf,
   EXAMPLE_RULES_PATH,
   LOCAL_RULES_PATH,
   type LoadedRules,

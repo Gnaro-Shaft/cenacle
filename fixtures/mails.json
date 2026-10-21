@@ -3360,6 +3360,29 @@
       },
       "note": "List-Unsubscribe vide : ne compte pas, la règle Administratif s'applique",
       "listHeaders": [["List-Unsubscribe", ""]]
+    },
+    {
+      "id": "m166",
+      "from": {
+        "name": "Banque Exemple",
+        "address": "releves@banque-exemple.example"
+      },
+      "to": "test-cenacle@cenacle.test",
+      "subject": "Votre relevé de compte d'octobre est disponible",
+      "date": "2026-09-30T06:30:00Z",
+      "inReplyTo": null,
+      "contentType": "text/plain",
+      "body": "Madame, Monsieur,\n\nVotre relevé de compte d'octobre est disponible dans votre espace client.\n\nPour ne plus recevoir ces avis par mail, modifiez vos préférences.",
+      "listHeaders": [
+        ["List-Unsubscribe", "<https://banque-exemple.example/preferences?u=fictif>"]
+      ],
+      "expected": {
+        "category": "administratif",
+        "urgent": false,
+        "trap": null,
+        "followUp": "not_tracked"
+      },
+      "note": "envoi utile d'un domaine administratif, avec un en-tête de masse : le modèle décide, plafonné à Administratif (ADR-0030)"
     }
   ],
   "followUp": {

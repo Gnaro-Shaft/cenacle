@@ -6,7 +6,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { CADRE_PATH, loadCadre } from "./cadre.ts";
 import { createKeyer } from "./keys.ts";
 import { fetchMailRefs } from "./postman.ts";
-import { fixtureForModel, readMailsForModel, readMailsForSimulation } from "./reader.ts";
+import { fixtureForModel, readMailsForModel, readMailsForSorting } from "./reader.ts";
 import { readReplyTargets } from "./reply-target.ts";
 import { loadFixtures, testMailboxConfigFromEnv } from "./test-mailbox.ts";
 
@@ -48,14 +48,14 @@ describe("reader (GreenMail)", () => {
   it("the replay reads what production reads: the same view as the model's, the same mass flag as the postman's", async () => {
     const { refs, uidValidity, unseen } = await fetchMailRefs(mail, password, keyer);
     const uids = refs.map((r) => r.uid);
-    const replay = await readMailsForSimulation(mail, password, uids, uidValidity);
+    const replay = await readMailsForSorting(mail, password, uids, uidValidity);
     const views = await readMailsForModel(mail, password, uids, uidValidity);
     expect(replay.map((r) => r.view)).toEqual(views);
     const massByUid = new Map(refs.map((r) => [r.uid, r.mass === true]));
     expect(
       replay.filter((r) => r.mass !== massByUid.get(r.view.uid)).map((r) => r.view.uid),
     ).toEqual([]);
-    expect(replay.filter((r) => r.mass).length).toBe(13);
+    expect(replay.filter((r) => r.mass).length).toBe(14);
     expect((await fetchMailRefs(mail, password, keyer)).unseen).toBe(unseen);
   });
 
