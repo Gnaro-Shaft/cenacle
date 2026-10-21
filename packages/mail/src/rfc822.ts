@@ -3,6 +3,8 @@
  * Headers are ASCII (RFC 2047 encoded-words for UTF-8), the body is base64.
  */
 import { type FixtureMessage, type FixtureSentMessage, fixtureMessageId } from "@cenacle/core";
+import { MASS_HEADERS } from "./mass-mail.ts";
+import type { HeaderField } from "./ordered-headers.ts";
 
 function encodeWord(text: string): string {
   // Plain ASCII without specials can stay as is; anything else is encoded.
@@ -46,6 +48,32 @@ interface RawMessage {
   readonly references: readonly string[];
   /** Incoming mails only: our fictional server says the From domain passed DMARC. */
   readonly authenticated: boolean;
+  /** Bulk-mail headers, written as given (ADR-0029). */
+  readonly listHeaders?: readonly (readonly [string, string])[];
+}
+
+/** Only these may be written from a fixture: nothing else can slip into a header block. */
+const LIST_HEADER_NAMES = new Set(MASS_HEADERS as readonly string[]);
+
+function checkedListHeaders(
+  id: string,
+  pairs: readonly (readonly [string, string])[] = [],
+): readonly (readonly [string, string])[] {
+  for (const [name, value] of pairs) {
+    if (!LIST_HEADER_NAMES.has(name.toLowerCase())) {
+      throw new Error(`${id}: "${name}" is not a bulk-mail header`);
+    }
+    assertHeaderSafe(value, name);
+  }
+  return pairs;
+}
+
+/** A fixture's bulk-mail headers as the fields postman.ts reads, for the benchmark. */
+export function fixtureListFields(message: FixtureMessage): HeaderField[] {
+  return checkedListHeaders(message.id, message.listHeaders).map(([name, value]) => ({
+    name: name.toLowerCase(),
+    value: value.trim(),
+  }));
 }
 
 function build(message: RawMessage): Buffer {
@@ -77,6 +105,7 @@ function build(message: RawMessage): Buffer {
     `Date: ${new Date(message.date).toUTCString().replace("GMT", "+0000")}`,
     `Message-ID: ${fixtureMessageId(message.id)}`,
     ...thread,
+    ...checkedListHeaders(message.id, message.listHeaders).map(([n, v]) => `${n}: ${v}`),
     "MIME-Version: 1.0",
     `Content-Type: ${message.contentType}; charset=utf-8`,
     "Content-Transfer-Encoding: base64",
@@ -111,6 +140,7 @@ export function toRfc822(
     body: message.body,
     references,
     authenticated: true,
+    ...(message.listHeaders === undefined ? {} : { listHeaders: message.listHeaders }),
   });
 }
 

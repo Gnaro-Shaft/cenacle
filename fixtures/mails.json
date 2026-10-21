@@ -2942,6 +2942,424 @@
         "followUp": "not_tracked"
       },
       "note": "répond à un de mes mails à un client depuis un domaine inconnu : le fil ne donne pas le statut client"
+    },
+    {
+      "id": "m148",
+      "from": {
+        "name": "Réseau Social (fictif)",
+        "address": "notifications@reseau-social.example"
+      },
+      "to": "test-cenacle@cenacle.test",
+      "subject": "Camille Fictive vous a envoyé un message",
+      "date": "2026-09-29T07:12:00Z",
+      "inReplyTo": null,
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\nCamille Fictive vous a envoyé un message : « Bonjour, j'ai vu votre profil, êtes-vous disponible pour échanger ? »\n\nRépondre sur Réseau Social.\n\nSe désabonner de ces notifications.",
+      "expected": {
+        "category": "bruit",
+        "urgent": false,
+        "trap": null,
+        "followUp": "not_tracked"
+      },
+      "note": "notification de réseau social qui ressemble à un message de personne ; en-têtes de liste (ADR-0029)",
+      "listHeaders": [
+        [
+          "List-Unsubscribe",
+          "<https://reseau-social.example/desabonnement?u=fictif>, <mailto:desabonnement@reseau-social.example>"
+        ],
+        ["List-Id", "<messages.reseau-social.example>"]
+      ]
+    },
+    {
+      "id": "m149",
+      "from": {
+        "name": "Réseau Social Emplois (fictif)",
+        "address": "emplois@reseau-social.example"
+      },
+      "to": "test-cenacle@cenacle.test",
+      "subject": "Une mission de 6 mois pourrait vous intéresser",
+      "date": "2026-09-29T12:40:00Z",
+      "inReplyTo": null,
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\nD'après votre profil, cette mission pourrait vous intéresser : Consultant IA, 6 mois, télétravail partiel.\n\nVoir l'offre.\n\nVous recevez ce mail car vous avez activé les alertes.",
+      "expected": {
+        "category": "bruit",
+        "urgent": false,
+        "trap": null,
+        "followUp": "not_tracked"
+      },
+      "note": "alerte d'offres : ressemble à un prospect",
+      "listHeaders": [
+        [
+          "List-Unsubscribe",
+          "<https://reseau-social.example/desabonnement?u=fictif>, <mailto:desabonnement@reseau-social.example>"
+        ]
+      ]
+    },
+    {
+      "id": "m150",
+      "from": {
+        "name": "Réseau Social (fictif)",
+        "address": "notifications@reseau-social.example"
+      },
+      "to": "test-cenacle@cenacle.test",
+      "subject": "3 personnes ont consulté votre profil",
+      "date": "2026-09-30T06:05:00Z",
+      "inReplyTo": null,
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\n3 personnes ont consulté votre profil cette semaine, dont un dirigeant d'une société de logistique.\n\nDécouvrir qui.",
+      "expected": {
+        "category": "bruit",
+        "urgent": false,
+        "trap": null,
+        "followUp": "not_tracked"
+      },
+      "note": "notification de réseau social",
+      "listHeaders": [
+        [
+          "List-Unsubscribe",
+          "<https://reseau-social.example/desabonnement?u=fictif>, <mailto:desabonnement@reseau-social.example>"
+        ]
+      ]
+    },
+    {
+      "id": "m151",
+      "from": {
+        "name": "Réseau Social (fictif)",
+        "address": "invitations@reseau-social.example"
+      },
+      "to": "test-cenacle@cenacle.test",
+      "subject": "Dominique Exemple souhaite rejoindre votre réseau",
+      "date": "2026-09-30T09:31:00Z",
+      "inReplyTo": null,
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\nDominique Exemple, directrice des opérations, souhaite rejoindre votre réseau.\n\nAccepter l'invitation.",
+      "expected": {
+        "category": "bruit",
+        "urgent": false,
+        "trap": null,
+        "followUp": "not_tracked"
+      },
+      "note": "invitation de réseau social ; Precedence: bulk seul",
+      "listHeaders": [["Precedence", "bulk"]]
+    },
+    {
+      "id": "m152",
+      "from": {
+        "name": "Banque Exemple",
+        "address": "offres@banque-exemple.example"
+      },
+      "to": "test-cenacle@cenacle.test",
+      "subject": "Découvrez notre nouveau livret à taux boosté",
+      "date": "2026-09-28T08:00:00Z",
+      "inReplyTo": null,
+      "contentType": "text/plain",
+      "body": "Madame, Monsieur,\n\nPour tout dépôt avant le 31 octobre, profitez d'un taux boosté sur notre nouveau livret.\n\nEn savoir plus. Se désinscrire des offres commerciales.",
+      "expected": {
+        "category": "bruit",
+        "urgent": false,
+        "trap": null,
+        "followUp": "not_tracked"
+      },
+      "note": "publicité d'un domaine administratif (règle) : le courrier de masse l'emporte (ADR-0029)",
+      "listHeaders": [
+        [
+          "List-Unsubscribe",
+          "<https://banque-exemple.example/desabonnement?u=fictif>, <mailto:desabonnement@banque-exemple.example>"
+        ]
+      ]
+    },
+    {
+      "id": "m153",
+      "from": {
+        "name": "Banque Exemple",
+        "address": "service@banque-exemple.example"
+      },
+      "to": "test-cenacle@cenacle.test",
+      "subject": "Votre relevé de compte de septembre est disponible",
+      "date": "2026-09-30T05:00:00Z",
+      "inReplyTo": null,
+      "contentType": "text/plain",
+      "body": "Madame, Monsieur,\n\nVotre relevé de compte de septembre est disponible dans votre espace client.\n\nVotre conseiller.",
+      "expected": {
+        "category": "administratif",
+        "urgent": false,
+        "trap": null,
+        "followUp": "not_tracked"
+      },
+      "note": "même domaine que m152, sans en-tête de liste : la règle Administratif s'applique"
+    },
+    {
+      "id": "m154",
+      "from": {
+        "name": "Hébergeur Nuage",
+        "address": "marketing@hebergeur-nuage.example"
+      },
+      "to": "test-cenacle@cenacle.test",
+      "subject": "-30 % sur les serveurs dédiés ce week-end",
+      "date": "2026-09-27T10:00:00Z",
+      "inReplyTo": null,
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\nCe week-end seulement, -30 % sur toute la gamme de serveurs dédiés.\n\nJ'en profite.",
+      "expected": {
+        "category": "bruit",
+        "urgent": false,
+        "trap": null,
+        "followUp": "not_tracked"
+      },
+      "note": "publicité d'un domaine administratif ; Precedence: bulk",
+      "listHeaders": [["Precedence", "bulk"]]
+    },
+    {
+      "id": "m155",
+      "from": {
+        "name": "Hébergeur Nuage",
+        "address": "facturation@hebergeur-nuage.example"
+      },
+      "to": "test-cenacle@cenacle.test",
+      "subject": "Votre facture n° FN-2026-0917 est disponible",
+      "date": "2026-09-29T04:30:00Z",
+      "inReplyTo": null,
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\nVotre facture n° FN-2026-0917, d'un montant de 12,00 € TTC, est disponible dans votre espace client.",
+      "expected": {
+        "category": "administratif",
+        "urgent": false,
+        "trap": null,
+        "followUp": "not_tracked"
+      },
+      "note": "même domaine que m154, sans en-tête : facture"
+    },
+    {
+      "id": "m156",
+      "from": {
+        "name": "Agence Kora — comité",
+        "address": "comite@agence-kora.example"
+      },
+      "to": "test-cenacle@cenacle.test",
+      "subject": "Compte rendu du comité de pilotage du 29 septembre",
+      "date": "2026-09-30T13:20:00Z",
+      "inReplyTo": null,
+      "contentType": "text/plain",
+      "body": "Bonjour à tous,\n\nVous trouverez ci-dessous le compte rendu du comité de pilotage. Merci de nous dire avant vendredi si le planning du lot 2 vous convient.\n\nL'équipe projet.",
+      "expected": {
+        "category": "clients_prospects",
+        "urgent": false,
+        "trap": null,
+        "followUp": "waiting"
+      },
+      "note": "client qui écrit depuis un outil d'envoi : la règle client l'emporte sur le courrier de masse (ADR-0029)",
+      "listHeaders": [
+        [
+          "List-Unsubscribe",
+          "<https://agence-kora.example/desabonnement?u=fictif>, <mailto:desabonnement@agence-kora.example>"
+        ]
+      ]
+    },
+    {
+      "id": "m157",
+      "from": {
+        "name": "Cabinet Orme — agenda",
+        "address": "agenda@cabinet-orme.example"
+      },
+      "to": "test-cenacle@cenacle.test",
+      "subject": "Invitation : point mensuel du 7 octobre",
+      "date": "2026-09-25T09:00:00Z",
+      "inReplyTo": null,
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\nNous vous proposons le point mensuel le 7 octobre à 10 h. Pouvez-vous nous confirmer votre présence ?\n\nCabinet Orme.",
+      "expected": {
+        "category": "clients_prospects",
+        "urgent": false,
+        "trap": null,
+        "followUp": "due"
+      },
+      "note": "client, invitation envoyée par une liste (List-Id) : la règle client l'emporte",
+      "listHeaders": [["List-Id", "Agenda du cabinet <agenda.cabinet-orme.example>"]]
+    },
+    {
+      "id": "m158",
+      "from": {
+        "name": "Salon du Numérique",
+        "address": "info@salon-numerique.example"
+      },
+      "to": "test-cenacle@cenacle.test",
+      "subject": "J-10 avant le Salon du Numérique : votre badge vous attend",
+      "date": "2026-09-28T07:45:00Z",
+      "inReplyTo": null,
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\nPlus que 10 jours ! Téléchargez votre badge et préparez votre visite.\n\nVous recevez cette lettre car vous êtes inscrit.",
+      "expected": {
+        "category": "bruit",
+        "urgent": false,
+        "trap": null,
+        "followUp": "not_tracked"
+      },
+      "note": "lettre d'un domaine inconnu, avec en-têtes de liste",
+      "listHeaders": [
+        [
+          "List-Unsubscribe",
+          "<https://salon-numerique.example/desabonnement?u=fictif>, <mailto:desabonnement@salon-numerique.example>"
+        ],
+        ["List-Id", "<lettre.salon-numerique.example>"]
+      ]
+    },
+    {
+      "id": "m159",
+      "from": {
+        "name": "Webinaire Cloud",
+        "address": "contact@webinaire-cloud.example"
+      },
+      "to": "test-cenacle@cenacle.test",
+      "subject": "Replay : sécuriser vos API en 45 minutes",
+      "date": "2026-09-29T16:00:00Z",
+      "inReplyTo": null,
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\nLe replay de notre webinaire est disponible.\n\nRegarder le replay.",
+      "expected": {
+        "category": "bruit",
+        "urgent": false,
+        "trap": null,
+        "followUp": "not_tracked"
+      },
+      "note": "nom d'en-tête en minuscules, valeur en majuscules",
+      "listHeaders": [["precedence", "BULK"]]
+    },
+    {
+      "id": "m160",
+      "from": {
+        "name": "Boutique Gadget",
+        "address": "promo@boutique-gadget.example"
+      },
+      "to": "test-cenacle@cenacle.test",
+      "subject": "Vos gadgets préférés à -50 %",
+      "date": "2026-09-26T18:00:00Z",
+      "inReplyTo": null,
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\nNos gadgets préférés sont à -50 % jusqu'à dimanche.\n\nVoir les offres.",
+      "expected": {
+        "category": "bruit",
+        "urgent": false,
+        "trap": null,
+        "followUp": "not_tracked"
+      },
+      "note": "domaine déjà en Bruit, avec en-tête : le courrier de masse décide aussi Bruit",
+      "listHeaders": [
+        [
+          "List-Unsubscribe",
+          "<https://boutique-gadget.example/desabonnement?u=fictif>, <mailto:desabonnement@boutique-gadget.example>"
+        ]
+      ]
+    },
+    {
+      "id": "m161",
+      "from": {
+        "name": "Étude Dupuis, notaires",
+        "address": "office@notaire-dupuis.example"
+      },
+      "to": "test-cenacle@cenacle.test",
+      "subject": "Votre acte de cession est prêt à être signé",
+      "date": "2026-09-30T08:10:00Z",
+      "inReplyTo": null,
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\nL'acte de cession de parts sociales est prêt. Merci de prendre rendez-vous pour la signature.\n\nL'étude.",
+      "expected": {
+        "category": "administratif",
+        "urgent": false,
+        "trap": null,
+        "followUp": "not_tracked"
+      },
+      "note": "Precedence: first-class n'est pas du courrier de masse : le modèle décide",
+      "listHeaders": [["Precedence", "first-class"]]
+    },
+    {
+      "id": "m162",
+      "from": {
+        "name": "Lettre IA",
+        "address": "lettre@lettre-ia.example"
+      },
+      "to": "test-cenacle@cenacle.test",
+      "subject": "Lettre IA n° 42 : les modèles locaux en entreprise",
+      "date": "2026-09-27T06:00:00Z",
+      "inReplyTo": null,
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\nAu sommaire : les modèles locaux en entreprise, trois retours d'expérience.\n\nSe désabonner.",
+      "expected": {
+        "category": "bruit",
+        "urgent": false,
+        "trap": null,
+        "followUp": "not_tracked"
+      },
+      "note": "List-Unsubscribe présent deux fois : un doublon ne l'efface pas",
+      "listHeaders": [
+        [
+          "List-Unsubscribe",
+          "<https://lettre-ia.example/desabonnement?u=fictif>, <mailto:desabonnement@lettre-ia.example>"
+        ],
+        ["List-Unsubscribe", "<mailto:stop@lettre-ia.example>"]
+      ]
+    },
+    {
+      "id": "m163",
+      "from": {
+        "name": "Enquête Satisfaction",
+        "address": "enquete@enquete-satisfaction.example"
+      },
+      "to": "test-cenacle@cenacle.test",
+      "subject": "Votre avis compte : 2 minutes pour nous répondre",
+      "date": "2026-09-28T11:00:00Z",
+      "inReplyTo": null,
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\nAidez-nous à améliorer nos services en répondant à ce court questionnaire.\n\nRépondre.",
+      "expected": {
+        "category": "bruit",
+        "urgent": false,
+        "trap": null,
+        "followUp": "not_tracked"
+      },
+      "note": "Precedence avec un commentaire",
+      "listHeaders": [["Precedence", "list (envoi groupe)"]]
+    },
+    {
+      "id": "m164",
+      "from": {
+        "name": "Réseau Social (fictif)",
+        "address": "notifications@reseau-social.example"
+      },
+      "to": "test-cenacle@cenacle.test",
+      "subject": "Camille Fictive vous a écrit",
+      "date": "2026-09-30T10:15:00Z",
+      "inReplyTo": null,
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\nCamille Fictive vous a écrit : « Merci pour votre retour, on en reparle la semaine prochaine. »\n\nRépondre sur Réseau Social.",
+      "expected": {
+        "category": "bruit",
+        "urgent": false,
+        "trap": null,
+        "followUp": "not_tracked"
+      },
+      "note": "notification de réseau social SANS en-tête de liste : le modèle doit la reconnaître seul"
+    },
+    {
+      "id": "m165",
+      "from": {
+        "name": "Caisse Indépendants",
+        "address": "attestations@caisse-independants.test"
+      },
+      "to": "test-cenacle@cenacle.test",
+      "subject": "Votre attestation de vigilance est disponible",
+      "date": "2026-09-29T07:00:00Z",
+      "inReplyTo": null,
+      "contentType": "text/plain",
+      "body": "Bonjour,\n\nVotre attestation de vigilance est disponible dans votre espace.\n\nLa caisse.",
+      "expected": {
+        "category": "administratif",
+        "urgent": false,
+        "trap": null,
+        "followUp": "not_tracked"
+      },
+      "note": "List-Unsubscribe vide : ne compte pas, la règle Administratif s'applique",
+      "listHeaders": [["List-Unsubscribe", ""]]
     }
   ],
   "followUp": {

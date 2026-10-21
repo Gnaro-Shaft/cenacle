@@ -58,6 +58,7 @@ export {
   readReplyTargetsAt,
 } from "./located.ts";
 export { cleanForModel, htmlToText, toMailForModel } from "./mail-text.ts";
+export { isMassMail, MASS_HEADERS } from "./mass-mail.ts";
 export {
   type Decider,
   findLeaks,
@@ -106,7 +107,7 @@ export {
   safeAddress,
   validMessageId,
 } from "./reply-target.ts";
-export { sentToRfc822, toRfc822 } from "./rfc822.ts";
+export { fixtureListFields, sentToRfc822, toRfc822 } from "./rfc822.ts";
 export {
   EXAMPLE_RULES_PATH,
   LOCAL_RULES_PATH,

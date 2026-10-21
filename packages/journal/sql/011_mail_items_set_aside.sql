@@ -6,7 +6,7 @@
 
 ALTER TABLE mail_items DROP CONSTRAINT IF EXISTS mail_items_decided_by_check;
 ALTER TABLE mail_items ADD CONSTRAINT mail_items_decided_by_check
-  CHECK (decided_by IN ('rule', 'unreadable', 'model', 'set_aside'));
+  CHECK (decided_by IN ('rule', 'unreadable', 'model', 'set_aside')) NOT VALID;
 
 -- Set aside always means "À trier": nothing else is decided about it.
 ALTER TABLE mail_items DROP CONSTRAINT IF EXISTS mail_items_set_aside_to_sort;

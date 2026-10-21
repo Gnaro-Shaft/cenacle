@@ -12,13 +12,14 @@
 import { CATEGORIES, type Category } from "@cenacle/core";
 import { isPublicDomain, withoutLinksTo } from "./public-domains.ts";
 
-export type Decider = "rule" | "unreadable" | "model" | "set_aside" | "unauthenticated";
+export type Decider = "rule" | "unreadable" | "model" | "set_aside" | "unauthenticated" | "masse";
 const DECIDERS: readonly Decider[] = [
   "rule",
   "unreadable",
   "model",
   "set_aside",
   "unauthenticated",
+  "masse",
 ];
 
 export interface Verdict {

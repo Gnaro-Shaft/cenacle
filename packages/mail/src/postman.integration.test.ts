@@ -41,6 +41,20 @@ describe("postman (GreenMail)", () => {
     expect(result.refs.filter((r) => r.auth !== "authenticated")).toEqual([]);
   });
 
+  it("reads the bulk-mail headers through IMAP: mass exactly where a fixture carries them (ADR-0029)", async () => {
+    const result = await fetchMailRefs(mail, password, keyer);
+    const byKey = new Map(result.refs.map((r) => [r.messageKey, r.mass]));
+    const expected = (m: (typeof messages)[number]) =>
+      (m.listHeaders ?? []).some(([name, value]) =>
+        /^list-(unsubscribe|id)$/i.test(name)
+          ? value.trim() !== ""
+          : /^(bulk|list|junk)\b/i.test(value.replace(/\([^()]*\)/g, " ").trim()),
+      );
+    const wrong = messages.filter((m) => byKey.get(idKey(m.id)) !== expected(m)).map((m) => m.id);
+    expect(wrong).toEqual([]);
+    expect(messages.filter(expected).length).toBe(13);
+  });
+
   it("another server name, or another rank, authenticates nobody", async () => {
     for (const trustedServer of [
       { ...mail.trustedServer, authservId: "mx.other.test" },
@@ -62,6 +76,8 @@ describe("postman (GreenMail)", () => {
       expect(Object.keys(ref).sort()).toEqual([
         "auth",
         "domain",
+        // One boolean for the sort (ADR-0029); the headers themselves are not kept.
+        "mass",
         "messageKey",
         "receivedAt",
         "senderKey",

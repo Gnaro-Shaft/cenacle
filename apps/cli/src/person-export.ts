@@ -24,6 +24,7 @@ export const DECIDED_BY_LABEL: Readonly<Record<DecidedBy, string>> = {
   unreadable: "mis de côté pour moi, sans le modèle",
   set_aside: "mis de côté pour moi, sans le modèle",
   unauthenticated: "mis de côté pour moi, sans le modèle",
+  masse: "une règle : courrier envoyé en nombre",
 };
 
 export class ExportLabelError extends Error {

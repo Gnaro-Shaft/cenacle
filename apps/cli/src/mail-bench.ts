@@ -10,6 +10,8 @@ import { CATEGORIES, errorText, loadFixtureMailbox } from "@cenacle/core";
 import {
   EXAMPLE_RULES_PATH,
   fixtureForModel,
+  fixtureListFields,
+  isMassMail,
   keptFromModel,
   parseRules,
   sortByRules,
@@ -23,13 +25,24 @@ try {
   const views = messages.map((m, i) => fixtureForModel(i + 1, m));
   // Always the example rules: the benchmark measures the fictional mailbox only.
   const rules = parseRules(readFileSync(EXAMPLE_RULES_PATH, "utf8"));
-  const toModel = all
-    ? views
-    : sortByRules(
-        // The fixtures all carry an authenticated sender (cadre.toml, rfc822.ts).
-        views.map((v) => ({ uid: v.uid, domain: v.domain, auth: "authenticated" as const })),
-        rules,
-      ).remaining.map((ref) => views[ref.uid - 1]);
+  // The fixtures all carry an authenticated sender (cadre.toml, rfc822.ts); their
+  // bulk-mail headers are judged by the same function as in production (ADR-0029).
+  const ruleSort = sortByRules(
+    views.map((v, i) => ({
+      uid: v.uid,
+      domain: v.domain,
+      auth: "authenticated" as const,
+      mass: isMassMail(fixtureListFields(messages[i] as (typeof messages)[number])),
+    })),
+    rules,
+  );
+  const toModel = all ? views : ruleSort.remaining.map((ref) => views[ref.uid - 1]);
+  // Mass mail is decided before the model: counted apart, not in the M5 score.
+  const massed = ruleSort.sorted.filter((s) => s.decidedBy === "masse");
+  const massRight = massed.filter((s) => messages[s.uid - 1]?.expected.category === "bruit");
+  console.log(
+    `Courrier de masse (ADR-0029) : ${massed.length} rangés en « Bruit » par leurs en-têtes, ${massRight.length} attendus en « Bruit »`,
+  );
 
   console.log(
     `Modèle ${local.model.id} — ${toModel.length} mails${all ? " (tous)" : " (laissés par les règles)"}`,

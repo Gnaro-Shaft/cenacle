@@ -15,6 +15,7 @@ import { ImapFlow } from "imapflow";
 import type { MailCadre } from "./cadre.ts";
 import { imapOptions } from "./connection.ts";
 import { type Keyer, messageIds } from "./keys.ts";
+import { isMassMail, MASS_HEADERS } from "./mass-mail.ts";
 import { type HeaderField, orderedHeaders } from "./ordered-headers.ts";
 import { type AuthVerdict, senderAuthentication } from "./sender-auth.ts";
 import { addressList, senderAddress, senderDomain } from "./sender-domain.ts";
@@ -33,6 +34,8 @@ export interface MailRef {
   readonly urgentTerm: boolean;
   /** Is the From domain authenticated by our receiving server (ADR-0014)? */
   readonly auth: AuthVerdict;
+  /** Sent in bulk, by its own headers (ADR-0029). Absent means no. Never stored. */
+  readonly mass?: boolean;
 }
 
 /** One of my sent mails, as remembered. */
@@ -82,6 +85,7 @@ const INBOX_HEADERS = [
   "references",
   "received",
   "authentication-results",
+  ...MASS_HEADERS,
 ];
 const SENT_HEADERS = ["to", "cc", "message-id", "in-reply-to", "references"];
 
@@ -253,6 +257,7 @@ export async function fetchMailRefs(
         receivedAt: date,
         urgentTerm: hasUrgentTerm(decodeSubject(headers.get("subject"))),
         auth: senderAuthentication(fields, truncated, domain, cadre.trustedServer),
+        mass: isMassMail(fields),
       };
     }),
   };

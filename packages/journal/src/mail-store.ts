@@ -12,8 +12,9 @@ export type StoredCategory = (typeof CATEGORY_VALUES)[number];
 /**
  * "set_aside": kept from the model (article 9 floor, empty or unreadable) — never why (C2).
  * "unauthenticated": a client rule refused for an unauthenticated sender (ADR-0014).
+ * "masse": a mail sent in bulk, by its own headers, put in "bruit" (ADR-0029).
  */
-export type DecidedBy = "rule" | "unreadable" | "model" | "set_aside" | "unauthenticated";
+export type DecidedBy = "rule" | "unreadable" | "model" | "set_aside" | "unauthenticated" | "masse";
 export type Mailbox = "inbox" | "sent";
 
 export interface InboxItem {
