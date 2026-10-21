@@ -37,7 +37,7 @@ tail -f ~/Library/Logs/cenacle/iris.log
 Iris, le serveur et le bot ont besoin de la base ; Iris, du modèle. Sans eux, ils démarrent, échouent, et réessaient toutes les 30 s jusqu'à ce qu'ils soient là.
 
 - **Docker Desktop** : Réglages → Général → « Start Docker Desktop when you sign in ».
-- **LM Studio** : Réglages → activer le service au démarrage de session, avec le chargement du modèle à la demande (« Just-in-Time Model Loading »).
+- **Ollama** (ADR-0028) : l'application démarre avec la session (Réglages macOS → Général → Ouverture). Ses réglages tiennent dans un agent `launchd` à toi, qui fait `launchctl setenv` à l'ouverture de session : `OLLAMA_CONTEXT_LENGTH=262144`, `OLLAMA_KEEP_ALIVE=-1`, `OLLAMA_MAX_LOADED_MODELS=1`, `OLLAMA_NO_CLOUD=1`. Vérifier : `ollama ps` montre le modèle de `LOCAL_MODEL_ID`, avec son contexte.
 
 ## Ce que ça ne règle pas
 

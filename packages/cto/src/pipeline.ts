@@ -67,9 +67,17 @@ export interface CtoDeps {
 
 /**
  * Up to 240 k characters of documentation, ~72 k tokens: a window far above
- * Iris's, within what LM Studio loads for the shared model. Answers are short
+ * Iris's, within what Ollama loads for the shared model. Answers are short
  * (the model writes ~18 tokens/s): 1500 tokens, ~1000 words at most.
  */
+/**
+ * Sent with every question: Ollama's Modelfile for qwen3.8 says 1, and the CTO
+ * then answered without his tools more often. 0.7 was the best value measured
+ * on 2026-10-20 (no timeout); 0 made a question run past its delay
+ * (docs/mesures/bascule-qwen36.md).
+ */
+export const CTO_TEMPERATURE = 0.7;
+
 export function ctoModels(): LocalModels {
   return createLocalModels({
     ...localModelConfigFromEnv(),
@@ -144,6 +152,7 @@ export async function runCto(
         timeoutMs: PASS_TIMEOUT_MS,
         onProgress: (chars) => tell({ kind: "writing", phase, chars }),
         tools: own.tools,
+        temperature: CTO_TEMPERATURE,
       });
       cut = cut || reply.cut;
       return NOTHING.test(reply.text) ? null : reply.text;
@@ -183,6 +192,7 @@ export async function runCto(
         timeoutMs: review ? 900_000 : options.kind === "conformity" ? 600_000 : 300_000,
         onProgress: (chars) => tell({ kind: "writing", phase, chars }),
         tools,
+        temperature: CTO_TEMPERATURE,
       });
       cut = reply.cut;
       return reply.text;

@@ -8,7 +8,7 @@ Les modèles tournent sur un Mac à mémoire unifiée, la seule machine équipé
 
 ## Décision
 
-- **Le cerveau est sur le Mac** : agents, modèles, base de données, mémoire, tout contenu de mail. Docker Compose pour les services ; les modèles en **natif** (LM Studio / MLX), puisque Docker n'accède pas au GPU sur macOS.
+- **Le cerveau est sur le Mac** : agents, modèles, base de données, mémoire, tout contenu de mail. Docker Compose pour les services ; les modèles en **natif** (LM Studio / MLX, puis Ollama depuis le 2026-10-21, ADR-0028), puisque Docker n'accède pas au GPU sur macOS.
 - **La sentinelle est un petit VPS** (Europe, France de préférence), qui **ne voit aucun contenu** :
   - il envoie le récapitulatif et répond sur Telegram même si le Mac est injoignable ;
   - il relaie les notifications Web Push ;

@@ -6,7 +6,7 @@
 
 **Rôle de Gnaro (EURL)** : **déployeur**. Un modèle de tiers à poids ouverts tourne en local pour son propre compte. Si Cénacle ou un service bâti dessus est un jour proposé à d'autres, Gnaro deviendrait **fournisseur** et ce registre devrait être revu.
 
-**Modèle** : `qwen/qwen3.8-27b` (Alibaba, poids ouverts), servi par LM Studio sur le même Mac (confirmé le 2026-10-04). Aucun appel à un modèle en ligne (ADR-0003) ; si le modèle local est indisponible, Iris attend.
+**Modèle** : `qwen3.8:27b` (Alibaba, poids ouverts, NVFP4), servi par Ollama sur le même Mac, à l'écoute du Mac seul, sans accès au cloud d'Ollama (depuis le 2026-10-21, ADR-0028 ; `qwen/qwen3.8-27b` servi par LM Studio du 2026-10-04 au 2026-10-21). Aucun appel à un modèle en ligne (ADR-0003) ; si le modèle local est indisponible, Iris attend.
 
 **Aucune pratique interdite (art. 5)** : ni manipulation, ni notation sociale, ni reconnaissance des émotions, ni biométrie. **Rien de l'annexe III (haut risque)** : Cénacle ne décide ni d'un emploi, ni d'un crédit, ni d'un accès à un service ; il trie et propose pour un seul utilisateur.
 

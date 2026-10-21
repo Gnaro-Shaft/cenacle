@@ -10,6 +10,7 @@ import type { Journal } from "@cenacle/journal";
 import { Agent, type AgentTool } from "@earendil-works/pi-agent-core";
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 import { type Span, SpanStatusCode, trace } from "@opentelemetry/api";
+import { answerText } from "./answer-text.ts";
 import type { LocalModels } from "./local-model.ts";
 import { type DataClass, route } from "./router.ts";
 
@@ -59,6 +60,11 @@ export interface AskOptions {
    */
   // biome-ignore lint/suspicious/noExplicitAny: the agent's own type for a mixed tool list.
   readonly tools?: readonly AgentTool<any>[];
+  /**
+   * Sampling temperature, between 0 and 2. Unset, nothing is sent and the
+   * model server's own default applies (Ollama's Modelfile for qwen3.8: 1).
+   */
+  readonly temperature?: number;
 }
 
 const AGENT_NAME = /^[a-z][a-z0-9_-]{0,31}$/;
@@ -79,10 +85,9 @@ export const SPAN_ATTRIBUTES = [
 ] as const;
 
 function textOf(message: AssistantMessage): string {
-  return message.content
-    .flatMap((block) => (block.type === "text" ? [block.text] : []))
-    .join("")
-    .trim();
+  return answerText(
+    message.content.flatMap((block) => (block.type === "text" ? [block.text] : [])).join(""),
+  );
 }
 
 export function askIris(options: AskOptions): Promise<IrisAnswer> {
@@ -93,6 +98,10 @@ export function askIris(options: AskOptions): Promise<IrisAnswer> {
 export function askAgent(options: AskOptions): Promise<IrisAnswer> {
   const agent = options.agent ?? "iris";
   if (!AGENT_NAME.test(agent)) throw new Error(`invalid agent name ${JSON.stringify(agent)}`);
+  const { temperature } = options;
+  if (temperature !== undefined && !(temperature >= 0 && temperature <= 2)) {
+    throw new Error(`invalid temperature ${String(temperature)}`);
+  }
   return tracer.startActiveSpan(`${agent}.ask`, async (span) => {
     try {
       return await askIrisTraced(options, span);
@@ -111,7 +120,7 @@ export function askAgent(options: AskOptions): Promise<IrisAnswer> {
 }
 
 async function askIrisTraced(options: AskOptions, span: Span): Promise<IrisAnswer> {
-  const { journal, local } = options;
+  const { journal, local, temperature } = options;
   const AGENT = options.agent ?? "iris";
   // Phase 1 has no EU API: the router must answer "local" for every class.
   const destination = route({ dataClass: options.dataClass }, { euApiConfigured: false });
@@ -136,7 +145,11 @@ async function askIrisTraced(options: AskOptions, span: Span): Promise<IrisAnswe
       thinkingLevel: "off",
       tools: [...(options.tools ?? [])],
     },
-    streamFn: local.models.streamSimple.bind(local.models),
+    streamFn:
+      temperature === undefined
+        ? local.models.streamSimple.bind(local.models)
+        : (model, context, streamOptions) =>
+            local.models.streamSimple(model, context, { ...streamOptions, temperature }),
   });
   let written = 0;
   const { onProgress } = options;
