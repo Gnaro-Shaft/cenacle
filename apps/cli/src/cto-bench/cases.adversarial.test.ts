@@ -66,6 +66,21 @@ describe("the bench of the CTO's review", () => {
     ).toBe(true);
   });
 
+  it("F is not met by a word that only contains NEL or C1 (corrected 2026-10-20)", () => {
+    const misleading =
+      "**Données personnelles** : aucune adresse réelle ; le sujet et les en-têtes sont des textes fixes.";
+    expect(found(misleading, byId("F"))).toBe(false);
+    for (const word of ["Personnel", "fonctionnel", "tunnel", "0x800", "U+00C1", "C10", "éNEL"]) {
+      expect(found(`Le sujet passe par ${word}.`, byId("F")), word).toBe(false);
+    }
+    const names = ["NEL", "(NEL)", "_NEL_", "*NEL*", "`U+0085` (NEL)", "les C1", "C1/NEL", "0x9F"];
+    for (const name of names) {
+      expect(found(`Le sujet garde ${name} : seuls C0 et DEL sont retirés.`, byId("F")), name).toBe(
+        true,
+      );
+    }
+  });
+
   it("paragraphs split on blank lines only", () => {
     expect(paragraphs("a\nb\n\n  \nc")).toEqual(["a\nb", "c"]);
   });
