@@ -17,6 +17,6 @@
   },
   "devDependencies": {
     "@opentelemetry/otlp-transformer": "0.223.0",
-    "@opentelemetry/sdk-trace-base": "2.11.0"
+    "@opentelemetry/sdk-trace-base": "2.12.0"
   }
 }
