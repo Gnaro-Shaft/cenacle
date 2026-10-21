@@ -83,8 +83,13 @@ export const BENCH: readonly BenchCase[] = [
     commit: "08b2cb5",
     defect: "the reply subject strips C0 and DEL but not C1 control characters (NEL)",
     fixedBy: "948406c",
+    // Corrected after the runs of 2026-10-20, and said so: /NEL/i matched
+    // "personnelles", so a paragraph on personal data that cited a subject or a
+    // header counted. Short names now stand alone, between neither letters nor
+    // digits. Those runs are counted by reading, not by this criterion: a
+    // paragraph that rules the defect out still meets it.
     mustMention: [
-      /(C1|NEL|U\+0080|U\+009F|0x80|0x9f|0x85|caract[èe]res? de contr[ôo]le|control char)/i,
+      /((?<![\p{L}\d])(C1|NEL|0x80|0x9f|0x85)(?![\p{L}\d])|U\+0080|U\+009F|caract[èe]res? de contr[ôo]le|control char)/iu,
       /(sujet|subject|en-t[êe]te|header)/i,
     ],
   },

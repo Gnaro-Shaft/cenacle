@@ -42,6 +42,12 @@ const MAX_FILE = 200_000;
 
 /** Documentation, by path: the only files ever considered. */
 const DOCUMENTATION = /^(README\.md|CLAUDE\.md|docs\/.+\.md|[^/]+\/[^/]+\/README\.md)$/;
+/**
+ * Measurement reports: figures, long, rarely the answer. Never in the prompt,
+ * still readable by the CTO's tools (ADR-0021): the report of 2026-10-20 alone
+ * (21 k characters) pushed the oldest phases out of the budget.
+ */
+const READ_BY_TOOLS_ONLY = /^docs\/mesures\//;
 /** Never read, whatever the allow-list says. */
 export const DENIED = /(^|\/)\.env|\.local\.toml$|(^|\/)fixtures\//i;
 /** Text that looks like a credential: the whole file is left out. */
@@ -111,7 +117,9 @@ export function loadProjectContext(
   const skipped: Skipped[] = [];
   let chars = 0;
   const candidates = orderDocumentation(
-    (options.tracked ?? gitTrackedFiles)(root).filter((p) => DOCUMENTATION.test(p)),
+    (options.tracked ?? gitTrackedFiles)(root).filter(
+      (p) => DOCUMENTATION.test(p) && !READ_BY_TOOLS_ONLY.test(p),
+    ),
   );
   for (const path of candidates) {
     if (DENIED.test(path)) {
