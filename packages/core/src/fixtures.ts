@@ -18,6 +18,11 @@ export interface FixtureMessage {
   readonly inReplyTo: string | null;
   readonly contentType: "text/plain" | "text/html";
   readonly body: string;
+  /**
+   * Bulk-mail headers it carries, as written (ADR-0029): [name, value] pairs,
+   * names among List-Unsubscribe, List-Id, Precedence (any case), duplicates allowed.
+   */
+  readonly listHeaders?: readonly (readonly [string, string])[];
   readonly expected: {
     readonly category: Category;
     readonly urgent: boolean;

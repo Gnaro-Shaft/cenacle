@@ -62,7 +62,11 @@ describe("postman — headers only", () => {
 
   it("fetches a fixed list of headers — no body, no envelope, no source", () => {
     expect(src).toMatch(
-      /INBOX_HEADERS = \[\s*"from",\s*"subject",\s*"message-id",\s*"in-reply-to",\s*"references",\s*"received",\s*"authentication-results",?\s*\]/,
+      /INBOX_HEADERS = \[\s*"from",\s*"subject",\s*"message-id",\s*"in-reply-to",\s*"references",\s*"received",\s*"authentication-results",\s*\.\.\.MASS_HEADERS,?\s*\]/,
+    );
+    // The bulk-mail headers (ADR-0029): three, fixed, read for one boolean.
+    expect(code("mass-mail.ts")).toMatch(
+      /MASS_HEADERS = \["list-unsubscribe", "list-id", "precedence"\] as const;/,
     );
     expect(src).toMatch(/SENT_HEADERS = \["to", "cc", "message-id", "in-reply-to", "references"\]/);
     for (const field of ["source", "bodyParts", "envelope", "bodyStructure"]) {

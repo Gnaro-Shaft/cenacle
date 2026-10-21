@@ -1,5 +1,7 @@
 import { CATEGORIES, loadFixtureMailbox } from "@cenacle/core";
 import { describe, expect, it } from "vitest";
+import { isMassMail } from "./mass-mail.ts";
+import { fixtureListFields } from "./rfc822.ts";
 import { EXAMPLE_RULES_PATH, loadRules, parseRules, sortByRules } from "./rules.ts";
 
 describe("rules", () => {
@@ -48,17 +50,19 @@ describe("rules", () => {
       uid: i + 1,
       domain: m.from.address.split("@")[1]?.toLowerCase() ?? null,
       auth: "authenticated" as const,
+      // As in production: the same function reads the bulk-mail headers (ADR-0029).
+      mass: isMassMail(fixtureListFields(m)),
     }));
     const { sorted, counts } = sortByRules(refs, rules);
     for (const { uid, category } of sorted) {
       expect(category).toBe(messages[uid - 1]?.expected.category);
     }
     expect(counts).toEqual({
-      clients_prospects: 36,
-      administratif: 40,
-      bruit: 46,
+      clients_prospects: 38,
+      administratif: 43,
+      bruit: 57,
       a_trier: 0,
-      remaining: 25,
+      remaining: 27,
     });
     expect(Object.keys(counts)).toEqual([...CATEGORIES, "remaining"]);
   });

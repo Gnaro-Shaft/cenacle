@@ -3,6 +3,7 @@
 // (B7's failed-without-sending-time rows broke 007 on a real database.)
 import { createHash } from "node:crypto";
 import { afterAll, describe, expect, it } from "vitest";
+import { createMailStore } from "./mail-store.ts";
 import {
   appUrlFromEnv,
   EXECUTOR_PASSWORD_VAR,
@@ -70,6 +71,53 @@ describe("migrations run again on a populated database", () => {
     expect((await store.get(unsigned.id))?.status).toBe("failed");
     expect((await store.get(accepted.id))?.status).toBe("accepted");
   });
+});
+
+describe("mail rows decided by every decider survive a replay (ADR-0029)", () => {
+  const mails = createMailStore(sql);
+  const base = 900_000 + (Date.now() % 50_000) * 10;
+  const item = (uid: number) => ({
+    uid,
+    receivedAt: "2026-10-21T08:00:00Z",
+    noFollowUp: false,
+    urgentTerm: false,
+    senderAuthenticated: true,
+    senderKey: null,
+    messageKey: null,
+    threadKeys: [],
+  });
+
+  it("'masse' rows, then db:migrate again: 011 and 013 refuse nothing", async () => {
+    const rows = [
+      [base + 1, "bruit", "masse"],
+      [base + 2, "a_trier", "unauthenticated"],
+      [base + 3, "a_trier", "set_aside"],
+      [base + 4, "administratif", "rule"],
+    ] as const;
+    await mails.saveInbox(
+      "29",
+      rows.map(([uid]) => item(uid)),
+    );
+    for (const [uid, category, by] of rows) {
+      expect(await mails.categorize(uid, category, by)).toBe(true);
+    }
+    await expect(
+      migrate({
+        ownerUrl: ownerUrlFromEnv(TEST_DB),
+        appPassword: requireEnv("CENACLE_DB_APP_PASSWORD"),
+        executorPassword: requireEnv(EXECUTOR_PASSWORD_VAR),
+      }),
+    ).resolves.toContain("025_mail_items_masse.sql");
+  });
+
+  it.each(["clients_prospects", "administratif", "a_trier"] as const)(
+    "'masse' with %s is refused by the database: a mass mail is noise only",
+    async (category) => {
+      const uid = base + 10 + ["clients_prospects", "administratif", "a_trier"].indexOf(category);
+      await mails.saveInbox("29", [item(uid)]);
+      await expect(mails.categorize(uid, category, "masse")).rejects.toThrow(/masse_is_bruit/);
+    },
+  );
 });
 
 describe("the programs connect without the owner's password (S1)", () => {

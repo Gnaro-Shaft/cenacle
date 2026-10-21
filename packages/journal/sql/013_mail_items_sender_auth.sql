@@ -9,7 +9,7 @@ ALTER TABLE mail_items ADD COLUMN IF NOT EXISTS sender_authenticated BOOLEAN NOT
 -- "unauthenticated": a client rule refused for an unauthenticated sender.
 ALTER TABLE mail_items DROP CONSTRAINT IF EXISTS mail_items_decided_by_check;
 ALTER TABLE mail_items ADD CONSTRAINT mail_items_decided_by_check
-  CHECK (decided_by IN ('rule', 'unreadable', 'model', 'set_aside', 'unauthenticated'));
+  CHECK (decided_by IN ('rule', 'unreadable', 'model', 'set_aside', 'unauthenticated')) NOT VALID;
 
 -- Refused means "À trier": nothing else is decided about it.
 ALTER TABLE mail_items DROP CONSTRAINT IF EXISTS mail_items_unauthenticated_to_sort;

@@ -128,9 +128,10 @@ export interface SortedRef {
   readonly category: Category;
   /**
    * "rule" for an exact domain rule, "unreadable" when the sender could not be
-   * read, "unauthenticated" for a client rule whose sender is not authenticated.
+   * read, "unauthenticated" for a client rule whose sender is not authenticated,
+   * "masse" for a mail sent in bulk, by its headers (ADR-0029).
    */
-  readonly decidedBy: "rule" | "unreadable" | "unauthenticated";
+  readonly decidedBy: "rule" | "unreadable" | "unauthenticated" | "masse";
 }
 
 export interface RuleSort<T extends Sortable = MailRef> {
@@ -141,6 +142,8 @@ export interface RuleSort<T extends Sortable = MailRef> {
   readonly counts: Readonly<Record<Category, number>> & { readonly remaining: number };
   /** Client rules refused for an unauthenticated sender (counted in a_trier too). */
   readonly unauthenticated: number;
+  /** Mass mails sent to "bruit" by their headers (counted in bruit too). */
+  readonly mass: number;
 }
 
 /** What sorting by rules needs to know of a mail. */
@@ -148,15 +151,31 @@ export interface Sortable {
   readonly uid: number;
   readonly domain: string | null;
   readonly auth: AuthVerdict;
+  /** Sent in bulk, by its headers (ADR-0029). Absent means no. */
+  readonly mass?: boolean;
 }
 
+/**
+ * The order (ADR-0029): an unreadable sender stays "a_trier"; a client rule
+ * decides as before (ADR-0014) — mass headers, which anyone can write, never
+ * touch it; then a mass mail goes to "bruit", before any other rule and the
+ * model; then the domain's rule; the rest is left for the model.
+ */
 export function sortByRules<T extends Sortable>(refs: readonly T[], rules: Rules): RuleSort<T> {
   const sorted: SortedRef[] = [];
   const remaining: T[] = [];
   const counts = { clients_prospects: 0, administratif: 0, bruit: 0, a_trier: 0, remaining: 0 };
   let unauthenticated = 0;
+  let mass = 0;
   for (const ref of refs) {
-    const rule: Category | undefined = ref.domain === null ? "a_trier" : rules.get(ref.domain);
+    const domainRule = ref.domain === null ? undefined : rules.get(ref.domain);
+    if (ref.domain !== null && domainRule !== "clients_prospects" && ref.mass === true) {
+      sorted.push({ uid: ref.uid, category: "bruit", decidedBy: "masse" });
+      counts.bruit++;
+      mass++;
+      continue;
+    }
+    const rule: Category | undefined = ref.domain === null ? "a_trier" : domainRule;
     if (rule === undefined) {
       remaining.push(ref);
       counts.remaining++;
@@ -172,5 +191,5 @@ export function sortByRules<T extends Sortable>(refs: readonly T[], rules: Rules
     });
     counts[category]++;
   }
-  return { sorted, remaining, counts, unauthenticated };
+  return { sorted, remaining, counts, unauthenticated, mass };
 }

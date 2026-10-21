@@ -196,7 +196,7 @@ export async function collectMail(deps: CollectDeps): Promise<CollectSummary> {
     await journal.append({
       agent: AGENT,
       type: "mail.sorted_by_rules",
-      payload: { ...ruleSort.counts },
+      payload: { ...ruleSort.counts, masse: ruleSort.mass },
     });
     if (inboxRefs.length > 0) {
       await journal.append({
