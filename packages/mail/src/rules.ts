@@ -156,10 +156,12 @@ export interface Sortable {
 }
 
 /**
- * The order (ADR-0029): an unreadable sender stays "a_trier"; a client rule
- * decides as before (ADR-0014) — mass headers, which anyone can write, never
- * touch it; then a mass mail goes to "bruit", before any other rule and the
- * model; then the domain's rule; the rest is left for the model.
+ * The order (ADR-0029, ADR-0030): an unreadable sender stays "a_trier"; a
+ * client rule decides as before (ADR-0014) — mass headers, which anyone can
+ * write, never touch it; a mass mail from an "administratif" domain is left
+ * for the model, capped at "administratif" (ceilingOf, capped): such a domain
+ * sends invoices with bulk headers too; any other mass mail goes to "bruit";
+ * then the domain's rule; the rest is left for the model.
  */
 export function sortByRules<T extends Sortable>(refs: readonly T[], rules: Rules): RuleSort<T> {
   const sorted: SortedRef[] = [];
@@ -169,6 +171,11 @@ export function sortByRules<T extends Sortable>(refs: readonly T[], rules: Rules
   let mass = 0;
   for (const ref of refs) {
     const domainRule = ref.domain === null ? undefined : rules.get(ref.domain);
+    if (ceilingOf(ref.mass === true, ref.domain, rules) !== undefined) {
+      remaining.push(ref);
+      counts.remaining++;
+      continue;
+    }
     if (ref.domain !== null && domainRule !== "clients_prospects" && ref.mass === true) {
       sorted.push({ uid: ref.uid, category: "bruit", decidedBy: "masse" });
       counts.bruit++;
@@ -192,4 +199,26 @@ export function sortByRules<T extends Sortable>(refs: readonly T[], rules: Rules
     counts[category]++;
   }
   return { sorted, remaining, counts, unauthenticated, mass };
+}
+
+/**
+ * The highest box the model may give a mail (ADR-0030): a mass mail from an
+ * "administratif" domain is read by the model, but its answer never rises
+ * above the rule — headers anyone can write never make a client.
+ */
+export function ceilingOf(
+  mass: boolean,
+  domain: string | null,
+  rules: Rules,
+): "administratif" | undefined {
+  return mass && domain !== null && rules.get(domain) === "administratif"
+    ? "administratif"
+    : undefined;
+}
+
+/** The model's answer under its ceiling: "clients_prospects" becomes "administratif". */
+export function capped(category: Category, ceiling: "administratif" | undefined): Category {
+  return ceiling === "administratif" && category === "clients_prospects"
+    ? "administratif"
+    : category;
 }

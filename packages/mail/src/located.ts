@@ -11,7 +11,7 @@ import { type LocationStore, VIRTUAL_UID_VALIDITY } from "@cenacle/journal";
 import type { MailCadre } from "./cadre.ts";
 import { type Folder, listFolders } from "./folders.ts";
 import type { Keyer } from "./keys.ts";
-import { type MailForSimulation, readMailsForModel, readMailsForSimulation } from "./reader.ts";
+import { type MailForSorting, readMailsForModel, readMailsForSorting } from "./reader.ts";
 import { type ReplyContext, type ReplyTarget, readReplyContexts } from "./reply-target.ts";
 
 export interface FolderGroup {
@@ -87,17 +87,17 @@ export async function readMailsForModelAt(
 }
 
 /** The same, for the sorting measure's replay: the model's view and the mass flag (ADR-0029). */
-export async function readMailsForSimulationAt(
+export async function readMailsForSortingAt(
   locator: MailLocator,
   cadre: MailCadre,
   password: string,
   ids: readonly number[],
   uidValidity: string = VIRTUAL_UID_VALIDITY,
-): Promise<MailForSimulation[]> {
-  const out: MailForSimulation[] = [];
+): Promise<MailForSorting[]> {
+  const out: MailForSorting[] = [];
   for (const g of await locator.groups(ids, uidValidity)) {
     const back = byUid(g.ids);
-    const read = await readMailsForSimulation(
+    const read = await readMailsForSorting(
       inFolder(cadre, g.path),
       password,
       [...g.ids.values()],

@@ -52,7 +52,7 @@ describe("postman (GreenMail)", () => {
       );
     const wrong = messages.filter((m) => byKey.get(idKey(m.id)) !== expected(m)).map((m) => m.id);
     expect(wrong).toEqual([]);
-    expect(messages.filter(expected).length).toBe(13);
+    expect(messages.filter(expected).length).toBe(14);
   });
 
   it("another server name, or another rank, authenticates nobody", async () => {

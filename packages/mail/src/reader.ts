@@ -138,19 +138,19 @@ export function massOfSource(source: Buffer): boolean {
 const MASS_NAMES = new Set<string>(MASS_HEADERS);
 
 /** What the sorting measure replays (mesure:rangement --simuler): the model's view and the mass flag. */
-export interface MailForSimulation {
+export interface MailForSorting {
   readonly view: MailForModel;
   readonly mass: boolean;
 }
 
 /** One read for both, from the same source: the simulation sees what production sees. */
-export async function readMailsForSimulation(
+export async function readMailsForSorting(
   cadre: MailCadre,
   password: string,
   uids: readonly number[],
   expectedUidValidity?: string,
-): Promise<MailForSimulation[]> {
-  const mails: MailForSimulation[] = [];
+): Promise<MailForSorting[]> {
+  const mails: MailForSorting[] = [];
   for (const [uid, source] of await readSources(cadre, password, uids, expectedUidValidity)) {
     mails.push({ view: await parse(uid, source), mass: massOfSource(source) });
   }

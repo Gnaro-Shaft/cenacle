@@ -81,12 +81,11 @@ domains = ["pub.example"]
     expect(result.counts.bruit).toBe(1);
   });
 
-  it("an administratif rule, mass: bruit — the advertising of a mixed domain", () => {
-    expect(one("banque.example", true).sorted).toEqual({
-      uid: 1,
-      category: "bruit",
-      decidedBy: "masse",
-    });
+  it("an administratif rule, mass: left for the model (ADR-0030) — invoices come with bulk headers too", () => {
+    const { sorted, remaining, result } = one("banque.example", true);
+    expect(sorted).toBeUndefined();
+    expect(remaining).toBe(1);
+    expect(result.mass).toBe(0);
   });
 
   it("a bruit rule, mass: bruit too, by masse", () => {
@@ -133,6 +132,9 @@ domains = ["pub.example"]
         const withMass = one(domain, true, auth).sorted;
         const without = one(domain, false, auth).sorted;
         if (withMass?.decidedBy === "masse") expect(withMass.category).toBe("bruit");
+        // Left for the model only where a rule said administratif: capped there (ADR-0030).
+        else if (withMass === undefined && without !== undefined)
+          expect(without.category).toBe("administratif");
         else expect(withMass).toEqual(without);
       }
     }

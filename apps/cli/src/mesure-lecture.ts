@@ -10,7 +10,7 @@ import {
   keyerFromEnv,
   loadCadre,
   mailPassword,
-  readMailsForSimulationAt,
+  readMailsForSortingAt,
   readReplyContextsAt,
 } from "@cenacle/mail";
 import type { ToReplay } from "./mesure-simulation.ts";
@@ -97,7 +97,7 @@ export async function readForReplay(
   const ids = reading.mails.map((m) => m.item.uid);
   const out: ToReplay[] = [];
   for (let i = 0; i < ids.length; i += CHUNK) {
-    const read = await readMailsForSimulationAt(
+    const read = await readMailsForSortingAt(
       locator,
       reading.cadre.mail,
       mailPass,

@@ -7,9 +7,10 @@
 # (so "client.example.attacker.test" never passes for "client.example").
 # Mails whose domain no rule knows are left for the model (phase 2, M5).
 # A mail sent in bulk, by its own headers (List-Unsubscribe, List-Id,
-# Precedence: bulk/list/junk), goes to "bruit" before any rule but a
-# "clients_prospects" one, and before the model (ADR-0029): it separates the
-# advertising of an "administratif" domain from its invoices.
+# Precedence: bulk/list/junk), goes to "bruit" before the model, unless its
+# domain has a rule (ADR-0029): a "clients_prospects" rule decides as usual;
+# an "administratif" one sends it to the model, whose answer never rises above
+# "administratif" (ADR-0030) — such domains send invoices with bulk headers too.
 # A "clients_prospects" rule applies only to a sender our own receiving server
 # authenticated (ADR-0014); otherwise the mail goes to "À trier".
 

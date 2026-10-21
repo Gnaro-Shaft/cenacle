@@ -1,6 +1,6 @@
 # ADR-0029 — Le courrier de masse va en « Bruit », par ses en-têtes
 
-**Statut** : acceptée (2026-10-21) — complète l'ADR-0007 ; garde l'ADR-0014
+**Statut** : acceptée (2026-10-21) — complète l'ADR-0007 ; garde l'ADR-0014 ; son point 2 est complété par l'ADR-0030 (domaines administratifs)
 
 ## Contexte
 

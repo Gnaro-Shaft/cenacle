@@ -34,5 +34,6 @@ Elles sont rédigées en français (le code et le README sont en anglais).
 | [0027](0027-actions-sur-les-serveurs.md) | Agir sur les serveurs : un catalogue fermé, mon bouton, des garde-fous sur le serveur | Acceptée |
 | [0028](0028-ollama-sert-le-modele-local.md) | Ollama sert le modèle local, à l'écoute du Mac seul ; deux filets contre son cloud | Acceptée |
 | [0029](0029-courrier-de-masse.md) | Le courrier de masse va en « Bruit », par ses en-têtes ; une règle client l'emporte | Acceptée |
+| [0030](0030-masse-d-un-domaine-administratif.md) | Le courrier de masse d'un domaine administratif va au modèle, plafonné à « Administratif » | Acceptée |
 
 Les règles dures qui s'appliquent à tout le code sont dans [`../charte.md`](../charte.md).

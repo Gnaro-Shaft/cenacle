@@ -10,7 +10,14 @@
  * half-measured replay would not be the measure it claims to be.
  */
 import type { Category, MailForModel } from "@cenacle/core";
-import { type Decider, keptFromModel, type Rules, sortByRules } from "@cenacle/mail";
+import {
+  capped,
+  ceilingOf,
+  type Decider,
+  keptFromModel,
+  type Rules,
+  sortByRules,
+} from "@cenacle/mail";
 
 export interface ToReplay {
   readonly view: MailForModel;
@@ -33,6 +40,7 @@ export async function replaySorting(
 ): Promise<Map<number, Replayed>> {
   const out = new Map<number, Replayed>();
   const views = new Map(mails.map((m) => [m.view.uid, m.view]));
+  const ceilings = new Map(mails.map((m) => [m.view.uid, ceilingOf(m.mass, m.view.domain, rules)]));
   const ruleSort = sortByRules(
     mails.map((m) => ({
       uid: m.view.uid,
@@ -55,7 +63,8 @@ export async function replaySorting(
   const toModel = left.filter((v) => !keptFromModel(v));
   for (const [i, view] of toModel.entries()) {
     const { category } = await classify(view);
-    out.set(view.uid, { category, decidedBy: "model" });
+    // ADR-0030: as in production, never above the rule of a mass mail's domain.
+    out.set(view.uid, { category: capped(category, ceilings.get(view.uid)), decidedBy: "model" });
     onModel?.(i + 1, toModel.length);
   }
   return out;

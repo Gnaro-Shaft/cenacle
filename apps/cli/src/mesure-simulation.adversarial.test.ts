@@ -36,7 +36,7 @@ describe("replaySorting", () => {
     const result = await replaySorting(
       [
         mail(view(1, "client.example"), true), // client rule beats mass
-        mail(view(2, "banque.example"), true), // mass beats the administratif rule
+        mail(view(2, "banque.example"), true), // mass from an administratif domain: the model (ADR-0030)
         mail(view(3, "banque.example")), // the rule
         mail(view(4, "client.example"), false, false), // unauthenticated client: À trier
         mail(view(5, null)), // unreadable sender
@@ -51,14 +51,40 @@ describe("replaySorting", () => {
     );
     expect(Object.fromEntries(result)).toEqual({
       1: { category: "clients_prospects", decidedBy: "rule" },
-      2: { category: "bruit", decidedBy: "masse" },
+      2: { category: "administratif", decidedBy: "model" },
       3: { category: "administratif", decidedBy: "rule" },
       4: { category: "a_trier", decidedBy: "unauthenticated" },
       5: { category: "a_trier", decidedBy: "unreadable" },
       6: { category: "a_trier", decidedBy: "set_aside" },
       7: { category: "administratif", decidedBy: "model" },
     });
-    expect(asked).toEqual([7]);
+    expect(asked).toEqual([2, 7]);
+  });
+
+  it.each([
+    ["clients_prospects", "administratif"],
+    ["administratif", "administratif"],
+    ["bruit", "bruit"],
+    ["a_trier", "a_trier"],
+  ] as const)(
+    "a mass mail from an administratif domain, the model says %s: kept as %s — never above the rule",
+    async (said, kept) => {
+      const result = await replaySorting(
+        [mail(view(1, "banque.example"), true)],
+        rules,
+        async () => ({
+          category: said,
+        }),
+      );
+      expect(result.get(1)).toEqual({ category: kept, decidedBy: "model" });
+    },
+  );
+
+  it("no ceiling elsewhere: the model's clients_prospects stands for an unknown, non-mass domain", async () => {
+    const result = await replaySorting([mail(view(1, "inconnu.example"))], rules, async () => ({
+      category: "clients_prospects",
+    }));
+    expect(result.get(1)).toEqual({ category: "clients_prospects", decidedBy: "model" });
   });
 
   it("a mail the floor keeps is never given to the model", async () => {
