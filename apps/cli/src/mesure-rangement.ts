@@ -24,7 +24,6 @@ import {
   errorText,
   refuseForeignSecrets,
   SecretPlacementError,
-  UsageError,
 } from "@cenacle/core";
 import { connectOrQuit } from "@cenacle/journal";
 import {
@@ -36,6 +35,7 @@ import {
   type Verdict,
 } from "@cenacle/mail";
 import { readBack, readForReplay } from "./mesure-lecture.ts";
+import { arrivedSince, parseMeasureOptions } from "./mesure-options.ts";
 import { changesOf, type Judged, readAnswer } from "./mesure-revue.ts";
 import { type Replayed, replaySorting } from "./mesure-simulation.ts";
 import { createPrompt } from "./prompt.ts";
@@ -56,9 +56,9 @@ const BY: Readonly<Record<Decider, string>> = {
 };
 const pct = (r: number | null) => (r === null ? "—" : `${Math.round(r * 1000) / 10} %`);
 
-function printMeasure(title: string, r: SortingMeasure, of: number, who: string): void {
+function printMeasure(title: string, r: SortingMeasure, of: string, who: string): void {
   console.log(`\n${title}`);
-  console.log(`Mails jugés : ${r.total} (sur ${of} rangés)`);
+  console.log(`Mails jugés : ${r.total} (sur ${of})`);
   console.log(`Bien rangés : ${r.correct} (${pct(r.accuracy)})`);
   console.log(`Bien rangés hors « À trier » : ${pct(r.accuracyDecided)}`);
   console.log(`Laissés « À trier » : ${pct(r.aTrierShare)}`);
@@ -73,17 +73,22 @@ function printMeasure(title: string, r: SortingMeasure, of: number, who: string)
   }
 }
 
-const maxArg = process.argv.indexOf("--max");
-const max = maxArg === -1 ? Number.POSITIVE_INFINITY : Number(process.argv[maxArg + 1]);
-const simulate = process.argv.includes("--simuler");
 refuseForeignSecrets("La mesure du rangement", ["mail"]);
 const sql = connectOrQuit();
 const prompt = createPrompt();
 try {
-  if (!(max > 0)) throw new UsageError("--max attend un nombre positif");
-  const reading = await readBack(sql);
-  const sorted = reading.mails.filter((m) => m.item.category !== null && m.item.decidedBy !== null);
+  const { max, simulate, since } = parseMeasureOptions(process.argv.slice(2));
+  // Only the mails arrived since the day are read again from the server (--depuis).
+  const reading = await readBack(sql, (item) => arrivedSince(item.receivedAt, since));
+  const sorted = reading.mails.filter(
+    (m) =>
+      m.item.category !== null &&
+      m.item.decidedBy !== null &&
+      arrivedSince(m.item.receivedAt, since),
+  );
   const queue = sorted.slice(0, max);
+  const scope =
+    since === null ? "rangés" : `rangés, arrivés depuis le ${since.day} (minuit, Paris)`;
   let replayed: ReadonlyMap<number, Replayed> | null = null;
   let modelId = "";
   if (simulate) {
@@ -105,7 +110,9 @@ try {
   const replayVerdicts: Verdict[] = [];
   const judged: Judged[] = [];
   const keys = "c clients · a administratif · b bruit · t à trier · q";
-  console.log(`${queue.length} mails rangés à juger (Entrée = juste ; q pour finir et compter).\n`);
+  console.log(
+    `${queue.length} mails ${scope} à juger (Entrée = juste ; q pour finir et compter).\n`,
+  );
   for (const [i, m] of queue.entries()) {
     const iris = m.item.category as Category;
     const decidedBy = m.item.decidedBy as Decider;
@@ -142,12 +149,17 @@ try {
     console.log("");
   }
   const day = new Date().toISOString().slice(0, 10);
-  printMeasure(`Mesure du rangement — ${day}`, measureSorting(verdicts), sorted.length, "Iris");
+  printMeasure(
+    `Mesure du rangement — ${day}`,
+    measureSorting(verdicts),
+    `${sorted.length} ${scope}`,
+    "Iris",
+  );
   if (replayed !== null) {
     printMeasure(
       `Simulation du tri d'aujourd'hui — ${day} (règles, courrier de masse, plancher, modèle ${modelId})`,
       measureSorting(replayVerdicts),
-      sorted.length,
+      `${sorted.length} ${scope}`,
       "Simulé",
     );
     const c = changesOf(judged);

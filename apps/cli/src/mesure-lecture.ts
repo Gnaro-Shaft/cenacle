@@ -44,12 +44,18 @@ function locatorFor(sql: Parameters<typeof createMailStore>[0], cadre: Cadre) {
   });
 }
 
-export async function readBack(sql: Parameters<typeof createMailStore>[0]): Promise<Reading> {
+export async function readBack(
+  sql: Parameters<typeof createMailStore>[0],
+  /** Which remembered mails to read again; the others are not even fetched (--depuis). */
+  keep: (item: StoredInboxItem) => boolean = () => true,
+): Promise<Reading> {
   const cadre = loadCadre();
   const store = createMailStore(sql);
   const position = await store.position("inbox");
   if (position === null) return { cadre, mails: [], gone: 0, uidValidity: null };
-  const items = (await store.inbox()).sort((a, b) => a.receivedAt.localeCompare(b.receivedAt));
+  const items = (await store.inbox())
+    .filter(keep)
+    .sort((a, b) => a.receivedAt.localeCompare(b.receivedAt));
   const mailPass = mailPassword(cadre);
   const locator = locatorFor(sql, cadre);
   const mails: ReadBack[] = [];
