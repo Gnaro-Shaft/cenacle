@@ -54,6 +54,7 @@ export {
   createLocator,
   type MailLocator,
   readMailsForModelAt,
+  readMailsForSimulationAt,
   readReplyContextsAt,
   readReplyTargetsAt,
 } from "./located.ts";
@@ -97,7 +98,14 @@ export {
 } from "./postman.ts";
 export { createProposals, type Proposals, SKIP_REASONS, type SkipReason } from "./proposals.ts";
 export { declaredHosts, isPublicDomain, withoutLinksTo } from "./public-domains.ts";
-export { fixtureForModel, MAX_SOURCE_BYTES, readMailsForModel } from "./reader.ts";
+export {
+  fixtureForModel,
+  MAX_SOURCE_BYTES,
+  type MailForSimulation,
+  massOfSource,
+  readMailsForModel,
+  readMailsForSimulation,
+} from "./reader.ts";
 export {
   type ReplyContext,
   type ReplyTarget,

@@ -11,6 +11,8 @@ import PostalMime from "postal-mime";
 import type { MailCadre } from "./cadre.ts";
 import { imapOptions } from "./connection.ts";
 import { toMailForModel } from "./mail-text.ts";
+import { isMassMail, MASS_HEADERS } from "./mass-mail.ts";
+import type { HeaderField } from "./ordered-headers.ts";
 import { PostmanError } from "./postman.ts";
 import { senderDomain } from "./sender-domain.ts";
 
@@ -45,13 +47,13 @@ async function parse(uid: number, source: Buffer): Promise<MailForModel> {
   }
 }
 
-export async function readMailsForModel(
+/** The raw sources, read-only, size-capped; in the order of `uids`, missing ones skipped. */
+async function readSources(
   cadre: MailCadre,
   password: string,
   uids: readonly number[],
-  /** When given, the mailbox must still have this UIDVALIDITY: otherwise the UIDs may name other mails. */
-  expectedUidValidity?: string,
-): Promise<MailForModel[]> {
+  expectedUidValidity: string | undefined,
+): Promise<[number, Buffer][]> {
   if (uids.length === 0) return [];
   if (uids.length > MAX_MAILS_PER_READ) {
     throw new PostmanError(`at most ${MAX_MAILS_PER_READ} mails per read, got ${uids.length}`);
@@ -88,15 +90,71 @@ export async function readMailsForModel(
         `unread count changed during a read-only pass (${unseenBefore} → ${unseen})`,
       );
     }
-    const mails: MailForModel[] = [];
-    for (const uid of uids) {
+    return uids.flatMap((uid) => {
       const source = sources.get(uid);
-      if (source !== undefined) mails.push(await parse(uid, source));
-    }
-    return mails;
+      return source === undefined ? [] : [[uid, source] as [number, Buffer]];
+    });
   } finally {
     await client.logout().catch(() => client.close());
   }
+}
+
+export async function readMailsForModel(
+  cadre: MailCadre,
+  password: string,
+  uids: readonly number[],
+  /** When given, the mailbox must still have this UIDVALIDITY: otherwise the UIDs may name other mails. */
+  expectedUidValidity?: string,
+): Promise<MailForModel[]> {
+  const mails: MailForModel[] = [];
+  for (const [uid, source] of await readSources(cadre, password, uids, expectedUidValidity)) {
+    mails.push(await parse(uid, source));
+  }
+  return mails;
+}
+
+/**
+ * Mass mail (ADR-0029) from a raw source: its header block only, up to the
+ * first empty line — a "List-Unsubscribe:" line in the body is text, not a
+ * header. The same reading as the postman's: ordered fields, duplicates kept.
+ */
+export function massOfSource(source: Buffer): boolean {
+  const raw = source.toString("latin1");
+  const end = raw.search(/\r?\n\r?\n/);
+  // Only the three mass headers, as the postman fetches only those it needs:
+  // a mail with many other headers is read the same here and in production.
+  const fields: HeaderField[] = [];
+  for (const line of (end === -1 ? raw : raw.slice(0, end))
+    .replace(/\r?\n[ \t]+/g, " ")
+    .split(/\r?\n/)) {
+    const colon = line.indexOf(":");
+    if (colon <= 0) continue;
+    const name = line.slice(0, colon).trim().toLowerCase();
+    if (MASS_NAMES.has(name)) fields.push({ name, value: line.slice(colon + 1).trim() });
+  }
+  return isMassMail(fields);
+}
+
+const MASS_NAMES = new Set<string>(MASS_HEADERS);
+
+/** What the sorting measure replays (mesure:rangement --simuler): the model's view and the mass flag. */
+export interface MailForSimulation {
+  readonly view: MailForModel;
+  readonly mass: boolean;
+}
+
+/** One read for both, from the same source: the simulation sees what production sees. */
+export async function readMailsForSimulation(
+  cadre: MailCadre,
+  password: string,
+  uids: readonly number[],
+  expectedUidValidity?: string,
+): Promise<MailForSimulation[]> {
+  const mails: MailForSimulation[] = [];
+  for (const [uid, source] of await readSources(cadre, password, uids, expectedUidValidity)) {
+    mails.push({ view: await parse(uid, source), mass: massOfSource(source) });
+  }
+  return mails;
 }
 
 export interface FixtureLike {
