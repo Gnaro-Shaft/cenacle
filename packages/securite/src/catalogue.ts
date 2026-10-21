@@ -69,7 +69,7 @@ const CATALOGUE: Readonly<Record<string, Builder>> = {
   }),
   macos_upgrade: () => ({
     advice:
-      "Une nouvelle version majeure : à prévoir quand tes outils la supportent (LM Studio, Docker, Node).",
+      "Une nouvelle version majeure : à prévoir quand tes outils la supportent (Ollama, Docker, Node).",
     command: null,
   }),
   tailscale_outdated: () => ({

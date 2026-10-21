@@ -1,6 +1,6 @@
 /**
  * Measures Iris's drafts on the due follow-ups of the test mailbox (phase 4, B2).
- * Needs the local model (LM Studio). No database, nothing stored, nothing sent.
+ * Needs the local model (Ollama). No database, nothing stored, nothing sent.
  * Reference: my own choices in fixtures/trame-choices.json.
  * Usage: npm run draft:vote
  */

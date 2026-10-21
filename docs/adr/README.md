@@ -32,5 +32,6 @@ Elles sont rédigées en français (le code et le README sont en anglais).
 | [0025](0025-agent-securite.md) | L'agent sécurité : des contrôles sans IA, des constats suivis, le CTO qui pilote | Acceptée |
 | [0026](0026-delegations-et-carnet-de-confiance.md) | Délégations et carnet de confiance ; la fusion par mon bouton | Acceptée |
 | [0027](0027-actions-sur-les-serveurs.md) | Agir sur les serveurs : un catalogue fermé, mon bouton, des garde-fous sur le serveur | Acceptée |
+| [0028](0028-ollama-sert-le-modele-local.md) | Ollama sert le modèle local, à l'écoute du Mac seul ; deux filets contre son cloud | Acceptée |
 
 Les règles dures qui s'appliquent à tout le code sont dans [`../charte.md`](../charte.md).

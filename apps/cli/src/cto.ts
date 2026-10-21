@@ -131,7 +131,7 @@ try {
     (error instanceof CtoServiceError && error.code === "model_unavailable")
   ) {
     console.error(
-      "🛑 le modèle local ne répond pas : LM Studio est-il ouvert, avec le modèle chargé ?",
+      "🛑 le modèle local ne répond pas : Ollama est-il lancé, avec le modèle de LOCAL_MODEL_ID ?",
     );
   } else if (error instanceof CtoServiceError) {
     console.error(`🛑 ${errorText(error, [CtoServiceError])}`);

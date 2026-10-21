@@ -39,7 +39,7 @@ export function splitForTelegram(text: string, max = MAX_MESSAGE): string[] {
 const FAILURES: Record<string, string> = {
   busy: "⏳ Le CTO est occupé (trop de questions en attente) : repose-la dans quelques minutes.",
   unreachable: "🛑 Le service du CTO ne tourne pas (npm run service -- status cto).",
-  model_unavailable: "🛑 Le modèle local ne répond pas : LM Studio est-il ouvert ?",
+  model_unavailable: "🛑 Le modèle local ne répond pas : Ollama est-il lancé ?",
   timeout: "⌛ Le CTO n'a pas répondu à temps : repose ta question.",
   invalid: "Question refusée par le CTO : reformule-la (2000 caractères au plus).",
 };

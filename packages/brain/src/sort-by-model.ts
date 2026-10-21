@@ -1,7 +1,7 @@
 /**
  * One pass of model sorting by Iris: journaled as counts, visible on her box.
  *
- * If the local model does not answer (the Mac sleeps, LM Studio is closed),
+ * If the local model does not answer (the Mac sleeps, Ollama is stopped),
  * Iris waits: the pass stops, the mails not yet sorted stay where they are,
  * and nothing is sent anywhere else (ADR-0003).
  */

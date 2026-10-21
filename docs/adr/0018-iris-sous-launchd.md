@@ -23,7 +23,7 @@ L'ADR-0013 renvoyait les choix de déploiement (utilisateurs, lancement) à plus
 
 - Après un redémarrage ou un plantage du Mac, Iris repart dès que j'ouvre ma session ; après un plantage d'Iris seule, dans les 30 s.
 - Mac en veille ou absent : Iris est en pause, comme avant ; la relève suivante rattrape (ADR-0016).
-- Docker Desktop et LM Studio (service et modèle) doivent démarrer avec ma session : réglages à faire de mon côté (`deploy/launchd/README.md`). D'ici là, Iris démarre, constate leur absence, et réessaie.
+- Docker Desktop et le serveur du modèle (LM Studio, puis Ollama depuis l'ADR-0028) doivent démarrer avec ma session : réglages à faire de mon côté (`deploy/launchd/README.md`). D'ici là, Iris démarre, constate leur absence, et réessaie.
 - Le serveur de la page et le bot Telegram restent lancés à la main ; ils suivront le même mécanisme dans un second temps.
 - La séparation en utilisateurs macOS distincts (ADR-0013) reste à décider.
 

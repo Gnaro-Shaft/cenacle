@@ -25,7 +25,7 @@ The first agent is **Iris**, the messenger, who handles email. Iris:
 
 ## Getting started
 
-Requirements: Node (see `.nvmrc`), Docker (PostgreSQL and the GreenMail test mail server), and [LM Studio](https://lmstudio.ai) serving a local model.
+Requirements: Node (see `.nvmrc`), Docker (PostgreSQL and the GreenMail test mail server), and [Ollama](https://ollama.com) serving a local model on the same machine.
 
 ```bash
 npm install
@@ -52,7 +52,7 @@ Your own sorting rules and reply templates go in `regles.local.toml` and `trames
 
 ## Stack
 
-TypeScript · [Pi](https://github.com/badlogic/pi-mono) (agent core) · PostgreSQL · React · Server-Sent Events · Telegram · OpenTelemetry → Tempo → Grafana · local models via LM Studio · GreenMail (test mail server).
+TypeScript · [Pi](https://github.com/badlogic/pi-mono) (agent core) · PostgreSQL · React · Server-Sent Events · Telegram · OpenTelemetry → Tempo → Grafana · local models via Ollama · GreenMail (test mail server).
 
 ## Documentation
 
