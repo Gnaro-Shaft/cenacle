@@ -15,6 +15,7 @@
     "m071": { "trame": "confirmer_creneau", "values": { "creneau": "jeudi" } },
     "m091": { "trame": "prise_en_charge", "values": { "sujet": "l'erreur 500" } },
     "m119": { "trame": "confirmer_creneau", "values": { "creneau": "vendredi à 10 h" } },
-    "m146": { "trame": "demander_precision", "values": {} }
+    "m146": { "trame": "demander_precision", "values": {} },
+    "m157": { "trame": "confirmer_creneau", "values": { "creneau": "7 octobre à 10 h" } }
   }
 }
