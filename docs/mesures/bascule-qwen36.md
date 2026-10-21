@@ -320,7 +320,7 @@ Options qui étaient sur la table (j'ai retenu la première le 2026-10-20) :
      de Cénacle décharge l'un pour charger l'autre (chargements mesurés aujourd'hui : 4 à
      10 s, et le cache de préfixe est perdu) ; les deux processus ont occupé chacun de 18 à
      32 Go selon l'usage, donc 42 à 64 Go à eux deux ;
-   - `cto:bench` n'a pas été passé sur Ollama (75 min sur LM Studio).
+   - `cto:bench` n'a pas été passé sur Ollama (75 min sur LM Studio) — passé le 2026-10-21 : 2 / 6 à la lecture honnête, voir « Après la bascule ».
 2. **Garder qwen3.8 sur LM Studio** pour Cénacle seul, le temps de trancher : rien ne
    change en production, deux serveurs restent à tenir.
 3. **qwen3.6 avec l'outil appelé par le code** : piste vue dans myriade (recherche dans
@@ -328,6 +328,43 @@ Options qui étaient sur la table (j'ai retenu la première le 2026-10-20) :
    un changement de circuit (le code cherche avant que le modèle réponde), donc un ADR ;
    elle ne règle ni le tri M5 ni la veille.
 
-Non mesuré : `cto:bench` sur Ollama ; Ornith et nemotron hors bancs du CTO ; une
+Non mesuré ce jour-là : `cto:bench` sur Ollama (mesuré le 2026-10-21, plus bas) ; Ornith et nemotron hors bancs du CTO ; une
 température explicite pour la veille et la sécurité ; Cénacle et une autre application
 partageant Ollama en même temps.
+
+## Après la bascule (2026-10-21)
+
+Mesures prises **après** la bascule (ADR-0028), avec le code de Cénacle tel qu'il tourne :
+`qwen3.8:27b` servi par Ollama, LM Studio déchargé, la température du CTO envoyée par le
+code (`CTO_TEMPERATURE = 0.7`), le critère du cas F corrigé (#119). Pendant `cto:bench`
+(de 11 h 31 à 12 h 20), un `mail:bench` a tourné en même temps sur le même modèle.
+
+### Relecture du CTO — `cto:bench`
+
+| Cas | Défaut | Critère automatique | Lecture honnête |
+|---|---|---|---|
+| A | `bootstrap` juste après `bootout` | trouvé | **non** : « l'ordre est correct : […] `bootout` (stoppe l'ancien) → […] `bootstrap` » — le défaut est écarté |
+| B | `mail.set_aside` absent de la projection | non | non |
+| C | objet UTF-8 brut lu en Latin-1 | trouvé | **non** : rien sur l'encodage de l'enveloppe ; la relecture signale un autre manque (aucun test du garde de la page) |
+| D | mutation `replace(/^./, "A")` sans effet | trouvé | **oui** : « si `sig` commence déjà par `A`, la mutation ne change rien », classé mineur |
+| E | `purge.done` / `purge.failed` absents de la projection | non | non |
+| F | caractères C1 (NEL) gardés dans l'objet | trouvé | **oui** : « `withoutControls` ne nettoie pas les caractères C1 (0x80-0x9F) », classé mineur, avec le test à écrire |
+
+**Critère automatique 4 / 6, lecture honnête 2 / 6** — contre 0 / 6 pour qwen3.8 sur
+LM Studio le 2026-10-20 (2 / 6 le 2026-10-09). La relecture reste expérimentale (seuil :
+3 / 6), sans appeler un modèle plus fort (moins de 2 / 6). Les deux défauts manqués (B, E)
+sont du même genre : un événement écrit mais non déclaré dans la projection. 22 à 24
+lectures par commit, 7 à 9 minutes par commit, 49 minutes en tout.
+
+Le critère automatique se laisse encore prendre aux mots (A, C) : il reste à lire à la main.
+
+### Iris
+
+| Banc | Résultat |
+|---|---|
+| Tri, critère M5 (`mail:bench`, seul sur le modèle) | 22 / 25 (88 %), « À trier » 36 %, 0 piège suivi, 0 client en bruit, 0,65 s par mail |
+| Trames (`draft:vote`, code de la bascule, avant la fusion) | 8 même trame · **1** autre trame (m146, comme le 2026-10-20) · 2 partagés · 1 aucune ; 5 / 5 cases, 0 fait inventé, 48 s |
+
+La trame fausse de m146 se répète d'un jour à l'autre : c'est un écart du modèle servi par
+Ollama, pas du bruit. Elle serait montrée sur la page, jamais envoyée sans mon acceptation ;
+à revoir avant d'ouvrir les brouillons sur la vraie boîte (M3).
