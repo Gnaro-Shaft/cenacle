@@ -2,7 +2,7 @@
 
 > **Publiée le 4 octobre 2026** dans les mentions légales du site, et **vérifiée en ligne** le même jour (section « Mon assistant de messagerie », entre « Mon assistant de travail » et « Questions sur les articles » ; « Dernière mise à jour : 4 octobre 2026 »). À l'ouverture du traitement, `cadre.toml` portera `mention_publiee = 2026-10-04` : rien de ce qui est arrivé avant ce jour ne sera lu.
 >
-> **À republier avant la mise en service de la case « Missions »** (ADR-0031) : le paragraphe « Ce qu'il lit, et ce qu'il garde » nomme une cinquième case, « alerte de missions d'une plateforme ». Tant qu'elle n'est pas republiée et vérifiée en ligne, aucune règle `[missions]` n'est posée dans `regles.local.toml`.
+> **À republier avant la mise en service de la case « Missions » et de l'agent prospection** (ADR-0031, ADR-0032) : le paragraphe « Ce qu'il lit, et ce qu'il garde » nomme une cinquième case, « alerte de missions d'une plateforme », et un paragraphe « Les alertes de missions » dit ce que l'agent en relève et en garde (ajouté le 2026-10-22). Tant qu'elle n'est pas republiée et vérifiée en ligne, aucune règle `[missions]` n'est posée dans `regles.local.toml` et l'agent n'est pas installé.
 >
 > **Republiée le 10 octobre 2026**, et **vérifiée en ligne** le même jour : le paragraphe « Vos droits » donne la durée de la liste d'opposition (la clé dérivée et la date du dernier message, jusqu'au retrait de l'opposition, ou trois ans après la demande ou le dernier message) ; « Dernière mise à jour : 10 octobre 2026 ». La rédaction publiée est plus ramassée que celle ci-dessous, pour le même contenu. `mention_publiee` ne change pas : la date à partir de laquelle la boîte est lue reste le 4 octobre 2026.
 
@@ -48,6 +48,8 @@ Pour trier ma boîte professionnelle et préparer mes réponses, j'utilise un se
 **Ce qu'il fait seul, et ce qu'il ne fait pas.** Il n'envoie rien sans moi. Je relis chaque brouillon, je le corrige, et je l'accepte ou le refuse. Une réponse acceptée part depuis ma boîte, à votre seule adresse, après un délai de deux minutes pendant lequel je peux encore l'annuler. Elle porte un en-tête technique (`X-AI-Assisted`) qui indique qu'elle a été préparée avec l'aide de l'intelligence artificielle, puis relue et acceptée par moi. Il ne prend aucune décision vous concernant et ne dresse aucun profil.
 
 **Les données sensibles.** Un message qui semble révéler une donnée sensible (santé, opinions, convictions, appartenance syndicale, origine, vie sexuelle, données génétiques ou biométriques, condamnations) n'est jamais lu par l'intelligence artificielle. Il m'est laissé, à trier moi-même, et aucun brouillon n'est proposé. Le motif n'est pas enregistré. Ce filtre repose sur une liste de mots : il réduit le risque, sans pouvoir l'annuler.
+
+**Les alertes de missions.** Quand une plateforme de missions freelance m'envoie une alerte, un assistant fondé sur l'intelligence artificielle, sur mon ordinateur, en relève les missions : intitulé, entreprise, technologies, tarif, télétravail, lieu et lien de l'annonce. Il n'en garde aucun nom de personne et les efface au bout de 60 jours. Il n'écrit à personne et ne postule nulle part.
 
 **Aucun tiers.** Il ne fait appel à aucun service extérieur : aucun fournisseur d'intelligence artificielle en ligne, aucun transfert hors de l'Union européenne, aucun sous-traitant ajouté. Votre message reste chez l'hébergeur de ma messagerie, en France, comme avant. Je reçois sur mon téléphone des compteurs (« 3 messages en attente »), jamais le contenu d'un message.
 
