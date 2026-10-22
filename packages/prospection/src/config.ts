@@ -31,6 +31,12 @@ export interface Platform {
   readonly senderDomain: string;
   /** The hosts its links may point to (exact): www., click tracking. */
   readonly linkHosts: ReadonlySet<string>;
+  /**
+   * My declaration that its clients post themselves (ADR-0032, revision of
+   * 2026-10-22): when the model cannot tell, a mission is taken as direct.
+   * Never against the ESN list, a phrase, or the model's own « esn ».
+   */
+  readonly directByDefault: boolean;
 }
 
 export interface Profile {
@@ -118,7 +124,11 @@ function platforms(raw: Table, where: string): Platform[] {
   return list.map((p, i) => {
     const at = `${where} [[plateforme]] #${i + 1}`;
     if (!isTable(p)) throw new ProspectionConfigError(`${at} must be a table`);
-    onlyKeys(p, ["nom", "domaine", "hotes_liens"], at);
+    onlyKeys(p, ["nom", "domaine", "hotes_liens", "intermediaire_par_defaut"], at);
+    const byDefault = p.intermediaire_par_defaut;
+    if (byDefault !== undefined && byDefault !== "direct") {
+      throw new ProspectionConfigError(`${at}.intermediaire_par_defaut can only be "direct"`);
+    }
     if (typeof p.nom !== "string" || p.nom.trim() === "" || p.nom.length > 40) {
       throw new ProspectionConfigError(`${at}.nom must be a short text`);
     }
@@ -135,6 +145,7 @@ function platforms(raw: Table, where: string): Platform[] {
       name: p.nom.trim(),
       senderDomain,
       linkHosts: new Set(hosts.map((h) => host(h, `${at}.hotes_liens`))),
+      directByDefault: byDefault === "direct",
     };
   });
 }

@@ -156,3 +156,65 @@ describe("settings — refused files", () => {
     expect(() => parseProspectionConfig(shared, LOCAL)).toThrow(ProspectionConfigError);
   });
 });
+
+describe("a platform I declared direct (revision of 2026-10-22)", () => {
+  const declared = { directByDefault: true };
+
+  it("the model's doubt passes, flagged to check", () => {
+    expect(triage(offer({ intermediary: "inconnu" }), config, "mail", declared)).toMatchObject({
+      column: "alert",
+      toCheck: true,
+    });
+  });
+
+  it("never against the model's own « esn », the ESN list or a phrase", () => {
+    expect(triage(offer({ intermediary: "esn" }), config, "mail", declared).reason).toBe(
+      "esn_model",
+    );
+    expect(
+      triage(offer({ intermediary: "inconnu", company: "Grande ESN" }), config, "mail", declared)
+        .reason,
+    ).toBe("esn_list");
+    expect(
+      triage(
+        offer({ intermediary: "inconnu", title: "Dev pour le compte de notre client" }),
+        config,
+        "mail",
+        declared,
+      ).reason,
+    ).toBe("esn_phrase");
+  });
+
+  it("an undeclared platform keeps doubt out; a card I typed is never touched by it", () => {
+    expect(triage(offer({ intermediary: "inconnu" }), config, "mail").reason).toBe(
+      "intermediary_unknown",
+    );
+    expect(
+      triage(offer({ intermediary: "inconnu" }), config, "mail", { directByDefault: false }).reason,
+    ).toBe("intermediary_unknown");
+    expect(triage(offer({ intermediary: "inconnu" }), config, "me", declared).reason).toBe(
+      "intermediary_unknown",
+    );
+  });
+
+  it("the profile still applies: a direct mission off my profile stops", () => {
+    expect(
+      triage(offer({ intermediary: "inconnu", stack: ["Java"] }), config, "mail", declared),
+    ).toMatchObject({ column: "direct", reason: "stack" });
+  });
+
+  it("the settings accept only « direct », never another value", () => {
+    const local = (value: string) =>
+      LOCAL.replace(
+        'hotes_liens = ["plateforme.example", "clic.plateforme.example"]',
+        `hotes_liens = ["plateforme.example"]\nintermediaire_par_defaut = ${value}`,
+      );
+    expect(parseProspectionConfig(SHARED, local('"direct"')).platforms[0]?.directByDefault).toBe(
+      true,
+    );
+    expect(parseProspectionConfig(SHARED, LOCAL).platforms[0]?.directByDefault).toBe(false);
+    for (const bad of ['"esn"', '"inconnu"', "true", '"Direct"']) {
+      expect(() => parseProspectionConfig(SHARED, local(bad))).toThrow(ProspectionConfigError);
+    }
+  });
+});

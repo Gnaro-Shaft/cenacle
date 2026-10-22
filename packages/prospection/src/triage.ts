@@ -8,7 +8,7 @@
  * and doubt ("inconnu") does not pass. My profile is compared by code only.
  * An unsaid rate or remote work never refuses a mission: it passes, flagged.
  */
-import type { ProspectionConfig } from "./config.ts";
+import type { Platform, ProspectionConfig } from "./config.ts";
 import type { Offer } from "./extract.ts";
 import { hasWords, normalized } from "./text.ts";
 
@@ -55,6 +55,7 @@ function intermediary(
   offer: Offer,
   config: ProspectionConfig,
   source: Source,
+  directByDefault: boolean,
 ): { reason: StopReason; by: Decider } | null {
   const said = normalized([offer.title, offer.company ?? "", offer.place ?? ""].join(" "));
   if (config.esn.some((name) => hasWords(said, name))) return { reason: "esn_list", by: "rule" };
@@ -63,7 +64,10 @@ function intermediary(
   }
   const by: Decider = source === "me" ? "me" : "model";
   if (offer.intermediary === "esn") return { reason: "esn_model", by };
-  if (offer.intermediary === "inconnu") return { reason: "intermediary_unknown", by };
+  // A platform I declared direct: the model's doubt passes (my rule), its « esn » never does.
+  if (offer.intermediary === "inconnu" && !directByDefault) {
+    return { reason: "intermediary_unknown", by };
+  }
   return null;
 }
 
@@ -80,8 +84,14 @@ function placeAccepted(offer: Offer, config: ProspectionConfig): boolean {
   return [...config.profile.places].some((p) => hasWords(place, p));
 }
 
-export function triage(offer: Offer, config: ProspectionConfig, source: Source): Triage {
-  const stopped = intermediary(offer, config, source);
+export function triage(
+  offer: Offer,
+  config: ProspectionConfig,
+  source: Source,
+  platform?: Pick<Platform, "directByDefault">,
+): Triage {
+  const directByDefault = source === "mail" && platform?.directByDefault === true;
+  const stopped = intermediary(offer, config, source, directByDefault);
   if (stopped !== null) {
     return { column: "detected", reason: stopped.reason, decidedBy: stopped.by, toCheck: false };
   }
@@ -101,7 +111,9 @@ export function triage(offer: Offer, config: ProspectionConfig, source: Source):
     column: "alert",
     reason: null,
     decidedBy: "rule",
-    toCheck: offer.rate === null || !remoteKnown,
+    // Passed on my declaration, not on what the alert said: to check too.
+    toCheck:
+      offer.rate === null || !remoteKnown || (directByDefault && offer.intermediary === "inconnu"),
   };
 }
 
