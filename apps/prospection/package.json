@@ -1,0 +1,14 @@
+{
+  "name": "@cenacle/prospection-app",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "dependencies": {
+    "@cenacle/brain": "0.0.0",
+    "@cenacle/core": "0.0.0",
+    "@cenacle/journal": "0.0.0",
+    "@cenacle/mail": "0.0.0",
+    "@cenacle/prospection": "0.0.0"
+  }
+}

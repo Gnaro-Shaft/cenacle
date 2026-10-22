@@ -112,6 +112,19 @@ describe("retentions", () => {
   it("refuses an unknown retention key", () => {
     expect(() => parse(`${FICTIONAL}${CONSERVATION}brouillons_jours = 7\n`)).toThrow(/unknown key/);
   });
+  // ADR-0032: optional here, so that a cadre written before the agent still
+  // starts Iris; the prospection agent itself refuses to run without it.
+  it("the prospection retention may be absent, never invalid", () => {
+    expect(parse(`${FICTIONAL}${CONSERVATION}`).conservation.prospectionJours).toBeUndefined();
+    expect(parse(`${FICTIONAL}${CONSERVATION}prospection_jours = 60\n`).conservation).toMatchObject(
+      { prospectionJours: 60 },
+    );
+    for (const bad of ["0", "366", "-1", "60.5", '"60"']) {
+      expect(() => parse(`${FICTIONAL}${CONSERVATION}prospection_jours = ${bad}\n`)).toThrow(
+        CadreError,
+      );
+    }
+  });
 });
 
 describe("from when a real mailbox may be read (C4)", () => {

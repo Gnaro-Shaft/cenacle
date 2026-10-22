@@ -11,7 +11,13 @@ import { type LocationStore, VIRTUAL_UID_VALIDITY } from "@cenacle/journal";
 import type { MailCadre } from "./cadre.ts";
 import { type Folder, listFolders } from "./folders.ts";
 import type { Keyer } from "./keys.ts";
-import { type MailForSorting, readMailsForModel, readMailsForSorting } from "./reader.ts";
+import {
+  type MailForSorting,
+  type RawSource,
+  readMailsForModel,
+  readMailsForSorting,
+  readRawSources,
+} from "./reader.ts";
 import { type ReplyContext, type ReplyTarget, readReplyContexts } from "./reply-target.ts";
 
 export interface FolderGroup {
@@ -106,6 +112,31 @@ export async function readMailsForSortingAt(
     for (const mail of read) {
       const id = back.get(mail.view.uid);
       if (id !== undefined) out.push({ ...mail, view: { ...mail.view, uid: id } });
+    }
+  }
+  return out;
+}
+
+/** Raw sources by Iris's ids, for the prospection agent (ADR-0032): read-only, never stored. */
+export async function readRawSourcesAt(
+  locator: MailLocator,
+  cadre: MailCadre,
+  password: string,
+  ids: readonly number[],
+  uidValidity: string = VIRTUAL_UID_VALIDITY,
+): Promise<RawSource[]> {
+  const out: RawSource[] = [];
+  for (const g of await locator.groups(ids, uidValidity)) {
+    const back = byUid(g.ids);
+    const read = await readRawSources(
+      inFolder(cadre, g.path),
+      password,
+      [...g.ids.values()],
+      g.uidValidity,
+    );
+    for (const raw of read) {
+      const id = back.get(raw.uid);
+      if (id !== undefined) out.push({ ...raw, uid: id });
     }
   }
   return out;

@@ -36,6 +36,7 @@ describe("cadre.toml", () => {
       propositionsJours: 90,
       journalJours: 180,
       oppositionJours: 1095,
+      prospectionJours: 60,
     });
     expect(cadre.traitements).toEqual([]);
   });

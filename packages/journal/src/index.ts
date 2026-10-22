@@ -58,6 +58,14 @@ export {
   type SignedAcceptance,
   UNDO_DELAY_MS,
 } from "./proposal-store.ts";
+export {
+  type Card,
+  createProspectionStore,
+  type NewCard,
+  type ProspectionStore,
+  READ_OUTCOMES,
+  type ReadOutcome,
+} from "./prospection-store.ts";
 export { createPurges, type Purges } from "./purges.ts";
 export {
   createSecuriteDecisions,

@@ -26,6 +26,9 @@
       "path": "packages/securite"
     },
     {
+      "path": "packages/prospection"
+    },
+    {
       "path": "apps/cli"
     },
     {
@@ -45,6 +48,9 @@
     },
     {
       "path": "apps/securite"
+    },
+    {
+      "path": "apps/prospection"
     },
     {
       "path": "apps/operateur"

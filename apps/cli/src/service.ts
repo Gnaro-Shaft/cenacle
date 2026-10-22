@@ -33,6 +33,7 @@ const NAMES: Record<Program, string> = {
   veille: "La veille du CTO",
   securite: "L'agent sécurité",
   operateur: "L'opérateur des serveurs",
+  prospection: "L'agent prospection",
 };
 const COMMANDS = ["install", "uninstall", "status"] as const;
 type Command = (typeof COMMANDS)[number];

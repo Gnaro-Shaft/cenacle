@@ -22,6 +22,11 @@ export interface Conservation {
   readonly journalJours: number;
   /** The opposition list: a key, after the person's last trace (request or mail met). */
   readonly oppositionJours: number;
+  /**
+   * The prospection agent's cards, after their creation or my last move (ADR-0032).
+   * Optional here, so that a cadre without it still starts Iris; the agent refuses to run without it.
+   */
+  readonly prospectionJours?: number;
 }
 
 export const LEGAL_BASES = [
@@ -77,14 +82,18 @@ export function parseConservation(raw: unknown): Conservation {
     "propositions_jours",
     "journal_jours",
     "opposition_jours",
+    "prospection_jours",
   ];
   onlyKeys(raw, keys, "[conservation]");
-  const c = {
+  const c: Conservation = {
     memoireJours: days(raw, "memoire_jours", 1, 365),
     texteBrouillonJours: days(raw, "texte_brouillon_jours", 1, 30),
     propositionsJours: days(raw, "propositions_jours", 1, 365),
     journalJours: days(raw, "journal_jours", 1, 730),
     oppositionJours: days(raw, "opposition_jours", 1, 3650),
+    ...(raw.prospection_jours === undefined
+      ? {}
+      : { prospectionJours: days(raw, "prospection_jours", 1, 365) }),
   };
   // A proposal stays open at most as long as its mail is remembered (then it
   // lapses): the journal must outlive it, or the bubble on the page goes wrong.

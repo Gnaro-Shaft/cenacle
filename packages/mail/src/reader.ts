@@ -47,13 +47,16 @@ async function parse(uid: number, source: Buffer): Promise<MailForModel> {
   }
 }
 
-/** The raw sources, read-only, size-capped; in the order of `uids`, missing ones skipped. */
+/**
+ * The raw sources, read-only, size-capped; in the order of `uids`, missing ones
+ * skipped. The third element says whether the whole mail fit under the cap.
+ */
 async function readSources(
   cadre: MailCadre,
   password: string,
   uids: readonly number[],
   expectedUidValidity: string | undefined,
-): Promise<[number, Buffer][]> {
+): Promise<[number, Buffer, boolean][]> {
   if (uids.length === 0) return [];
   if (uids.length > MAX_MAILS_PER_READ) {
     throw new PostmanError(`at most ${MAX_MAILS_PER_READ} mails per read, got ${uids.length}`);
@@ -65,7 +68,7 @@ async function readSources(
   await client.connect();
   try {
     const unseenBefore = await unseenCount(client, cadre.mailbox);
-    const sources = new Map<number, Buffer>();
+    const sources = new Map<number, { source: Buffer; complete: boolean }>();
     const lock = await client.getMailboxLock(cadre.mailbox, { readOnly: true });
     try {
       if (client.mailbox === false || !client.mailbox.readOnly) {
@@ -77,9 +80,12 @@ async function readSources(
           `${cadre.mailbox} was renumbered (UIDVALIDITY ${expectedUidValidity} → ${current}): the stored UIDs no longer name the same mails — run mail:sort again first`,
         );
       }
-      const query = { uid: true, source: { maxLength: MAX_SOURCE_BYTES } };
+      const query = { uid: true, size: true, source: { maxLength: MAX_SOURCE_BYTES } };
       for await (const msg of client.fetch(uids.join(","), query, { uid: true })) {
-        if (msg.source !== undefined) sources.set(msg.uid, msg.source);
+        if (msg.source === undefined) continue;
+        // An unknown size is not a small one: only a size the server gave can prove it fits.
+        const complete = typeof msg.size === "number" && msg.size <= MAX_SOURCE_BYTES;
+        sources.set(msg.uid, { source: msg.source, complete });
       }
     } finally {
       lock.release();
@@ -91,12 +97,33 @@ async function readSources(
       );
     }
     return uids.flatMap((uid) => {
-      const source = sources.get(uid);
-      return source === undefined ? [] : [[uid, source] as [number, Buffer]];
+      const read = sources.get(uid);
+      return read === undefined
+        ? []
+        : [[uid, read.source, read.complete] as [number, Buffer, boolean]];
     });
   } finally {
     await client.logout().catch(() => client.close());
   }
+}
+
+/** A raw source, for an agent that parses it itself (ADR-0032). Never stored. */
+export interface RawSource {
+  readonly uid: number;
+  readonly source: Buffer;
+  /** False when the mail is larger than MAX_SOURCE_BYTES: the source is cut. */
+  readonly complete: boolean;
+}
+
+export async function readRawSources(
+  cadre: MailCadre,
+  password: string,
+  uids: readonly number[],
+  expectedUidValidity?: string,
+): Promise<RawSource[]> {
+  return (await readSources(cadre, password, uids, expectedUidValidity)).map(
+    ([uid, source, complete]) => ({ uid, source, complete }),
+  );
 }
 
 export async function readMailsForModel(
