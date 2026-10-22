@@ -39,6 +39,18 @@ export function App() {
             duty="Veille des missions"
             emblem="prospection"
           />
+          <AgentBox
+            agent="securite"
+            title="L'agent sécurité"
+            duty="Ronde de sécurité"
+            emblem="securite"
+          />
+          <AgentBox
+            agent="sentinel"
+            title="La sentinelle"
+            duty="Liaison du Mac (ses battements arrivent-ils ?)"
+            emblem="sentinel"
+          />
         </div>
       </aside>
       {token === null ? (

@@ -149,6 +149,24 @@ function Apercu() {
             detail={null}
             mail={null}
           />
+          <AgentCard
+            title="L'agent sécurité"
+            duty="Ronde de sécurité"
+            emblem="securite"
+            visual="resting"
+            pending={0}
+            detail={null}
+            mail={null}
+          />
+          <AgentCard
+            title="La sentinelle"
+            duty="Liaison du Mac (ses battements arrivent-ils ?)"
+            emblem="sentinel"
+            visual="resting"
+            pending={0}
+            detail={null}
+            mail={null}
+          />
         </div>
       </aside>
       <div className="colonnes">

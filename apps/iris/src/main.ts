@@ -30,6 +30,7 @@ import { createTelegramApi } from "@cenacle/telegram/api";
 import { draftDueFollowUps } from "./draft-due.ts";
 import { draftingDeps } from "./drafting.ts";
 import { purgeDue } from "./purge.ts";
+import { createSentinelLink } from "./sentinel-link.ts";
 import { tick } from "./tick.ts";
 
 // Iris can never accept: she must not even hold the page's key (ADR-0013).
@@ -78,7 +79,15 @@ const drafting = !mail.drafts
 const startedAt = new Date();
 // S2: the sentinel hears Iris every minute; its silence is the alert.
 const sentinel = heartbeatFromEnv("iris");
-let sentinelDown = false;
+// Whether the beats get through is journaled, for the page (sentinel-link.ts).
+const sentinelLink =
+  sentinel === null
+    ? null
+    : createSentinelLink({
+        beat: () => sentinel.beat(),
+        journal,
+        log: { warn: (t) => console.error(t), info: (t) => console.log(t) },
+      });
 if (sentinel === null)
   console.log(
     "ℹ Sentinelle non configurée (CENACLE_SENTINEL_URL absent) : aucun battement envoyé.",
@@ -136,14 +145,7 @@ while (!stopping) {
           }),
       pendingDrafts: async () => (await proposalStore.pending()).length,
       heartbeat: async () => {
-        if (sentinel === null) return;
-        const ok = await sentinel.beat();
-        if (!ok && !sentinelDown)
-          console.error(
-            "⚠ Sentinelle injoignable : battement non reçu (on réessaie chaque minute)",
-          );
-        if (ok && sentinelDown) console.log("✔ Sentinelle de nouveau jointe");
-        sentinelDown = !ok;
+        await sentinelLink?.beat();
       },
       purge: async () => {
         await purgeDue({

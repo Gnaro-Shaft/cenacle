@@ -17,6 +17,20 @@ const EMBLEMS = {
       <path className="embleme" d="M18.5 13.5 L15 15 L13.5 18.5 L17 17 Z" />
     </>
   ),
+  // The security agent, on its round: a shield.
+  securite: (
+    <path
+      className="embleme"
+      d="M16 8.5 L22.5 11 V16 C22.5 19.5 19.8 22.2 16 23.5 C12.2 22.2 9.5 19.5 9.5 16 V11 Z"
+    />
+  ),
+  // The sentinel, away from the Mac, that listens for it: a watchtower.
+  sentinel: (
+    <>
+      <path className="embleme" d="M12.5 23.5 L14 13 H18 L19.5 23.5" />
+      <path className="embleme" d="M11.5 13 H20.5 L19 9.5 H13 Z" />
+    </>
+  ),
   // The prospector, who looks out for missions: a magnifying glass.
   prospection: (
     <>
