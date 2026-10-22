@@ -88,6 +88,7 @@ export {
 } from "./opening.ts";
 export { type HeaderField, orderedHeaders } from "./ordered-headers.ts";
 export { type PassDeps, type PassResult, runMailPass } from "./pass.ts";
+export { platformSourcesSince, SURVEY_MAX_PER_SEARCH } from "./platform-scan.ts";
 export {
   type FetchResult,
   fetchMailRefs,
