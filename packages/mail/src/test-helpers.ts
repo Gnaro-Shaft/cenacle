@@ -123,7 +123,14 @@ export function memoryMailStore(): MailStore & {
       return [...inboxRows.values()].filter((r) => r.category === null).map((r) => r.uid);
     },
     async totals() {
-      const totals = { clients_prospects: 0, administratif: 0, bruit: 0, a_trier: 0, pending: 0 };
+      const totals = {
+        clients_prospects: 0,
+        administratif: 0,
+        bruit: 0,
+        missions: 0,
+        a_trier: 0,
+        pending: 0,
+      };
       for (const row of inboxRows.values()) totals[row.category ?? "pending"]++;
       return totals;
     },

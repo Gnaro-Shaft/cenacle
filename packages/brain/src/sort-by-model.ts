@@ -5,7 +5,7 @@
  * Iris waits: the pass stops, the mails not yet sorted stay where they are,
  * and nothing is sent anywhere else (ADR-0003).
  */
-import { assertNotSensitive, type Category, type MailForModel } from "@cenacle/core";
+import { assertNotSensitive, type MailForModel, type ModelCategory } from "@cenacle/core";
 import type { Journal } from "@cenacle/journal";
 import { type Classification, type ClassifyOptions, classifyMail } from "./classify.ts";
 import { ModelUnavailableError } from "./iris.ts";
@@ -16,7 +16,8 @@ export interface ModelSort {
   readonly classified: readonly Classification[];
   /** Mails left unsorted because the model stopped answering. */
   readonly waiting: number;
-  readonly counts: Readonly<Record<Category, number>> & { readonly invalid: number };
+  /** The model's four answers: never "missions" (ADR-0031). */
+  readonly counts: Readonly<Record<ModelCategory, number>> & { readonly invalid: number };
   readonly durationMs: number;
 }
 

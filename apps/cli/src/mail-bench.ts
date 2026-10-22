@@ -33,6 +33,7 @@ try {
     views.map((v, i) => ({
       uid: v.uid,
       domain: v.domain,
+      address: (messages[i] as (typeof messages)[number]).from.address.toLowerCase(),
       auth: "authenticated" as const,
       mass: isMassMail(fixtureListFields(messages[i] as (typeof messages)[number])),
     })),

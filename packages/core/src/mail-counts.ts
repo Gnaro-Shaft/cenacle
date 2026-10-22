@@ -4,7 +4,7 @@
  * Built from journal events only, like the rest of the status (ADR-0008).
  * Counts, never content: no UID, no domain, no subject ever reaches them.
  */
-import { CATEGORIES, type Category } from "./fixtures.ts";
+import { CATEGORIES, type Category, MODEL_CATEGORIES, type ModelCategory } from "./fixtures.ts";
 
 export type MailCounts = Readonly<Record<Category, number>> & {
   /** Mails of this pass not sorted yet (left for the model, or waiting for the Mac). */
@@ -30,14 +30,23 @@ function laterCount(payload: Readonly<Record<string, unknown>>, key: string): nu
   return payload[key] === undefined ? 0 : count(payload, key);
 }
 
-function isCategory(value: unknown): value is Category {
-  return typeof value === "string" && (CATEGORIES as readonly string[]).includes(value);
+/** A box the base may hold, but the model never answers "missions" (ADR-0031). */
+function isModelCategory(value: unknown): value is ModelCategory {
+  return typeof value === "string" && (MODEL_CATEGORIES as readonly string[]).includes(value);
+}
+
+/** Boxes added after the first events existed: absent from older payloads. */
+const LATER_CATEGORIES: ReadonlySet<Category> = new Set(["missions"]);
+
+function categoryCount(payload: Readonly<Record<string, unknown>>, category: Category): number {
+  return LATER_CATEGORIES.has(category) ? laterCount(payload, category) : count(payload, category);
 }
 
 const EMPTY = {
   clients_prospects: 0,
   administratif: 0,
   bruit: 0,
+  missions: 0,
   a_trier: 0,
   waiting: 0,
   due: 0,
@@ -64,7 +73,7 @@ export function applyRuleSort(
   const next = { ...counts };
   let sorted = 0;
   for (const category of CATEGORIES) {
-    const n = count(payload, category);
+    const n = categoryCount(payload, category);
     next[category] += n;
     sorted += n;
   }
@@ -86,7 +95,7 @@ export function applyModelSort(
     throw new MailCountsError("the model sorted a mail that was not pending");
   }
   const category = payload.category;
-  if (!isCategory(category))
+  if (!isModelCategory(category))
     throw new MailCountsError(`unknown category ${JSON.stringify(category)}`);
   return { ...counts, [category]: counts[category] + 1, pending: counts.pending - 1 };
 }
@@ -97,6 +106,7 @@ export function applyTotals(payload: Readonly<Record<string, unknown>>): MailCou
     clients_prospects: count(payload, "clients_prospects"),
     administratif: count(payload, "administratif"),
     bruit: count(payload, "bruit"),
+    missions: laterCount(payload, "missions"),
     a_trier: count(payload, "a_trier"),
     pending: count(payload, "pending"),
     waiting: laterCount(payload, "waiting"),

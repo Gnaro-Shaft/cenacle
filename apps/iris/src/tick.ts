@@ -52,7 +52,14 @@ function localHour(at: Date): number {
 }
 
 async function freshCounts(store: MailStore, since: Date): Promise<NewCounts> {
-  const counts = { clients_prospects: 0, administratif: 0, bruit: 0, a_trier: 0, pending: 0 };
+  const counts = {
+    clients_prospects: 0,
+    administratif: 0,
+    bruit: 0,
+    missions: 0,
+    a_trier: 0,
+    pending: 0,
+  };
   for (const mail of await store.inbox()) {
     if (Date.parse(mail.receivedAt) > since.getTime()) counts[mail.category ?? "pending"]++;
   }

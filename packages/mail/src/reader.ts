@@ -14,7 +14,7 @@ import { toMailForModel } from "./mail-text.ts";
 import { isMassMail, MASS_HEADERS } from "./mass-mail.ts";
 import type { HeaderField } from "./ordered-headers.ts";
 import { PostmanError } from "./postman.ts";
-import { senderDomain } from "./sender-domain.ts";
+import { senderAddress, senderDomain } from "./sender-domain.ts";
 
 /** Bytes read per message at most: enough for the text, never the attachments. */
 export const MAX_SOURCE_BYTES = 256 * 1024;
@@ -137,10 +137,27 @@ export function massOfSource(source: Buffer): boolean {
 
 const MASS_NAMES = new Set<string>(MASS_HEADERS);
 
+/**
+ * The sender's address from a raw source, for a [missions] rule (ADR-0031):
+ * the header block only, exactly one From line (two are ambiguous: null), read
+ * as strictly as the postman reads it. Kept in memory, never stored.
+ */
+export function senderOfSource(source: Buffer): string | null {
+  const raw = source.toString("latin1");
+  const end = raw.search(/\r?\n\r?\n/);
+  const froms = (end === -1 ? raw : raw.slice(0, end))
+    .replace(/\r?\n[ \t]+/g, " ")
+    .split(/\r?\n/)
+    .filter((line) => /^from\s*:/i.test(line));
+  return froms.length === 1 ? senderAddress(froms[0]) : null;
+}
+
 /** What the sorting measure replays (mesure:rangement --simuler): the model's view and the mass flag. */
 export interface MailForSorting {
   readonly view: MailForModel;
   readonly mass: boolean;
+  /** The sender's address, for a [missions] rule only (ADR-0031); never shown to the model. */
+  readonly address: string | null;
 }
 
 /** One read for both, from the same source: the simulation sees what production sees. */
@@ -152,7 +169,11 @@ export async function readMailsForSorting(
 ): Promise<MailForSorting[]> {
   const mails: MailForSorting[] = [];
   for (const [uid, source] of await readSources(cadre, password, uids, expectedUidValidity)) {
-    mails.push({ view: await parse(uid, source), mass: massOfSource(source) });
+    mails.push({
+      view: await parse(uid, source),
+      mass: massOfSource(source),
+      address: senderOfSource(source),
+    });
   }
   return mails;
 }

@@ -72,8 +72,14 @@ describe("postman (GreenMail)", () => {
     expect(result.unseen).toBe(messages.length);
     const expected = messages.map((m) => m.from.address.split("@")[1]?.toLowerCase()).sort();
     expect(result.refs.map((r) => r.domain).sort()).toEqual(expected);
+    // The address a [missions] rule compares (ADR-0031): exactly the sender's, lowercased.
+    expect(result.refs.map((r) => r.address).sort()).toEqual(
+      messages.map((m) => m.from.address.toLowerCase()).sort(),
+    );
     for (const ref of result.refs) {
       expect(Object.keys(ref).sort()).toEqual([
+        // For a [missions] rule only (ADR-0031): in memory, never stored (collect.ts maps field by field).
+        "address",
         "auth",
         "domain",
         // One boolean for the sort (ADR-0029); the headers themselves are not kept.

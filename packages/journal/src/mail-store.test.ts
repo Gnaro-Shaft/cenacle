@@ -39,6 +39,7 @@ describe("mail store", () => {
       clients_prospects: 0,
       administratif: 0,
       bruit: 1,
+      missions: 0,
       a_trier: 0,
       pending: 2,
     });

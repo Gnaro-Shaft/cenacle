@@ -8,7 +8,12 @@
  * has no tool, no network, no way to act (ADR-0005).
  */
 import { randomBytes } from "node:crypto";
-import { assertNotSensitive, CATEGORIES, type Category, type MailForModel } from "@cenacle/core";
+import {
+  assertNotSensitive,
+  type MailForModel,
+  MODEL_CATEGORIES,
+  type ModelCategory,
+} from "@cenacle/core";
 import { Agent } from "@earendil-works/pi-agent-core";
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 import { ModelUnavailableError } from "./iris.ts";
@@ -33,7 +38,7 @@ const TEMPERATURE = 0;
 
 export interface Classification {
   readonly uid: number;
-  readonly category: Category;
+  readonly category: ModelCategory;
   /** False when the answer was not exactly one category (the mail went to "a_trier"). */
   readonly valid: boolean;
   readonly durationMs: number;
@@ -54,13 +59,16 @@ export function buildClassificationPrompt(mail: MailForModel, nonce: string): st
   ].join("\n");
 }
 
-/** Strict: the whole answer must be a category, give or take quotes and a full stop. */
-export function parseCategory(answer: string): Category | null {
+/**
+ * Strict: the whole answer must be one of the model's four answers, give or
+ * take quotes and a full stop. "missions" is not one of them (ADR-0031).
+ */
+export function parseCategory(answer: string): ModelCategory | null {
   const word = answer
     .trim()
     .replace(/^[`"'«\s]+|[`"'».\s]+$/g, "")
     .toLowerCase();
-  return (CATEGORIES as readonly string[]).includes(word) ? (word as Category) : null;
+  return (MODEL_CATEGORIES as readonly string[]).includes(word) ? (word as ModelCategory) : null;
 }
 
 function textOf(message: AssistantMessage): string {

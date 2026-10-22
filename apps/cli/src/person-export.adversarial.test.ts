@@ -71,8 +71,9 @@ describe("the export a person receives", () => {
 
   it("the notice's own words for each box (mention-information.md)", () => {
     expect(BOX_LABEL.bruit).toBe("information sans réponse attendue");
+    expect(BOX_LABEL.missions).toBe("alerte de missions d'une plateforme");
     expect(Object.keys(BOX_LABEL).sort()).toEqual(
-      ["a_trier", "administratif", "bruit", "clients_prospects"].sort(),
+      ["a_trier", "administratif", "bruit", "clients_prospects", "missions"].sort(),
     );
   });
 

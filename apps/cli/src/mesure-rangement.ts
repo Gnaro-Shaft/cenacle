@@ -44,6 +44,7 @@ const LABEL: Readonly<Record<Category, string>> = {
   clients_prospects: "Clients et prospects",
   administratif: "Administratif",
   bruit: "Bruit",
+  missions: "Missions",
   a_trier: "À trier",
 };
 const BY: Readonly<Record<Decider, string>> = {
@@ -109,7 +110,7 @@ try {
   const verdicts: Verdict[] = [];
   const replayVerdicts: Verdict[] = [];
   const judged: Judged[] = [];
-  const keys = "c clients · a administratif · b bruit · t à trier · q";
+  const keys = "c clients · a administratif · b bruit · m missions · t à trier · q";
   console.log(
     `${queue.length} mails ${scope} à juger (Entrée = juste ; q pour finir et compter).\n`,
   );

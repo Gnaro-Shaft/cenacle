@@ -4,10 +4,11 @@ const CASES = [
   ["clients_prospects", "Clients"],
   ["administratif", "Administratif"],
   ["bruit", "Bruit"],
+  ["missions", "Missions"],
   ["a_trier", "À trier"],
 ] as const;
 
-/** The mails Iris remembers, per category: four numbers, no content. */
+/** The mails Iris remembers, per category: five numbers, no content. */
 export function MailCounters({ counts }: { readonly counts: MailCounts }) {
   return (
     <div className="courrier">

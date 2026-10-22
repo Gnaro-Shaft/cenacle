@@ -24,6 +24,10 @@ describe("parseCategory — anything but a bare category is refused", () => {
     "client",
     "a trier",
     "CLIENTS-PROSPECTS",
+    // A box of the base, not an answer of the model: only a rule decides it (ADR-0031).
+    "missions",
+    "Missions.",
+    "« missions »",
   ])("refuses %j", (answer) => {
     expect(parseCategory(answer)).toBeNull();
   });

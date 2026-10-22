@@ -54,6 +54,8 @@ export {
   fixtureMessageId,
   loadFixtureMailbox,
   loadFixtureSent,
+  MODEL_CATEGORIES,
+  type ModelCategory,
   SENT_FIXTURE_PATH,
 } from "./fixtures.ts";
 export {

@@ -10,7 +10,8 @@ describe("rules", () => {
       local: "/nonexistent/regles.local.toml",
       example: EXAMPLE_RULES_PATH,
     });
-    expect(rules.size).toBe(26);
+    // 26 domains, and 2 exact addresses in [missions] (ADR-0031).
+    expect(rules.size).toBe(28);
   });
 
   it("says when it falls back to the example", () => {
@@ -38,6 +39,7 @@ describe("rules", () => {
       clients_prospects: 0,
       administratif: 0,
       bruit: 1,
+      missions: 0,
       a_trier: 1,
       remaining: 1,
     });
@@ -49,6 +51,7 @@ describe("rules", () => {
     const refs = messages.map((m, i) => ({
       uid: i + 1,
       domain: m.from.address.split("@")[1]?.toLowerCase() ?? null,
+      address: m.from.address.toLowerCase(),
       auth: "authenticated" as const,
       // As in production: the same function reads the bulk-mail headers (ADR-0029).
       mass: isMassMail(fixtureListFields(m)),
@@ -58,10 +61,13 @@ describe("rules", () => {
       expect(category).toBe(messages[uid - 1]?.expected.category);
     }
     expect(counts).toEqual({
-      clients_prospects: 38,
+      // The platform's client messages (m072, m118, m131) stay clients: another address.
+      clients_prospects: 32,
       administratif: 43,
       // m152 and m154 (ads of administratif domains) and m166 go to the model (ADR-0030).
-      bruit: 55,
+      bruit: 54,
+      // Six platform alerts, and m149 — a mass mail of a "bruit" domain, by its address first.
+      missions: 7,
       a_trier: 0,
       remaining: 30,
     });

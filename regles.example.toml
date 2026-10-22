@@ -13,6 +13,18 @@
 # "administratif" (ADR-0030) — such domains send invoices with bulk headers too.
 # A "clients_prospects" rule applies only to a sender our own receiving server
 # authenticated (ADR-0014); otherwise the mail goes to "À trier".
+#
+# [missions] lists exact sender ADDRESSES, not domains (ADR-0031): a platform
+# sends its mission alerts and its advertising from the same domain. It decides
+# before anything else, mass mail included, for an authenticated domain only;
+# otherwise it does not apply, and the mail is sorted as if it did not exist.
+# The model never answers "missions".
+
+[missions]
+adresses = [
+  "emplois@reseau-social.example",
+  "missions@plateforme-freelance.example",
+]
 
 [clients_prospects]
 domains = [

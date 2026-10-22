@@ -24,9 +24,15 @@ const view = (
   subject: text === "" ? "" : "Un objet",
   text,
 });
-const mail = (v: MailForModel, mass = false, senderAuthenticated = true): ToReplay => ({
+const mail = (
+  v: MailForModel,
+  mass = false,
+  senderAuthenticated = true,
+  address: string | null = null,
+): ToReplay => ({
   view: v,
   mass,
+  address,
   senderAuthenticated,
 });
 
@@ -46,7 +52,7 @@ describe("replaySorting", () => {
       rules,
       async (v) => {
         asked.push(v.uid);
-        return { category: "administratif" as Category };
+        return { category: "administratif" as const };
       },
     );
     expect(Object.fromEntries(result)).toEqual({

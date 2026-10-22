@@ -30,11 +30,16 @@ export function recap({ hour, fresh, due, waiting, urgent, drafts = 0, asOf }: R
       : ` (envoyé en retard, chiffres de ${asOf.h} h ${String(asOf.min).padStart(2, "0")})`;
   const lines = [`📬 Iris — récap de ${hour} h${late}`];
   const total =
-    fresh.clients_prospects + fresh.administratif + fresh.bruit + fresh.a_trier + fresh.pending;
+    fresh.clients_prospects +
+    fresh.administratif +
+    fresh.bruit +
+    fresh.missions +
+    fresh.a_trier +
+    fresh.pending;
   lines.push(
     total === 0
       ? "Rien de nouveau depuis le dernier récap."
-      : `Nouveaux : ${fresh.clients_prospects} clients · ${fresh.administratif} admin · ${fresh.bruit} bruit · ${fresh.a_trier} à trier${fresh.pending > 0 ? ` · ${fresh.pending} pas encore triés` : ""}`,
+      : `Nouveaux : ${fresh.clients_prospects} clients · ${fresh.administratif} admin · ${fresh.bruit} bruit · ${fresh.missions} missions · ${fresh.a_trier} à trier${fresh.pending > 0 ? ` · ${fresh.pending} pas encore triés` : ""}`,
   );
   if (urgent > 0) {
     lines.push(

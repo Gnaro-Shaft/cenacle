@@ -2,6 +2,8 @@
 
 > **Publiée le 4 octobre 2026** dans les mentions légales du site, et **vérifiée en ligne** le même jour (section « Mon assistant de messagerie », entre « Mon assistant de travail » et « Questions sur les articles » ; « Dernière mise à jour : 4 octobre 2026 »). À l'ouverture du traitement, `cadre.toml` portera `mention_publiee = 2026-10-04` : rien de ce qui est arrivé avant ce jour ne sera lu.
 >
+> **À republier avant la mise en service de la case « Missions »** (ADR-0031) : le paragraphe « Ce qu'il lit, et ce qu'il garde » nomme une cinquième case, « alerte de missions d'une plateforme ». Tant qu'elle n'est pas republiée et vérifiée en ligne, aucune règle `[missions]` n'est posée dans `regles.local.toml`.
+>
 > **Republiée le 10 octobre 2026**, et **vérifiée en ligne** le même jour : le paragraphe « Vos droits » donne la durée de la liste d'opposition (la clé dérivée et la date du dernier message, jusqu'au retrait de l'opposition, ou trois ans après la demande ou le dernier message) ; « Dernière mise à jour : 10 octobre 2026 ». La rédaction publiée est plus ramassée que celle ci-dessous, pour le même contenu. `mention_publiee` ne change pas : la date à partir de laquelle la boîte est lue reste le 4 octobre 2026.
 
 > Jalon C4 de la phase 5. Rédigé par Claude le 2026-10-04 ; ce n'est pas un avis
@@ -39,7 +41,7 @@ Ces phrases restent justes pour les outils qu'elles décrivent. Il suffit donc d
 
 Pour trier ma boîte professionnelle et préparer mes réponses, j'utilise un second assistant, fondé lui aussi sur l'intelligence artificielle. Il fonctionne uniquement sur mon propre ordinateur, en France. Contrairement à l'outil de suivi décrit plus haut, il **lit** les messages que vous m'écrivez.
 
-**Ce qu'il lit, et ce qu'il garde.** À chaque relevé, il lit l'objet et le texte de vos messages (au plus 2 000 caractères), le temps de les ranger : client ou prospect, administratif, information sans réponse attendue, ou à trier par moi. Il n'en garde rien : ni l'objet, ni le texte, ni votre nom. Il retient seulement un identifiant technique attribué par le serveur de messagerie, la date d'arrivée, la case choisie, et une **clé dérivée** de votre adresse, calculée avec un secret qui ne quitte pas mon ordinateur. Cette clé lui permet de savoir si je vous ai répondu, sans conserver votre adresse.
+**Ce qu'il lit, et ce qu'il garde.** À chaque relevé, il lit l'objet et le texte de vos messages (au plus 2 000 caractères), le temps de les ranger : client ou prospect, administratif, information sans réponse attendue, alerte de missions d'une plateforme, ou à trier par moi. Il n'en garde rien : ni l'objet, ni le texte, ni votre nom. Il retient seulement un identifiant technique attribué par le serveur de messagerie, la date d'arrivée, la case choisie, et une **clé dérivée** de votre adresse, calculée avec un secret qui ne quitte pas mon ordinateur. Cette clé lui permet de savoir si je vous ai répondu, sans conserver votre adresse.
 
 **Ce qu'il me propose.** Quand un message de client ou de prospect attend ma réponse depuis 48 heures ouvrées, il peut me proposer un brouillon : une de mes réponses types, dont quelques mots sont repris de votre message (par exemple le créneau que vous proposez). Il ne rédige pas le reste, et il ne peut pas inventer un fait : un nombre, une date, un montant, un lien ou une adresse absents de votre message sont refusés par une vérification qui n'utilise pas l'intelligence artificielle.
 

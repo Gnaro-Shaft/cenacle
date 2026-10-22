@@ -105,6 +105,7 @@ export {
   massOfSource,
   readMailsForModel,
   readMailsForSorting,
+  senderOfSource,
 } from "./reader.ts";
 export {
   type ReplyContext,

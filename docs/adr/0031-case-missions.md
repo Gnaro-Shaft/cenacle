@@ -49,7 +49,7 @@ Aucune des quatre cases ne convient :
   - la page, `/etat` et le récapitulatif de 9 h, 13 h et 18 h ;
   - la ligne de commande, la mesure et la revue (une lettre de plus) ;
   - le banc ;
-  - le jeu de mails fictifs : les alertes de `plateforme-freelance.example` passent d'une règle par domaine à une règle par adresse, et le jeu reçoit une fausse alerte non authentifiée.
+  - le jeu de mails fictifs : les alertes de `plateforme-freelance.example` et l'alerte d'offres du réseau fictif passent en « Missions » par une règle sur leur adresse ; les messages de clients de la plateforme, envoyés d'une autre adresse, restent « Clients et prospects ». Le jeu reste entièrement authentifié par le serveur fictif : la fausse alerte, pour chaque verdict d'authentification, est éprouvée par les tests adversariaux de la règle (`missions-rule.adversarial.test.ts`).
 - **Le droit avant la technique** (ADR-0009) : la mention d'information (`docs/conformite/mention-information.md`) et la ligne T-01 du registre listent les cases. Elles sont mises à jour **avant** que la case n'entre en service sur la vraie boîte.
 - **La mesure M2** passe à des tableaux 5 × 5. Une publicité envoyée depuis une adresse d'alerte se retrouvera en « Missions » : l'agent n'y trouvera aucune annonce et le comptera (ADR-0032). La mesure dira si c'est fréquent.
 - **Une liste d'adresses est à tenir à la main**, mais elle est courte : une ou deux adresses par plateforme.
