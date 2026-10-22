@@ -1,8 +1,9 @@
-/* The page in two columns, as in Myriade: what to do on the left, the team on the right. */
+/* The page in two columns, as in Myriade: what to do on the left, the team on the right.
+   The whole width of the screen: the board of missions spreads its columns; the
+   blocks of text keep a width that reads (see .principal below). */
 .page {
-  max-width: 72rem;
   margin: 0 auto;
-  padding: 1.2rem 1rem 2rem;
+  padding: 1.2rem 1.5rem 2rem;
 }
 .entete {
   display: flex;
@@ -23,6 +24,10 @@
   display: grid;
   gap: 1rem;
   min-width: 0;
+}
+/* Drafts and the CTO: a line too long does not read. Only the board takes the whole width. */
+.principal > :not(#missions) {
+  max-width: 72rem;
 }
 .equipe {
   background: var(--panneau);
