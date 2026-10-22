@@ -1,0 +1,86 @@
+/* The board of missions (ADR-0032): columns side by side, scrolled across on a phone. */
+.tableau {
+  /* Never widens the page: it takes its parent's width, and scrolls inside it. */
+  width: 0;
+  min-width: 100%;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(13rem, 1fr);
+  gap: 0.6rem;
+  overflow-x: auto;
+  padding-bottom: 0.4rem;
+  margin-top: 0.6rem;
+}
+.colonne {
+  background: var(--panneau);
+  border-radius: 4px;
+  padding: 0.5rem;
+  min-height: 4rem;
+}
+.colonne h3 {
+  font-family: var(--titres);
+  font-size: 0.95rem;
+  margin: 0 0 0.4rem;
+}
+.colonne .compte {
+  color: var(--encre-douce);
+  font-variant-numeric: tabular-nums;
+}
+.carte-mission {
+  background: var(--carte);
+  border: 1px solid var(--trait);
+  border-radius: 4px;
+  padding: 0.5rem 0.6rem;
+  margin-bottom: 0.45rem;
+  overflow-wrap: anywhere;
+}
+.carte-mission h4 {
+  font-family: var(--titres);
+  font-size: 0.95rem;
+  margin: 0 0 0.2rem;
+}
+.carte-mission .stack,
+.carte-mission .note {
+  font-size: 0.85rem;
+  margin: 0.2rem 0;
+}
+.carte-mission .note {
+  font-style: italic;
+}
+.marques {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0.3rem 0;
+  font-size: 0.75rem;
+}
+.marques span {
+  border: 1px solid var(--trait);
+  border-radius: 3px;
+  padding: 0 0.3rem;
+  color: var(--encre-douce);
+}
+.marques .marque-ia {
+  border-color: var(--tiede);
+  color: var(--tiede);
+}
+.marques .marque-verifier {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.deplacer {
+  display: block;
+  font-size: 0.8rem;
+  margin-top: 0.3rem;
+}
+.ajout-mission {
+  display: grid;
+  gap: 0.35rem;
+  max-width: 32rem;
+  margin: 0.5rem 0;
+}
+.ajout-mission label {
+  display: grid;
+  gap: 0.15rem;
+  font-size: 0.85rem;
+}

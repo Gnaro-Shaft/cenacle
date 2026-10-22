@@ -4,6 +4,6 @@
     "outDir": "dist/test",
     "types": ["node", "vite/client"]
   },
-  "include": ["src/**/*.test.ts", "src/presence.ts"],
+  "include": ["src/**/*.test.ts", "src/presence.ts", "src/board-rules.ts"],
   "exclude": []
 }

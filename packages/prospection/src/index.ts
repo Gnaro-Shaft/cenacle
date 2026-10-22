@@ -1,4 +1,19 @@
+export {
+  type AlertCounts,
+  type AlertDeps,
+  type AlertOutcome,
+  alertIfNew,
+  alertText,
+} from "./alert.ts";
 export { bodyOf, bodyOfParts, MAX_LINKS, type MailBody } from "./body.ts";
+export {
+  cardByHand,
+  type HandCard,
+  type HandResult,
+  httpsLink,
+  NOTE_MAX,
+  shownLink,
+} from "./by-hand.ts";
 export {
   loadProspectionConfig,
   type Platform,

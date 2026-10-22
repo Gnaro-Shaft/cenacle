@@ -1,4 +1,4 @@
-/** Calls to the API (proposals, the CTO), with the token of this run of the server. */
+/** Calls to the API (proposals, the CTO, the board), with the token of this run of the server. */
 
 export interface ProposalView {
   readonly id: string;
@@ -68,3 +68,42 @@ export const askCto = async (token: string, question: string) =>
       body: JSON.stringify({ question }),
     })
   ).reply;
+
+/** A card of the board of missions (ADR-0032), as the server shows it. */
+export interface CardView {
+  readonly id: number;
+  readonly source: "mail" | "me";
+  readonly platform: string | null;
+  readonly title: string;
+  readonly company: string | null;
+  readonly intermediary: string;
+  readonly stack: readonly string[];
+  readonly rate: readonly [number, number] | null;
+  readonly remote: string;
+  readonly place: string | null;
+  readonly link: string | null;
+  readonly note: string | null;
+  readonly column: string;
+  readonly reason: string | null;
+  readonly decidedBy: string;
+  readonly toCheck: boolean;
+  readonly createdAt: string;
+  readonly movedAt: string | null;
+}
+
+export const listCards = async (token: string) =>
+  (await call<{ cards: CardView[] }>(token, "/api/prospection/cartes")).cards;
+
+export const addCard = async (token: string, fields: Record<string, unknown>) =>
+  (
+    await call<{ card: CardView }>(token, "/api/prospection/cartes", {
+      method: "POST",
+      body: JSON.stringify(fields),
+    })
+  ).card;
+
+export const moveCard = (token: string, id: number, colonne: string) =>
+  call(token, `/api/prospection/cartes/${encodeURIComponent(String(id))}/deplacer`, {
+    method: "POST",
+    body: JSON.stringify({ colonne }),
+  });

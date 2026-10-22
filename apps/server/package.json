@@ -9,6 +9,7 @@
     "@cenacle/cto": "0.0.0",
     "@cenacle/journal": "0.0.0",
     "@cenacle/mail": "0.0.0",
+    "@cenacle/prospection": "0.0.0",
     "@hono/node-server": "2.1.5",
     "hono": "4.13.13"
   },

@@ -67,6 +67,10 @@ const NEUTRAL_EVENT_TYPES: ReadonlySet<string> = new Set([
   "mail.model_waiting",
   "prospection.passed", // a pass of the prospection agent: numbers only (ADR-0032)
   "prospection.model_waiting",
+  "prospection.alert_sent", // the counters left on Telegram (ADR-0032, point 19)
+  "prospection.alert_failed", // not sent: said again at the next pass
+  "prospection.card_added", // a card I typed: its column only
+  "prospection.card_moved", // my move: from which column to which, never which card
   "alert.sent",
   "recap.sent",
   "notify.failed", // once per Telegram outage; the messages are retried each minute
