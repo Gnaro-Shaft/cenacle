@@ -17,6 +17,13 @@ const EMBLEMS = {
       <path className="embleme" d="M18.5 13.5 L15 15 L13.5 18.5 L17 17 Z" />
     </>
   ),
+  // The prospector, who looks out for missions: a magnifying glass.
+  prospection: (
+    <>
+      <circle className="embleme" cx="14.5" cy="14.5" r="5.5" />
+      <path className="embleme" d="M18.5 18.5 L23 23" />
+    </>
+  ),
 } as const;
 
 export type Emblem = keyof typeof EMBLEMS;
