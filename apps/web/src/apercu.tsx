@@ -140,6 +140,15 @@ function Apercu() {
             detail={null}
             mail={null}
           />
+          <AgentCard
+            title="Le prospecteur"
+            duty="Veille des missions"
+            emblem="prospection"
+            visual="resting"
+            pending={0}
+            detail={null}
+            mail={null}
+          />
         </div>
       </aside>
       <div className="colonnes">

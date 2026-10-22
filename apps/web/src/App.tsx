@@ -33,6 +33,12 @@ export function App() {
         <div className="equipe-agents">
           <AgentBox agent="iris" title="Iris" duty="Courrier" emblem="iris" />
           <AgentBox agent="cto" title="Le CTO" duty="Conseil technique" emblem="cto" />
+          <AgentBox
+            agent="prospection"
+            title="Le prospecteur"
+            duty="Veille des missions"
+            emblem="prospection"
+          />
         </div>
       </aside>
       {token === null ? (
