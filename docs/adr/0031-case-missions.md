@@ -1,6 +1,6 @@
 # ADR-0031 — La case « Missions » : les alertes des plateformes, par l'adresse exacte de l'expéditeur
 
-**Statut** : proposée (2026-10-22) — complète l'ADR-0007 (une cinquième case) et l'ADR-0029 (une étape avant le courrier de masse) ; garde l'ADR-0014 ; prépare l'ADR-0032
+**Statut** : acceptée (2026-10-22) — complète l'ADR-0007 (une cinquième case) et l'ADR-0029 (une étape avant le courrier de masse) ; garde l'ADR-0014 ; prépare l'ADR-0032
 
 ## Contexte
 
