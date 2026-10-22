@@ -60,6 +60,9 @@ export class ProjectionError extends Error {
 /** Event types that exist but do not change an agent's status. */
 const NEUTRAL_EVENT_TYPES: ReadonlySet<string> = new Set([
   "heartbeat",
+  "sentinel.link", // the Mac's beats reach the sentinel, or not: first beat of a run (Iris)
+  "sentinel.unreachable", // once per outage of the link
+  "sentinel.reached", // the link is back, with how many minutes it was down
   "model.routed",
   "model.answered",
   "mail.fetch_failed",
