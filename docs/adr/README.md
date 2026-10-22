@@ -35,7 +35,7 @@ Elles sont rédigées en français (le code et le README sont en anglais).
 | [0028](0028-ollama-sert-le-modele-local.md) | Ollama sert le modèle local, à l'écoute du Mac seul ; deux filets contre son cloud | Acceptée |
 | [0029](0029-courrier-de-masse.md) | Le courrier de masse va en « Bruit », par ses en-têtes ; une règle client l'emporte | Acceptée |
 | [0030](0030-masse-d-un-domaine-administratif.md) | Le courrier de masse d'un domaine administratif va au modèle, plafonné à « Administratif » | Acceptée |
-| [0031](0031-case-missions.md) | La case « Missions » : les alertes des plateformes, par l'adresse exacte de l'expéditeur | Proposée |
-| [0032](0032-agent-prospection.md) | L'agent prospection : la veille des missions, un tableau, aucun droit d'agir | Proposée |
+| [0031](0031-case-missions.md) | La case « Missions » : les alertes des plateformes, par l'adresse exacte de l'expéditeur | Acceptée |
+| [0032](0032-agent-prospection.md) | L'agent prospection : la veille des missions, un tableau, aucun droit d'agir | Acceptée |
 
 Les règles dures qui s'appliquent à tout le code sont dans [`../charte.md`](../charte.md).
