@@ -176,7 +176,7 @@ export async function runProspection(deps: RunDeps): Promise<PassSummary> {
       continue;
     }
     const cards = offers.map((offer): CardToKeep => {
-      const t = triage(offer, config, "mail");
+      const t = triage(offer, config, "mail", platform);
       counts[t.column] = (counts[t.column] ?? 0) + 1;
       if (t.toCheck) counts.to_check = (counts.to_check ?? 0) + 1;
       return {

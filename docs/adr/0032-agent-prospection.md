@@ -129,6 +129,15 @@ Ce qui a été fixé avant cet ADR (2026-10-22) :
 
     **Pas d'échec silencieux** : un mail qu'on n'a pas pu lire, une annonce sans aucun champ valide, une liste d'ESN, une liste de plateformes ou un profil illisibles sont dits. Une liste illisible arrête le tri, au lieu de tout laisser passer.
 
+## Révision du 2026-10-22 — une plateforme que je déclare « directe »
+
+Le relevé de mes plateformes a montré qu'une alerte de Collective ne donne qu'un intitulé et un lien : ni TJM, ni télétravail, ni intermédiaire. Le modèle répond donc `inconnu`, et le point 11 arrêtait **toutes** ses missions en « Détectées », sans alerte.
+
+- **Un réglage par plateforme**, dans `prospection.local.toml` : `intermediaire_par_defaut = "direct"`, seule valeur permise. C'est ma déclaration (les clients y publient eux-mêmes), pas l'avis du modèle.
+- **Il n'agit que sur le doute** : quand le modèle dit `inconnu` pour une mission de cette plateforme, elle passe « Client direct ». La liste d'ESN, les tournures et un `esn` du modèle l'emportent toujours. Une carte que je saisis à la main n'est pas concernée.
+- **Elle reste « à vérifier »** : elle a passé sur ma déclaration, pas sur ce que disait l'alerte. Mon profil s'applique comme avant (stack, TJM, télétravail).
+- Choix du dirigeant (2026-10-22), pour Collective ; aucune plateforme n'a ce réglage par défaut.
+
 ## Conformité
 
 - **RGPD** : un nouveau traitement, **T-09**.
