@@ -2,7 +2,7 @@
 // production's parts: rules (mass mail, client authentication), the floor,
 // then the model — and the model never sees what production keeps from it.
 // If the model stops answering, the replay stops: no half measure.
-import type { Category, MailForModel } from "@cenacle/core";
+import type { MailForModel } from "@cenacle/core";
 import { parseRules } from "@cenacle/mail";
 import { describe, expect, it } from "vitest";
 import { replaySorting, type ToReplay } from "./mesure-simulation.ts";
