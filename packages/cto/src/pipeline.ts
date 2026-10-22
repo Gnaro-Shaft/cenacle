@@ -66,7 +66,7 @@ export interface CtoDeps {
 }
 
 /**
- * Up to 240 k characters of documentation, ~72 k tokens: a window far above
+ * Up to 280 k characters of documentation, ~84 k tokens: a window far above
  * Iris's, within what Ollama loads for the shared model. Answers are short
  * (the model writes ~18 tokens/s): 1500 tokens, ~1000 words at most.
  */
