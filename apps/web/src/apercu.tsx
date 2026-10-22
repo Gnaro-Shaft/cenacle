@@ -119,7 +119,39 @@ function Apercu() {
         <h1>Cénacle — aperçu</h1>
         <span className="date">données fictives, aucun appel au serveur</span>
       </header>
+      <aside className="equipe" aria-label="L'équipe">
+        <h2>L'équipe</h2>
+        <div className="equipe-agents">
+          <AgentCard
+            title="Iris"
+            duty="Courrier"
+            emblem="iris"
+            visual="working"
+            pending={1}
+            detail={null}
+            mail={MAIL}
+          />
+          <AgentCard
+            title="Le CTO"
+            duty="Conseil technique"
+            emblem="cto"
+            visual="working"
+            pending={0}
+            detail={null}
+            mail={null}
+          />
+        </div>
+      </aside>
       <div className="colonnes">
+        <div className="cote-missions">
+          <section id="missions" className="bloc" aria-label="Missions">
+            <div className="bloc-titre">
+              <h2>Missions</h2>
+              <span className="compte-rouge">2 en alerte</span>
+            </div>
+            <BoardView cards={CARDS} onMove={nothing} />
+          </section>
+        </div>
         <div className="principal">
           <section id="brouillons" className="bloc decide" aria-label="Brouillons à décider">
             <div className="bloc-titre">
@@ -131,13 +163,6 @@ function Apercu() {
             ))}
           </section>
           <CtoAsk token="apercu" onLost={nothing} />
-          <section id="missions" className="bloc" aria-label="Missions">
-            <div className="bloc-titre">
-              <h2>Missions</h2>
-              <span className="compte-rouge">2 en alerte</span>
-            </div>
-            <BoardView cards={CARDS} onMove={nothing} />
-          </section>
           <section className="bloc" aria-label="Tous les états">
             <h2>Tous les états</h2>
             <AgentCard
@@ -187,27 +212,6 @@ function Apercu() {
             />
           </section>
         </div>
-        <aside className="equipe" aria-label="L'équipe">
-          <h2>L'équipe</h2>
-          <AgentCard
-            title="Iris"
-            duty="Courrier"
-            emblem="iris"
-            visual="working"
-            pending={1}
-            detail={null}
-            mail={MAIL}
-          />
-          <AgentCard
-            title="Le CTO"
-            duty="Conseil technique"
-            emblem="cto"
-            visual="working"
-            pending={0}
-            detail={null}
-            mail={null}
-          />
-        </aside>
       </div>
     </main>
   );

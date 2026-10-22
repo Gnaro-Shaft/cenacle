@@ -1,6 +1,5 @@
-/* The page in two columns, as in Myriade: what to do on the left, the team on the right.
-   The whole width of the screen: the board of missions spreads its columns; the
-   blocks of text keep a width that reads (see .principal below). */
+/* The whole width of the screen: the team across the top; below it, the missions
+   on two thirds at the left, what to decide and the CTO on the third at the right. */
 .page {
   margin: 0 auto;
   padding: 1.2rem 1.5rem 2rem;
@@ -16,24 +15,34 @@
 }
 .colonnes {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 18rem;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
   gap: 1.2rem;
   align-items: start;
+}
+.cote-missions {
+  min-width: 0;
 }
 .principal {
   display: grid;
   gap: 1rem;
   min-width: 0;
 }
-/* Drafts and the CTO: a line too long does not read. Only the board takes the whole width. */
-.principal > :not(#missions) {
-  max-width: 72rem;
-}
 .equipe {
   background: var(--panneau);
   border: 1px solid var(--trait);
   border-radius: 4px;
   padding: 0.9rem 1rem;
+  margin-bottom: 1.2rem;
+}
+/* The agents side by side across the band; they wrap on a narrow screen. */
+.equipe-agents {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 0.6rem 1.5rem;
+}
+.equipe-agents > .agent {
+  border-top: none;
+  padding-top: 0;
 }
 .equipe > h2 {
   margin-bottom: 0.7rem;
@@ -80,12 +89,12 @@
   margin: 0.5rem 0;
 }
 
-/* Narrow screens: the team first, then the rest, one column. */
+/* Narrow screens: one column, what to decide before the missions. */
 @media (max-width: 1100px) {
   .colonnes {
     grid-template-columns: minmax(0, 1fr);
   }
-  .equipe {
+  .principal {
     order: -1;
   }
 }
