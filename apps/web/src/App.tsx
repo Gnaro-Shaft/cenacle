@@ -28,27 +28,29 @@ export function App() {
         <h1>Cénacle</h1>
         <span className="date">{TODAY.format(new Date())}</span>
       </header>
-      <div className="colonnes">
-        <div className="principal">
-          {token === null ? (
-            <p className="bloc verrou">
-              Pour voir les brouillons et parler au CTO, ouvre la page avec{" "}
-              <code>npm run page</code> (le lien change à chaque démarrage du serveur).
-            </p>
-          ) : (
-            <>
-              <Proposals token={token} onLost={() => setToken(null)} />
-              <Board token={token} onLost={() => setToken(null)} />
-              <CtoAsk token={token} onLost={() => setToken(null)} />
-            </>
-          )}
-        </div>
-        <aside className="equipe" aria-label="L'équipe">
-          <h2>L'équipe</h2>
+      <aside className="equipe" aria-label="L'équipe">
+        <h2>L'équipe</h2>
+        <div className="equipe-agents">
           <AgentBox agent="iris" title="Iris" duty="Courrier" emblem="iris" />
           <AgentBox agent="cto" title="Le CTO" duty="Conseil technique" emblem="cto" />
-        </aside>
-      </div>
+        </div>
+      </aside>
+      {token === null ? (
+        <p className="bloc verrou">
+          Pour voir les missions, les brouillons et parler au CTO, ouvre la page avec{" "}
+          <code>npm run page</code> (le lien change à chaque démarrage du serveur).
+        </p>
+      ) : (
+        <div className="colonnes">
+          <div className="cote-missions">
+            <Board token={token} onLost={() => setToken(null)} />
+          </div>
+          <div className="principal">
+            <Proposals token={token} onLost={() => setToken(null)} />
+            <CtoAsk token={token} onLost={() => setToken(null)} />
+          </div>
+        </div>
+      )}
     </main>
   );
 }
