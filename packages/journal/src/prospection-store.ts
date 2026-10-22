@@ -1,8 +1,9 @@
 /**
  * The prospection agent's cards and the alerts it has read (ADR-0032,
  * sql/027_prospection.sql). The agent only adds: a card it placed is never
- * moved by it again (my moves come with the board, lot 3). Purged by the
- * agent at each pass, 60 days after a card's creation or my last move.
+ * moved by it again. Only the page's server adds a card by hand and moves
+ * one, for me (point 17; a test reads the agent's code to hold it). Purged by
+ * the agent at each pass, 60 days after a card's creation or my last move.
  */
 import type { Sql } from "postgres";
 
@@ -55,6 +56,15 @@ export interface ProspectionStore {
     cards: readonly NewCard[],
   ): Promise<{ added: number; duplicates: number }>;
   cards(): Promise<Card[]>;
+  /** A card I typed (the page's server only). Returns its id. */
+  addByHand(card: NewCard): Promise<number>;
+  /**
+   * My move (the page's server only): any column, decided by me, its stop
+   * reason cleared. Returns the column it left, or null if there is no such card.
+   */
+  move(id: number, column: string): Promise<string | null>;
+  /** Cards from a mail placed in « alert » after this instant (null: ever). */
+  newAlerts(since: Date | null): Promise<number>;
   /** Cards whose company holds these words (case ignored): for a request of access. */
   byCompany(words: string): Promise<Card[]>;
   /** Erases one card; true when it existed. */
@@ -143,6 +153,40 @@ export function createProspectionStore(sql: Sql): ProspectionStore {
 
     async cards() {
       return (await sql<Row[]>`select * from prospection_cartes order by id`).map(toCard);
+    },
+
+    async addByHand(c) {
+      if (c.source !== "me") throw new Error("addByHand: a card typed by me only");
+      const rows = await sql<{ id: string }[]>`
+        insert into prospection_cartes (
+          source, platform, title, company, intermediary, stack, rate_min, rate_max,
+          remote, place, link, note, board_column, reason, decided_by, to_check, duplicate_key)
+        values (
+          'me', null, ${c.title}, ${c.company}, ${c.intermediary},
+          ${c.stack as string[]}, ${c.rate?.[0] ?? null}, ${c.rate?.[1] ?? null},
+          ${c.remote}, ${c.place}, ${c.link}, ${c.note}, ${c.column}, ${c.reason},
+          ${c.decidedBy}, ${c.toCheck}, null)
+        returning id::text`;
+      return Number(rows[0]?.id);
+    },
+
+    async move(id, column) {
+      // Read and written in one statement: the column it left is the one it had.
+      const rows = await sql<{ left: string }[]>`
+        update prospection_cartes as c
+        set board_column = ${column}, decided_by = 'me', reason = null, moved_at = now()
+        from (select id, board_column from prospection_cartes where id = ${id} for update) as before
+        where c.id = before.id
+        returning before.board_column as left`;
+      return rows[0]?.left ?? null;
+    },
+
+    async newAlerts(since) {
+      const rows = await sql<{ n: string }[]>`
+        select count(*)::text as n from prospection_cartes
+        where source = 'mail' and board_column = 'alert'
+          and (${since}::timestamptz is null or created_at > ${since})`;
+      return Number(rows[0]?.n ?? 0);
     },
 
     async byCompany(words) {

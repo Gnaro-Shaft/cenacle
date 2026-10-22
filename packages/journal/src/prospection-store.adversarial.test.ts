@@ -91,17 +91,75 @@ describe("prospection store — what the table refuses", () => {
 });
 
 describe("prospection store — purge, search, erasure", () => {
-  // My moves come with the board (lot 3): only then can "after my last move" be tested.
-  it("the agent's role cannot move a card; the purge takes what is older than the cutoff", async () => {
-    const old = `Vieille ${run}`;
-    const moved = `Déplacée ${run}`;
-    await store.recordMail(mailId(), "read", [card({ title: old }), card({ title: moved })]);
-    const owner = sql; // the app role cannot UPDATE (the agent never moves a card): set dates as a test setup
+  it("only the four columns of a move can change; never a card's text", async () => {
+    await store.recordMail(mailId(), "read", [card({ title: `Fixe ${run}` })]);
     await expect(
-      owner`update prospection_cartes set moved_at = now() where title = ${moved}`,
+      sql`update prospection_cartes set title = 'autre' where title = ${`Fixe ${run}`}`,
     ).rejects.toThrow();
-    expect(await store.purge(new Date(Date.now() + 60_000))).toBeGreaterThanOrEqual(2);
-    expect((await store.cards()).some((c) => c.title === old || c.title === moved)).toBe(false);
+    await expect(
+      sql`update prospection_cartes set link = null where title = ${`Fixe ${run}`}`,
+    ).rejects.toThrow();
+  });
+
+  it("my move: any column, decided by me, its reason cleared, the column it left told", async () => {
+    await store.recordMail(mailId(), "read", [
+      card({ title: `Arrêtée ${run}`, column: "detected", reason: "esn_list" }),
+    ]);
+    const target = (await store.cards()).find((c) => c.title === `Arrêtée ${run}`);
+    expect(await store.move(target?.id ?? -1, "applied")).toBe("detected");
+    const after = (await store.cards()).find((c) => c.id === target?.id);
+    expect(after).toMatchObject({ column: "applied", decidedBy: "me", reason: null });
+    expect(after?.movedAt).not.toBeNull();
+    expect(await store.move(-1, "won")).toBeNull();
+    await expect(store.move(target?.id ?? -1, "ailleurs")).rejects.toThrow();
+  });
+
+  it("the purge keeps a card I moved since the cutoff, and takes the forgotten ones", async () => {
+    const kept = `Gardée ${run}`;
+    const old = `Oubliée ${run}`;
+    await store.recordMail(mailId(), "read", [card({ title: kept }), card({ title: old })]);
+    const cutoff = new Date(Date.now() + 1000);
+    await new Promise((r) => setTimeout(r, 1100));
+    const target = (await store.cards()).find((c) => c.title === kept);
+    await store.move(target?.id ?? -1, "contacted");
+    await store.purge(cutoff);
+    const titles = (await store.cards()).map((c) => c.title);
+    expect(titles).toContain(kept);
+    expect(titles).not.toContain(old);
+  });
+
+  it("a card by hand: mine, no platform, never decided by the model", async () => {
+    const id = await store.addByHand(
+      card({
+        source: "me",
+        platform: null,
+        title: `À la main ${run}`,
+        note: "repérée",
+        decidedBy: "me",
+      }),
+    );
+    expect((await store.cards()).find((c) => c.id === id)).toMatchObject({
+      source: "me",
+      note: "repérée",
+    });
+    await expect(store.addByHand(card({ title: `Pas à moi ${run}` }))).rejects.toThrow();
+    await expect(
+      store.addByHand(card({ source: "me", platform: null, decidedBy: "model" })),
+    ).rejects.toThrow();
+  });
+
+  it("new alerts: mail cards placed in « alert » after an instant, never mine", async () => {
+    const since = new Date();
+    await new Promise((r) => setTimeout(r, 20));
+    await store.recordMail(mailId(), "read", [
+      card({ title: `Nouvelle ${run}` }),
+      card({ column: "direct", title: `Hors profil ${run}` }),
+    ]);
+    await store.addByHand(
+      card({ source: "me", platform: null, decidedBy: "me", title: `Mienne ${run}` }),
+    );
+    expect(await store.newAlerts(since)).toBe(1);
+    expect(await store.newAlerts(new Date(Date.now() + 60_000))).toBe(0);
   });
 
   it("finds by company, never treating % or _ as wildcards", async () => {

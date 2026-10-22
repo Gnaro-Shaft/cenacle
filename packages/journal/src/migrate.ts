@@ -108,6 +108,10 @@ export async function migrate({
     // The prospection agent's cards (ADR-0032): added, read, purged — never changed by it.
     await sql.unsafe(`REVOKE ALL ON prospection_cartes FROM ${APP_ROLE}`);
     await sql.unsafe(`GRANT SELECT, INSERT, DELETE ON prospection_cartes TO ${APP_ROLE}`);
+    // My moves, from the page's server: the column, its decider and reason, the date — nothing else.
+    await sql.unsafe(
+      `GRANT UPDATE (board_column, decided_by, reason, moved_at) ON prospection_cartes TO ${APP_ROLE}`,
+    );
     // The alerts it read: marked once, erased with the mail (trigger of 027).
     await sql.unsafe(`REVOKE ALL ON prospection_mails_lus FROM ${APP_ROLE}`);
     await sql.unsafe(`GRANT SELECT, INSERT, DELETE ON prospection_mails_lus TO ${APP_ROLE}`);

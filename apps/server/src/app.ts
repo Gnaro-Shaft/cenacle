@@ -9,6 +9,8 @@ import { type Context, Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { type GuardConfig, hostGuard, tokenGuard } from "./guard.ts";
 import type { ProposalsService } from "./proposals-service.ts";
+import { mountProspection } from "./prospection-routes.ts";
+import type { ProspectionService } from "./prospection-service.ts";
 import { type ReadAfter, watchAgent } from "./watch.ts";
 
 const AGENT_RULE = /^[a-z][a-z0-9_-]{0,31}$/;
@@ -21,6 +23,8 @@ export interface AppDeps {
   readonly proposals: ProposalsService;
   /** Asks the CTO's service (ADR-0020); absent, the route says so. */
   readonly askCto?: (question: string) => Promise<CtoReply>;
+  /** The board of missions (ADR-0032); absent, its routes say so. */
+  readonly prospection?: ProspectionService;
 }
 
 /** What the page is told when the CTO cannot answer: a status and a short reason. */
@@ -46,8 +50,11 @@ export function createApp(deps: AppDeps): Hono {
   app.use("/api/proposals", tokenGuard(deps.guard));
   app.use("/api/proposals/*", tokenGuard(deps.guard));
   app.use("/api/cto", tokenGuard(deps.guard));
+  app.use("/api/prospection", tokenGuard(deps.guard));
+  app.use("/api/prospection/*", tokenGuard(deps.guard));
 
   app.get("/api/health", (c) => c.json({ ok: true }));
+  mountProspection(app, deps.prospection);
 
   app.get("/api/agents/:agent/stream", (c) => {
     const agent = c.req.param("agent");

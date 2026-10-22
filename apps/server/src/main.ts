@@ -14,6 +14,7 @@ import {
   createLocationStore,
   createMailStore,
   createProposalStore,
+  createProspectionStore,
   holdSingleInstance,
   watchOrQuit,
 } from "@cenacle/journal";
@@ -28,11 +29,13 @@ import {
   readReplyTargetsAt,
   signProposal,
 } from "@cenacle/mail";
+import { loadProspectionConfig } from "@cenacle/prospection";
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
 import { defaultGuardConfig, newToken } from "./guard.ts";
 import { pageUrl, pageUrlPath, removePageUrl, writePageUrl } from "./page-url.ts";
 import { createProposalsService } from "./proposals-service.ts";
+import { createProspectionService } from "./prospection-service.ts";
 
 const HOST = "127.0.0.1";
 const PORT = Number(process.env.CENACLE_API_PORT ?? 8787);
@@ -40,6 +43,7 @@ const PORT = Number(process.env.CENACLE_API_PORT ?? 8787);
 const sql = connectOrQuit();
 const journal = createJournal(sql);
 const store = createProposalStore(sql);
+const board = createProspectionStore(sql);
 const mails = createMailStore(sql);
 const cadre = loadCadre();
 const { mail } = cadre;
@@ -68,6 +72,11 @@ const acceptKey = privateKeyFromEnv();
 const app = createApp({
   readAfter: (agent, afterId) => journal.read({ agent, afterId, limit: 1000 }),
   guard: defaultGuardConfig(token, PORT),
+  prospection: createProspectionService({
+    store: board,
+    config: () => loadProspectionConfig(),
+    journal,
+  }),
   proposals: createProposalsService({
     store,
     proposals: createProposals(store, journal),

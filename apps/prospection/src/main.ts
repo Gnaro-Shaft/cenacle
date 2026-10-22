@@ -2,8 +2,9 @@
  * The prospection agent (ADR-0032). Usage: npm run prospection
  * Reads the "missions" alerts not yet read (ADR-0031), read-only, extracts
  * their missions with the local model, sorts them into the board's columns
- * and keeps them as cards; then purges the old cards. It writes to nobody,
- * opens no link, acts on nothing. launchd starts it every 15 minutes; it does
+ * and keeps them as cards; then purges the old cards, and tells me on
+ * Telegram, with counters only, when new missions reached « alert ». It
+ * writes to nobody else, opens no link, acts on nothing. launchd starts it every 15 minutes; it does
  * nothing outside Iris's hours (8 h–20 h on weekdays), when nothing arrives.
  */
 import { randomBytes } from "node:crypto";
@@ -21,6 +22,7 @@ import {
   createMailStore,
   createProspectionStore,
   holdSingleInstance,
+  latestEventAt,
 } from "@cenacle/journal";
 import {
   CadreError,
@@ -33,14 +35,21 @@ import {
   senderOfSource,
 } from "@cenacle/mail";
 import {
+  alertIfNew,
   EXTRACT_SYSTEM_PROMPT,
   loadProspectionConfig,
   ProspectionConfigError,
   runProspection,
 } from "@cenacle/prospection";
+import { createTelegramApi, TelegramError } from "@cenacle/telegram/api";
 
 if (process.argv.length > 2) throw new Error("usage : npm run prospection");
 refuseForeignSecrets("L'agent prospection", ["mail", "telegram"]);
+const chatId = Number(process.env.TELEGRAM_ALLOWED_CHAT_ID);
+if (!Number.isSafeInteger(chatId) || chatId === 0) {
+  throw new Error("TELEGRAM_ALLOWED_CHAT_ID is missing or not a number (see .env.example)");
+}
+const telegram = createTelegramApi(process.env.TELEGRAM_BOT_TOKEN ?? "");
 if (isQuiet(new Date())) {
   console.log("Heures calmes : Iris ne relève pas, rien de nouveau à lire.");
   process.exit(0);
@@ -141,6 +150,20 @@ try {
     .join(" · ");
   console.log(`✔ prospection : ${shown === "" ? "rien de nouveau" : shown}`);
   if (waiting) console.log("⏸ le modèle local ne répond pas : la suite au prochain passage");
+  const alert = await alertIfNew({
+    lastSent: () => latestEventAt(sql, "prospection", "prospection.alert_sent"),
+    newAlerts: (since) => cards.newAlerts(since),
+    send: (text) => telegram.sendMessage(chatId, text),
+    sendFailure: (error) => (error instanceof TelegramError ? error.kind : null),
+    journal,
+    counts: {
+      detected: counts.detected ?? 0,
+      direct: counts.direct ?? 0,
+      floor: counts.floor ?? 0,
+    },
+  });
+  if (alert === "failed")
+    console.log("⚠ alerte Telegram non partie : elle repartira au prochain passage");
 } catch (error) {
   console.error(`🛑 ${errorText(error, [ProspectionConfigError, CadreError, KeyError])}`);
   process.exitCode = 1;

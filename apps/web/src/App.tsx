@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { AgentBox } from "./AgentBox.tsx";
+import { Board } from "./Board.tsx";
 import { CtoAsk } from "./CtoAsk.tsx";
 import { Proposals } from "./Proposals.tsx";
 import { takeToken } from "./token.ts";
@@ -37,6 +38,7 @@ export function App() {
           ) : (
             <>
               <Proposals token={token} onLost={() => setToken(null)} />
+              <Board token={token} onLost={() => setToken(null)} />
               <CtoAsk token={token} onLost={() => setToken(null)} />
             </>
           )}
