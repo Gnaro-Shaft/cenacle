@@ -55,6 +55,7 @@ export {
   type MailLocator,
   readMailsForModelAt,
   readMailsForSortingAt,
+  readRawSourcesAt,
   readReplyContextsAt,
   readReplyTargetsAt,
 } from "./located.ts";
@@ -103,8 +104,10 @@ export {
   MAX_SOURCE_BYTES,
   type MailForSorting,
   massOfSource,
+  type RawSource,
   readMailsForModel,
   readMailsForSorting,
+  readRawSources,
   senderOfSource,
 } from "./reader.ts";
 export {

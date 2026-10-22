@@ -1,0 +1,29 @@
+# The shape of prospection.local.toml (git-ignored), with a FICTIONAL platform.
+# Without prospection.local.toml, the agent uses this file and says so.
+
+# Each platform whose alerts Iris puts in "Missions" (ADR-0031): the exact
+# domain of its alert address, and the exact hosts its links may point to
+# (www., click tracking). A link on any other host is not kept.
+[[plateforme]]
+nom = "Plateforme fictive"
+domaine = "plateforme-freelance.example"
+hotes_liens = ["plateforme-freelance.example", "www.plateforme-freelance.example"]
+
+[[plateforme]]
+nom = "Réseau fictif"
+domaine = "reseau-social.example"
+hotes_liens = ["reseau-social.example", "clic.reseau-social.example"]
+
+# My profile: compared by code, never by the model. A mission passes if its
+# stack holds one of these words, its maximum rate reaches tjm_min, and its
+# remote work is accepted (or its place is in lieux). An unsaid rate or remote
+# work never refuses a mission: it passes, flagged "à vérifier".
+[profil]
+stack = ["python", "typescript", "llm", "rag", "agents"]
+tjm_min = 550
+teletravail = ["total", "partiel"]
+lieux = ["Paris", "Lyon"]
+
+# ESN of your own, added to the shared list.
+[intermediaires]
+esn = ["ESN Fictive"]

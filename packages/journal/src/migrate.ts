@@ -105,6 +105,12 @@ export async function migrate({
     // The veille's archive (ADR-0024): written once, read, purged — never changed.
     await sql.unsafe(`REVOKE ALL ON veille_articles FROM ${APP_ROLE}`);
     await sql.unsafe(`GRANT SELECT, INSERT, DELETE ON veille_articles TO ${APP_ROLE}`);
+    // The prospection agent's cards (ADR-0032): added, read, purged — never changed by it.
+    await sql.unsafe(`REVOKE ALL ON prospection_cartes FROM ${APP_ROLE}`);
+    await sql.unsafe(`GRANT SELECT, INSERT, DELETE ON prospection_cartes TO ${APP_ROLE}`);
+    // The alerts it read: marked once, erased with the mail (trigger of 027).
+    await sql.unsafe(`REVOKE ALL ON prospection_mails_lus FROM ${APP_ROLE}`);
+    await sql.unsafe(`GRANT SELECT, INSERT, DELETE ON prospection_mails_lus TO ${APP_ROLE}`);
     // The security agent's findings (ADR-0025): followed, closed, purged.
     await sql.unsafe(`REVOKE ALL ON securite_constats FROM ${APP_ROLE}`);
     await sql.unsafe(`GRANT SELECT, INSERT, UPDATE, DELETE ON securite_constats TO ${APP_ROLE}`);

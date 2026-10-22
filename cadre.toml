@@ -46,6 +46,9 @@ journal_jours = 180
 # request, or the last mail from or to them met and ignored. Three years: as
 # long as their mails may stay in my mailbox (information notice).
 opposition_jours = 1095
+# The prospection agent's cards (T-09, ADR-0032): mission fields, never a
+# person's name or address — after their creation or my last move of them.
+prospection_jours = 60
 
 # The OPEN processings, and only them (ADR-0009). None today: only the
 # fictional mailbox is read. A processing opens once its information notice is

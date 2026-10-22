@@ -1,0 +1,27 @@
+# The prospection agent's shared settings (ADR-0032). Versioned: nothing here
+# is personal. My platforms and my profile live in prospection.local.toml
+# (git-ignored; prospection.example.toml shows its shape, with a fictional
+# platform).
+
+[reglage]
+# Characters of an alert shown to the local model at most: the rest is lost, and counted.
+texte_max = 8000
+# Missions kept from one alert at most: more are counted, never kept.
+annonces_max = 40
+
+[intermediaires]
+# Intermediaries that place freelancers with their clients, compared as whole
+# words in a mission's title, company and place, without case or accents. A
+# match stops the mission before "Client direct", whatever the model says.
+# Public companies only; add your own in prospection.local.toml.
+esn = [
+  "Accenture", "Akkodis", "Alten", "Altran", "Atos", "Capgemini", "CGI",
+  "Devoteam", "Expleo", "Extia", "Inetum", "Onepoint", "SII", "Sopra Steria",
+  "Talan", "Wavestone",
+]
+# Phrases that betray an intermediary, compared the same way.
+tournures = [
+  "pour le compte de notre client", "pour l'un de nos clients", "chez notre client",
+  "notre client final", "esn", "ssii", "societe de conseil", "cabinet de conseil",
+  "societe de services",
+]

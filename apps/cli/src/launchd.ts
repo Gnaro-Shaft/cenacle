@@ -22,6 +22,7 @@ export const PROGRAMS = [
   "veille",
   "securite",
   "operateur",
+  "prospection",
 ] as const;
 export type Program = (typeof PROGRAMS)[number];
 
@@ -42,6 +43,8 @@ export const INTERVALS: Readonly<Partial<Record<Program, number>>> = {
   securite: 900,
   // The operator (ADR-0027): a confirmed request on a server waits a minute at most.
   operateur: 60,
+  // The prospection agent (ADR-0032): alerts read within a quarter of an hour.
+  prospection: 900,
 };
 
 export interface ServicePaths {

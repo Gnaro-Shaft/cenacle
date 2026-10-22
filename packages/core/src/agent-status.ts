@@ -65,6 +65,8 @@ const NEUTRAL_EVENT_TYPES: ReadonlySet<string> = new Set([
   "mail.fetch_failed",
   "mail.sorted_by_model", // summary of the per-mail events below
   "mail.model_waiting",
+  "prospection.passed", // a pass of the prospection agent: numbers only (ADR-0032)
+  "prospection.model_waiting",
   "alert.sent",
   "recap.sent",
   "notify.failed", // once per Telegram outage; the messages are retried each minute

@@ -37,6 +37,7 @@ texte_brouillon_jours = 7
 propositions_jours = 90
 journal_jours = 180
 opposition_jours = 1095
+prospection_jours = 60
 
 # The processing that covers this mailbox (docs/conformite/registre-traitements.md).
 [[traitement]]

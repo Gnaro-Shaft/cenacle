@@ -1,0 +1,15 @@
+{
+  "name": "@cenacle/prospection",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "dependencies": {
+    "@cenacle/core": "0.0.0",
+    "postal-mime": "4.0.8",
+    "smol-toml": "1.9.1"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}
