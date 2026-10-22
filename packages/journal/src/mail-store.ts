@@ -7,7 +7,13 @@
  */
 import type { Sql } from "postgres";
 
-export const CATEGORY_VALUES = ["clients_prospects", "administratif", "bruit", "a_trier"] as const;
+export const CATEGORY_VALUES = [
+  "clients_prospects",
+  "administratif",
+  "bruit",
+  "missions",
+  "a_trier",
+] as const;
 export type StoredCategory = (typeof CATEGORY_VALUES)[number];
 /**
  * "set_aside": kept from the model (article 9 floor, empty or unreadable) — never why (C2).
@@ -164,7 +170,14 @@ export function createMailStore(sql: Sql): MailStore {
       const rows = await sql<{ category: StoredCategory | null; n: string }[]>`
         select category, count(*)::text as n from mail_items
         where mailbox = 'inbox' group by category`;
-      const totals = { clients_prospects: 0, administratif: 0, bruit: 0, a_trier: 0, pending: 0 };
+      const totals = {
+        clients_prospects: 0,
+        administratif: 0,
+        bruit: 0,
+        missions: 0,
+        a_trier: 0,
+        pending: 0,
+      };
       for (const row of rows) totals[row.category ?? "pending"] = Number(row.n);
       return totals;
     },

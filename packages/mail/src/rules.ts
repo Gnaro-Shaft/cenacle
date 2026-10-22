@@ -4,17 +4,22 @@
  * (ADR-0014): a forged From with a client's domain goes to "À trier", never
  * to the model, which a forged "client" mail would talk into calling it one.
  *
+ * A [missions] rule lists exact sender ADDRESSES (ADR-0031): a platform sends
+ * its mission alerts and its advertising from the same domain. It decides
+ * before anything else, for an authenticated sender only; otherwise it does
+ * not apply at all, and the mail is sorted as if it did not exist.
+ *
  * Rules live in regles.local.toml (git-ignored: real domains are personal and
  * business data). Without it, regles.example.toml — the fictional test
  * domains — is used, and the caller says so out loud.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { Category } from "@cenacle/core";
+import type { Category, ModelCategory } from "@cenacle/core";
 import { parse } from "smol-toml";
 import type { MailRef } from "./postman.ts";
 import type { AuthVerdict } from "./sender-auth.ts";
-import { senderDomain } from "./sender-domain.ts";
+import { senderAddress, senderDomain } from "./sender-domain.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
 export const LOCAL_RULES_PATH = join(ROOT, "regles.local.toml");
@@ -25,7 +30,14 @@ export const RULE_CATEGORIES = ["clients_prospects", "administratif", "bruit"] a
 export type RuleCategory = (typeof RULE_CATEGORIES)[number];
 export const MAX_RULES = 10_000;
 
-export type Rules = ReadonlyMap<string, RuleCategory>;
+/**
+ * Domain → category, and address → "missions" (ADR-0031). The two never
+ * collide: an address holds an "@", a domain never does.
+ */
+export type Rules = ReadonlyMap<string, RuleCategory | "missions">;
+
+/** The section of exact sender addresses whose mails go to "missions". */
+export const MISSIONS_SECTION = "missions";
 
 export class RulesError extends Error {
   constructor(message: string) {
@@ -64,6 +76,28 @@ function validDomains(section: unknown, where: string): string[] {
   return domains as string[];
 }
 
+function validAddresses(section: unknown): string[] {
+  if (!isTable(section)) throw new RulesError(`[${MISSIONS_SECTION}] must be a section`);
+  for (const key of Object.keys(section)) {
+    if (key !== "adresses") throw new RulesError(`unknown key "${key}" in [${MISSIONS_SECTION}]`);
+  }
+  const addresses = section.adresses;
+  if (!Array.isArray(addresses)) {
+    throw new RulesError(`[${MISSIONS_SECTION}] adresses must be a list`);
+  }
+  for (const address of addresses) {
+    // Same strict reading as a received From header: lowercase, one address, no wildcard.
+    if (typeof address !== "string" || senderAddress(`<${address}>`) !== address) {
+      throw new RulesError(`invalid address ${JSON.stringify(address)} in [${MISSIONS_SECTION}]`);
+    }
+    // Legal in an address, but read as a wildcard it would match nothing, silently.
+    if (/[*?]/.test(address)) {
+      throw new RulesError(`no wildcard: ${JSON.stringify(address)} in [${MISSIONS_SECTION}]`);
+    }
+  }
+  return addresses as string[];
+}
+
 export function toNoFollowUp(raw: unknown): ReadonlySet<string> {
   if (!isTable(raw) || raw[NO_FOLLOW_UP_SECTION] === undefined) return new Set();
   return new Set(validDomains(raw[NO_FOLLOW_UP_SECTION], NO_FOLLOW_UP_SECTION));
@@ -72,15 +106,25 @@ export function toNoFollowUp(raw: unknown): ReadonlySet<string> {
 /** Validates already-parsed TOML. Exported for tests. */
 export function toRules(raw: unknown): Rules {
   if (!isTable(raw)) throw new RulesError("not a table");
-  const rules = new Map<string, RuleCategory>();
+  const rules = new Map<string, RuleCategory | "missions">();
   for (const [category, section] of Object.entries(raw)) {
     if (category === NO_FOLLOW_UP_SECTION) {
       toNoFollowUp(raw); // validated here too, read by toNoFollowUp
       continue;
     }
+    if (category === MISSIONS_SECTION) {
+      for (const address of validAddresses(section)) {
+        if (rules.has(address)) {
+          throw new RulesError(`"${address}" is twice in [${MISSIONS_SECTION}]`);
+        }
+        rules.set(address, "missions");
+        if (rules.size > MAX_RULES) throw new RulesError(`more than ${MAX_RULES} rules`);
+      }
+      continue;
+    }
     if (!isRuleCategory(category)) {
       throw new RulesError(
-        `unknown category "${category}" (allowed: ${RULE_CATEGORIES.join(", ")})`,
+        `unknown category "${category}" (allowed: ${[...RULE_CATEGORIES, MISSIONS_SECTION].join(", ")})`,
       );
     }
     for (const domain of validDomains(section, category)) {
@@ -150,13 +194,19 @@ export interface RuleSort<T extends Sortable = MailRef> {
 export interface Sortable {
   readonly uid: number;
   readonly domain: string | null;
+  /** Lowercased sender address, for a [missions] rule (ADR-0031). Never stored; absent means unknown. */
+  readonly address?: string | null;
   readonly auth: AuthVerdict;
   /** Sent in bulk, by its headers (ADR-0029). Absent means no. */
   readonly mass?: boolean;
 }
 
 /**
- * The order (ADR-0029, ADR-0030): an unreadable sender stays "a_trier"; a
+ * The order (ADR-0029, ADR-0030, ADR-0031): an unreadable sender stays
+ * "a_trier"; an authenticated sender whose exact address has a [missions] rule
+ * goes to "missions", before anything else — unauthenticated, the rule does not
+ * apply and the rest decides as if it did not exist (a forged alert sent in bulk
+ * stays "bruit", never rises to "a_trier"); a
  * client rule decides as before (ADR-0014) — mass headers, which anyone can
  * write, never touch it; a mass mail from an "administratif" domain is left
  * for the model, capped at "administratif" (ceilingOf, capped): such a domain
@@ -166,11 +216,23 @@ export interface Sortable {
 export function sortByRules<T extends Sortable>(refs: readonly T[], rules: Rules): RuleSort<T> {
   const sorted: SortedRef[] = [];
   const remaining: T[] = [];
-  const counts = { clients_prospects: 0, administratif: 0, bruit: 0, a_trier: 0, remaining: 0 };
+  const counts = {
+    clients_prospects: 0,
+    administratif: 0,
+    bruit: 0,
+    missions: 0,
+    a_trier: 0,
+    remaining: 0,
+  };
   let unauthenticated = 0;
   let mass = 0;
   for (const ref of refs) {
-    const domainRule = ref.domain === null ? undefined : rules.get(ref.domain);
+    if (isMissionAlert(ref, rules)) {
+      sorted.push({ uid: ref.uid, category: "missions", decidedBy: "rule" });
+      counts.missions++;
+      continue;
+    }
+    const domainRule = ref.domain === null ? undefined : domainRuleOf(ref.domain, rules);
     if (ceilingOf(ref.mass === true, ref.domain, rules) !== undefined) {
       remaining.push(ref);
       counts.remaining++;
@@ -201,6 +263,23 @@ export function sortByRules<T extends Sortable>(refs: readonly T[], rules: Rules
   return { sorted, remaining, counts, unauthenticated, mass };
 }
 
+/** An address key is never a domain rule; a domain key never "missions". */
+function domainRuleOf(domain: string, rules: Rules): RuleCategory | undefined {
+  const rule = rules.get(domain);
+  return rule === "missions" ? undefined : rule;
+}
+
+/**
+ * A mission alert (ADR-0031): the exact address has a [missions] rule, and its
+ * domain is authenticated by our server. The address itself cannot be proven
+ * (DMARC, DKIM prove the domain): the platform is trusted for its own address.
+ */
+function isMissionAlert(ref: Sortable, rules: Rules): boolean {
+  if (ref.domain === null || typeof ref.address !== "string") return false;
+  if (!ref.address.endsWith(`@${ref.domain}`)) return false;
+  return rules.get(ref.address) === "missions" && ref.auth === "authenticated";
+}
+
 /**
  * The highest box the model may give a mail (ADR-0030): a mass mail from an
  * "administratif" domain is read by the model, but its answer never rises
@@ -211,13 +290,16 @@ export function ceilingOf(
   domain: string | null,
   rules: Rules,
 ): "administratif" | undefined {
-  return mass && domain !== null && rules.get(domain) === "administratif"
+  return mass && domain !== null && domainRuleOf(domain, rules) === "administratif"
     ? "administratif"
     : undefined;
 }
 
 /** The model's answer under its ceiling: "clients_prospects" becomes "administratif". */
-export function capped(category: Category, ceiling: "administratif" | undefined): Category {
+export function capped(
+  category: ModelCategory,
+  ceiling: "administratif" | undefined,
+): ModelCategory {
   return ceiling === "administratif" && category === "clients_prospects"
     ? "administratif"
     : category;

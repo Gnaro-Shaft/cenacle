@@ -9,7 +9,7 @@
  * If the model stops answering, the replay stops (ModelUnavailableError): a
  * half-measured replay would not be the measure it claims to be.
  */
-import type { Category, MailForModel } from "@cenacle/core";
+import type { Category, MailForModel, ModelCategory } from "@cenacle/core";
 import {
   capped,
   ceilingOf,
@@ -22,6 +22,8 @@ import {
 export interface ToReplay {
   readonly view: MailForModel;
   readonly mass: boolean;
+  /** For a [missions] rule (ADR-0031): read at the source, never stored. */
+  readonly address: string | null;
   readonly senderAuthenticated: boolean;
 }
 
@@ -30,7 +32,8 @@ export interface Replayed {
   readonly decidedBy: Decider;
 }
 
-export type Classify = (view: MailForModel) => Promise<{ readonly category: Category }>;
+/** The model's answer: one of its four, never "missions" (ADR-0031). */
+export type Classify = (view: MailForModel) => Promise<{ readonly category: ModelCategory }>;
 
 export async function replaySorting(
   mails: readonly ToReplay[],
@@ -45,6 +48,7 @@ export async function replaySorting(
     mails.map((m) => ({
       uid: m.view.uid,
       domain: m.view.domain,
+      address: m.address,
       // Only "authenticated" matters to the rules; any other verdict refuses a client rule.
       auth: m.senderAuthenticated ? ("authenticated" as const) : ("failed" as const),
       mass: m.mass,

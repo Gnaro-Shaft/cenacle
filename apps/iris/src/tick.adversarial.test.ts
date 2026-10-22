@@ -206,7 +206,14 @@ describe("messages — numbers and fixed words only", () => {
       urgentAlert(3),
       recap({
         hour: 9,
-        fresh: { clients_prospects: 2, administratif: 1, bruit: 7, a_trier: 0, pending: 1 },
+        fresh: {
+          clients_prospects: 2,
+          administratif: 1,
+          bruit: 7,
+          missions: 4,
+          a_trier: 0,
+          pending: 1,
+        },
         due: 3,
         waiting: 2,
         urgent: 1,
@@ -214,7 +221,14 @@ describe("messages — numbers and fixed words only", () => {
       }),
       recap({
         hour: 18,
-        fresh: { clients_prospects: 0, administratif: 0, bruit: 0, a_trier: 0, pending: 0 },
+        fresh: {
+          clients_prospects: 0,
+          administratif: 0,
+          bruit: 0,
+          missions: 0,
+          a_trier: 0,
+          pending: 0,
+        },
         due: 0,
         waiting: 0,
         urgent: 0,

@@ -5,8 +5,22 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-export const CATEGORIES = ["clients_prospects", "administratif", "bruit", "a_trier"] as const;
+/** The boxes of the mailbox: what the base holds (ADR-0007, ADR-0031). */
+export const CATEGORIES = [
+  "clients_prospects",
+  "administratif",
+  "bruit",
+  "missions",
+  "a_trier",
+] as const;
 export type Category = (typeof CATEGORIES)[number];
+
+/**
+ * The answers the model may give: never "missions", which only a rule decides
+ * (ADR-0031, point 5). A separate list, so a new box never widens the model.
+ */
+export const MODEL_CATEGORIES = ["clients_prospects", "administratif", "bruit", "a_trier"] as const;
+export type ModelCategory = (typeof MODEL_CATEGORIES)[number];
 
 export interface FixtureMessage {
   readonly id: string;

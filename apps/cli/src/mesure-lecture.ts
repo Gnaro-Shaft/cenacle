@@ -110,8 +110,8 @@ export async function readForReplay(
       ids.slice(i, i + CHUNK),
       reading.uidValidity,
     );
-    for (const { view, mass } of read) {
-      out.push({ view, mass, senderAuthenticated: auth.get(view.uid) === true });
+    for (const { view, mass, address } of read) {
+      out.push({ view, mass, address, senderAuthenticated: auth.get(view.uid) === true });
     }
   }
   return out;

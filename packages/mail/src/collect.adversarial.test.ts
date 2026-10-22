@@ -95,6 +95,7 @@ describe("collectMail", () => {
       clients_prospects: 1,
       administratif: 0,
       bruit: 0,
+      missions: 0,
       a_trier: 1,
       pending: 1,
       waiting: 1, // the client mail is 24 working hours old, no reply sent

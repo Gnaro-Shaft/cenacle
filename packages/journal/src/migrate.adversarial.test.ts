@@ -120,6 +120,55 @@ describe("mail rows decided by every decider survive a replay (ADR-0029)", () =>
   );
 });
 
+describe("the missions box (ADR-0031): only a rule puts a mail there", () => {
+  const mails = createMailStore(sql);
+  const base = 950_000 + (Date.now() % 50_000) * 10;
+  const item = (uid: number) => ({
+    uid,
+    receivedAt: "2026-10-22T08:00:00Z",
+    noFollowUp: false,
+    urgentTerm: false,
+    senderAuthenticated: true,
+    senderKey: null,
+    messageKey: null,
+    threadKeys: [],
+  });
+
+  it("a 'missions' row decided by a rule, then db:migrate again: nothing refused", async () => {
+    await mails.saveInbox("29", [item(base)]);
+    expect(await mails.categorize(base, "missions", "rule")).toBe(true);
+    await expect(
+      migrate({
+        ownerUrl: ownerUrlFromEnv(TEST_DB),
+        appPassword: requireEnv("CENACLE_DB_APP_PASSWORD"),
+        executorPassword: requireEnv(EXECUTOR_PASSWORD_VAR),
+      }),
+    ).resolves.toContain("026_mail_items_missions.sql");
+    expect((await mails.totals()).missions).toBeGreaterThanOrEqual(1);
+  });
+
+  it.each(["model", "masse", "unauthenticated", "unreadable", "set_aside"] as const)(
+    "'missions' decided by %s is refused by the database",
+    async (decidedBy) => {
+      const uid =
+        base +
+        1 +
+        ["model", "masse", "unauthenticated", "unreadable", "set_aside"].indexOf(decidedBy);
+      await mails.saveInbox("29", [item(uid)]);
+      await expect(mails.categorize(uid, "missions", decidedBy)).rejects.toThrow(
+        /missions_by_rule|masse_is_bruit/,
+      );
+    },
+  );
+
+  it("an unknown box is still refused: the list was widened, not removed", async () => {
+    await mails.saveInbox("29", [item(base + 9)]);
+    await expect(mails.categorize(base + 9, "spam" as unknown as "bruit", "rule")).rejects.toThrow(
+      /category_check/,
+    );
+  });
+});
+
 describe("the programs connect without the owner's password (S1)", () => {
   it("the application's connection needs only its own password", () => {
     const env = { CENACLE_DB_APP_PASSWORD: "app_only_password_000", CENACLE_DB_PORT: "55432" };

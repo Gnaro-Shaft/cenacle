@@ -1,6 +1,6 @@
 # ADR-0032 — L'agent prospection : la veille des missions, un tableau, aucun droit d'agir
 
-**Statut** : proposée (2026-10-22) — s'appuie sur l'ADR-0031 (la case « Missions ») ; suit le modèle de la veille du CTO (ADR-0024) et de l'agent sécurité (ADR-0025)
+**Statut** : acceptée (2026-10-22) — s'appuie sur l'ADR-0031 (la case « Missions ») ; suit le modèle de la veille du CTO (ADR-0024) et de l'agent sécurité (ADR-0025)
 
 ## Contexte
 

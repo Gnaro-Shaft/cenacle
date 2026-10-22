@@ -44,6 +44,7 @@ describe("sortByModel", () => {
   it("counts per category, then rests — no content in the journal", async () => {
     const journal = await journalAfterRules();
     const result = await sortByModel(mails, { journal, local, classify: ok("bruit") });
+    // The model's four answers only: never a "missions" count (ADR-0031).
     expect(result.counts).toEqual({
       clients_prospects: 0,
       administratif: 0,
@@ -69,6 +70,7 @@ describe("sortByModel", () => {
       clients_prospects: 0,
       administratif: 0,
       bruit: 3,
+      missions: 0,
       a_trier: 0,
       pending: 0,
       waiting: 0,

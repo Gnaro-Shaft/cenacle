@@ -36,6 +36,8 @@ export interface MailRef {
   readonly auth: AuthVerdict;
   /** Sent in bulk, by its own headers (ADR-0029). Absent means no. Never stored. */
   readonly mass?: boolean;
+  /** The sender's lowercased address, for a [missions] rule (ADR-0031). Never stored. */
+  readonly address?: string | null;
 }
 
 /** One of my sent mails, as remembered. */
@@ -258,6 +260,7 @@ export async function fetchMailRefs(
         urgentTerm: hasUrgentTerm(decodeSubject(headers.get("subject"))),
         auth: senderAuthentication(fields, truncated, domain, cadre.trustedServer),
         mass: isMassMail(fields),
+        address: sender,
       };
     }),
   };

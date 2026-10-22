@@ -50,13 +50,13 @@ try {
     local: rulesOnly ? null : createLocalModels(localModelConfigFromEnv()),
   });
   const c = summary.ruleSort.counts;
-  const byRule = c.clients_prospects + c.administratif + c.bruit;
+  const byRule = c.clients_prospects + c.administratif + c.bruit + c.missions;
   const conversations = countConversations([...(await store.inbox()), ...(await store.sent())]);
   console.log(
     `✔ ${summary.count} nouveaux mails mémorisés, ${summary.sentCount} envoyés lus — ${conversations} conversations reconstituées`,
   );
   console.log(
-    `✔ règles : ${byRule} rangés (clients ${c.clients_prospects}, admin ${c.administratif}, bruit ${c.bruit}), ${c.a_trier} à trier (expéditeur illisible, ou client non authentifié : ${summary.ruleSort.unauthenticated})`,
+    `✔ règles : ${byRule} rangés (clients ${c.clients_prospects}, admin ${c.administratif}, bruit ${c.bruit}, missions ${c.missions}), ${c.a_trier} à trier (expéditeur illisible, ou client non authentifié : ${summary.ruleSort.unauthenticated})`,
   );
   if (summary.purged > 0) {
     console.log(
@@ -76,7 +76,7 @@ try {
   }
   const t = await mailTotals(store, new Date());
   console.log(
-    `  mémoire : clients ${t.clients_prospects}, admin ${t.administratif}, bruit ${t.bruit}, à trier ${t.a_trier}, en attente ${t.pending} — ${summary.unseen} toujours non lus`,
+    `  mémoire : clients ${t.clients_prospects}, admin ${t.administratif}, bruit ${t.bruit}, missions ${t.missions}, à trier ${t.a_trier}, en attente ${t.pending} — ${summary.unseen} toujours non lus`,
   );
   console.log(`  suivi : ${t.waiting} en attente de réponse, 🔔 ${t.due} relances dues`);
   if (summary.truncated) console.log("… plafond atteint : relancer pour lire la suite");

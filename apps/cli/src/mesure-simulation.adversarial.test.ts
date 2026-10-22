@@ -2,7 +2,7 @@
 // production's parts: rules (mass mail, client authentication), the floor,
 // then the model — and the model never sees what production keeps from it.
 // If the model stops answering, the replay stops: no half measure.
-import type { Category, MailForModel } from "@cenacle/core";
+import type { MailForModel } from "@cenacle/core";
 import { parseRules } from "@cenacle/mail";
 import { describe, expect, it } from "vitest";
 import { replaySorting, type ToReplay } from "./mesure-simulation.ts";
@@ -24,9 +24,15 @@ const view = (
   subject: text === "" ? "" : "Un objet",
   text,
 });
-const mail = (v: MailForModel, mass = false, senderAuthenticated = true): ToReplay => ({
+const mail = (
+  v: MailForModel,
+  mass = false,
+  senderAuthenticated = true,
+  address: string | null = null,
+): ToReplay => ({
   view: v,
   mass,
+  address,
   senderAuthenticated,
 });
 
@@ -46,7 +52,7 @@ describe("replaySorting", () => {
       rules,
       async (v) => {
         asked.push(v.uid);
-        return { category: "administratif" as Category };
+        return { category: "administratif" as const };
       },
     );
     expect(Object.fromEntries(result)).toEqual({

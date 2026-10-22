@@ -11,6 +11,7 @@ export const ANSWER_KEYS: Readonly<Record<string, Category>> = {
   c: "clients_prospects",
   a: "administratif",
   b: "bruit",
+  m: "missions",
   t: "a_trier",
 };
 

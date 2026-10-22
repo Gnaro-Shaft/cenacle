@@ -22,6 +22,7 @@ const MAIL: MailCounts = {
   clients_prospects: 4,
   administratif: 7,
   bruit: 23,
+  missions: 5,
   a_trier: 1,
   pending: 2,
   waiting: 3,

@@ -65,7 +65,10 @@ describe("describeStatus — mail counters", () => {
       },
     ]);
     const text = describeStatus(status);
-    expect(text).toContain("📬 Courrier : clients 2 · admin 1 · bruit 1 · à trier 0 · 1 en cours");
+    // An event older than the "missions" box (ADR-0031): its count reads 0.
+    expect(text).toContain(
+      "📬 Courrier : clients 2 · admin 1 · bruit 1 · missions 0 · à trier 0 · 1 en cours",
+    );
   });
 
   it("shows the reminders due and the mails waiting — counts only", () => {

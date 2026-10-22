@@ -14,6 +14,7 @@ export const BOX_LABEL: Readonly<Record<Category, string>> = {
   clients_prospects: "client ou prospect",
   administratif: "administratif",
   bruit: "information sans réponse attendue",
+  missions: "alerte de missions d'une plateforme",
   a_trier: "à trier par moi",
 };
 

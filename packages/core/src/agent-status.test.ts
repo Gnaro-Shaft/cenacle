@@ -68,6 +68,7 @@ describe("projectStatus", () => {
       clients_prospects: 1,
       administratif: 0,
       bruit: 1,
+      missions: 0,
       a_trier: 0,
       pending: 1,
       waiting: 0,
