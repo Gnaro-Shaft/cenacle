@@ -78,6 +78,10 @@
 | 6 | Sentinelle sans contenu (ADR-0002) — **code prêt le 2026-10-04**, à déployer | Disponibilité | S2 |
 | 7 | Revoir cette AIPD avant M3 (premiers envois réels), puis au plus tard le 2027-10-04 | Tous | — |
 
+## Ajout du 2026-10-22 — la veille des missions (T-09, IA-08)
+
+La veille des missions (ADR-0031, ADR-0032) **ne demande pas d'AIPD propre**, décidé par le responsable le 2026-10-22 : ni profilage à grande échelle, ni donnée sensible (le plancher article 9 écarte avant le modèle toute alerte qui en semble porteuse), ni surveillance systématique, ni décision ayant un effet sur une personne. Elle ne lit que les alertes des plateformes auxquelles je suis abonné, ne garde que des champs fermés de mission (jamais un nom ni une adresse de personne), 60 jours, sur le Mac. Classement IA : risque minimal (IA-08). Les risques R1 (accès), R3 (injection) et R5 (perte) s'y appliquent comme au reste ; R3 est tenu par les marqueurs, la sortie validée par schéma et les liens remplacés par des numéros.
+
 ## 5. Validation
 
 Risques résiduels jugés **acceptables** sous réserve des actions 1 à 6, réalisées **avant** toute lecture d'une vraie boîte, si le responsable de traitement le valide.
