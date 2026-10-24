@@ -1,11 +1,13 @@
 /**
  * Runs the bench of the CTO's documentation (ADR-0033, § 6).
- * Usage: npm run cto:banc-docs [-- Q01,Q05] [-- --passages 2]
+ * Usage: npm run cto:banc-docs [-- Q01,Q05] [--passages 2] [--seulement ancien|nouveau]
  *
  * Each question is asked with the former context (all the documentation, in
  * the fixed order, 300 000 characters) and with the new one (core, map and the
- * question's documents), alternately: pass 1 old then new, pass 2 new then
- * old. Same model, same temperature, the real circuit (tools, checks).
+ * question's documents), grouped by context: pass 1 every question with the
+ * old then with the new, pass 2 the other way round. Grouped, the old context
+ * — the same prompt for every question — keeps the server's cache: its best
+ * case. Same model, same temperature, the real circuit (tools, checks).
  * Counted: points given (criteria fixed in cto-docs-bench/questions.ts),
  * references not found in the repository, tool calls, seconds.
  *
@@ -43,6 +45,13 @@ const only = args.find((a) => /^Q\d/.test(a))?.split(",");
 const questions = QUESTIONS.filter((q) => only === undefined || only.includes(q.id));
 
 type Mode = "ancien" | "nouveau";
+const single = args.indexOf("--seulement");
+const modes: readonly Mode[] =
+  single === -1 ? ["ancien", "nouveau"] : ([args[single + 1]] as Mode[]);
+if (!modes.every((m) => m === "ancien" || m === "nouveau")) {
+  console.error("--seulement : ancien ou nouveau.");
+  process.exit(2);
+}
 const admitted = admitDocumentation(ROOT);
 const contextFor = (mode: Mode, question: string): ProjectContext =>
   mode === "ancien"
@@ -86,9 +95,9 @@ const local = ctoModels();
 const rows: Row[] = [];
 try {
   for (let pass = 1; pass <= passes; pass++) {
-    const order: Mode[] = pass % 2 === 1 ? ["ancien", "nouveau"] : ["nouveau", "ancien"];
-    for (const q of questions) {
-      for (const mode of order) {
+    const order = pass % 2 === 1 ? modes : [...modes].reverse();
+    for (const mode of order) {
+      for (const q of questions) {
         const started = Date.now();
         let tools = 0;
         const context = contextFor(mode, q.question);
@@ -143,7 +152,7 @@ try {
     }
   }
   console.log("\nContexte · passage · points · justes · introuvables · outils · temps médian");
-  for (const mode of ["ancien", "nouveau"] as const) {
+  for (const mode of modes) {
     for (let pass = 1; pass <= passes; pass++) {
       const these = rows.filter((r) => r.mode === mode && r.pass === pass);
       const sum = (f: (r: Row) => number) => these.reduce((n, r) => n + f(r), 0);

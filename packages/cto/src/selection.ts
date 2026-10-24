@@ -41,8 +41,10 @@ export interface MapEntry {
 }
 
 export interface ProjectContext {
-  /** In full, in the order shown. */
+  /** In full, in the order shown: the core first. */
   readonly files: readonly ContextFile[];
+  /** How many of `files` are the core: the map is shown right after them (§ 1). */
+  readonly core: number;
   /** Every admitted document outside the core: what the tools can read. */
   readonly map: readonly MapEntry[];
   readonly skipped: readonly Skipped[];
@@ -103,10 +105,11 @@ export function selectContext(
       files.push(f);
       chars += f.text.length;
     }
-    return { files, map: [], skipped, chars, coreAndMap: chars };
+    return { files, core: files.length, map: [], skipped, chars, coreAndMap: chars };
   }
   const core = corePaths(admitted.files.map((f) => f.path));
   const files = shown.filter((f) => core.has(f.path));
+  const coreCount = files.length;
   const map = admitted.files.filter((f) => !core.has(f.path)).map(mapEntry);
   const coreAndMap = files.reduce((sum, f) => sum + f.text.length, 0) + mapChars(map);
   let chars = coreAndMap;
@@ -119,7 +122,7 @@ export function selectContext(
     files.push(f);
     chars += f.text.length;
   }
-  return { files, map, skipped, chars, coreAndMap };
+  return { files, core: coreCount, map, skipped, chars, coreAndMap };
 }
 
 export function loadProjectContext(

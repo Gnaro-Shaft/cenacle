@@ -125,16 +125,21 @@ describe("selectContext, other requests", () => {
 });
 
 describe("the prompt", () => {
-  it("shows the map after the documents, and no map section when there is none", () => {
-    const c = selectContext(admitted, { kind: "question", text: "?" });
+  it("the core, then the map, then the question's documents; no map section when there is none", () => {
+    const c = selectContext(admitted, { kind: "question", text: "la mémoire" });
     const prompt = ctoSystemPrompt("P", c);
-    expect(prompt).toContain("CARTE DE LA DOCUMENTATION");
     expect(prompt).toContain(
       "- docs/adr/0004-propositions.md — ADR-0004 — Propositions (proposée)",
     );
-    expect(prompt.indexOf("=== docs/securite/secrets.md ===")).toBeLessThan(
-      prompt.indexOf("CARTE DE LA DOCUMENTATION"),
-    );
+    const core = prompt.indexOf("=== docs/securite/secrets.md ===");
+    const map = prompt.indexOf("CARTE DE LA DOCUMENTATION");
+    const chosen = prompt.indexOf("=== docs/adr/0012-memoire.md ===");
+    expect(core).toBeGreaterThan(-1);
+    expect(map).toBeGreaterThan(core);
+    expect(chosen).toBeGreaterThan(map);
+    // Two questions share the same beginning, up to their own documents.
+    const other = ctoSystemPrompt("P", selectContext(admitted, { kind: "question", text: "?" }));
+    expect(prompt.startsWith(other)).toBe(true);
     expect(ctoSystemPrompt("P", selectContext(admitted, { kind: "all" }))).not.toContain("CARTE");
   });
 });
