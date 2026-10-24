@@ -13,7 +13,7 @@ import {
 } from "@cenacle/brain";
 import type { Journal } from "@cenacle/journal";
 import { answerVerified, checkSummary } from "./answer.ts";
-import { gitTrackedFiles, loadProjectContext } from "./context.ts";
+import { gitTrackedFiles } from "./context.ts";
 
 /** What a review reads of the documentation: the rules, not the history. */
 const ESSENTIAL_DOCS = ["CLAUDE.md", "README.md", "docs/charte.md", "docs/regles-du-code.md"];
@@ -31,6 +31,7 @@ const NOTHING = /^\s*\**\s*aucun d[ée]faut/i;
 import { ctoSystemPrompt } from "./prompt.ts";
 import { validQuestion } from "./question.ts";
 import { gitView, type RepoView } from "./repo-view.ts";
+import { loadProjectContext, type ProjectContext } from "./selection.ts";
 import { createReadTools } from "./tools.ts";
 import { buildRepoIndex } from "./verify.ts";
 
@@ -66,8 +67,9 @@ export interface CtoDeps {
 }
 
 /**
- * Up to 300 k characters of documentation, ~90 k tokens: a window far above
- * Iris's, within what Ollama loads for the shared model. Answers are short
+ * Up to 120 k characters of documentation (ADR-0033) and 150 k read by the
+ * tools, ~80 k tokens: a window far above Iris's, within what Ollama loads for
+ * the shared model. Answers are short
  * (the model writes ~18 tokens/s): 1500 tokens, ~1000 words at most.
  */
 /**
@@ -86,9 +88,13 @@ export function ctoModels(): LocalModels {
   });
 }
 
-export async function askCto(question: string, deps: CtoDeps): Promise<CtoReply> {
+export async function askCto(
+  question: string,
+  deps: CtoDeps,
+  options: { readonly context?: ProjectContext } = {},
+): Promise<CtoReply> {
   // The code at HEAD: what is committed.
-  return runCto(validQuestion(question), gitView(deps.root, "HEAD"), deps);
+  return runCto(validQuestion(question), gitView(deps.root, "HEAD"), deps, options);
 }
 
 /**
@@ -105,17 +111,27 @@ export async function runCto(
     readonly maxCalls?: number;
     /** A review in focused passes (J3b): one ask each, results gathered by file. */
     readonly passes?: readonly ReviewPass[];
+    /** A context given whole, instead of the one chosen here: the documentation bench. */
+    readonly context?: ProjectContext;
   } = {},
 ): Promise<CtoReply> {
   const started = Date.now();
   const review = options.kind === "review";
   // A review has the diff and the code: only the essential documentation, so
-  // that reading the prompt stays short (all of it is ~60 k tokens).
-  const context = review
-    ? loadProjectContext(deps.root, {
-        tracked: (root) => gitTrackedFiles(root).filter((p) => ESSENTIAL_DOCS.includes(p)),
-      })
-    : loadProjectContext(deps.root);
+  // that reading the prompt stays short. A question gets the core, the map and
+  // its own documents; the compliance look, its registers (ADR-0033).
+  const context =
+    options.context ??
+    (review
+      ? loadProjectContext(deps.root, {
+          tracked: (root) => gitTrackedFiles(root).filter((p) => ESSENTIAL_DOCS.includes(p)),
+        })
+      : loadProjectContext(deps.root, {
+          request:
+            options.kind === "conformity"
+              ? { kind: "conformity" }
+              : { kind: "question", text: prompt },
+        }));
   const system = ctoSystemPrompt("Cénacle", context);
   const tell = (progress: CtoProgress) => {
     try {

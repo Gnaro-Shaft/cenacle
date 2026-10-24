@@ -1,7 +1,8 @@
 /**
- * What the CTO reads to answer (phase 6, J1 — ADR-0017): chosen by code,
- * never by the model. The versioned documentation of a project — README,
- * CLAUDE.md, docs/ — in a fixed order and a size budget.
+ * What the CTO may read in his prompt (phase 6, J1 — ADR-0017): chosen by
+ * code, never by the model. The versioned documentation of a project —
+ * README, CLAUDE.md, docs/ — admitted file by file, in a fixed order; which
+ * of it goes into a prompt is chosen in selection.ts (ADR-0033).
  *
  * Never: an .env* file, a *.local.toml, fixtures/, a symbolic link, anything
  * outside the repository, a binary or oversized file, or a file whose text
@@ -30,24 +31,22 @@ export interface Skipped {
     | "budget";
 }
 
-export interface ProjectContext {
+export interface Admitted {
+  /** In the fixed order of orderDocumentation. */
   readonly files: readonly ContextFile[];
   readonly skipped: readonly Skipped[];
-  readonly chars: number;
 }
 
-/** Characters of documentation at most: the local model holds far more, the answer stays fast. */
-export const CONTEXT_BUDGET = 300_000;
 const MAX_FILE = 200_000;
 
 /** Documentation, by path: the only files ever considered. */
 const DOCUMENTATION = /^(README\.md|CLAUDE\.md|docs\/.+\.md|[^/]+\/[^/]+\/README\.md)$/;
 /**
- * Measurement reports: figures, long, rarely the answer. Never in the prompt,
- * still readable by the CTO's tools (ADR-0021): the report of 2026-10-20 alone
- * (21 k characters) pushed the oldest phases out of the budget.
+ * Measurement reports: figures, long, rarely the answer. Never in full in the
+ * prompt, still readable by the CTO's tools (ADR-0021): the report of
+ * 2026-10-20 alone (21 k characters) pushed the oldest phases out of the budget.
  */
-const READ_BY_TOOLS_ONLY = /^docs\/mesures\//;
+export const READ_BY_TOOLS_ONLY = /^docs\/mesures\//;
 /** Never read, whatever the allow-list says. */
 export const DENIED = /(^|\/)\.env|\.local\.toml$|(^|\/)fixtures\//i;
 /** Text that looks like a credential: the whole file is left out. */
@@ -73,7 +72,7 @@ const CURRENT_PHASES = 2;
  * and security; decisions, newest first; the rest by path; then older phases,
  * which are history. Phases are numbered: a new one moves ahead by itself.
  */
-export function orderDocumentation(paths: readonly string[]): string[] {
+function documentationKey(paths: readonly string[]): (p: string) => [number, number, string] {
   const phase = (p: string) => Number(PHASE.exec(p)?.[1] ?? Number.NaN);
   const current = new Set(
     paths
@@ -82,7 +81,7 @@ export function orderDocumentation(paths: readonly string[]): string[] {
       .sort((a, b) => b - a)
       .slice(0, CURRENT_PHASES),
   );
-  const key = (p: string): [number, number, string] => {
+  return (p: string): [number, number, string] => {
     const first = FIRST.indexOf(p);
     if (first !== -1) return [0, first, ""];
     const n = phase(p);
@@ -92,11 +91,24 @@ export function orderDocumentation(paths: readonly string[]): string[] {
     if (adr !== undefined) return [2, -Number(adr), p];
     return [3, 0, p];
   };
+}
+
+export function orderDocumentation(paths: readonly string[]): string[] {
+  const key = documentationKey(paths);
   return [...paths].sort((a, b) => {
     const [ta, na, sa] = key(a);
     const [tb, nb, sb] = key(b);
     return ta - tb || na - nb || (sa < sb ? -1 : sa > sb ? 1 : 0);
   });
+}
+
+/**
+ * The core (ADR-0033, § 1): the charter and its kin, the current phases and
+ * security — what every prompt holds in full, whatever the question.
+ */
+export function corePaths(paths: readonly string[]): Set<string> {
+  const key = documentationKey(paths);
+  return new Set(paths.filter((p) => key(p)[0] <= 1));
 }
 
 export function gitTrackedFiles(root: string): string[] {
@@ -107,20 +119,15 @@ export function gitTrackedFiles(root: string): string[] {
   return out.split("\0").filter((p) => p !== "");
 }
 
-export function loadProjectContext(
+/** Every documentation file that may be shown, read once; measurement reports included. */
+export function admitDocumentation(
   root: string,
-  options: { readonly budget?: number; readonly tracked?: (root: string) => string[] } = {},
-): ProjectContext {
-  const budget = options.budget ?? CONTEXT_BUDGET;
+  tracked: (root: string) => string[] = gitTrackedFiles,
+): Admitted {
   const realRoot = realpathSync(root);
   const files: ContextFile[] = [];
   const skipped: Skipped[] = [];
-  let chars = 0;
-  const candidates = orderDocumentation(
-    (options.tracked ?? gitTrackedFiles)(root).filter(
-      (p) => DOCUMENTATION.test(p) && !READ_BY_TOOLS_ONLY.test(p),
-    ),
-  );
+  const candidates = orderDocumentation(tracked(root).filter((p) => DOCUMENTATION.test(p)));
   for (const path of candidates) {
     if (DENIED.test(path)) {
       skipped.push({ path, reason: "denied" });
@@ -163,12 +170,7 @@ export function loadProjectContext(
       skipped.push({ path, reason: "secret_like" });
       continue;
     }
-    if (chars + text.length > budget) {
-      skipped.push({ path, reason: "budget" });
-      continue;
-    }
     files.push({ path, text });
-    chars += text.length;
   }
-  return { files, skipped, chars };
+  return { files, skipped };
 }

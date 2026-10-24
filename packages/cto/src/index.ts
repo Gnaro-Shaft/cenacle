@@ -8,12 +8,10 @@ export {
   CtoServiceError,
 } from "./client.ts";
 export {
-  CONTEXT_BUDGET,
+  admitDocumentation,
   type ContextFile,
   gitTrackedFiles,
-  loadProjectContext,
   orderDocumentation,
-  type ProjectContext,
   SECRET_LIKE,
   type Skipped,
 } from "./context.ts";
@@ -51,6 +49,14 @@ export {
   reviewPrompt,
   validBranch,
 } from "./review.ts";
+export {
+  CONTEXT_BUDGET,
+  type ContextRequest,
+  loadProjectContext,
+  type MapEntry,
+  type ProjectContext,
+  selectContext,
+} from "./selection.ts";
 export {
   type CtoService,
   createCtoService,

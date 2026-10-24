@@ -6,7 +6,8 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { CONTEXT_BUDGET, DENIED, loadProjectContext, orderDocumentation } from "./context.ts";
+import { DENIED, orderDocumentation } from "./context.ts";
+import { loadProjectContext } from "./selection.ts";
 
 let root = "";
 let outside = "";
@@ -194,16 +195,5 @@ describe("loadProjectContext", () => {
     const c = loadProjectContext(root, { tracked });
     expect(c.files.map((f) => f.path)).toEqual(["docs/guide.md", "docs/mesuresvoisines.md"]);
     expect(DENIED.test("docs/mesures/rapport.md")).toBe(false);
-  });
-
-  it("the real repository fits in the budget: nothing is left out for lack of room", () => {
-    // An alarm: when the documentation outgrows the budget, this fails first.
-    const repo = join(import.meta.dirname, "..", "..", "..");
-    const c = loadProjectContext(repo);
-    expect(c.skipped.filter((s) => s.reason === "budget")).toEqual([]);
-    expect(c.chars).toBeLessThanOrEqual(CONTEXT_BUDGET);
-    expect(c.files.map((f) => f.path)).toEqual(
-      expect.arrayContaining(["docs/phase-5.md", "docs/phase-6.md", "docs/securite/secrets.md"]),
-    );
   });
 });

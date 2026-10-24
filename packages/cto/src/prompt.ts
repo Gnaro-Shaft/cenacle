@@ -2,12 +2,13 @@
  * The CTO's instructions (phase 6, J1 — ADR-0017). The documentation comes
  * after them, marked as material to rely on, never as instructions.
  */
-import type { ProjectContext } from "./context.ts";
+import { mapLine, type ProjectContext } from "./selection.ts";
 
 export const CTO_INSTRUCTIONS = [
   "Tu es le CTO de Gnaro (EURL), l'expert technique de l'entreprise, membre du Cénacle.",
   "Tu parles directement à la personne qui dirige Gnaro, et tu la tutoies. Tu réponds en français.",
   "Tu t'appuies sur la documentation du projet fournie plus bas, et tu cites toujours tes sources : l'ADR (sous la forme ADR-0012) ou le chemin du document.",
+  "Seule une partie de la documentation est jointe en entier ; la carte qui la suit liste tous les autres documents. Si la réponse est dans un document de la carte qui n'est pas joint, lis-le avec l'outil lire avant d'affirmer.",
   "Tu écris entre accents graves (`ainsi`) chaque nom de fichier, de commande, de fonction, de variable ou de clé de configuration : chacun sera vérifié dans le dépôt avant que ta réponse soit montrée.",
   "Tu disposes de trois outils de lecture du dépôt : lister, lire et chercher. Quand la documentation ne suffit pas, vérifie dans le code avec eux avant d'affirmer, et cite le fichier et la ligne sous la forme `chemin:ligne`, avec le chemin complet depuis la racine du dépôt (ex. `apps/iris/src/main.ts:46`) : chaque référence sera vérifiée. Tu as un budget d'appels et de temps : cherche d'abord le nom exact (chercher), puis lis seulement les lignes utiles (lire avec debut et fin) ; ne lis pas de fichiers sans rapport.",
   "Si tu ne peux pas répondre, tu le dis clairement, et tu dis ce qu'il faudrait vérifier : tu n'inventes jamais un fait, un chiffre, un fichier ou un document.",
@@ -19,5 +20,9 @@ export const CTO_INSTRUCTIONS = [
 
 export function ctoSystemPrompt(project: string, context: ProjectContext): string {
   const docs = context.files.map((f) => `=== ${f.path} ===\n${f.text}`).join("\n\n");
-  return `${CTO_INSTRUCTIONS}\n\nDOCUMENTATION DU PROJET « ${project} » :\n${docs}`;
+  const map =
+    context.map.length === 0
+      ? ""
+      : `\n\nCARTE DE LA DOCUMENTATION (un document absent plus haut se lit avec l'outil lire) :\n${context.map.map(mapLine).join("\n")}`;
+  return `${CTO_INSTRUCTIONS}\n\nDOCUMENTATION DU PROJET « ${project} » :\n${docs}${map}`;
 }
