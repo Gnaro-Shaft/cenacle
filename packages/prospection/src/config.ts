@@ -37,6 +37,12 @@ export interface Platform {
    * Never against the ESN list, a phrase, or the model's own « esn ».
    */
   readonly directByDefault: boolean;
+  /**
+   * The exact addresses its confirmations of my applications come from
+   * (ADR-0034): a mail from one of them becomes a card in "applied". Lower
+   * case, on the platform's own domain. Empty: no confirmation is read.
+   */
+  readonly applicationAddresses: ReadonlySet<string>;
 }
 
 export interface Profile {
@@ -115,16 +121,56 @@ function host(value: unknown, where: string): string {
   return value;
 }
 
+const LOCAL_PART = /^[a-z0-9](?:[a-z0-9._+-]{0,62}[a-z0-9])?$/;
+/** Exact addresses on the platform's domain (ADR-0034): no joker, no other domain. */
+function applicationAddresses(
+  p: Table,
+  at: string,
+  domain: string,
+  taken: Set<string>,
+): Set<string> {
+  const list = p.adresses_candidature;
+  if (list === undefined) return new Set();
+  if (!Array.isArray(list) || list.length === 0 || list.length > 10) {
+    throw new ProspectionConfigError(`${at}.adresses_candidature must list 1 to 10 addresses`);
+  }
+  return new Set(
+    list.map((value) => {
+      const [local, host, ...rest] = typeof value === "string" ? value.split("@") : [];
+      if (
+        typeof value !== "string" ||
+        value !== value.toLowerCase() ||
+        rest.length > 0 ||
+        local === undefined ||
+        !LOCAL_PART.test(local) ||
+        host !== domain
+      ) {
+        throw new ProspectionConfigError(
+          `${at}.adresses_candidature: ${JSON.stringify(value)} is not an exact lower-case address on ${domain}`,
+        );
+      }
+      if (taken.has(value)) throw new ProspectionConfigError(`${value} is declared twice`);
+      taken.add(value);
+      return value;
+    }),
+  );
+}
+
 function platforms(raw: Table, where: string): Platform[] {
   const list = raw.plateforme;
   if (!Array.isArray(list) || list.length === 0 || list.length > 20) {
     throw new ProspectionConfigError(`${where} must declare 1 to 20 [[plateforme]]`);
   }
   const seen = new Set<string>();
+  const addresses = new Set<string>();
   return list.map((p, i) => {
     const at = `${where} [[plateforme]] #${i + 1}`;
     if (!isTable(p)) throw new ProspectionConfigError(`${at} must be a table`);
-    onlyKeys(p, ["nom", "domaine", "hotes_liens", "intermediaire_par_defaut"], at);
+    onlyKeys(
+      p,
+      ["nom", "domaine", "hotes_liens", "intermediaire_par_defaut", "adresses_candidature"],
+      at,
+    );
     const byDefault = p.intermediaire_par_defaut;
     if (byDefault !== undefined && byDefault !== "direct") {
       throw new ProspectionConfigError(`${at}.intermediaire_par_defaut can only be "direct"`);
@@ -146,6 +192,7 @@ function platforms(raw: Table, where: string): Platform[] {
       senderDomain,
       linkHosts: new Set(hosts.map((h) => host(h, `${at}.hotes_liens`))),
       directByDefault: byDefault === "direct",
+      applicationAddresses: applicationAddresses(p, at, senderDomain, addresses),
     };
   });
 }

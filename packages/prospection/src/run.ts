@@ -2,15 +2,29 @@
  * One pass of the prospection agent (ADR-0032): the "missions" alerts not yet
  * read, each re-checked at its source, set aside by the article 9 floor or
  * read by the model, its missions sorted and kept as cards. Then the purge.
+ * A mail from a declared confirmation address (ADR-0034) takes the other
+ * path: the single mission I applied to becomes a card in "applied".
  *
  * Everything outside is injected (mailbox, model, base, journal): the pass
  * decides, it holds no secret. Nothing is ever silent: each mail ends with an
  * outcome, each dropped entry is counted, and the journal gets numbers only.
  * If the model stops answering, the pass stops; the mails stay to read.
  */
+import {
+  APPLICATION_SYSTEM_PROMPT,
+  applicationKeys,
+  buildApplicationPrompt,
+  parseApplication,
+} from "./application.ts";
 import { bodyOf } from "./body.ts";
 import type { Platform, ProspectionConfig } from "./config.ts";
-import { buildExtractPrompt, ExtractError, type Offer, parseExtraction } from "./extract.ts";
+import {
+  buildExtractPrompt,
+  EXTRACT_SYSTEM_PROMPT,
+  ExtractError,
+  type Offer,
+  parseExtraction,
+} from "./extract.ts";
 import { type AgentColumn, duplicateKey, triage } from "./triage.ts";
 
 export const AGENT = "prospection";
@@ -24,7 +38,9 @@ export type Outcome =
   | "not_platform"
   | "unauthenticated"
   | "unparsable"
-  | "no_offer";
+  | "no_offer"
+  | "application"
+  | "application_unreadable";
 
 export interface MissionMail {
   /** Iris's fixed id (ADR-0016). */
@@ -48,6 +64,13 @@ export interface CardToKeep extends Offer {
   readonly duplicateKey: string | null;
 }
 
+/** A confirmation's mission (ADR-0034): kept in "applied", unless already there or beyond. */
+export interface ApplicationToKeep extends Offer {
+  readonly platform: string;
+  /** Its own key, and the alerts' key of the same mission; null when the company is not said. */
+  readonly keys: { readonly own: string; readonly alert: string } | null;
+}
+
 export interface RunDeps {
   readonly config: ProspectionConfig;
   readonly journal: {
@@ -56,17 +79,18 @@ export interface RunDeps {
   readonly missionMails: () => Promise<readonly MissionMail[]>;
   readonly unread: (ids: readonly number[]) => Promise<number[]>;
   readonly readSources: (ids: readonly number[]) => Promise<readonly Source[]>;
-  /** The sender's domain, read again at the source (charter, rule 5). */
-  readonly senderDomain: (source: Buffer) => string | null;
+  /** The sender's exact address, read again at the source (charter, rule 5). */
+  readonly senderAddress: (source: Buffer) => string | null;
   /** The article 9 floor on the whole text the model would read. */
   readonly sensitive: (text: string) => boolean;
-  readonly ask: (prompt: string) => Promise<string>;
+  readonly ask: (question: string, systemPrompt: string) => Promise<string>;
   readonly isModelUnavailable: (error: unknown) => boolean;
   readonly recordMail: (
     id: number,
     outcome: Outcome,
     cards: readonly CardToKeep[],
   ) => Promise<{ added: number; duplicates: number }>;
+  readonly recordApplication: (id: number, card: ApplicationToKeep) => Promise<{ added: boolean }>;
   readonly purge: (cutoff: Date) => Promise<number>;
   readonly retentionDays: number;
   readonly now: () => Date;
@@ -87,6 +111,8 @@ const OUTCOMES: readonly Outcome[] = [
   "unauthenticated",
   "unparsable",
   "no_offer",
+  "application",
+  "application_unreadable",
 ];
 
 export async function runProspection(deps: RunDeps): Promise<PassSummary> {
@@ -108,6 +134,8 @@ export async function runProspection(deps: RunDeps): Promise<PassSummary> {
       "to_check",
       "purged",
       "left",
+      "applications_added",
+      "applications_duplicate",
     ].map((k) => [k, 0]),
   );
   const byDomain = new Map<string, Platform>(config.platforms.map((p) => [p.senderDomain, p]));
@@ -136,8 +164,9 @@ export async function runProspection(deps: RunDeps): Promise<PassSummary> {
       await finish(id, "too_big");
       continue;
     }
-    const domain = deps.senderDomain(read.source);
-    const platform = domain === null ? undefined : byDomain.get(domain);
+    const address = deps.senderAddress(read.source)?.toLowerCase() ?? null;
+    const domain = address?.split("@")[1];
+    const platform = domain === undefined ? undefined : byDomain.get(domain);
     if (platform === undefined) {
       await finish(id, "not_platform");
       continue;
@@ -156,13 +185,33 @@ export async function runProspection(deps: RunDeps): Promise<PassSummary> {
       await finish(id, "floor");
       continue;
     }
+    // The code decides which path, on the exact address; never the model.
+    const application = address !== null && platform.applicationAddresses.has(address);
     let answer: string;
     try {
-      answer = await deps.ask(buildExtractPrompt(body.text, deps.nonce()));
+      answer = application
+        ? await deps.ask(buildApplicationPrompt(body.text, deps.nonce()), APPLICATION_SYSTEM_PROMPT)
+        : await deps.ask(buildExtractPrompt(body.text, deps.nonce()), EXTRACT_SYSTEM_PROMPT);
     } catch (error) {
       if (!deps.isModelUnavailable(error)) throw error;
       waiting = true;
       break;
+    }
+    if (application) {
+      const offer = parseApplication(answer, body.links, platform);
+      if (offer === null) {
+        await finish(id, "application_unreadable");
+        continue;
+      }
+      const kept = await deps.recordApplication(id, {
+        ...offer,
+        platform: platform.name,
+        keys: applicationKeys(offer, platform.name),
+      });
+      counts.application = (counts.application ?? 0) + 1;
+      if (kept.added) counts.applications_added = (counts.applications_added ?? 0) + 1;
+      else counts.applications_duplicate = (counts.applications_duplicate ?? 0) + 1;
+      continue;
     }
     let offers: readonly Offer[];
     try {

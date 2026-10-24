@@ -67,8 +67,8 @@ export interface Extraction {
   readonly overCap: number;
 }
 
-type Entry = Record<string, unknown>;
-const isEntry = (v: unknown): v is Entry =>
+export type Entry = Record<string, unknown>;
+export const isEntry = (v: unknown): v is Entry =>
   typeof v === "object" && v !== null && !Array.isArray(v);
 
 function rate(value: unknown): readonly [number, number] | null | undefined {
@@ -80,7 +80,8 @@ function rate(value: unknown): readonly [number, number] | null | undefined {
   return ok(min) && ok(max) && min <= max ? [min, max] : undefined;
 }
 
-function link(value: unknown, links: readonly string[], platform: Platform): string | null {
+/** A marker number back to the mail's own https address, on a declared host only. */
+export function link(value: unknown, links: readonly string[], platform: Platform): string | null {
   if (!Number.isInteger(value)) return null;
   const address = links[(value as number) - 1];
   if (address === undefined) return null;
@@ -104,7 +105,7 @@ const NOT_SAID = new Set([
   "null",
 ]);
 
-function companyOf(value: unknown): string | null | undefined {
+export function companyOf(value: unknown): string | null | undefined {
   if (value === null || value === "") return null;
   const company = cleanField(value, 80);
   if (company === null) return undefined;

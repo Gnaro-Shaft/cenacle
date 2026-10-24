@@ -36,7 +36,6 @@ import {
 } from "@cenacle/mail";
 import {
   alertIfNew,
-  EXTRACT_SYSTEM_PROMPT,
   loadProspectionConfig,
   ProspectionConfigError,
   runProspection,
@@ -100,15 +99,15 @@ try {
         .map((m) => ({ id: m.uid, senderAuthenticated: m.senderAuthenticated })),
     unread: (ids) => cards.unread(ids),
     readSources: (ids) => readRawSourcesAt(locator, cadre.mail, mailPass, ids),
-    senderDomain: (source) => senderOfSource(source)?.split("@")[1] ?? null,
+    senderAddress: (source) => senderOfSource(source),
     sensitive: (text) => sensitiveCategory(text) !== null,
-    ask: async (question) =>
+    ask: async (question, systemPrompt) =>
       (
         await askAgent({
           question,
           agent: "prospection",
-          systemPrompt: EXTRACT_SYSTEM_PROMPT,
-          // A platform's alert: mail content, the local model only (ADR-0003).
+          systemPrompt,
+          // A platform's alert or confirmation: mail content, the local model only (ADR-0003).
           dataClass: "mail_content",
           journal,
           local,
@@ -138,6 +137,29 @@ try {
           toCheck: c.toCheck,
           duplicateKey: c.duplicateKey,
         })),
+      ),
+    recordApplication: (id, c) =>
+      cards.recordApplication(
+        id,
+        {
+          source: "mail",
+          platform: c.platform,
+          title: c.title,
+          company: c.company,
+          intermediary: c.intermediary,
+          stack: c.stack,
+          rate: c.rate,
+          remote: c.remote,
+          place: c.place,
+          link: c.link,
+          note: null,
+          column: "applied",
+          reason: "application_confirmed",
+          decidedBy: "rule",
+          toCheck: false,
+          duplicateKey: c.keys?.own ?? null,
+        },
+        c.keys?.alert ?? null,
       ),
     purge: (cutoff) => cards.purge(cutoff),
     retentionDays,
