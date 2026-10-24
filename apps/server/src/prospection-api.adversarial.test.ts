@@ -20,6 +20,7 @@ function setup(over: Partial<ProspectionService> = {}) {
   const calls: string[] = [];
   const service: ProspectionService = {
     list: async () => [],
+    toRead: async () => ({ floor: 0, applications: 0 }),
     add: async (input) => {
       calls.push(`add ${JSON.stringify(input)}`);
       return { id: 1 } as CardView;
@@ -56,6 +57,13 @@ const without = (key: keyof typeof PAGE) =>
 const MOVE = "/api/prospection/cartes/4/deplacer";
 
 describe("board API — who may act", () => {
+  it("the page with the token lists the cards and the mails to read myself", async () => {
+    const { app } = setup({ toRead: async () => ({ floor: 1, applications: 2 }) });
+    const r = await app.request("/api/prospection/cartes", { headers: PAGE });
+    expect(r.status).toBe(200);
+    expect(await r.json()).toEqual({ cards: [], toRead: { floor: 1, applications: 2 } });
+  });
+
   it("the page with the token can move a card", async () => {
     const { app, calls } = setup();
     const r = await app.request(MOVE, post(PAGE, '{"colonne":"applied"}'));
@@ -165,6 +173,7 @@ describe("board service — the code decides, the journal gets columns", () => {
           card({ id: 2, link: "https://attacker.test/x" }),
           card({ id: 3, source: "me", platform: null, link: "https://ailleurs.test/m" }),
         ],
+        toReadByHand: async () => ({ floor: 0, applications: 0 }),
         addByHand: async (c) => {
           added.push(c);
           return 7;
@@ -230,7 +239,12 @@ describe("board service — the code decides, the journal gets columns", () => {
 
   it("unreadable settings are said, never guessed", async () => {
     const s = createProspectionService({
-      store: { cards: async () => [], addByHand: async () => 1, move: async () => null },
+      store: {
+        cards: async () => [],
+        addByHand: async () => 1,
+        move: async () => null,
+        toReadByHand: async () => ({ floor: 0, applications: 0 }),
+      },
       config: () => parseProspectionConfig("[reglage", ""),
       journal: { append: async () => undefined },
     });

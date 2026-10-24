@@ -13,6 +13,7 @@ import {
   rateLabel,
   reasonLabel,
   remoteLabel,
+  toReadLabel,
 } from "./board-rules.ts";
 
 describe("clickable — https only, written exactly", () => {
@@ -95,5 +96,20 @@ describe("byColumn", () => {
       label: "Colonne inconnue",
       cards: [{ column: "ailleurs" }],
     });
+  });
+});
+
+describe("ADR-0034 on the page", () => {
+  it("a confirmation's card is not « stopped »", () => {
+    expect(reasonLabel("application_confirmed")).toBeNull();
+  });
+
+  it("the mails to read myself: nothing when none, plural when more than one", () => {
+    expect(toReadLabel(0, 0)).toBeNull();
+    expect(toReadLabel(1, 0)).toBe("À lire moi-même : 1 alerte écartée par le plancher.");
+    expect(toReadLabel(0, 1)).toBe("À lire moi-même : 1 confirmation de candidature illisible.");
+    expect(toReadLabel(2, 3)).toBe(
+      "À lire moi-même : 2 alertes écartées par le plancher et 3 confirmations de candidature illisibles.",
+    );
   });
 });
