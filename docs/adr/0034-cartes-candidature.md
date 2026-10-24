@@ -1,6 +1,6 @@
 # ADR-0034 — Les cartes « Candidature », créées depuis les confirmations des plateformes
 
-**Statut** : proposée (2026-10-24) — complète l'ADR-0032 (révise son point 15 : seul moi place une carte dans mes colonnes) ; s'appuie sur l'ADR-0031 (la case « Missions »)
+**Statut** : acceptée (2026-10-24) — complète l'ADR-0032 (révise son point 15 : seul moi place une carte dans mes colonnes) ; s'appuie sur l'ADR-0031 (la case « Missions »)
 
 ## Contexte
 
