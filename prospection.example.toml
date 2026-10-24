@@ -12,6 +12,11 @@ hotes_liens = ["plateforme-freelance.example", "www.plateforme-freelance.example
 # intermediaire_par_defaut = "direct": my declaration that this platform's clients
 # post themselves. When the model cannot tell, its missions are taken as direct
 # (flagged « à vérifier »); the ESN list and the model's « esn » still win.
+#
+# adresses_candidature = ["candidatures@plateforme-freelance.example"]: the exact
+# addresses its confirmations of my applications come from (ADR-0034). A mail
+# from one of them becomes a card in « Candidature ». Add each one to [missions]
+# of regles.local.toml as well, or Iris never files it in « Missions ».
 
 [[plateforme]]
 nom = "Réseau fictif"

@@ -15,6 +15,7 @@ export const LOCAL = `
 nom = "Plateforme fictive"
 domaine = "plateforme.example"
 hotes_liens = ["plateforme.example", "clic.plateforme.example"]
+adresses_candidature = ["candidatures@plateforme.example"]
 [profil]
 stack = ["python", "llm"]
 tjm_min = 550

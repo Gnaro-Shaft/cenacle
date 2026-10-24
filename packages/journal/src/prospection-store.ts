@@ -4,6 +4,8 @@
  * moved by it again. Only the page's server adds a card by hand and moves
  * one, for me (point 17; a test reads the agent's code to hold it). Purged by
  * the agent at each pass, 60 days after a card's creation or my last move.
+ * A platform's confirmation that I applied adds a card in « applied »
+ * (ADR-0034): the only column of mine the agent ever fills, by an insert.
  */
 import type { Sql } from "postgres";
 
@@ -15,6 +17,8 @@ export const READ_OUTCOMES = [
   "unauthenticated",
   "unparsable",
   "no_offer",
+  "application",
+  "application_unreadable",
 ] as const;
 export type ReadOutcome = (typeof READ_OUTCOMES)[number];
 
@@ -55,6 +59,19 @@ export interface ProspectionStore {
     outcome: ReadOutcome,
     cards: readonly NewCard[],
   ): Promise<{ added: number; duplicates: number }>;
+  /**
+   * A confirmation that I applied (ADR-0034), in one transaction: its card
+   * added in « applied », unless the same mission — under its own key or the
+   * alerts' key — already has a card in « applied » or beyond; then the mail
+   * marked read. Only adds, like recordMail.
+   */
+  recordApplication(
+    mailId: number,
+    card: NewCard,
+    alertKey: string | null,
+  ): Promise<{ added: boolean }>;
+  /** Mails I must read myself: set aside by the article 9 floor, or a confirmation unread. */
+  toReadByHand(): Promise<{ floor: number; applications: number }>;
   cards(): Promise<Card[]>;
   /** A card I typed (the page's server only). Returns its id. */
   addByHand(card: NewCard): Promise<number>;
@@ -149,6 +166,49 @@ export function createProspectionStore(sql: Sql): ProspectionStore {
           insert into prospection_mails_lus (mail_id, outcome) values (${mailId}, ${outcome})`;
         return { added, duplicates: cards.length - added };
       });
+    },
+
+    async recordApplication(mailId, c, alertKey) {
+      if (c.column !== "applied" || c.source !== "mail") {
+        throw new Error("recordApplication: a confirmation's card, in applied, only");
+      }
+      return sql.begin(async (tx) => {
+        const keys = [c.duplicateKey, alertKey].filter((k): k is string => k !== null);
+        const already =
+          keys.length === 0
+            ? []
+            : await tx`
+                select 1 from prospection_cartes
+                where duplicate_key = any(${keys})
+                  and board_column in ('applied', 'interview', 'won', 'lost')
+                limit 1`;
+        const rows =
+          already.length > 0
+            ? []
+            : await tx`
+                insert into prospection_cartes (
+                  source, platform, title, company, intermediary, stack, rate_min, rate_max,
+                  remote, place, link, note, board_column, reason, decided_by, to_check,
+                  duplicate_key)
+                values (
+                  'mail', ${c.platform}, ${c.title}, ${c.company}, ${c.intermediary},
+                  ${c.stack as string[]}, ${c.rate?.[0] ?? null}, ${c.rate?.[1] ?? null},
+                  ${c.remote}, ${c.place}, ${c.link}, null, 'applied', ${c.reason},
+                  ${c.decidedBy}, ${c.toCheck}, ${c.duplicateKey})
+                on conflict (duplicate_key) do nothing
+                returning id`;
+        await tx`
+          insert into prospection_mails_lus (mail_id, outcome) values (${mailId}, 'application')`;
+        return { added: rows.length > 0 };
+      });
+    },
+
+    async toReadByHand() {
+      const rows = await sql<{ outcome: string; n: number }[]>`
+        select outcome, count(*)::int as n from prospection_mails_lus
+        where outcome in ('floor', 'application_unreadable') group by outcome`;
+      const of = (o: string) => rows.find((r) => r.outcome === o)?.n ?? 0;
+      return { floor: of("floor"), applications: of("application_unreadable") };
     },
 
     async cards() {

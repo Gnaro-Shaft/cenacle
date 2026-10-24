@@ -36,7 +36,7 @@ export function mountProspection(app: Hono, board: ProspectionService | undefine
   app.get("/api/prospection/cartes", async (c) => {
     if (board === undefined) return absent(c);
     try {
-      return c.json({ cards: await board.list() });
+      return c.json({ cards: await board.list(), toRead: await board.toRead() });
     } catch (error) {
       return failure(c, error);
     }

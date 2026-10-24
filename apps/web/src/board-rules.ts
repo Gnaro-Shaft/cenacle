@@ -32,13 +32,29 @@ const REASONS: Readonly<Record<string, string>> = {
   remote: "télétravail",
 };
 
+/** What the page says of the mails I must read myself; null when there are none. */
+export function toReadLabel(floor: number, applications: number): string | null {
+  const parts = [
+    floor > 0
+      ? `${floor} alerte${floor > 1 ? "s" : ""} écartée${floor > 1 ? "s" : ""} par le plancher`
+      : null,
+    applications > 0
+      ? `${applications} confirmation${applications > 1 ? "s" : ""} de candidature illisible${applications > 1 ? "s" : ""}`
+      : null,
+  ].filter((p): p is string => p !== null);
+  return parts.length === 0 ? null : `À lire moi-même : ${parts.join(" et ")}.`;
+}
+
 export function columnLabel(key: string): string {
   return COLUMNS.find(([k]) => k === key)?.[1] ?? "colonne inconnue";
 }
 
-/** Why a card stopped where it is; null when it reached the alert or I moved it. */
+/** A confirmation's card (ADR-0034): placed in « Candidature » by the code, not stopped. */
+export const CONFIRMED = "application_confirmed";
+
+/** Why a card stopped where it is; null when it reached the alert, I moved it, or it was confirmed. */
 export function reasonLabel(reason: string | null): string | null {
-  if (reason === null) return null;
+  if (reason === null || reason === CONFIRMED) return null;
   return REASONS[reason] ?? "raison inconnue";
 }
 

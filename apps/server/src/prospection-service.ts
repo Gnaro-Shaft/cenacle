@@ -45,16 +45,29 @@ export interface CardView {
   readonly toCheck: boolean;
   readonly createdAt: string;
   readonly movedAt: string | null;
+  /**
+   * For a card in one of the agent's columns: the id of the card in « applied »
+   * or beyond for the same mission (ADR-0034, § 4), found at each request and
+   * never stored; null otherwise.
+   */
+  readonly applied: number | null;
+}
+
+/** Mails I must read myself (ADR-0032 point 5, ADR-0034): counts only. */
+export interface ToRead {
+  readonly floor: number;
+  readonly applications: number;
 }
 
 export interface ProspectionService {
   list(): Promise<CardView[]>;
+  toRead(): Promise<ToRead>;
   add(input: unknown): Promise<CardView>;
   move(id: number, column: unknown): Promise<void>;
 }
 
 export interface ProspectionDeps {
-  readonly store: Pick<ProspectionStore, "cards" | "addByHand" | "move">;
+  readonly store: Pick<ProspectionStore, "cards" | "addByHand" | "move" | "toReadByHand">;
   readonly config: () => ProspectionConfig;
   readonly journal: {
     append(e: { agent: string; type: string; payload?: Record<string, unknown> }): Promise<unknown>;
@@ -63,7 +76,25 @@ export interface ProspectionDeps {
 
 const AGENT = "prospection";
 
-function view(card: Card, config: ProspectionConfig): CardView {
+const AGENT_COLUMN_SET: ReadonlySet<string> = new Set(AGENT_COLUMNS);
+const APPLIED_OR_BEYOND = new Set(["applied", "interview", "won", "lost"]);
+const OWN = "applied|";
+
+/**
+ * The same mission, by its alerts' key: a confirmation's card carries it
+ * behind « applied| », a card I moved there myself carries it as is.
+ */
+function appliedByMission(cards: readonly Card[]): Map<string, number> {
+  const found = new Map<string, number>();
+  for (const c of cards) {
+    if (c.duplicateKey === null || !APPLIED_OR_BEYOND.has(c.column)) continue;
+    const key = c.duplicateKey.startsWith(OWN) ? c.duplicateKey.slice(OWN.length) : c.duplicateKey;
+    if (!found.has(key)) found.set(key, c.id);
+  }
+  return found;
+}
+
+function view(card: Card, config: ProspectionConfig, applied: number | null = null): CardView {
   return {
     id: card.id,
     source: card.source,
@@ -83,6 +114,7 @@ function view(card: Card, config: ProspectionConfig): CardView {
     toCheck: card.toCheck,
     createdAt: card.createdAt.toISOString(),
     movedAt: card.movedAt?.toISOString() ?? null,
+    applied,
   };
 }
 
@@ -99,8 +131,20 @@ export function createProspectionService(deps: ProspectionDeps): ProspectionServ
   return {
     async list() {
       const config = settings();
-      return (await deps.store.cards()).map((c) => view(c, config));
+      const cards = await deps.store.cards();
+      const applied = appliedByMission(cards);
+      return cards.map((c) =>
+        view(
+          c,
+          config,
+          c.duplicateKey !== null && AGENT_COLUMN_SET.has(c.column)
+            ? (applied.get(c.duplicateKey) ?? null)
+            : null,
+        ),
+      );
     },
+
+    toRead: () => deps.store.toReadByHand(),
 
     async add(input) {
       const config = settings();

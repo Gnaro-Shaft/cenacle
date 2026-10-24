@@ -36,6 +36,7 @@ export {
 } from "./extract.ts";
 export {
   AGENT,
+  type ApplicationToKeep,
   type CardToKeep,
   MAILS_PER_PASS,
   type MissionMail,

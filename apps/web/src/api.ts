@@ -89,10 +89,18 @@ export interface CardView {
   readonly toCheck: boolean;
   readonly createdAt: string;
   readonly movedAt: string | null;
+  /** In an agent's column: the card in « applied » or beyond for the same mission. */
+  readonly applied: number | null;
 }
 
-export const listCards = async (token: string) =>
-  (await call<{ cards: CardView[] }>(token, "/api/prospection/cartes")).cards;
+/** Mails I must read myself: set aside by the floor, or a confirmation unread (counts only). */
+export interface ToRead {
+  readonly floor: number;
+  readonly applications: number;
+}
+
+export const listCards = (token: string) =>
+  call<{ cards: CardView[]; toRead: ToRead }>(token, "/api/prospection/cartes");
 
 export const addCard = async (token: string, fields: Record<string, unknown>) =>
   (

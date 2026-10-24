@@ -6,17 +6,19 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { AddCard } from "./AddCard.tsx";
-import { ApiError, type CardView, listCards, moveCard } from "./api.ts";
+import { ApiError, type CardView, listCards, moveCard, type ToRead } from "./api.ts";
 import {
   aiMark,
   byColumn,
   COLUMNS,
+  CONFIRMED,
   clickable,
   columnLabel,
   deciderLabel,
   rateLabel,
   reasonLabel,
   remoteLabel,
+  toReadLabel,
 } from "./board-rules.ts";
 import { forgetToken } from "./token.ts";
 
@@ -44,10 +46,16 @@ function MissionCard({
       </p>
       {card.stack.length > 0 && <p className="stack">{card.stack.join(" · ")}</p>}
       {card.note !== null && <p className="note">{card.note}</p>}
+      {card.applied !== null && (
+        <p className="note">candidature envoyée (voir la carte en Candidature)</p>
+      )}
       <p className="marques">
         {ai !== null && <span className="marque-ia">{ai}</span>}
         {card.toCheck && <span className="marque-verifier">à vérifier</span>}
         {reason !== null && <span className="marque-raison">arrêtée : {reason}</span>}
+        {card.reason === CONFIRMED && (
+          <span className="marque-raison">candidature confirmée par la plateforme</span>
+        )}
         <span className="marque-decideur">{deciderLabel(card.decidedBy, card.source)}</span>
       </p>
       {link !== null ? (
@@ -103,6 +111,7 @@ export function BoardView({
 
 export function Board({ token, onLost }: { readonly token: string; readonly onLost: () => void }) {
   const [cards, setCards] = useState<CardView[] | null>(null);
+  const [toRead, setToRead] = useState<ToRead | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   const refused = useCallback(
@@ -119,7 +128,9 @@ export function Board({ token, onLost }: { readonly token: string; readonly onLo
 
   const load = useCallback(async () => {
     try {
-      setCards(await listCards(token));
+      const board = await listCards(token);
+      setCards(board.cards);
+      setToRead(board.toRead);
     } catch (error) {
       refused(error, "Impossible de charger le tableau : le serveur répond-il ?");
     }
@@ -142,12 +153,14 @@ export function Board({ token, onLost }: { readonly token: string; readonly onLo
   };
 
   const waiting = cards?.filter((c) => c.column === "alert").length ?? 0;
+  const byHand = toRead === null ? null : toReadLabel(toRead.floor, toRead.applications);
   return (
     <section id="missions" className="bloc" aria-label="Missions">
       <div className="bloc-titre">
         <h2>Missions</h2>
         {waiting > 0 && <span className="compte-rouge">{waiting} en alerte</span>}
       </div>
+      {byHand !== null && <p className="detail a-lire">{byHand}</p>}
       {message !== null && (
         <p className="message" role="status">
           {message}

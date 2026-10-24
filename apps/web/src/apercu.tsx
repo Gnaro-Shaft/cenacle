@@ -51,6 +51,7 @@ const mission = (id: number, over: Partial<CardView>): CardView => ({
   toCheck: false,
   createdAt: "2026-10-22T09:00:00Z",
   movedAt: null,
+  applied: null,
   ...over,
 });
 const CARDS: readonly CardView[] = [
@@ -58,6 +59,15 @@ const CARDS: readonly CardView[] = [
   mission(2, { column: "detected", reason: "intermediary_unknown", decidedBy: "model" }),
   mission(3, { column: "direct", reason: "rate", rate: [400, 450] }),
   mission(4, { column: "alert", toCheck: true, rate: null }),
+  mission(9, { column: "alert", title: "Data scientist", applied: 10 }),
+  mission(10, {
+    column: "applied",
+    title: "Data scientist",
+    reason: "application_confirmed",
+    stack: [],
+    rate: null,
+    remote: "inconnu",
+  }),
   mission(5, {
     column: "alert",
     link: "javascript:alert(1)",

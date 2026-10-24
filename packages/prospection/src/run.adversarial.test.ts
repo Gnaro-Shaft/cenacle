@@ -2,81 +2,8 @@
 // forged or foreign mail never reaches the model, the article 9 floor holds,
 // and a model that stops answering leaves the rest to read — never marked.
 import { describe, expect, it } from "vitest";
-import {
-  type CardToKeep,
-  MAILS_PER_PASS,
-  type Outcome,
-  type RunDeps,
-  runProspection,
-} from "./run.ts";
-import { testConfig } from "./test-config.ts";
-
-class ModelDown extends Error {}
-
-const source = (from: string, html: string) =>
-  Buffer.from(
-    `From: Alertes <${from}>\r\nSubject: Missions\r\nContent-Type: text/html; charset=utf-8\r\n\r\n${html}`,
-    "utf8",
-  );
-const ALERT = source(
-  "alertes@plateforme.example",
-  '<p>Ingénieur IA, Banque Fictive, Lyon <a href="https://plateforme.example/m/1">voir</a></p>',
-);
-const ANSWER = JSON.stringify([
-  {
-    intitule: "Ingénieur IA",
-    entreprise: "Banque Fictive",
-    intermediaire: "direct",
-    stack: ["Python"],
-    tjm: [600, 700],
-    teletravail: "total",
-    lieu: "Lyon",
-    lien: 1,
-  },
-]);
-
-interface World {
-  readonly deps: RunDeps;
-  readonly recorded: { id: number; outcome: Outcome; cards: readonly CardToKeep[] }[];
-  readonly asked: string[];
-  readonly events: { type: string; payload?: Record<string, unknown> }[];
-}
-
-function world(
-  mails: { id: number; auth?: boolean; source?: Buffer; complete?: boolean }[],
-  over: Partial<RunDeps> = {},
-): World {
-  const recorded: World["recorded"] = [];
-  const asked: string[] = [];
-  const events: World["events"] = [];
-  const deps: RunDeps = {
-    config: testConfig(),
-    journal: { append: async (e) => events.push(e) },
-    missionMails: async () => mails.map((m) => ({ id: m.id, senderAuthenticated: m.auth ?? true })),
-    unread: async (ids) => ids.filter((id) => !recorded.some((r) => r.id === id)),
-    readSources: async (ids) =>
-      mails
-        .filter((m) => ids.includes(m.id) && m.source !== undefined)
-        .map((m) => ({ uid: m.id, source: m.source as Buffer, complete: m.complete ?? true })),
-    senderDomain: (s) => /^From:.*@([a-z0-9.-]+)>/im.exec(s.toString("utf8"))?.[1] ?? null,
-    sensitive: (text) => /\bhandicap\b/i.test(text),
-    ask: async (prompt) => {
-      asked.push(prompt);
-      return ANSWER;
-    },
-    isModelUnavailable: (e) => e instanceof ModelDown,
-    recordMail: async (id, outcome, cards) => {
-      recorded.push({ id, outcome, cards });
-      return { added: cards.length, duplicates: 0 };
-    },
-    purge: async () => 0,
-    retentionDays: 60,
-    now: () => new Date("2026-10-22T10:00:00Z"),
-    nonce: () => "n0",
-    ...over,
-  };
-  return { deps, recorded, asked, events };
-}
+import { MAILS_PER_PASS, type Outcome, runProspection } from "./run.ts";
+import { ALERT, ANSWER, ModelDown, source, world } from "./run-test-world.ts";
 
 describe("a pass — each alert ends with an outcome", () => {
   it("reads an authenticated alert of a declared platform into a card", async () => {
