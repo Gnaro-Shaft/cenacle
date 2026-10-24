@@ -22,7 +22,11 @@ describe("secrets backup", () => {
     expect(() => sealSecrets(FILES, "court")).toThrow(/12 characters/);
   });
 
-  it("refuses a wrong passphrase, and any altered field — with one same message", () => {
+  // Each attempt derives a key with scrypt (N = 2^17, slow on purpose): run
+  // once each, and given time — a shared CI runner took more than 5 s.
+  it("refuses a wrong passphrase, and any altered field — with one same message", {
+    timeout: 30_000,
+  }, () => {
     const doc = JSON.parse(sealed);
     const flip = (b64: string) => {
       const buf = Buffer.from(b64, "base64");
@@ -37,8 +41,14 @@ describe("secrets backup", () => {
       () => openSecrets(JSON.stringify({ ...doc, iv: flip(doc.iv) }), PASS),
     ];
     for (const attempt of attempts) {
-      expect(attempt).toThrow(VaultError);
-      expect(attempt).toThrow("wrong passphrase, or the backup was altered");
+      let caught: unknown;
+      try {
+        attempt();
+      } catch (error) {
+        caught = error;
+      }
+      expect(caught).toBeInstanceOf(VaultError);
+      expect((caught as Error).message).toBe("wrong passphrase, or the backup was altered");
     }
   });
 
