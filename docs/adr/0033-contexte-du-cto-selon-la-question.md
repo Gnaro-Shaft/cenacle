@@ -1,6 +1,6 @@
 # ADR-0033 — Le contexte du CTO : un socle, une carte, et les documents de la question
 
-**Statut** : proposée (2026-10-24) — révise l'ADR-0017 (§ 3 : « un budget de taille et un ordre fixe ») ; garde l'ADR-0021 (les outils et leurs budgets)
+**Statut** : acceptée (2026-10-24) — révise l'ADR-0017 (§ 3 : « un budget de taille et un ordre fixe ») ; garde l'ADR-0021 (les outils et leurs budgets)
 
 ## Contexte
 
