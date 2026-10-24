@@ -1,6 +1,6 @@
 # ADR-0033 — Le contexte du CTO : un socle, une carte, et les documents de la question
 
-**Statut** : proposée (2026-10-24) — révise l'ADR-0017 (§ 3 : « un budget de taille et un ordre fixe ») ; garde l'ADR-0021 (les outils et leurs budgets)
+**Statut** : acceptée (2026-10-24) — révise l'ADR-0017 (§ 3 : « un budget de taille et un ordre fixe ») ; garde l'ADR-0021 (les outils et leurs budgets)
 
 ## Contexte
 
@@ -70,6 +70,7 @@ Le banc des 17 questions du 2026-10-09 n'est pas dans le dépôt. Avant de livre
 
 - **Plus de relèvement de budget à chaque ADR** : la documentation peut grandir sans faire tomber la CI.
 - **Un prompt plus court**, environ 35 000 tokens de documentation au lieu de 83 000 : chaque question devrait être lue plus vite. À confirmer par le banc.
+  - *Mesuré le 2026-10-24* (`docs/mesures/contexte-cto.md`) : la qualité est égale (28 / 28 aux deux passages). En temps, c'est plus nuancé. Le nouveau contexte prend environ 80 s par question, chaud ou froid. L'ancien prenait 23 à 34 s quand le serveur l'avait encore en cache, mais il échouait au délai à froid : 4 min 50 s rien que pour lire le prompt.
 - **Le CTO peut manquer un document** que le score n'a pas retenu. La carte et ses outils sont le filet : il le voit dans la carte et peut le lire, mais ses six appels sont partagés entre la documentation et le code. C'est le risque principal, et la raison du banc.
 - **Une question mal formulée donne un moins bon contexte** qu'aujourd'hui : le score est lexical, un synonyme absent de la documentation ne trouve rien. Le socle et la carte restent toujours là.
 - **Le contexte dépend désormais de la question.** Le journal compte toujours les documents envoyés ; il pourra compter aussi les documents choisis, jamais leur contenu ni la question (ADR-0017, § 6).

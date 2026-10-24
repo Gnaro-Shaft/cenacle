@@ -1,6 +1,6 @@
 # ADR-0017 — Le CTO, un conseiller technique local qui n'agit jamais
 
-**Statut** : acceptée (2026-10-09) — complète l'ADR-0003, l'ADR-0004 et l'ADR-0005
+**Statut** : acceptée (2026-10-09) — complète l'ADR-0003, l'ADR-0004 et l'ADR-0005 ; § 3 révisé par l'ADR-0033 (un socle, une carte et les documents de la question)
 
 ## Contexte
 
