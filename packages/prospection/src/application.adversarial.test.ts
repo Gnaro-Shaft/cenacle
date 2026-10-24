@@ -64,12 +64,38 @@ describe("parseApplication", () => {
     ["none", "[]"],
     ["no JSON", "Je ne peux pas."],
     ["broken JSON", '[{"intitule": "A"'],
-    ["an object, not an array", '{"intitule": "A"}'],
+    [
+      "two bare objects",
+      '{"intitule": "A", "entreprise": null}\n{"intitule": "B", "entreprise": null}',
+    ],
+    ["a bare text", '"Ingénieur IA"'],
     ["a text in the array", '["Ingénieur IA"]'],
     ["no title", one({ entreprise: "Banque Fictive" })],
     ["a title of links only", one({ intitule: "https://x.example" })],
   ])("%s is not a mission", (_, answer) => {
     expect(parseApplication(answer, LINKS, platform)).toBeNull();
+  });
+
+  it("one mission written as a bare object is still one mission", () => {
+    const offer = parseApplication(
+      'Voici : {"intitule": "Ingénieur IA", "entreprise": "Banque Fictive", "lieu": "Lyon", "lien": 1}',
+      LINKS,
+      platform,
+    );
+    expect(offer).toMatchObject({
+      title: "Ingénieur IA",
+      company: "Banque Fictive",
+      link: LINKS[0],
+    });
+  });
+
+  it("a bracket in a bare object's text does not make it an array", () => {
+    const offer = parseApplication(
+      '{"intitule": "Ingénieur [IA] générative", "entreprise": null, "lieu": null, "lien": null}',
+      LINKS,
+      platform,
+    );
+    expect(offer?.title).toBe("Ingénieur [IA] générative");
   });
 
   it("a link to a look-alike host, an unknown marker or an address written out is dropped", () => {
