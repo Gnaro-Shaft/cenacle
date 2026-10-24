@@ -37,5 +37,6 @@ Elles sont rédigées en français (le code et le README sont en anglais).
 | [0030](0030-masse-d-un-domaine-administratif.md) | Le courrier de masse d'un domaine administratif va au modèle, plafonné à « Administratif » | Acceptée |
 | [0031](0031-case-missions.md) | La case « Missions » : les alertes des plateformes, par l'adresse exacte de l'expéditeur | Acceptée |
 | [0032](0032-agent-prospection.md) | L'agent prospection : la veille des missions, un tableau, aucun droit d'agir | Acceptée |
+| [0033](0033-contexte-du-cto-selon-la-question.md) | Le contexte du CTO : un socle, une carte, et les documents de la question | Proposée |
 
 Les règles dures qui s'appliquent à tout le code sont dans [`../charte.md`](../charte.md).
