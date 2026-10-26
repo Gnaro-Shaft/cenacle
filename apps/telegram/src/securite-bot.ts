@@ -7,11 +7,18 @@
  * reason, taken only as a direct reply to that question, within 10 minutes.
  * No AI decides anything here.
  */
-import type { Journal, SecuriteDecisions, SecuriteStore, ServeurActions } from "@cenacle/journal";
+import type {
+  Journal,
+  PlanStore,
+  SecuriteDecisions,
+  SecuriteStore,
+  ServeurActions,
+} from "@cenacle/journal";
 import {
   ANSWER,
   keyboard,
   parseOpPressed,
+  parsePlanPressed,
   parsePressed,
   parsePrPressed,
   preparedFix,
@@ -20,6 +27,7 @@ import {
   withoutFinding,
 } from "@cenacle/securite";
 import type { InlineButton, TelegramApi, TelegramCallback, TelegramMessage } from "./api.ts";
+import { pressPlan } from "./plan-bot.ts";
 import { confirmServer, pressServer, type ServerBotDeps } from "./serveur-bot.ts";
 
 const REASON_DEADLINE_MS = 10 * 60_000;
@@ -37,6 +45,10 @@ export interface SecuriteBotDeps {
   readonly serverActions: Pick<ServeurActions, "request" | "confirm">;
   /** `[serveurs] actif` of securite.toml, read at each use. */
   readonly serversActive: () => boolean;
+  /** The maintenance plans (J7d): proposed by the operator, validated and confirmed here. */
+  readonly plans?: Pick<PlanStore, "get" | "remove" | "ask" | "confirm">;
+  /** `[maintenance] actif` of securite.toml, read at each use. */
+  readonly maintenanceActive?: () => boolean;
   readonly journal: Pick<Journal, "append">;
   readonly now: () => Date;
 }
@@ -129,6 +141,20 @@ export async function handleCallback(cb: TelegramCallback, deps: SecuriteBotDeps
   const op = parseOpPressed(cb.data);
   if (op !== null) {
     await confirmServer(cb, chat.id, op, serverDeps(deps));
+    return;
+  }
+  // The maintenance plan's buttons (J7d): validated and confirmed here, run by the operator.
+  const plan = parsePlanPressed(cb.data);
+  if (plan !== null) {
+    if (deps.plans === undefined || deps.maintenanceActive === undefined) {
+      await deps.api.answerCallback(cb.id, ANSWER.stale);
+      return;
+    }
+    await pressPlan(cb, chat.id, plan, {
+      ...deps,
+      plans: deps.plans,
+      maintenanceActive: deps.maintenanceActive,
+    });
     return;
   }
   const pressed = parsePressed(cb.data);

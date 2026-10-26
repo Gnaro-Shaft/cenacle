@@ -90,7 +90,13 @@ const input = (over: Partial<RecapInput>): RecapInput => ({
 
 describe("what the summary says", () => {
   it("nothing to do: no text, no machine, no step", () => {
-    expect(formatRecap(input({}))).toEqual({ text: null, machines: 0, steps: 0, memo: null });
+    expect(formatRecap(input({}))).toEqual({
+      text: null,
+      plan: [],
+      machines: 0,
+      steps: 0,
+      memo: null,
+    });
     // Findings that are not the servers' never count.
     expect(formatRecap(input({ findings: [finding("filevault", "vps-b")] })).text).toBeNull();
   });

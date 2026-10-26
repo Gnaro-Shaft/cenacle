@@ -113,6 +113,8 @@ async function pass(sql: ReturnType<typeof connectOrQuit>): Promise<void> {
       asked: await latestEventAt(sql, "cenacle", "maintenance.demande"),
     }),
     send,
+    sendWithButtons: (text, rows) => telegram.sendWithButtons(chatId, text, rows),
+    plans: createPlanStore(sql),
     journal,
     now: () => new Date(),
   });

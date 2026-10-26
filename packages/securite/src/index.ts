@@ -83,6 +83,7 @@ export {
   type RecapFinding,
   type RecapInput,
   type RecapMachine,
+  type RecapStep,
   recapDue,
   SPARED_VALID_MS,
 } from "./maintenance.ts";
@@ -112,6 +113,18 @@ export {
   plainOutput,
 } from "./parse-mac.ts";
 export { advisoryText, NPM_NAME, parseNpmAudit, parseNpmOutdated, SEMVER } from "./parse-npm.ts";
+export {
+  confirmPlanKeyboard,
+  PLAN_ANSWER,
+  PLAN_MAX_MACHINES,
+  type PlanMachine,
+  type PlanPressed,
+  type PlanStepView,
+  parsePlanPressed,
+  planKeyboard,
+  planMachines,
+  planPrompt,
+} from "./plan-buttons.ts";
 export {
   PR_VIEW_FIELDS,
   type PrStatus,
