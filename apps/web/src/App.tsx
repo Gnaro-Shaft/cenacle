@@ -46,6 +46,12 @@ export function App() {
             emblem="securite"
           />
           <AgentBox
+            agent="operateur"
+            title="L'opérateur"
+            duty="Actions sur les serveurs"
+            emblem="operateur"
+          />
+          <AgentBox
             agent="sentinel"
             title="La sentinelle"
             duty="Liaison du Mac (ses battements arrivent-ils ?)"
