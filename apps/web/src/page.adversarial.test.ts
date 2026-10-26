@@ -60,14 +60,23 @@ describe("the page's look", () => {
     const preview = read(join(SRC, "apercu.tsx"));
     expect(preview.indexOf("window.fetch =")).toBeGreaterThan(0);
     expect(preview.indexOf("window.fetch =")).toBeLessThan(preview.indexOf("createRoot("));
-    expect(preview).not.toMatch(/AgentBox|useAgentStream|EventSource/);
+    expect(preview).not.toMatch(/AgentBox|useTeamStream|EventSource/);
   });
 
   it("the real page keeps its stream, its token and its API calls where they were", () => {
-    expect(read(join(SRC, "AgentBox.tsx"))).toContain("useAgentStream(agent)");
     const app = read(join(SRC, "App.tsx"));
+    expect(app).toContain("useTeamStream(AGENTS)");
     expect(app).toContain("takeToken()");
     expect(app).toMatch(/<Proposals token=\{token\}/);
     expect(app).toMatch(/<CtoAsk token=\{token\}/);
+  });
+
+  it("one stream for the whole team, never one per card (2026-10-26: six cards, six connections, a page that hung)", () => {
+    const opened = sources
+      .map((f) => [f, (read(join(SRC, f)).match(/new EventSource\(/g) ?? []).length] as const)
+      .filter(([, n]) => n > 0);
+    expect(opened).toEqual([["useTeamStream.ts", 1]]);
+    expect(read(join(SRC, "AgentBox.tsx"))).not.toMatch(/EventSource|useTeamStream\(/);
+    expect(read(join(SRC, "App.tsx")).match(/useTeamStream\(/g)).toHaveLength(1);
   });
 });
