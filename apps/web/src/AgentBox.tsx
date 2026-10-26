@@ -2,7 +2,7 @@ import type { MailCounts, ViewNote } from "@cenacle/core";
 import { AgentCard } from "./AgentCard.tsx";
 import type { Emblem } from "./Avatar.tsx";
 import type { Visual } from "./presence.ts";
-import { useAgentStream } from "./useAgentStream.ts";
+import type { StreamState } from "./useTeamStream.ts";
 
 const NOTES: Record<ViewNote, string> = {
   waiting_for_mac: "en attente du Mac",
@@ -11,16 +11,15 @@ const NOTES: Record<ViewNote, string> = {
 };
 
 interface Props {
-  readonly agent: string;
+  /** Its part of the team's one stream (useTeamStream). */
+  readonly stream: StreamState;
   readonly title: string;
   readonly duty: string;
   readonly emblem: Emblem;
 }
 
 /** An agent, live: its stream turned into what the card shows. */
-export function AgentBox({ agent, title, duty, emblem }: Props) {
-  const stream = useAgentStream(agent);
-
+export function AgentBox({ stream, title, duty, emblem }: Props) {
   let visual: Visual = "offline";
   let detail: string | null = null;
   let pending = 0;

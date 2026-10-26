@@ -11,9 +11,11 @@ import { type GuardConfig, hostGuard, tokenGuard } from "./guard.ts";
 import type { ProposalsService } from "./proposals-service.ts";
 import { mountProspection } from "./prospection-routes.ts";
 import type { ProspectionService } from "./prospection-service.ts";
-import { type ReadAfter, watchAgent } from "./watch.ts";
+import { type ReadAfter, watchAgent, watchAgents } from "./watch.ts";
 
 const AGENT_RULE = /^[a-z][a-z0-9_-]{0,31}$/;
+/** The team the page follows on one stream: at most this many agents. */
+export const MAX_TEAM = 12;
 const PROPOSAL_ID_RULE = /^[A-Za-z0-9_-]{1,64}$/;
 const MAX_BODY = 16 * 1024;
 
@@ -55,6 +57,29 @@ export function createApp(deps: AppDeps): Hono {
 
   app.get("/api/health", (c) => c.json({ ok: true }));
   mountProspection(app, deps.prospection);
+
+  // The whole team on one stream (?agents=iris,cto,…): one connection, not one per card.
+  app.get("/api/agents/stream", (c) => {
+    const agents = (c.req.query("agents") ?? "").split(",");
+    if (
+      agents.length > MAX_TEAM ||
+      new Set(agents).size !== agents.length ||
+      !agents.every((agent) => AGENT_RULE.test(agent))
+    ) {
+      return c.json({ error: "unknown agent" }, 404);
+    }
+    return streamSSE(c, async (stream) => {
+      await watchAgents({
+        agents,
+        readAfter: deps.readAfter,
+        send: (message) => stream.writeSSE({ event: message.kind, data: JSON.stringify(message) }),
+        sleep: async (ms) => {
+          await stream.sleep(ms);
+        },
+        isClosed: () => stream.aborted || stream.closed,
+      });
+    });
+  });
 
   app.get("/api/agents/:agent/stream", (c) => {
     const agent = c.req.param("agent");
