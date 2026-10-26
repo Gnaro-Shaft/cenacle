@@ -24,6 +24,13 @@ const EMBLEMS = {
       d="M16 8.5 L22.5 11 V16 C22.5 19.5 19.8 22.2 16 23.5 C12.2 22.2 9.5 19.5 9.5 16 V11 Z"
     />
   ),
+  // The operator, the only one that holds the servers' keys: a key.
+  operateur: (
+    <>
+      <circle className="embleme" cx="12" cy="16" r="4" />
+      <path className="embleme" d="M16 16 H24 M21 16 V19 M24 16 V18.5" />
+    </>
+  ),
   // The sentinel, away from the Mac, that listens for it: a watchtower.
   sentinel: (
     <>

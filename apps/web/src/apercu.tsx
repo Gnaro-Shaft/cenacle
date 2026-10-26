@@ -169,6 +169,15 @@ function Apercu() {
             mail={null}
           />
           <AgentCard
+            title="L'opérateur"
+            duty="Actions sur les serveurs"
+            emblem="operateur"
+            visual="resting"
+            pending={0}
+            detail={null}
+            mail={null}
+          />
+          <AgentCard
             title="La sentinelle"
             duty="Liaison du Mac (ses battements arrivent-ils ?)"
             emblem="sentinel"
