@@ -2,9 +2,11 @@
 // doubtful (root, an address that would be an ssh option, a shared key, a
 // relative path, an action outside the catalogue); a switch that is off
 // unless it says exactly `true`; ssh arguments that never carry a command;
-// an exit code read as nothing more than it says.
+// an exit code read as nothing more than it says — the spared count of
+// cenacle-services included, and only for it (ADR-0035, point 7).
 import { describe, expect, it } from "vitest";
 import {
+  answerOf,
   EXIT,
   hostState,
   motifPresent,
@@ -146,6 +148,28 @@ describe("the ssh call", () => {
       "echouee",
     ]);
     expect(EXIT.done).toBe(0);
+  });
+
+  it("services: 20 + n and 120 + n carry what was spared, n from 1 to 99, and only them", () => {
+    const read = (code: number) => answerOf("services", code);
+    expect(read(21)).toEqual({ outcome: "faite", spared: 1 });
+    expect(read(119)).toEqual({ outcome: "faite", spared: 99 });
+    expect(read(121)).toEqual({ outcome: "rien_a_faire", spared: 1 });
+    expect(read(219)).toEqual({ outcome: "rien_a_faire", spared: 99 });
+    expect(read(0)).toEqual({ outcome: "faite", spared: null });
+    expect(read(10)).toEqual({ outcome: "rien_a_faire", spared: null });
+    // The bases themselves, beyond the ranges, and what is not an integer: a failure.
+    for (const code of [20, 120, 220, 254, 255, -1, 1, 13, 21.5, Number.NaN]) {
+      expect(read(code)).toEqual({ outcome: "echouee", spared: null });
+    }
+    expect(read(11)).toEqual({ outcome: "refusee_serveur", spared: null });
+  });
+
+  it("another action's 21 or 121 stays a failure: only cenacle-services counts", () => {
+    for (const action of ["redemarrer", "maj_securite"] as const) {
+      expect(answerOf(action, 21)).toEqual({ outcome: "echouee", spared: null });
+      expect(answerOf(action, 121)).toEqual({ outcome: "echouee", spared: null });
+    }
   });
 });
 

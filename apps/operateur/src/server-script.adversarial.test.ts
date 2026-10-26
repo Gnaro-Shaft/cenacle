@@ -3,7 +3,8 @@
 // needrestart and systemctl. It restarts only what needrestart lists, never
 // an exclusion (default or added), refuses a strange name, an unreadable
 // answer, an argument, too many services, a caller who is not root — and
-// says so by its exit code alone. Skipped where Docker is absent (the CI).
+// says so by its exit code alone — the spared count folded in (20 + n,
+// 120 + n; ADR-0035, point 7). Skipped where Docker is absent (the CI).
 import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -16,6 +17,16 @@ const BASE = scratch();
 const svc = (names: string[]) =>
   ["NEEDRESTART-VER: 3.6", ...names.map((n) => `NEEDRESTART-SVC: ${n}`)].join("\\n");
 const many = Array.from({ length: 31 }, (_, i) => `s${i}.service`);
+const ttys = (n: number) => Array.from({ length: n }, (_, i) => `getty@tty${i}.service`);
+// What needrestart still listed on the site's VPS after its first 🔁 (2026-10-26):
+// only what the script spares — Legion counted 5 and the proof said "still there".
+const SPARED_ONLY = [
+  "dbus.service",
+  "ssh.service",
+  "systemd-logind.service",
+  "systemd-manager",
+  "systemd-networkd.service",
+];
 // The lists needrestart gave on two Proxmox nodes after their security updates
 // (homeserv03 on 2026-10-11; homeserv01 on 2026-10-12 adds "systemd-user").
 const PROXMOX = [
@@ -78,6 +89,11 @@ printf '%s' '${svc(["systemd-user", "systemd-manager"])}' > /fake/out; run syste
 printf '%s' '${svc(["systemd-users"])}' > /fake/out; run systemd_user_lookalike
 printf '%s' '${svc(["systemd-managerx"])}' > /fake/out; run systemd_lookalike
 printf '%s' '${svc(["getty@tty1.service", "user@1000.service", "serial-getty@ttyS0.service", "cron.service"])}' > /fake/out; run sessions
+printf '%s' '${svc(SPARED_ONLY)}' > /fake/out; run spared_only
+printf '%s' '${svc([...ttys(99), "cron.service"])}' > /fake/out; run spared_99
+printf '%s' '${svc([...ttys(100), "cron.service"])}' > /fake/out; run spared_100
+printf '%s' '${svc(ttys(99))}' > /fake/out; run spared_99_nothing
+printf '%s' '${svc(ttys(100))}' > /fake/out; run spared_100_nothing
 printf '%s' '${svc(["nginx.service"])}' > /fake/out
 : > /fake/restarted
 su nobody -s /bin/bash -c '/usr/local/sbin/cenacle-services' >/dev/null 2>&1; echo "not_root|$?|$(tr '\\n' ' ' < /fake/restarted)"
@@ -113,24 +129,24 @@ describe.skipIf(!docker)("cenacle-services on a throwaway Ubuntu", () => {
         restarted: restarted.trim().split(" ").filter(Boolean),
       });
     }
-    expect(results.size).toBe(18);
+    expect(results.size).toBe(23);
   });
 
   it.each([
-    ["usual", 0, ["nginx.service"]],
+    ["usual", 23, ["nginx.service"]],
     ["nothing", 10, []],
-    ["only_excluded", 10, []],
+    ["only_excluded", 124, []],
     ["strange_name", 11, []],
     ["path_name", 11, []],
     ["unreadable", 11, []],
     ["argument", 11, []],
     ["too_many", 11, []],
     ["failure", 12, ["nginx.service"]],
-    ["added_exclusion", 0, ["cron.service"]],
+    ["added_exclusion", 21, ["cron.service"]],
     ["not_root", 11, []],
     [
       "proxmox",
-      0,
+      27,
       [
         "cron.service",
         "dm-event.service",
@@ -154,7 +170,7 @@ describe.skipIf(!docker)("cenacle-services on a throwaway Ubuntu", () => {
     ],
     [
       "proxmox_with_users",
-      0,
+      28,
       [
         "cron.service",
         "dm-event.service",
@@ -176,11 +192,16 @@ describe.skipIf(!docker)("cenacle-services on a throwaway Ubuntu", () => {
         "zfs-zed.service",
       ],
     ],
-    ["systemd_both", 10, []],
+    ["systemd_both", 122, []],
     ["systemd_user_lookalike", 11, []],
-    ["systemd_only", 10, []],
+    ["systemd_only", 121, []],
     ["systemd_lookalike", 11, []],
-    ["sessions", 0, ["cron.service"]],
+    ["sessions", 23, ["cron.service"]],
+    ["spared_only", 125, []],
+    ["spared_99", 119, ["cron.service"]],
+    ["spared_100", 0, ["cron.service"]],
+    ["spared_99_nothing", 219, []],
+    ["spared_100_nothing", 10, []],
   ])("%s → exit %i, restarted %j", (name, code, restarted) => {
     expect(results.get(name)).toEqual({ code, restarted });
   });

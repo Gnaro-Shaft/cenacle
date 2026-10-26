@@ -10,14 +10,15 @@
  */
 import type { Journal, ServeurActions, StoredServerAction, Verified } from "@cenacle/journal";
 import {
+  answerOf,
   hostState,
   motifCount,
   motifPresent,
   type Observation,
-  outcomeOf,
   SERVER_CATALOGUE,
   type ServersConfig,
   type ServersConfigProblem,
+  sparedOf,
   sshArgs,
   verdictInstant,
 } from "@cenacle/securite";
@@ -154,7 +155,7 @@ async function act(deps: OperatorDeps): Promise<{ ran: number; refused: number }
     before = null;
   }
   const code = await deps.ssh(sshArgs(server, key, config.knownHosts));
-  const outcome = outcomeOf(code);
+  const { outcome } = answerOf(a.action, code);
   await deps.store.finish(a.id, outcome, code, deps.now(), before);
   await record(deps, { action: a.action, outcome });
   return { ran: 1, refused: 0 };
@@ -165,7 +166,9 @@ async function act(deps: OperatorDeps): Promise<{ ran: number; refused: number }
  * the verdict is later than the action; a reboot — back (not MALADE) and no
  * reboot required, from 3 minutes on; not seen back 30 minutes on: said loud;
  * security updates — gone from 10 minutes on, still pending 2 hours on: said.
- * Services fewer than before but not none: "reduit" — the spared ones remain.
+ * Services fewer than before but not none: "reduit" — the spared ones remain;
+ * no more than the script said it spared: "epargnes" — only they remain
+ * (ADR-0035, point 7).
  */
 function proof(
   a: StoredServerAction,
@@ -178,6 +181,9 @@ function proof(
   if (verified === null) return null;
   const after = seen === null ? null : motifCount(seen, a.host, SERVER_CATALOGUE[a.action].finding);
   if (verified === "toujours_la" && a.action === "services") {
+    const spared = sparedOf(a.action, a.exitCode);
+    if (spared !== null && after !== null && after <= spared)
+      return { verified: "epargnes", after };
     const fewer = a.beforeCount !== null && after !== null && after < a.beforeCount;
     return { verified: fewer ? "reduit" : "toujours_la", after };
   }

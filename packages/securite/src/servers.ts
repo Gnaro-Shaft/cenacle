@@ -58,6 +58,34 @@ export const outcomeOf = (code: number): RunOutcome =>
         ? "refusee_serveur"
         : "echouee";
 
+/**
+ * cenacle-services folds what it spared by principle into its exit code
+ * (ADR-0035, point 7): 20 + n restarts queued, 120 + n nothing to restart,
+ * n from 1 to 99. Still nothing but the code is read. Only that script says
+ * it: any other action's 21 stays a failure.
+ */
+export const SPARED = { done: 20, nothing: 120, max: 99 } as const;
+export interface RunAnswer {
+  readonly outcome: RunOutcome;
+  /** How many services the script left by principle, when it said so. */
+  readonly spared: number | null;
+}
+export function answerOf(action: ServerActionName, code: number): RunAnswer {
+  if (action === "services" && Number.isInteger(code)) {
+    for (const [base, outcome] of [
+      [SPARED.done, "faite"],
+      [SPARED.nothing, "rien_a_faire"],
+    ] as const) {
+      const n = code - base;
+      if (n >= 1 && n <= SPARED.max) return { outcome, spared: n };
+    }
+  }
+  return { outcome: outcomeOf(code), spared: null };
+}
+/** The spared count a stored exit code carries, or null. */
+export const sparedOf = (action: ServerActionName, code: number | null): number | null =>
+  code === null ? null : answerOf(action, code).spared;
+
 export interface Server {
   /** As Legion's verdict names it (the finding's host). */
   readonly name: string;
