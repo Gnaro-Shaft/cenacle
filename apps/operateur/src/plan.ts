@@ -22,7 +22,7 @@ import type {
 } from "@cenacle/journal";
 import { PLAN_VALID_HOURS } from "@cenacle/journal";
 import {
-  hostState,
+  hostAnswered,
   motifPresent,
   type Observation,
   SERVER_CATALOGUE,
@@ -127,10 +127,7 @@ function freshVerdict(deps: PlanDeps, nowMs: number): { raw: string; seen: Obser
 /** A reboot may go: no cluster without quorum, every machine of the plan seen and answering. */
 function rebootMayGo(plan: StoredPlan, v: { raw: string; seen: Observation[] }): boolean {
   if (v.seen.some((o) => o.type === "serveur_quorum")) return false;
-  return hosts(plan).every((h) => {
-    const state = hostState(v.raw, h);
-    return state === "SAIN" || state === "SOUFFRANT";
-  });
+  return hosts(plan).every((h) => hostAnswered(v.raw, v.seen, h));
 }
 
 async function end(

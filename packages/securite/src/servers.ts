@@ -250,7 +250,10 @@ export function verdictInstant(raw: string): number | null {
   return m === null ? null : Number(m[1]) * 1000;
 }
 
-/** A machine's state in Legion's verdict; MALADE when Legion could not reach it. */
+/**
+ * A machine's state in Legion's verdict. MALADE is not "unreachable": Legion
+ * also says it of a machine it reached and judged badly (see hostAnswered).
+ */
 export function hostState(raw: string, host: string): "SAIN" | "SOUFFRANT" | "MALADE" | null {
   if (!NAME.test(host)) return null;
   const m = new RegExp(
@@ -258,6 +261,35 @@ export function hostState(raw: string, host: string): "SAIN" | "SOUFFRANT" | "MA
     "m",
   ).exec(raw);
   return (m?.[1] as "SAIN" | "SOUFFRANT" | "MALADE" | undefined) ?? null;
+}
+
+/**
+ * The only findings Legion judges MALADE from a bulletin it did read: a full
+ * disk, an unexpected port, a cluster without quorum. Any other MALADE is a
+ * bulletin it could not read — ssh failed, unreadable, refused (2026-10-26:
+ * a node at 91 % of disk was MALADE, and would have been "not back" after a
+ * reboot it had come back from).
+ */
+const JUDGED_ILL: ReadonlySet<string> = new Set([
+  "serveur_disque",
+  "serveur_port",
+  "serveur_quorum",
+]);
+
+/**
+ * The machine answered Legion's round: in the verdict, and SAIN, SOUFFRANT,
+ * or MALADE for something judged from its bulletin. Absent, or MALADE for
+ * anything else: it did not answer.
+ */
+export function hostAnswered(
+  raw: string,
+  observations: readonly Observation[],
+  host: string,
+): boolean {
+  const state = hostState(raw, host);
+  if (state === "SAIN" || state === "SOUFFRANT") return true;
+  if (state === null) return false;
+  return observations.some((o) => o.target === host && JUDGED_ILL.has(o.type));
 }
 
 /** How many the verdict counts for this kind of finding on this machine (services, updates), or null. */
