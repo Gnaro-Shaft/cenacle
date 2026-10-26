@@ -1,6 +1,6 @@
 # ADR-0035 — Le plan de maintenance : un récapitulatif, une validation, des gestes enchaînés
 
-**Statut** : proposée (2026-10-26) — révise l'ADR-0027 (point 3 et palier J6f3 : « chaque geste reste séparé et confirmé ») ; garde tout le reste de l'ADR-0027 : catalogue fermé, une clé par action, garde-fous sur le serveur, revérification, preuve
+**Statut** : acceptée (2026-10-26) — révise l'ADR-0027 (point 3 et palier J6f3 : « chaque geste reste séparé et confirmé ») ; garde tout le reste de l'ADR-0027 : catalogue fermé, une clé par action, garde-fous sur le serveur, revérification, preuve
 
 ## Contexte
 
@@ -44,7 +44,7 @@ Legion a déjà un script éprouvé pour mettre à jour un nœud Proxmox (`deplo
    - sa propre clé, `command=` verrouillé comme les autres ; déclarée pour les nœuds Proxmox seulement. Sur les VPS, les mises à jour de sécurité automatiques restent la règle (sur le site : mises à jour automatiques, redémarrage à mon bouton — réglé le 2026-10-26 ; sur la sentinelle : Ubuntu).
    - **La détection** passe par Legion : une PR dans son dépôt ajoute à la copie du verdict le nombre de mises à jour en attente par machine (`<machine>.maj.total`), **comme une information, pas comme un motif** — sinon toutes les machines seraient « SOUFFRANT » en permanence. L'agent sécurité en fait un constat `serveur_maj` (moyen). Preuve : relevé d'au moins 10 minutes après, plus rien en attente ; encore en attente 2 heures après : dit une fois.
 
-7. **La preuve du 🔁 connaît les épargnés.** `cenacle-services` écrit, en plus de son code de sortie, une seule ligne `epargnes=<n>` (0 à 99) : le nombre de services de la liste de `needrestart` qu'il a laissés par principe. L'opérateur la lit strictement (toute autre sortie est ignorée, la règle actuelle s'applique) et ne me la montre jamais brute. Après coup, un relevé qui compte au plus `n` services se dit **« il ne reste que les épargnés »** (`verified = 'epargnes'`, nouvelle valeur, migration), et compte comme une réussite dans un plan. Les épargnés eux-mêmes restent à moi : ils partent au prochain 🔄.
+7. **La preuve du 🔁 connaît les épargnés.** `cenacle-services` dit, **par son seul code de sortie**, combien de services de la liste de `needrestart` il a laissés par principe : **20 + n** (21 à 119) quand il a demandé des relances et en a épargné n, **120 + n** (121 à 219) quand il n'avait rien à relancer mais en a épargné n ; 0, 10, 11 et 12 gardent leur sens. L'opérateur ne lit toujours **aucune sortie** du serveur (ADR-0027, point 4) : un code hors de ces plages est un échec, comme aujourd'hui. Il garde n avec l'action ; après coup, un relevé qui compte au plus n services se dit **« il ne reste que les épargnés »** (`verified = 'epargnes'`, nouvelle valeur, migration), et compte comme une réussite dans un plan. Les épargnés eux-mêmes restent à moi : ils partent au prochain 🔄. (Révisé le 2026-10-26, avant tout code : la première rédaction faisait écrire au script une ligne `epargnes=<n>`, ce qui aurait fait lire au Mac, pour la première fois, la sortie d'un serveur.)
 
 8. **Jamais délégable, aucun modèle.** Comme les actions de l'ADR-0027, un plan n'entre dans aucune délégation (ADR-0026) ; aucun agent ne valide un plan. Le récapitulatif peut être expliqué par le CTO comme tout constat, marqué « généré par IA », mais son contenu et ses boutons viennent de la table.
 
@@ -55,7 +55,7 @@ Legion a déjà un script éprouvé pour mettre à jour un nœud Proxmox (`deplo
 ## Paliers
 
 - **J7a** — cet ADR, pour relecture.
-- **J7b** — la preuve du 🔁 (point 7) : la ligne `epargnes=` du script, sa lecture, la valeur `epargnes`. Indépendant du reste, utile tout de suite ; à reposer sur les quatre machines (`rsync` + `install.sh`).
+- **J7b** — la preuve du 🔁 (point 7) : les codes 20 + n et 120 + n du script, leur lecture, la valeur `epargnes`. Indépendant du reste, utile tout de suite ; à reposer sur les quatre machines (`rsync` + `install.sh`).
 - **J7c** — le récapitulatif seul (points 1 et 2) : message à 9 h et `/maintenance`, **sans aucun bouton d'action**. On regarde quelques jours s'il dit juste.
 - **J7d** — la validation et l'enchaînement (points 3 à 5) avec les trois actions existantes ; essai réel d'abord sur une seule machine.
 - **J7e** — Proxmox (point 6) : la PR Legion (`maj.total` dans la copie du verdict), le constat `serveur_maj`, `cenacle-maj-complete` et sa clé sur les deux nœuds.

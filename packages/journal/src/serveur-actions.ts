@@ -21,7 +21,7 @@ export type ServerActionState =
   | "refusee"
   | "echouee";
 export type FinalState = Exclude<ServerActionState, "demandee" | "confirmee" | "en_cours">;
-export type Verified = "disparu" | "toujours_la" | "pas_revenue" | "reduit";
+export type Verified = "disparu" | "toujours_la" | "pas_revenue" | "reduit" | "epargnes";
 export type ConfirmOutcome = "done" | "stale" | "expired" | "already";
 
 export interface StoredServerAction {

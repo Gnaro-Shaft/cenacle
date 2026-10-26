@@ -4,7 +4,7 @@
  * or a key path. One wording per action of the catalogue where it matters.
  */
 import type { StoredServerAction } from "@cenacle/journal";
-import { SERVER_CATALOGUE, type ServersConfigProblem } from "@cenacle/securite";
+import { SERVER_CATALOGUE, type ServersConfigProblem, sparedOf } from "@cenacle/securite";
 
 const REFUSAL: Readonly<Record<string, string>> = {
   interrupteur: "les actions sur les serveurs sont coupées ([serveurs] actif dans securite.toml)",
@@ -56,6 +56,12 @@ function updated(a: StoredServerAction, on: string): string {
   }
 }
 
+/** What the script spared by principle, said once: "" when it did not say. */
+function sparedNote(a: StoredServerAction): string {
+  const n = sparedOf(a.action, a.exitCode);
+  return n === null ? "" : ` (${n} épargné(s) par principe : l'accès, dbus, systemd, la grappe…)`;
+}
+
 function done(a: StoredServerAction, on: string): string {
   if (a.action === "maj_securite") return updated(a, on);
   const reboot = a.action === "redemarrer";
@@ -70,12 +76,14 @@ function done(a: StoredServerAction, on: string): string {
         : `⚠ ${on} : le relevé de Legion montre encore le problème — à regarder sur la machine (journalctl -t cenacle).`;
     case "pas_revenue":
       return `🚨 ${on} n'est pas revenue 30 minutes après le redémarrage : à vérifier tout de suite.`;
+    case "epargnes":
+      return `✅ ${on} : relances faites ; il ne reste que ${a.afterCount ?? "?"} service(s), ceux que le script épargne par principe (l'accès, dbus, systemd, la grappe…) — à relancer à la main, ou au prochain redémarrage (journalctl -t cenacle pour le détail).`;
     case "reduit":
       return `✅ ${on} : ${a.beforeCount ?? "?"} → ${a.afterCount ?? "?"} service(s) sur une bibliothèque remplacée. Les ${a.afterCount ?? ""} restants sont sans doute ceux que le script épargne (dbus, systemd, la grappe…) — à relancer à la main, ou au prochain redémarrage (journalctl -t cenacle pour le détail).`;
     default:
       return reboot
         ? `🔄 ${on} : redémarrage programmé dans 1 minute. J'attends son retour dans les relevés de Legion (jusqu'à 30 minutes).`
-        : `🔁 ${on} : ${SERVER_CATALOGUE[a.action].label}, fait. J'attends le prochain relevé de Legion pour le confirmer.`;
+        : `🔁 ${on} : ${SERVER_CATALOGUE[a.action].label}, fait${sparedNote(a)}. J'attends le prochain relevé de Legion pour le confirmer.`;
   }
 }
 
@@ -91,7 +99,9 @@ export function message(a: StoredServerAction): string {
       }
       return reboot
         ? `🔄 ${on} : rien à faire — le serveur ne demande pas de redémarrage.`
-        : `🔁 ${on} : rien à faire — le script n'a trouvé aucun service à relancer hors de ses exclusions.`;
+        : sparedOf(a.action, a.exitCode) === null
+          ? `🔁 ${on} : rien à faire — le script n'a trouvé aucun service à relancer hors de ses exclusions.`
+          : `🔁 ${on} : rien à relancer — il ne reste que ${sparedOf(a.action, a.exitCode)} service(s) que le script épargne par principe (l'accès, dbus, systemd, la grappe…) : à la main, ou au prochain redémarrage.`;
     case "refusee_serveur":
       if (a.action === "maj_securite") {
         return `🛑 ${on} : un garde-fou du serveur a refusé (redémarrage automatique réglé, mise à jour déjà en cours, ou moins de 1 Go libre) — rien n'a été lancé (journalctl -t cenacle).`;
