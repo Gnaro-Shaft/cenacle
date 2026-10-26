@@ -11,7 +11,7 @@
 import type { Journal, ServeurActions, StoredServerAction, Verified } from "@cenacle/journal";
 import {
   answerOf,
-  hostState,
+  hostAnswered,
   motifCount,
   motifPresent,
   type Observation,
@@ -163,7 +163,7 @@ async function act(deps: OperatorDeps): Promise<{ ran: number; refused: number }
 
 /**
  * What a verdict says of a done action: services — gone or still there, once
- * the verdict is later than the action; a reboot — back (not MALADE) and no
+ * the verdict is later than the action; a reboot — back (answered) and no
  * reboot required, from 3 minutes on; not seen back 30 minutes on: said loud;
  * security updates — gone from 10 minutes on, still pending 2 hours on: said.
  * Services fewer than before but not none: "reduit" — the spared ones remain;
@@ -211,7 +211,8 @@ function proved(
     return motifPresent(seen, a.host, finding) ? "toujours_la" : "disparu";
   }
   const usable = raw !== null && at !== null && seen !== null && at >= finished + BACK_AFTER_MS;
-  if (usable && hostState(raw, a.host) !== "MALADE") {
+  // Back: Legion read its bulletin again — a full disk does not make it absent (2026-10-26).
+  if (usable && hostAnswered(raw, seen, a.host)) {
     return motifPresent(seen, a.host, finding) ? "toujours_la" : "disparu";
   }
   return nowMs - finished >= NOT_BACK_MS ? "pas_revenue" : null;

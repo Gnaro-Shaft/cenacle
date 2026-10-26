@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import {
   answerOf,
   EXIT,
+  hostAnswered,
   hostState,
   motifPresent,
   outcomeOf,
@@ -170,6 +171,34 @@ describe("the ssh call", () => {
       expect(answerOf(action, 21)).toEqual({ outcome: "echouee", spared: null });
       expect(answerOf(action, 121)).toEqual({ outcome: "echouee", spared: null });
     }
+  });
+});
+
+describe("a machine answered Legion (2026-10-26)", () => {
+  const raw = (etat: string) => `bulletin=1\ninstant=1760000000\nnoeud-a.etat=${etat}\nfin=1`;
+  const on = (type: string, target = "noeud-a") => ({
+    type,
+    target,
+    occurrence: "-",
+    severity: "moyen" as const,
+    title: "x",
+  });
+  it("SAIN or SOUFFRANT: answered; absent from the verdict: not", () => {
+    expect(hostAnswered(raw("SAIN"), [], "noeud-a")).toBe(true);
+    expect(hostAnswered(raw("SOUFFRANT"), [], "noeud-a")).toBe(true);
+    expect(hostAnswered(raw("SAIN"), [], "noeud-b")).toBe(false);
+    expect(hostAnswered(raw("SAIN"), [], "noeud-a\\.etat")).toBe(false);
+  });
+  it("MALADE: answered only for what Legion judged from its bulletin, on that machine", () => {
+    for (const type of ["serveur_disque", "serveur_port", "serveur_quorum"]) {
+      expect(hostAnswered(raw("MALADE"), [on(type)], "noeud-a")).toBe(true);
+    }
+    for (const type of ["serveur_autre", "serveur_services", "serveur_port_absent"]) {
+      expect(hostAnswered(raw("MALADE"), [on(type)], "noeud-a")).toBe(false);
+    }
+    expect(hostAnswered(raw("MALADE"), [], "noeud-a")).toBe(false);
+    // A full disk elsewhere says nothing of this machine.
+    expect(hostAnswered(raw("MALADE"), [on("serveur_disque", "noeud-b")], "noeud-a")).toBe(false);
   });
 });
 

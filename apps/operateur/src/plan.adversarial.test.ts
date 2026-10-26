@@ -360,6 +360,14 @@ describe("a reboot", () => {
     },
   );
 
+  it("goes when a machine of the plan is MALADE only for a full disk: it answered", async () => {
+    const w = reboot();
+    w.seen([obs("serveur_redemarrage", "noeud-a"), obs("serveur_disque", "vps-b")]);
+    w.etats({ "vps-b": "MALADE", "noeud-a": "SOUFFRANT" });
+    await drivePlan(w.deps);
+    expect([...w.actions.values()][0]?.action).toBe("redemarrer");
+  });
+
   it("goes when every machine answers and no quorum is missing", async () => {
     const w = reboot();
     w.seen([obs("serveur_redemarrage", "noeud-a")]);
