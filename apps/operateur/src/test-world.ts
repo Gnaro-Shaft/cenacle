@@ -26,6 +26,7 @@ export function world(over: Partial<OperatorDeps> = {}, hosts: string[] = ["vps-
   const rows: Row[] = hosts.map((host, i) => ({
     id: i + 1,
     findingId: 40 + i,
+    planId: null,
     host,
     action: "services",
     state: "confirmee",

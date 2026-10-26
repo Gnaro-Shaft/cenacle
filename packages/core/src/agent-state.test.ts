@@ -13,9 +13,12 @@ describe("toView", () => {
     });
   });
 
-  it.each(["reading", "thinking", "drafting"] as const)("shows %s as working", (state) => {
-    expect(toView(state).visual).toBe("working");
-  });
+  it.each(["reading", "thinking", "drafting", "acting"] as const)(
+    "shows %s as working",
+    (state) => {
+      expect(toView(state).visual).toBe("working");
+    },
+  );
 
   it("shows an error as sick", () => {
     expect(toView("error").visual).toBe("sick");

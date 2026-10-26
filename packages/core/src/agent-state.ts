@@ -11,6 +11,8 @@ export const INTERNAL_STATES = [
   "reading",
   "thinking",
   "drafting",
+  // The operator chaining a validated maintenance plan on the servers (J7d).
+  "acting",
   "error",
 ] as const;
 
@@ -57,6 +59,7 @@ export function toView(state: unknown): AgentView {
     case "reading":
     case "thinking":
     case "drafting":
+    case "acting":
       return { visual: "working", note: null };
     case "error":
       return { visual: "sick", note: null };

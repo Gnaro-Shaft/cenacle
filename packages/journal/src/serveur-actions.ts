@@ -26,7 +26,10 @@ export type ConfirmOutcome = "done" | "stale" | "expired" | "already";
 
 export interface StoredServerAction {
   readonly id: number;
-  readonly findingId: number;
+  /** The finding my button was under — or null for a step of a plan (J7d). */
+  readonly findingId: number | null;
+  /** The plan it is a step of (ADR-0035), or null for my button. */
+  readonly planId: number | null;
   readonly host: string;
   readonly action: ServerAction;
   readonly state: ServerActionState;
@@ -58,7 +61,8 @@ const FINAL: readonly FinalState[] = [
 
 interface Row {
   id: string;
-  finding_id: string;
+  finding_id: string | null;
+  plan_id: string | null;
   host: string;
   action: ServerAction;
   state: ServerActionState;
@@ -71,10 +75,11 @@ interface Row {
   after_count: number | null;
 }
 const COLUMNS =
-  "id, finding_id, host, action, state, requested_at, finished_at, exit_code, refusal, verified, before_count, after_count";
+  "id, finding_id, plan_id, host, action, state, requested_at, finished_at, exit_code, refusal, verified, before_count, after_count";
 const toAction = (r: Row): StoredServerAction => ({
   id: Number(r.id),
-  findingId: Number(r.finding_id),
+  findingId: r.finding_id === null ? null : Number(r.finding_id),
+  planId: r.plan_id === null ? null : Number(r.plan_id),
   host: r.host,
   action: r.action,
   state: r.state,
@@ -106,6 +111,31 @@ export function createServeurActions(sql: Sql) {
         returning id`;
       const id = rows[0]?.id;
       return id === undefined ? null : { id: Number(id), token };
+    },
+
+    /**
+     * A step of a confirmed plan (ADR-0035, J7d): runnable at once, my
+     * confirmation being the plan's. The operator checks it again like any other.
+     */
+    async enqueueForPlan(
+      planId: number,
+      host: string,
+      action: ServerAction,
+      now: Date,
+    ): Promise<number> {
+      const [row] = await sql<{ id: string }[]>`
+        insert into serveur_actions
+          (plan_id, host, action, state, requested_at, confirm_until, confirmed_at)
+        values (${planId}, ${host}, ${action}, 'confirmee', ${now},
+                ${new Date(now.getTime() + 1000)}, ${now})
+        returning id`;
+      return Number(row?.id);
+    },
+
+    async get(id: number): Promise<StoredServerAction | null> {
+      const rows = await sql<Row[]>`
+        select ${sql.unsafe(COLUMNS)} from serveur_actions where id = ${id}`;
+      return rows[0] === undefined ? null : toAction(rows[0]);
     },
 
     /** My confirmation: only with its token, only within its 2 minutes, only once. */

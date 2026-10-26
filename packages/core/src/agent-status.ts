@@ -89,6 +89,7 @@ const NEUTRAL_EVENT_TYPES: ReadonlySet<string> = new Set([
   "serveur.action", // an action on a server: its outcome or refusal only (J6f)
   "maintenance.recap", // the maintenance summary: morning or asked, counts only (J7c)
   "maintenance.demande", // I asked for the maintenance summary on Telegram (J7c)
+  "maintenance.plan", // a maintenance plan: proposed, confirmed, a step, its end — counts only (J7d)
   "send.lapsed",
   "send.cancelled",
   "proposal.skipped", // Iris decided not to propose: nothing waits for me
