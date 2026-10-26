@@ -74,6 +74,19 @@ export {
   type SeenObservation,
 } from "./lifecycle.ts";
 export {
+  formatRecap,
+  type LastRestart,
+  NOTHING_TO_DO,
+  parseMaintenanceSwitch,
+  RECAP_AT,
+  type Recap,
+  type RecapFinding,
+  type RecapInput,
+  type RecapMachine,
+  recapDue,
+  SPARED_VALID_MS,
+} from "./maintenance.ts";
+export {
   formatOperatorState,
   OPERATOR_SILENCE_MS,
   OPERATOR_STATE_PATH,

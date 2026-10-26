@@ -193,6 +193,22 @@ export function createServeurActions(sql: Sql) {
       return done.count;
     },
 
+    /**
+     * The last answered run of this action on each machine (J7c): its exit
+     * code and when — the maintenance summary reads a restart's spared count.
+     */
+    async lastAnswers(
+      action: ServerAction,
+    ): Promise<Map<string, { exitCode: number; finishedAt: Date }>> {
+      const rows = await sql<{ host: string; exit_code: number; finished_at: Date }[]>`
+        select distinct on (host) host, exit_code, finished_at from serveur_actions
+        where action = ${action} and exit_code is not null and finished_at is not null
+        order by host, finished_at desc, id desc`;
+      return new Map(
+        rows.map((r) => [r.host, { exitCode: r.exit_code, finishedAt: r.finished_at }]),
+      );
+    },
+
     /** Did this action run on this machine since then? (a reboot: once in 24 hours, J6f2) */
     async doneSince(host: string, action: ServerAction, since: Date): Promise<boolean> {
       const rows = await sql<{ n: number }[]>`
