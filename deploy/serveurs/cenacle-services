@@ -16,13 +16,19 @@
 # (cron waits for its jobs) must not hold the call — the first real run took
 # 2 min 21 s and the Mac cut it. The proof comes from Legion's next verdict.
 # Answers by its exit code only: 0 restarts queued, 10 nothing to do, 11
-# refused by a guard, 12 a restart could not even be queued. Every run leaves a line in the system journal
-# (journalctl -t cenacle).
+# refused by a guard, 12 a restart could not even be queued. When it leaves
+# services of needrestart's list by principle (the exclusions, systemd
+# itself), it says how many, still by its exit code alone (ADR-0035, point
+# 7): 20 + n restarts queued and n spared, 120 + n nothing to restart and n
+# spared (n from 1 to 99; above, plain 0 or 10). The Mac then knows that a
+# count of n left in Legion's verdict is the spared ones, not a failure.
+# Every run leaves a line in the system journal (journalctl -t cenacle).
 set -u
 export PATH=/usr/sbin:/usr/bin:/sbin:/bin
 readonly EXCLUSIONS_FILE=/etc/cenacle/services-exclus
 readonly DEFAULT_EXCLUSIONS="ssh.service sshd.service tailscaled.service docker.service containerd.service corosync.service pve-cluster.service pve-ha-lrm.service pve-ha-crm.service dbus.service dbus-broker.service systemd-logind.service networking.service systemd-networkd.service NetworkManager.service wpa_supplicant.service emergency.service rescue.service"
 readonly MAX_SERVICES=30
+readonly MAX_SPARED=99
 
 log() { /usr/bin/logger -t cenacle -- "services: $*"; }
 
@@ -45,23 +51,32 @@ if [ -r "$EXCLUSIONS_FILE" ]; then
 fi
 
 todo=()
+spared=0
 while IFS= read -r svc; do
   [ -z "$svc" ] && continue
   if [ "$svc" = "systemd-manager" ]; then
-    log "laisse: systemd lui-meme (systemctl daemon-reexec, ou au prochain redemarrage)"; continue
+    log "laisse: systemd lui-meme (systemctl daemon-reexec, ou au prochain redemarrage)"; spared=$((spared + 1)); continue
   fi
   if [ "$svc" = "systemd-user" ]; then
-    log "laisse: les instances systemd des utilisateurs (a la prochaine session, ou au redemarrage)"; continue
+    log "laisse: les instances systemd des utilisateurs (a la prochaine session, ou au redemarrage)"; spared=$((spared + 1)); continue
   fi
   if ! [[ "$svc" =~ ^[A-Za-z0-9@._-]{1,100}\.service$ ]]; then
     log "refus: nom de service inattendu"; exit 11
   fi
-  case "$exclusions" in *" $svc "*) log "exclu: $svc"; continue ;; esac
-  case "$svc" in getty@*|serial-getty@*|user@*|user-runtime-dir@*) log "exclu: $svc"; continue ;; esac
+  case "$exclusions" in *" $svc "*) log "exclu: $svc"; spared=$((spared + 1)); continue ;; esac
+  case "$svc" in getty@*|serial-getty@*|user@*|user-runtime-dir@*) log "exclu: $svc"; spared=$((spared + 1)); continue ;; esac
   todo+=("$svc")
 done < <(printf '%s\n' "$out" | /usr/bin/sed -n 's/^NEEDRESTART-SVC: //p')
 
-if [ "${#todo[@]}" -eq 0 ]; then log "rien a relancer"; exit 10; fi
+# The answer, the spared count folded in: base + n, or the base alone when
+# none or too many were spared (the Mac then keeps its older proof).
+answer() {
+  if [ "$spared" -ge 1 ] && [ "$spared" -le "$MAX_SPARED" ]; then exit $(($1 + spared)); fi
+  if [ "$1" -eq 20 ]; then exit 0; fi
+  exit 10
+}
+
+if [ "${#todo[@]}" -eq 0 ]; then log "rien a relancer ($spared epargne(s))"; answer 120; fi
 if [ "${#todo[@]}" -gt "$MAX_SERVICES" ]; then log "refus: ${#todo[@]} services, plus de $MAX_SERVICES"; exit 11; fi
 
 failed=0
@@ -69,5 +84,5 @@ for svc in "${todo[@]}"; do
   if /usr/bin/systemctl restart --no-block -- "$svc"; then log "relance demandee: $svc"; else log "echec: $svc"; failed=1; fi
 done
 if [ "$failed" -ne 0 ]; then exit 12; fi
-log "fait: ${#todo[@]} relance(s) demandee(s)"
-exit 0
+log "fait: ${#todo[@]} relance(s) demandee(s), $spared epargne(s)"
+answer 20

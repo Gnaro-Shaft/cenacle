@@ -137,6 +137,28 @@ describe("the counts of a proof (2026-10-12)", () => {
     const told = (await actions.toTell()).find((a) => a.id === r.id);
     expect(told).toMatchObject({ verified: "reduit", beforeCount: 26, afterCount: 8 });
   });
+
+  it("'epargnes' accepted with the spared count in the exit code (ADR-0035); a stranger refused", async () => {
+    const r = await actions.request(await finding(), `vps-e${run}`, "services", T0);
+    if (r === null) throw new Error("no request");
+    await actions.confirm(r.id, r.token, T0);
+    expect(await actions.claim(r.id, T0)).toBe(true);
+    await actions.finish(r.id, "faite", 25, T0, 3);
+    expect(await actions.verify(r.id, "epargnes", T0, 5)).toBe(true);
+    const told = (await actions.toTell()).find((a) => a.id === r.id);
+    expect(told).toMatchObject({
+      verified: "epargnes",
+      exitCode: 25,
+      beforeCount: 3,
+      afterCount: 5,
+    });
+    const other = await actions.request(await finding(), `vps-f${run}`, "services", T0);
+    if (other === null) throw new Error("no request");
+    await actions.confirm(other.id, other.token, T0);
+    await actions.claim(other.id, T0);
+    await actions.finish(other.id, "faite", 0, T0);
+    await expect(actions.verify(other.id, "epargne" as never, T0, 1)).rejects.toThrow();
+  });
 });
 
 describe("the purge", () => {

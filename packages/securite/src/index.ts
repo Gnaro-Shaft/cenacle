@@ -127,6 +127,7 @@ export {
   type TrustLine,
 } from "./report.ts";
 export {
+  answerOf,
   EXIT,
   hostState,
   motifCount,
@@ -134,6 +135,7 @@ export {
   outcomeOf,
   parseServerSwitch,
   parseServers,
+  type RunAnswer,
   type RunOutcome,
   SERVER_CATALOGUE,
   SERVERS_CONFIG_PROBLEMS,
@@ -142,7 +144,9 @@ export {
   type ServersConfig,
   ServersConfigError,
   type ServersConfigProblem,
+  SPARED,
   serverActionFor,
+  sparedOf,
   sshArgs,
   verdictInstant,
 } from "./servers.ts";
