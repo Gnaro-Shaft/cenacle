@@ -40,6 +40,19 @@ export {
   type StoredInboxItem,
   type Totals,
 } from "./mail-store.ts";
+export {
+  createPlanStore,
+  type NewStep,
+  PLAN_CONFIRM_SECONDS,
+  PLAN_VALID_HOURS,
+  PLANS_DAYS,
+  type PlanConfirmOutcome,
+  type PlanState,
+  type PlanStep,
+  type PlanStore,
+  type StepState,
+  type StoredPlan,
+} from "./maintenance-plans.ts";
 export { EXECUTOR_PASSWORD_VAR } from "./migrate.ts";
 export {
   createPeople,

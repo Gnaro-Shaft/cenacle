@@ -14,6 +14,7 @@ import { errorText, refuseForeignSecrets, UsageError } from "@cenacle/core";
 import {
   connectOrQuit,
   createJournal,
+  createPlanStore,
   createSecuriteStore,
   createServeurActions,
   holdSingleInstance,
@@ -31,6 +32,7 @@ import {
   type ServersConfigProblem,
 } from "@cenacle/securite";
 import { createTelegramApi } from "@cenacle/telegram/api";
+import { drivePlan } from "./plan.ts";
 import { runRecap } from "./recap.ts";
 import { runOperator } from "./run.ts";
 import { keyIsPrivate, runSsh } from "./ssh.ts";
@@ -74,6 +76,18 @@ async function pass(sql: ReturnType<typeof connectOrQuit>): Promise<void> {
   const journal = createJournal(sql);
   const securiteToml = read(join(ROOT, "securite.toml")) ?? "";
   const send = (text: string) => telegram.sendMessage(chatId, text);
+  // The validated maintenance plan (J7d), before the actions: a step it
+  // launches runs in this same pass.
+  await drivePlan({
+    active: parseMaintenanceSwitch(securiteToml),
+    plans: createPlanStore(sql),
+    actions: store,
+    verdict: () => read(LEGION_VERDICT_PATH),
+    parseVerdict: parseLegionVerdict,
+    send,
+    journal,
+    now: () => new Date(),
+  });
   const outcome = await runOperator({
     store,
     active: parseServerSwitch(securiteToml),

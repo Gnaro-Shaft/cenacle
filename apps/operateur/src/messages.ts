@@ -88,7 +88,7 @@ function done(a: StoredServerAction, on: string): string {
 }
 
 export function message(a: StoredServerAction): string {
-  const on = `${a.host} (constat n°${a.findingId})`;
+  const on = `${a.host} (${a.findingId === null ? `plan n°${a.planId ?? "?"}` : `constat n°${a.findingId}`})`;
   const reboot = a.action === "redemarrer";
   switch (a.state) {
     case "faite":

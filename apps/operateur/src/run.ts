@@ -251,6 +251,11 @@ export async function runOperator(deps: OperatorDeps): Promise<OperatorOutcome> 
   const verified = await verify(deps);
   let told = 0;
   for (const a of await deps.store.toTell()) {
+    // A plan's step is told by the plan, machine by machine (J7d): not one message each.
+    if (a.planId !== null) {
+      await deps.store.markTold([a.id]);
+      continue;
+    }
     // Told once it has left: a message that fails goes again at the next pass.
     await deps.send(message(a));
     await deps.store.markTold([a.id]);
