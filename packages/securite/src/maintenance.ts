@@ -3,7 +3,8 @@
  * /maintenance, one message saying, machine by machine, what its open server
  * findings call for — ⬆ the security updates, 🔁 the services, 🔄 the reboot.
  * A table in the code decides the steps, never a model (charter, rule 1).
- * No button yet: the findings keep theirs. Built by the operator, the only
+ * The same lines give the plan I validate (J7d): its steps are exactly what
+ * the text says, "if needed" ones included. Built by the operator, the only
  * program that reads serveurs.local.toml (ADR-0027): the machines' order is
  * its blocks', and a step without a key is said "by hand".
  */
@@ -67,9 +68,18 @@ export interface RecapInput {
   readonly serversActive: boolean;
   readonly now: Date;
 }
+/** A step of the plan the summary proposes (J7d): only what a key allows. */
+export interface RecapStep {
+  readonly host: string;
+  readonly action: ServerActionName;
+  /** "If needed": runs only if the verdict asks for it then. */
+  readonly conditional: boolean;
+}
 export interface Recap {
   /** Null: nothing to do anywhere (a memo alone is not something to do). */
   readonly text: string | null;
+  /** The plan's steps, machine by machine in the file's order; empty: nothing to validate. */
+  readonly plan: readonly RecapStep[];
   readonly machines: number;
   readonly steps: number;
   /** The spared ones left after a restart, said for memory — also when nothing is to do. */
@@ -84,6 +94,7 @@ interface Lines {
   readonly lines: string[];
   readonly steps: number;
   readonly memo: string | null;
+  readonly plan: RecapStep[];
 }
 
 function machineLines(m: RecapMachine, input: RecapInput): Lines {
@@ -91,14 +102,24 @@ function machineLines(m: RecapMachine, input: RecapInput): Lines {
     input.findings.find((f) => f.target === m.name && f.type === SERVER_CATALOGUE[action].finding);
   const has = (action: ServerActionName) => m.actions.includes(action);
   const lines: string[] = [];
+  const plan: RecapStep[] = [];
   let steps = 0;
   let memo: string | null = null;
   const step = (action: ServerActionName, text: string) => {
-    if (has(action)) steps++;
+    if (has(action)) {
+      steps++;
+      plan.push({ host: m.name, action, conditional: false });
+    }
     lines.push(has(action) ? text : `${text} — à faire à la main (aucune clé)`);
+  };
+  const ifNeeded = (action: "services" | "redemarrer", text: string) => {
+    lines.push(text);
+    plan.push({ host: m.name, action, conditional: true });
   };
 
   const update = of("maj_securite");
+  // "If needed, after the update": only when that update is in the plan.
+  const updating = update !== undefined && has("maj_securite");
   if (update !== undefined) {
     const n = count(update);
     step("maj_securite", `⬆ mises à jour de sécurité${n === null ? "" : ` (${n} en attente)`}`);
@@ -113,21 +134,25 @@ function machineLines(m: RecapMachine, input: RecapInput): Lines {
         : null;
     if (spared !== null && n !== null && n <= spared) {
       memo = `${m.name} (${n})`;
+      // The update may replace libraries again: the restart, if needed, after it.
+      if (updating && has("services")) {
+        ifNeeded("services", "🔁 s'il le faut, après la mise à jour");
+      }
     } else {
       step("services", `🔁 relancer les services${n === null ? "" : ` (${n})`}`);
     }
-  } else if (update !== undefined && has("services")) {
-    lines.push("🔁 s'il le faut, après la mise à jour");
+  } else if (updating && has("services")) {
+    ifNeeded("services", "🔁 s'il le faut, après la mise à jour");
   }
   if (of("redemarrer") !== undefined) {
     step(
       "redemarrer",
       "🔄 redémarrage demandé — refusé si des invités tournent : vider le nœud d'abord",
     );
-  } else if (update !== undefined && has("redemarrer")) {
-    lines.push("🔄 s'il le faut, après la mise à jour");
+  } else if (updating && has("redemarrer")) {
+    ifNeeded("redemarrer", "🔄 s'il le faut, après la mise à jour");
   }
-  return { lines, steps, memo };
+  return { lines, steps, memo, plan };
 }
 
 /** The summary's text, worst cut at Telegram's limit — or null when nothing is to do. */
@@ -136,12 +161,14 @@ export function formatRecap(input: RecapInput): Recap {
   const known = new Set(input.machines.map((m) => m.name));
   const blocks: string[] = [];
   const memos: string[] = [];
+  const plan: RecapStep[] = [];
   let steps = 0;
   for (const m of input.machines) {
     const l = machineLines(m, input);
     if (l.memo !== null) memos.push(l.memo);
     if (l.lines.length === 0) continue;
     steps += l.steps;
+    plan.push(...l.plan);
     blocks.push([`• ${m.name}`, ...l.lines.map((x) => `   ${x}`)].join("\n"));
   }
   const outside = [
@@ -156,7 +183,7 @@ export function formatRecap(input: RecapInput): Recap {
       ? null
       : `Pour mémoire, il ne reste que les services épargnés par principe : ${memos.join(", ")} — à la main, ou au prochain 🔄.`;
   if (blocks.length === 0 && outside.length === 0) {
-    return { text: null, machines: 0, steps: 0, memo };
+    return { text: null, plan: [], machines: 0, steps: 0, memo };
   }
   const parts = ["🧰 Maintenance à faire", ...blocks];
   if (outside.length > 0) parts.push(`Hors Cénacle, à la main : ${outside.join(", ")}.`);
@@ -166,18 +193,17 @@ export function formatRecap(input: RecapInput): Recap {
       "⚠ Les actions sur les serveurs sont coupées ([serveurs] actif dans securite.toml).",
     );
   }
-  parts.push("Pas encore de bouton ici : chaque constat garde les siens (/constats).");
-  return { text: fit(parts), machines: blocks.length, steps, memo };
+  return { text: fit(parts), plan, machines: blocks.length, steps, memo };
 }
 
-/** Whole parts while they fit; the rest said by its count. */
+/** Whole parts while they fit; the rest said by its count — room kept for a closing line. */
 function fit(parts: readonly string[]): string {
   const all = parts.join("\n\n");
-  if (all.length <= TELEGRAM_MAX) return all;
+  if (all.length <= TELEGRAM_MAX - 300) return all;
   const kept: string[] = [];
   for (const p of parts) {
     const next = [...kept, p].join("\n\n");
-    if (next.length > TELEGRAM_MAX - 80) break;
+    if (next.length > TELEGRAM_MAX - 380) break;
     kept.push(p);
   }
   return `${kept.join("\n\n")}\n\n… (${parts.length - kept.length} partie(s) de plus : /constats)`;

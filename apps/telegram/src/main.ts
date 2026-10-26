@@ -10,6 +10,7 @@ import { askCtoService, ctoSocketPath } from "@cenacle/cto/client";
 import {
   connectOrQuit,
   createJournal,
+  createPlanStore,
   createSecuriteDecisions,
   createSecuriteStore,
   createServeurActions,
@@ -104,6 +105,15 @@ const securite: SecuriteBotDeps = {
   serversActive: () => {
     try {
       return parseServerSwitch(readFileSync(join(ROOT, "securite.toml"), "utf8"));
+    } catch {
+      return false;
+    }
+  },
+  // The maintenance plans (J7d): validated and confirmed here; the operator, alone, runs them.
+  plans: createPlanStore(sql),
+  maintenanceActive: () => {
+    try {
+      return parseMaintenanceSwitch(readFileSync(join(ROOT, "securite.toml"), "utf8"));
     } catch {
       return false;
     }

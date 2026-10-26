@@ -27,6 +27,9 @@ const finding = (type: string, count?: string) =>
 function world(over: Partial<RecapDeps> = {}) {
   const sent: string[] = [];
   const events: Record<string, unknown>[] = [];
+  const keyboards: { text: string; callback_data: string }[][][] = [];
+  const proposed: { id: number; steps: unknown[]; messageId: number | null }[] = [];
+  let running: { id: number } | null = null;
   const deps: RecapDeps = {
     active: true,
     serversActive: true,
@@ -37,6 +40,22 @@ function world(over: Partial<RecapDeps> = {}) {
     send: async (text) => {
       sent.push(text);
     },
+    sendWithButtons: async (text, rows) => {
+      sent.push(text);
+      keyboards.push(rows.map((r) => [...r]));
+      return 900 + keyboards.length;
+    },
+    plans: {
+      propose: async (steps) => {
+        proposed.push({ id: 40 + proposed.length, steps: [...steps], messageId: null });
+        return { id: 40 + proposed.length - 1, token: "a".repeat(16) };
+      },
+      setMessage: async (id, messageId) => {
+        const p = proposed.find((x) => x.id === id);
+        if (p !== undefined) p.messageId = messageId;
+      },
+      running: async () => running as never,
+    },
     journal: {
       append: async (e) => {
         events.push({ type: e.type, agent: e.agent, ...(e.payload ?? {}) });
@@ -46,7 +65,16 @@ function world(over: Partial<RecapDeps> = {}) {
     now: () => NOW,
     ...over,
   };
-  return { deps, sent, events };
+  return {
+    deps,
+    sent,
+    events,
+    keyboards,
+    proposed,
+    planRuns: (id: number) => {
+      running = { id };
+    },
+  };
 }
 
 describe("the operator's summary", () => {
@@ -80,13 +108,63 @@ describe("the operator's summary", () => {
   });
 
   it("a failed send: no event, so the next pass tries again", async () => {
-    const w = world({
-      send: async () => {
-        throw new Error("Telegram away");
-      },
-    });
+    const away = async () => {
+      throw new Error("Telegram away");
+    };
+    const w = world({ send: away, sendWithButtons: away });
     await expect(runRecap(w.deps)).rejects.toThrow("Telegram away");
     expect(w.events).toEqual([]);
+    // The plan it had proposed is never tied to a message that did not leave.
+    expect(w.proposed[0]?.messageId).toBeNull();
+  });
+
+  it("something to do: the plan proposed, its buttons under the summary, the message tied to it", async () => {
+    const w = world({
+      findings: async () => [finding("serveur_maj_securite", "3"), finding("serveur_redemarrage")],
+      config: parseServers(`known_hosts = "/Users/exemple/.ssh/cenacle/known_hosts"
+[[serveur]]
+nom = "vps-b"
+adresse = "vps-b.exemple.test"
+compte = "cenacle"
+cles = { services = "/Users/exemple/.ssh/cenacle/vps-b-services", redemarrer = "/Users/exemple/.ssh/cenacle/vps-b-redemarrer", maj_securite = "/Users/exemple/.ssh/cenacle/vps-b-maj" }
+`),
+    });
+    expect(await runRecap(w.deps)).toBe(1);
+    expect(w.proposed[0]?.steps).toEqual([
+      { host: "vps-b", action: "maj_securite", conditional: false },
+      { host: "vps-b", action: "services", conditional: true },
+      { host: "vps-b", action: "redemarrer", conditional: false },
+    ]);
+    expect(w.keyboards[0]?.map((row) => row.map((b) => b.callback_data))).toEqual([
+      [`m:v:40:${"a".repeat(16)}`],
+      [`m:r:40:0:${"a".repeat(16)}`, `m:x:40:0:${"a".repeat(16)}`],
+    ]);
+    expect(w.proposed[0]?.messageId).toBe(901);
+    expect(w.sent[0]).toMatch(/✅ Valider le plan lance ces étapes une à une/);
+  });
+
+  it("a plan running: no new plan, no button, said", async () => {
+    const w = world();
+    w.planRuns(12);
+    await runRecap(w.deps);
+    expect(w.proposed).toEqual([]);
+    expect(w.keyboards).toEqual([]);
+    expect(w.sent[0]).toMatch(/Le plan n°12 tourne encore : pas de bouton ici/);
+  });
+
+  it("the actions on the servers off: no plan, no button", async () => {
+    const w = world({ serversActive: false });
+    await runRecap(w.deps);
+    expect(w.proposed).toEqual([]);
+    expect(w.keyboards).toEqual([]);
+    expect(w.sent[0]).toMatch(/Pas de plan tant que les actions sur les serveurs sont coupées/);
+  });
+
+  it("only steps by hand (no key): no plan, the summary says so", async () => {
+    const w = world({ findings: async () => [finding("serveur_maj_securite", "2")] });
+    await runRecap(w.deps);
+    expect(w.proposed).toEqual([]);
+    expect(w.sent[0]).toMatch(/Rien à valider ici/);
   });
 
   it("the morning with nothing to do: no message, but counted as done", async () => {
