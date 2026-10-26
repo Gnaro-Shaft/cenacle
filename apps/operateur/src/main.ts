@@ -5,6 +5,8 @@
  * securite.toml is on, and only after checking everything again. It holds
  * the Telegram token to tell me the outcome, and no other secret: the keys
  * are files of mine, readable by me only, named in serveurs.local.toml.
+ * It also sends the maintenance summary (J7c, ADR-0035), read only: being
+ * the only reader of serveurs.local.toml, it knows each machine's keys.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -12,13 +14,16 @@ import { errorText, refuseForeignSecrets, UsageError } from "@cenacle/core";
 import {
   connectOrQuit,
   createJournal,
+  createSecuriteStore,
   createServeurActions,
   holdSingleInstance,
+  latestEventAt,
 } from "@cenacle/journal";
 import {
   LEGION_VERDICT_PATH,
   OPERATOR_STATE_PATH,
   parseLegionVerdict,
+  parseMaintenanceSwitch,
   parseServerSwitch,
   parseServers,
   type ServersConfig,
@@ -26,6 +31,7 @@ import {
   type ServersConfigProblem,
 } from "@cenacle/securite";
 import { createTelegramApi } from "@cenacle/telegram/api";
+import { runRecap } from "./recap.ts";
 import { runOperator } from "./run.ts";
 import { keyIsPrivate, runSsh } from "./ssh.ts";
 import { publishState } from "./state.ts";
@@ -64,18 +70,39 @@ async function pass(sql: ReturnType<typeof connectOrQuit>): Promise<void> {
   const config = servers();
   // Said at every pass, so a blocked list is found without waiting for a request.
   publishState(OPERATOR_STATE_PATH, config, Date.now());
+  const store = createServeurActions(sql);
+  const journal = createJournal(sql);
+  const securiteToml = read(join(ROOT, "securite.toml")) ?? "";
+  const send = (text: string) => telegram.sendMessage(chatId, text);
   const outcome = await runOperator({
-    store: createServeurActions(sql),
-    active: parseServerSwitch(read(join(ROOT, "securite.toml")) ?? ""),
+    store,
+    active: parseServerSwitch(securiteToml),
     config,
     verdict: () => read(LEGION_VERDICT_PATH),
     parseVerdict: parseLegionVerdict,
     keyIsPrivate: (path) => keyIsPrivate(path),
     ssh: (args) => runSsh(args),
-    send: (text) => telegram.sendMessage(chatId, text),
-    journal: createJournal(sql),
+    send,
+    journal,
     now: () => new Date(),
   });
+  // The maintenance summary (J7c): after the actions, read only.
+  const recap = await runRecap({
+    active: parseMaintenanceSwitch(securiteToml),
+    serversActive: parseServerSwitch(securiteToml),
+    config,
+    findings: () => createSecuriteStore(sql).open(),
+    lastRestarts: () => store.lastAnswers("services"),
+    last: async () => ({
+      morning: await latestEventAt(sql, "operateur", "maintenance.recap", { quand: "matin" }),
+      any: await latestEventAt(sql, "operateur", "maintenance.recap"),
+      asked: await latestEventAt(sql, "cenacle", "maintenance.demande"),
+    }),
+    send,
+    journal,
+    now: () => new Date(),
+  });
+  if (recap > 0) console.log("✔ Opérateur : récapitulatif de maintenance envoyé");
   if (outcome.ran + outcome.refused + outcome.verified + outcome.told > 0) {
     console.log(
       `✔ Opérateur : ${outcome.ran} action(s), ${outcome.refused} refus, ${outcome.verified} preuve(s), ${outcome.told} message(s)`,

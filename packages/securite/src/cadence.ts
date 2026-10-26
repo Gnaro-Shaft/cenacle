@@ -80,13 +80,21 @@ export function speaksAtOnce(
   return !REPORT_ONLY_TYPES.includes(f.type) && urgentNow(f.severity, now, lastReport);
 }
 
+/** Due from this local time until the quiet hours, once per local day. */
+export function dueOnceADay(
+  at: { readonly hour: number; readonly minute: number },
+  now: Date,
+  last: Date | null,
+): boolean {
+  const t = local(now);
+  const afterTime = t.hour > at.hour || (t.hour === at.hour && t.minute >= at.minute);
+  if (!afterTime || t.hour >= QUIET_FROM_HOUR) return false;
+  return last === null || local(last).day !== t.day;
+}
+
 /** The morning report: due from 7:30, once per local day. */
 export function reportDue(now: Date, lastReport: Date | null): boolean {
-  const t = local(now);
-  const afterTime =
-    t.hour > REPORT_AT.hour || (t.hour === REPORT_AT.hour && t.minute >= REPORT_AT.minute);
-  if (!afterTime || t.hour >= QUIET_FROM_HOUR) return false;
-  return lastReport === null || local(lastReport).day !== t.day;
+  return dueOnceADay(REPORT_AT, now, lastReport);
 }
 
 /** The network checks: at most once an hour. */

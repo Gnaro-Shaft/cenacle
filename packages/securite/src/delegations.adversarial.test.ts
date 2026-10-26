@@ -3,6 +3,8 @@
 // unknown key are refused; a delegation is proposable only past its threshold
 // with no failure, granted only by a date, suspended by a failure since that
 // date; the PR buttons and views are read strictly.
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parsePrPressed, prKeyboard } from "./buttons.ts";
 import {
@@ -33,6 +35,12 @@ describe("securite.toml", () => {
       "2026-10-01",
     );
     expect(parseDelegations("", TODAY)).toEqual([]);
+  });
+
+  it("the versioned securite.toml itself, its [maintenance] included (J7c): read, never thrown", () => {
+    const real = readFileSync(join(import.meta.dirname, "..", "..", "..", "securite.toml"), "utf8");
+    expect(real).toContain("[maintenance]");
+    expect(() => parseDelegations(real, TODAY)).not.toThrow();
   });
 
   it.each([

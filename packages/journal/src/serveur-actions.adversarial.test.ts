@@ -161,6 +161,30 @@ describe("the counts of a proof (2026-10-12)", () => {
   });
 });
 
+describe("the last answer of each machine (J7c)", () => {
+  it("the latest finished run per machine, with its code; unanswered runs and other actions ignored", async () => {
+    const host = `vps-l${run}`;
+    const other = `vps-m${run}`;
+    const ran = async (h: string, action: "services" | "redemarrer", code: number, at: Date) => {
+      const r = await actions.request(await finding(), h, action, at);
+      if (r === null) throw new Error("no request");
+      await actions.confirm(r.id, r.token, at);
+      expect(await actions.claim(r.id, at)).toBe(true);
+      await actions.finish(r.id, "faite", code, at);
+    };
+    await ran(host, "services", 23, new Date(T0.getTime() - 120_000));
+    await ran(host, "services", 125, new Date(T0.getTime() - 60_000));
+    await ran(host, "redemarrer", 0, T0);
+    await ran(other, "services", 0, T0);
+    // Asked, never run: no answer.
+    await actions.request(await finding(), `vps-n${run}`, "services", T0);
+    const last = await actions.lastAnswers("services");
+    expect(last.get(host)?.exitCode).toBe(125);
+    expect(last.get(other)?.exitCode).toBe(0);
+    expect(last.has(`vps-n${run}`)).toBe(false);
+  });
+});
+
 describe("the purge", () => {
   it("365 days after the request; a recent request is kept", async () => {
     const old = new Date(T0.getTime() - 366 * 86_400_000);

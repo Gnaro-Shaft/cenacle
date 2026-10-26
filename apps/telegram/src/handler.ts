@@ -14,6 +14,8 @@ export type Action =
   | { readonly kind: "reply"; readonly chatId: number; readonly text: string }
   | { readonly kind: "journal"; readonly type: "telegram.rejected"; readonly reason: string }
   | { readonly kind: "journal"; readonly type: "stop.requested" }
+  /** The maintenance summary asked for (J7c): the operator sends it within a minute. */
+  | { readonly kind: "journal"; readonly type: "maintenance.demande" }
   /** A question for the CTO (ADR-0020): relayed without blocking the bot. */
   | { readonly kind: "ask_cto"; readonly chatId: number; readonly question: string }
   /** The security findings still to fix, with their buttons (J6b) — or one of them, by number. */
@@ -24,6 +26,8 @@ export interface HandlerDeps {
   readonly readStatus: (agent: string) => Promise<AgentStatus>;
   /** When the security agent last made its round (J6, watching the watcher). */
   readonly lastSecurityRound?: () => Promise<Date | null>;
+  /** `[maintenance] actif` of securite.toml, read at each use (J7c). */
+  readonly maintenanceActive?: () => boolean;
   readonly now?: () => Date;
 }
 
@@ -57,6 +61,7 @@ const HELP = [
   "/stop — arrêt d'urgence (noté dans le journal)",
   "/cto ta question — une question technique au CTO (réponse en 1 à 3 min).",
   "/constats — les constats de sécurité à traiter, avec leurs boutons ; /constats 61 : celui-là seul",
+  "/maintenance — ce qu'il reste à faire sur les serveurs, machine par machine",
   "   ⚠ Jamais de nom de client ni de contenu de mail : le texte passe par Telegram.",
   "/aide — cette aide",
 ].join("\n");
@@ -141,6 +146,18 @@ export async function handleUpdate(update: TelegramUpdate, deps: HandlerDeps): P
       }
       return [{ kind: "securite_list", chatId: message.chat.id, id }];
     }
+    case "/maintenance":
+      if (deps.maintenanceActive?.() !== true) {
+        return [
+          reply(
+            "🧰 Le récapitulatif de maintenance est coupé ([maintenance] actif dans securite.toml).",
+          ),
+        ];
+      }
+      return [
+        { kind: "journal", type: "maintenance.demande" },
+        reply("🧰 Demandé : l'opérateur te l'envoie dans la minute (le Mac doit être allumé)."),
+      ];
     case "/stop":
       return [
         { kind: "journal", type: "stop.requested" },
@@ -151,6 +168,6 @@ export async function handleUpdate(update: TelegramUpdate, deps: HandlerDeps): P
     case "/help":
       return [reply(HELP)];
     default:
-      return [reply("Je ne comprends que /etat, /cto, /constats, /stop et /aide.")];
+      return [reply("Je ne comprends que /etat, /cto, /constats, /maintenance, /stop et /aide.")];
   }
 }

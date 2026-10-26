@@ -19,7 +19,7 @@ import {
   readAllEvents,
   watchOrQuit,
 } from "@cenacle/journal";
-import { parseServerSwitch } from "@cenacle/securite";
+import { parseMaintenanceSwitch, parseServerSwitch } from "@cenacle/securite";
 import { perform } from "./actions.ts";
 import { createTelegramApi, TelegramError, type TelegramFailure } from "./api.ts";
 import { sleepUnless } from "./backoff.ts";
@@ -161,6 +161,13 @@ await poll({
         allowedChatId,
         readStatus,
         lastSecurityRound: () => latestEventAt(sql, "securite", "securite.ran"),
+        maintenanceActive: () => {
+          try {
+            return parseMaintenanceSwitch(readFileSync(join(ROOT, "securite.toml"), "utf8"));
+          } catch {
+            return false;
+          }
+        },
       }),
       {
         reply,

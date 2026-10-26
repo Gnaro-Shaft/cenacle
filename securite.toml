@@ -34,6 +34,12 @@ logiciels = [
 # serveurs.local.toml (git-ignored).
 actif = true
 
+[maintenance]
+# The maintenance summary (J7c, ADR-0035): from 9:00 once a day, and on
+# /maintenance, what each server's open findings call for. Read only, sent by
+# the operator (the only reader of serveurs.local.toml); no button yet.
+actif = true
+
 [[delegation]]
 # Prepare the pull request of an npm advisory fix without a major version
 # change. The merge stays mine (✅ Fusionner on Telegram, PR by PR).
