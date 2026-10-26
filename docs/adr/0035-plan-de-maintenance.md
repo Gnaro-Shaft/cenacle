@@ -1,6 +1,6 @@
 # ADR-0035 — Le plan de maintenance : un récapitulatif, une validation, des gestes enchaînés
 
-**Statut** : proposée (2026-10-26) — révise l'ADR-0027 (point 3 et palier J6f3 : « chaque geste reste séparé et confirmé ») ; garde tout le reste de l'ADR-0027 : catalogue fermé, une clé par action, garde-fous sur le serveur, revérification, preuve
+**Statut** : acceptée (2026-10-26) — révise l'ADR-0027 (point 3 et palier J6f3 : « chaque geste reste séparé et confirmé ») ; garde tout le reste de l'ADR-0027 : catalogue fermé, une clé par action, garde-fous sur le serveur, revérification, preuve
 
 ## Contexte
 
