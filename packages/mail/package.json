@@ -14,7 +14,7 @@
     "@cenacle/journal": "0.0.0",
     "imapflow": "2.5.8",
     "nodemailer": "10.1.7",
-    "postal-mime": "4.0.11",
+    "postal-mime": "4.1.4",
     "smol-toml": "1.9.1"
   }
 }
