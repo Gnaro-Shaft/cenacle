@@ -13,9 +13,9 @@ import {
   createPeople,
   createProposalStore,
   createPurges,
-  holdSingleInstance,
+  holdOrQuit,
   readAllEvents,
-  watchOrQuit,
+  waitForDatabase,
 } from "@cenacle/journal";
 import {
   keyerFromEnv,
@@ -40,19 +40,19 @@ if (!Number.isSafeInteger(chatId) || chatId === 0) {
   throw new Error("TELEGRAM_ALLOWED_CHAT_ID is missing or not a number (see .env.example)");
 }
 const telegram = createTelegramApi(process.env.TELEGRAM_BOT_TOKEN ?? "");
-const sql = connectOrQuit();
+const sql = await waitForDatabase(connectOrQuit());
 // One Iris at a time (ADR-0018): its own connection holds the lock for the
 // whole run. Refused = exit 75 ("try again later"): launchd keeps retrying and
 // takes over once the other Iris stops. No database = a crash, retried too.
 const lockSql = connectOrQuit("lock");
-const instance = await holdSingleInstance(lockSql, "iris");
-if (instance === null) {
-  console.error("🛑 Une autre Iris tourne déjà : celle-ci ne démarre pas.");
-  await Promise.all([lockSql.end(), sql.end()]);
-  process.exit(75);
-}
-// A cut of the database drops the lock silently: checked and taken again (ADR-0023).
-watchOrQuit(instance, "Iris");
+// One at a time; for a program that lives, the lock is watched (ADR-0023).
+const instance = await holdOrQuit(
+  lockSql,
+  sql,
+  "iris",
+  "Une autre Iris tourne déjà : celle-ci ne démarre pas.",
+  "Iris",
+);
 const journal = createJournal(sql);
 const store = createMailStore(sql);
 const locations = createLocationStore(sql);

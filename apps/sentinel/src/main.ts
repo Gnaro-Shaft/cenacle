@@ -49,6 +49,8 @@ async function tell(text: string): Promise<boolean> {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ chat_id: chatId, text }),
+      // A hung call would hold every later alert behind it (lot C, 13/11).
+      signal: AbortSignal.timeout(10_000),
     });
     return response.ok;
   } catch {

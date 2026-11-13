@@ -63,7 +63,7 @@ export async function migrate({
   if (appPassword === executorPassword) {
     throw new UsageError(`${EXECUTOR_PASSWORD_VAR} must differ from CENACLE_DB_APP_PASSWORD`);
   }
-  const sql = postgres(ownerUrl, { max: 1, onnotice: () => {} });
+  const sql = postgres(ownerUrl, { infer: true, max: 1, onnotice: () => {} });
   const applied: string[] = [];
   try {
     for (const file of readdirSync(SQL_DIR)

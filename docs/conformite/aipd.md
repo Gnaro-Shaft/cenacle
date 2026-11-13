@@ -10,9 +10,9 @@
 ## 1. Contexte
 
 **Responsable** : Gnaro (EURL), pour l'usage professionnel de son dirigeant.
-**Machines** : le Mac seul : programmes, base PostgreSQL et services liés à `127.0.0.1`, et le modèle local, sur le même Mac (joint par son nom sur le tailnet, confirmé le 2026-10-04 : le contenu ne quitte pas la machine). La boîte reste chez OVH (France).
+**Machines** : le Mac seul : programmes, base PostgreSQL et services liés à `127.0.0.1`, et le modèle local, sur le même Mac : servi par Ollama, à l'écoute du Mac seul, sans son cloud, depuis le 2026-10-21 (ADR-0028) ; le code n'accepte plus d'autre adresse que cette machine depuis le 2026-11-13. La boîte reste chez OVH (France).
 
-**Traitements couverts** (détail : `registre-traitements.md`) : T-01 relève et rangement, T-02 suivi et alertes, T-03 brouillons, T-04 envois acceptés, T-05 journal, T-06 traces sans contenu.
+**Traitements couverts** (détail : `registre-traitements.md`) : T-01 relève et rangement, T-02 suivi et alertes, T-03 brouillons, T-04 envois acceptés, T-05 journal, T-06 traces sans contenu ; T-07 (liste d'opposition) et T-08 (boîte de test) en découlent ; T-09 (veille des missions) a son ajout du 2026-10-22, plus bas.
 
 **Personnes concernées** : les correspondants de la boîte pro (clients, prospects, administrations, expéditeurs de lettres d'information), et les personnes citées dans leurs mails.
 
@@ -22,12 +22,12 @@
 
 | Principe | Mise en œuvre | Suffisant ? |
 |---|---|---|
-| Finalités déterminées | Une par traitement, au registre ; une source n'est lue que déclarée | **Partiel** : le cadre exécutable est à coder (C1) |
+| Finalités déterminées | Une par traitement, au registre ; une source n'est lue que déclarée, par le cadre exécutable (`cadre.toml`, C1) | Oui |
 | Base légale | Intérêt légitime, validé le 2026-10-04 pour T-01 à T-06 | Oui |
 | Minimisation | Ni objet ni corps stockés ; clés HMAC au lieu des adresses ; le modèle ne voit qu'un mail à la fois | Oui |
 | Exactitude | Vérificateur de faits sans IA ; cases douteuses laissées vides et visibles ; relecture humaine de chaque brouillon | Oui, avec les limites du registre IA |
-| Durées | 90 jours (mémoire), 7 jours (texte des brouillons), 7 jours (traces) | **Partiel** : lignes de propositions et journal sans purge (C1) |
-| Information | Mention publique sur le site, qui couvre aujourd'hui Legion (domaines seulement) | **Non** : à réviser pour Cénacle avant l'ouverture (C4) |
+| Durées | 90 jours (mémoire), 7 jours (texte des brouillons), 7 jours (traces) ; propositions et journal purgés selon le cadre, et la base refuse une purge plus récente que la durée de conservation (lot A3, 2026-11-13 : planchers 180 et 90 jours) | Oui |
+| Information | Mention publique sur le site, paragraphe « Mon assistant de messagerie » (C4), republiée le 2026-10-22 pour les alertes de missions ; à republier après le 2026-11-13 (lot D : ce que le code garantit pour les noms de personne) | Oui, sous réserve de la republication |
 | Accès, rectification, effacement | `npm run personne` : export JSON, effacement, liste d'opposition qui le fait tenir (C3) | Oui |
 | Opposition, limitation | Liste d'opposition : les mails de la personne ne sont plus lus ; couper la source. La clé y reste 3 ans après sa dernière trace (demande ou dernier mail rencontré), le temps que ses mails peuvent rester dans ma boîte (2026-10-10) | Oui |
 
@@ -46,7 +46,7 @@
 ### R2 — Modification non désirée : une réponse erronée part chez un tiers
 
 - **Impacts** : un correspondant reçoit un fait inventé, une réponse qui ne lui était pas destinée, ou un texte qu'il n'aurait pas dû recevoir.
-- **Mesures** : aucun envoi sans mon acceptation **signée** par la page ; destinataire relu sur le serveur (l'expéditeur, jamais un Reply-To) ; délai d'annulation de 2 minutes ; plafond de 20 envois par jour ; vérificateur de faits ; banc : 0 envoi sans acceptation, 0 fait inventé ; envois limités aux domaines de test jusqu'à M3.
+- **Mesures** : aucun envoi sans mon acceptation **signée** par la page ; destinataire relu sur le serveur (l'expéditeur, jamais un Reply-To) ; délai d'annulation de 10 minutes sur la vraie boîte (2 sur une boîte de test) ; plafond de 5 envois par jour (ADR-0015) ; vérificateur de faits ; banc : 0 envoi sans acceptation, 0 fait inventé ; envois limités aux domaines de test jusqu'à M3.
 - **Gravité : limitée** (je relis chaque texte). **Vraisemblance : limitée.**
 
 ### R3 — Injection par un mail
@@ -70,17 +70,29 @@
 
 | # | Action | Risque | Jalon |
 |---|---|---|---|
-| 1 | Cadre exécutable, et durées et purges pour toutes les tables (propositions, journal) | Durées | C1 |
+| 1 | ~~Cadre exécutable, et durées et purges pour toutes les tables (propositions, journal)~~ **fait avant l'ouverture du 2026-10-05** ; planchers de purge tenus par la base le 2026-11-13 | Durées | C1 |
 | 2 | ~~Plancher article 9, déterministe, avant le modèle~~ **fait le 2026-10-04** | R4 | C2 |
 | 3 | ~~Export et effacement par adresse~~ **fait le 2026-10-04** | Droits | C3 |
-| 4 | Mention révisée et publiée, vérifiée en ligne | Information | C4 |
+| 4 | ~~Mention révisée et publiée, vérifiée en ligne~~ **fait avant l'ouverture du 2026-10-05**, republiée le 2026-10-22 ; à republier après le lot D | Information | C4 |
 | 5 | ~~Un fichier d'environnement par programme ; sauvegarde chiffrée des secrets~~ **fait le 2026-10-04** ; reste la liste d'opposition à protéger d'une perte de la base | R1 | S1 |
-| 6 | Sentinelle sans contenu (ADR-0002) — **code prêt le 2026-10-04**, à déployer | Disponibilité | S2 |
+| 6 | ~~Sentinelle sans contenu (ADR-0002)~~ **en service depuis le 2026-10-05** | Disponibilité | S2 |
 | 7 | Revoir cette AIPD avant M3 (premiers envois réels), puis au plus tard le 2027-10-04 | Tous | — |
 
 ## Ajout du 2026-10-22 — la veille des missions (T-09, IA-08)
 
 La veille des missions (ADR-0031, ADR-0032) **ne demande pas d'AIPD propre**, décidé par le responsable le 2026-10-22 : ni profilage à grande échelle, ni donnée sensible (le plancher article 9 écarte avant le modèle toute alerte qui en semble porteuse), ni surveillance systématique, ni décision ayant un effet sur une personne. Elle ne lit que les alertes des plateformes auxquelles je suis abonné, ne garde que des champs fermés de mission (jamais un nom ni une adresse de personne), 60 jours, sur le Mac. Classement IA : risque minimal (IA-08). Les risques R1 (accès), R3 (injection) et R5 (perte) s'y appliquent comme au reste ; R3 est tenu par les marqueurs, la sortie validée par schéma et les liens remplacés par des numéros.
+
+## Revue du 2026-11-13 (audit, lot D)
+
+Faits remis à jour ci-dessus (modèle, durées, information, plan d'action). Ce qui a changé depuis le 2026-10-04, au regard des risques :
+
+- **R1 (accès)** : le flux d'état de la page, sans jeton, ne cite plus jamais une valeur d'événement (lot C4) ; les journaux de la console sont datés et ne gardent plus de trace d'erreur ni de chemin (lot C1).
+- **R2 (envoi erroné)** : « Accepter » porte le texte affiché, et seul ce texte est signé (lot B) ; « Refuser » demande confirmation.
+- **R4 et l'ADR-0003** : le modèle ne peut plus être qu'à l'adresse de cette machine (lot D1).
+- **T-09** : les noms que l'alerte présente comme une personne sont retirés par le code ; `npm run personne -- cartes` donne accès aux cartes qui citeraient une personne, et les efface (lot D2).
+- **Point à trancher par le responsable** : la vraisemblance de R2 reste limitée tant que M3 (vraies réponses) n'est pas ouvert ; l'action 7 demande de revoir cette AIPD **avant** M3. Rien dans les traitements ouverts depuis (T-07 à T-09) ne remplit un critère de plus de la grille (`aipd-examen.md`) : ni profilage, ni décision automatisée, ni grande échelle. Ce n'est pas un avis juridique.
+
+Rédigée par Claude le 2026-11-13. **À valider par le responsable.**
 
 ## 5. Validation
 

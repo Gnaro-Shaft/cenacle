@@ -119,7 +119,7 @@ export function createMailStore(sql: Sql): MailStore {
     async keepOnly(mailbox, uids) {
       const result = await sql`
         delete from mail_items
-        where mailbox = ${mailbox} and not (uid = any(${sql.array(uids.map(String))}::bigint[]))`;
+        where mailbox = ${mailbox} and not (uid = any(${uids.map(String)}::bigint[]))`;
       return result.count;
     },
 
@@ -131,7 +131,7 @@ export function createMailStore(sql: Sql): MailStore {
                                   sender_authenticated, sender_key, message_key, thread_keys)
           values ('inbox', ${uidValidity}, ${item.uid}, ${item.receivedAt}, ${item.noFollowUp},
                   ${item.urgentTerm}, ${item.senderAuthenticated}, ${item.senderKey},
-                  ${item.messageKey}, ${sql.array([...item.threadKeys])})
+                  ${item.messageKey}, ${[...item.threadKeys]})
           on conflict do nothing`;
         added += result.count;
       }
@@ -143,8 +143,8 @@ export function createMailStore(sql: Sql): MailStore {
       for (const item of items) {
         const result = await sql`
           insert into mail_items (mailbox, uid_validity, uid, at, recipient_keys, message_key, thread_keys)
-          values ('sent', ${uidValidity}, ${item.uid}, ${item.sentAt}, ${sql.array([...item.recipientKeys])},
-                  ${item.messageKey}, ${sql.array([...item.threadKeys])})
+          values ('sent', ${uidValidity}, ${item.uid}, ${item.sentAt}, ${[...item.recipientKeys]},
+                  ${item.messageKey}, ${[...item.threadKeys]})
           on conflict do nothing`;
         added += result.count;
       }
@@ -231,7 +231,7 @@ export function createMailStore(sql: Sql): MailStore {
       if (uids.length === 0) return;
       await sql`
         update mail_items set urgent_notified = true
-        where mailbox = 'inbox' and uid = any(${sql.array(uids.map(String))}::bigint[])`;
+        where mailbox = 'inbox' and uid = any(${uids.map(String)}::bigint[])`;
     },
 
     async purgeBefore(cutoff) {

@@ -28,7 +28,7 @@ const SPARED_ONLY = [
   "systemd-networkd.service",
 ];
 // The lists needrestart gave on two Proxmox nodes after their security updates
-// (homeserv03 on 2026-10-11; homeserv01 on 2026-10-12 adds "systemd-user").
+// (the first node on 2026-10-11; the second on 2026-10-12 adds "systemd-user").
 const PROXMOX = [
   "cron.service",
   "dbus.service",

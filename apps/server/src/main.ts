@@ -15,8 +15,8 @@ import {
   createMailStore,
   createProposalStore,
   createProspectionStore,
-  holdSingleInstance,
-  watchOrQuit,
+  holdOrQuit,
+  waitForDatabase,
 } from "@cenacle/journal";
 import {
   createLocator,
@@ -40,7 +40,7 @@ import { createProspectionService } from "./prospection-service.ts";
 const HOST = "127.0.0.1";
 const PORT = Number(process.env.CENACLE_API_PORT ?? 8787);
 
-const sql = connectOrQuit();
+const sql = await waitForDatabase(connectOrQuit());
 const journal = createJournal(sql);
 const store = createProposalStore(sql);
 const board = createProspectionStore(sql);
@@ -58,14 +58,14 @@ refuseForeignSecrets("The page's server", ["mail", "page"]);
 // One server at a time (ADR-0019): a second one would fail on the port, or
 // worse, replace the page's link with a token the running server never drew.
 const lockSql = connectOrQuit("lock");
-const instance = await holdSingleInstance(lockSql, "server");
-if (instance === null) {
-  console.error("🛑 Un autre serveur de la page tourne déjà : celui-ci ne démarre pas.");
-  await Promise.all([lockSql.end(), sql.end()]);
-  process.exit(75);
-}
-// A cut of the database drops the lock silently: checked and taken again (ADR-0023).
-watchOrQuit(instance, "Le serveur de la page");
+// One at a time; for a program that lives, the lock is watched (ADR-0023).
+const instance = await holdOrQuit(
+  lockSql,
+  sql,
+  "server",
+  "Un autre serveur de la page tourne déjà : celui-ci ne démarre pas.",
+  "Le serveur de la page",
+);
 const token = newToken();
 const acceptKey = privateKeyFromEnv();
 

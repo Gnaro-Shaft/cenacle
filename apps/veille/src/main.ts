@@ -21,7 +21,8 @@ import {
   connectOrQuit,
   createJournal,
   createVeilleStore,
-  holdSingleInstance,
+  holdOrQuit,
+  waitForDatabase,
 } from "@cenacle/journal";
 import { createTelegramApi } from "@cenacle/telegram/api";
 
@@ -43,15 +44,16 @@ const local = createLocalModels({
   contextWindow: 65_536,
   maxTokens: 8_000,
 });
-const sql = connectOrQuit();
+const sql = await waitForDatabase(connectOrQuit());
 // One veille at a time: one run by hand during the 8 o'clock one sends nothing (75).
 const lockSql = connectOrQuit("lock");
-const instance = await holdSingleInstance(lockSql, "veille");
-if (instance === null) {
-  console.error("🛑 Une autre veille tourne déjà : celle-ci ne fait rien.");
-  await Promise.all([lockSql.end(), sql.end()]);
-  process.exit(75);
-}
+// One at a time; for a program that lives, the lock is watched (ADR-0023).
+const instance = await holdOrQuit(
+  lockSql,
+  sql,
+  "veille",
+  "Une autre veille tourne déjà : celle-ci ne fait rien.",
+);
 const journal = createJournal(sql);
 const store = createVeilleStore(sql);
 
@@ -102,7 +104,7 @@ try {
   const seconds = Math.round((Date.now() - started) / 1000);
   console.log(
     outcome.kind === "sent"
-      ? `✔ Veille ${dryRunFile === undefined ? "envoyée" : "écrite sans envoi"} en ${seconds} s : ${outcome.kept} retenu(s) sur ${outcome.scanned} lu(s), ${outcome.repeated} déjà reçu(s) écarté(s), ${outcome.archived} archivé(s), ${outcome.failed} source(s) injoignable(s)`
+      ? `✔ Veille ${dryRunFile === undefined ? "envoyée" : "écrite sans envoi"} en ${seconds} s : ${outcome.kept} retenu(s) sur ${outcome.scanned} lu(s), ${outcome.repeated} déjà reçu(s) écarté(s), ${outcome.archived} archivé(s), ${outcome.failed} source(s) injoignable(s)${outcome.unscored > 0 ? `, ${outcome.unscored} sans note` : ""}`
       : `⚠ Veille non faite (${outcome.reason}) : le message l'a dit`,
   );
 } catch (error) {

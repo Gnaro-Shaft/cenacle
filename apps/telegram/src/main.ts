@@ -14,11 +14,11 @@ import {
   createSecuriteDecisions,
   createSecuriteStore,
   createServeurActions,
-  holdSingleInstance,
+  holdOrQuit,
   InvalidEventError,
   latestEventAt,
   readAllEvents,
-  watchOrQuit,
+  waitForDatabase,
 } from "@cenacle/journal";
 import { parseMaintenanceSwitch, parseServerSwitch } from "@cenacle/securite";
 import { perform } from "./actions.ts";
@@ -49,19 +49,19 @@ const signers = confirmSigners();
 if (signers.problem !== null) {
   console.error(`⚠ ${signers.problem} : aucune action sur un serveur ne pourra être confirmée`);
 }
-const sql = connectOrQuit();
+const sql = await waitForDatabase(connectOrQuit());
 const journal = createJournal(sql);
 // One bot at a time (ADR-0019): Telegram refuses two pollers (409), and the
 // refused one would crash and be restarted every 30 s.
 const lockSql = connectOrQuit("lock");
-const instance = await holdSingleInstance(lockSql, "bot");
-if (instance === null) {
-  console.error("🛑 Un autre bot Telegram tourne déjà : celui-ci ne démarre pas.");
-  await Promise.all([lockSql.end(), sql.end()]);
-  process.exit(75);
-}
-// A cut of the database drops the lock silently: checked and taken again (ADR-0023).
-watchOrQuit(instance, "Le bot Telegram");
+// One at a time; for a program that lives, the lock is watched (ADR-0023).
+const instance = await holdOrQuit(
+  lockSql,
+  sql,
+  "bot",
+  "Un autre bot Telegram tourne déjà : celui-ci ne démarre pas.",
+  "Le bot Telegram",
+);
 
 async function readStatus(agent: string) {
   return projectStatus(agent, await readAllEvents(journal, agent));

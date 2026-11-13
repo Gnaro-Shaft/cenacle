@@ -13,8 +13,10 @@ export {
 export {
   buildVeillePrompt,
   parseScores,
+  readScores,
   type Scored,
   ScoreError,
+  type ScoreReading,
   VEILLE_SYSTEM_PROMPT,
 } from "./score.ts";
 export {

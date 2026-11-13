@@ -23,6 +23,8 @@ export interface DigestInput {
   readonly kept: readonly Kept[];
   readonly failed: readonly string[];
   readonly threshold: number;
+  /** Articles the model's answer left without a readable score (lot C). */
+  readonly unscored?: number;
   /** The projects are the fictional example (no veille.local.toml). */
   readonly exampleProjects?: boolean;
 }
@@ -70,6 +72,11 @@ export function formatDigest(input: DigestInput): Digest {
       : `${input.kept.length} article(s) retenu(s) sur ${input.scanned} lu(s).`,
   );
   if (input.failed.length > 0) head.push(`⚠ Sources injoignables : ${input.failed.join(", ")}.`);
+  if ((input.unscored ?? 0) > 0) {
+    head.push(
+      `⚠ ${input.unscored} article(s) non noté(s) : la réponse du modèle était incomplète.`,
+    );
+  }
   if (input.exampleProjects === true) {
     head.push("ℹ Projets fictifs : crée veille.local.toml pour des idées sur tes vrais projets.");
   }

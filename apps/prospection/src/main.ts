@@ -21,8 +21,9 @@ import {
   createLocationStore,
   createMailStore,
   createProspectionStore,
-  holdSingleInstance,
+  holdOrQuit,
   latestEventAt,
+  waitForDatabase,
 } from "@cenacle/journal";
 import {
   CadreError,
@@ -70,14 +71,15 @@ const local = createLocalModels({
   contextWindow: 32_768,
   maxTokens: 6_000,
 });
-const sql = connectOrQuit();
+const sql = await waitForDatabase(connectOrQuit());
 const lockSql = connectOrQuit("lock");
-const instance = await holdSingleInstance(lockSql, "prospection");
-if (instance === null) {
-  console.error("🛑 L'agent prospection tourne déjà : celui-ci ne fait rien.");
-  await Promise.all([lockSql.end(), sql.end()]);
-  process.exit(75);
-}
+// One at a time; for a program that lives, the lock is watched (ADR-0023).
+const instance = await holdOrQuit(
+  lockSql,
+  sql,
+  "prospection",
+  "L'agent prospection tourne déjà : celui-ci ne fait rien.",
+);
 const journal = createJournal(sql);
 const mails = createMailStore(sql);
 const cards = createProspectionStore(sql);

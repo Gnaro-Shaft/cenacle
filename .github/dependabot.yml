@@ -7,6 +7,22 @@ updates:
     # The default of 5 was reached on 2026-10-09: from then on, no new update
     # was proposed at all.
     open-pull-requests-limit: 10
+    # OpenTelemetry is halfway between two lines (lot E2b, 2026-11-13): the
+    # trace SDK's latest is 2.12 and needs @opentelemetry/api < 1.10, while
+    # resources 3, core 3 and the 0.30x exporters need api 1.10. Mixing them
+    # broke the peers (#184) and the tests (#182, #183). Stay on the 2.12
+    # line until sdk-trace-base 3 is « latest », then lift these all at once.
+    ignore:
+      - dependency-name: "@opentelemetry/api"
+        versions: [">=1.10.0"]
+      - dependency-name: "@opentelemetry/resources"
+        versions: [">=3.0.0"]
+      - dependency-name: "@opentelemetry/core"
+        versions: [">=3.0.0"]
+      - dependency-name: "@opentelemetry/otlp-transformer"
+        versions: [">=0.300.0"]
+      - dependency-name: "@opentelemetry/exporter-trace-otlp-http"
+        versions: [">=0.300.0"]
     groups:
       # Patch releases come as one PR; minor and major ones stay apart, each
       # read on its own (a minor release of pi has carried breaking changes).

@@ -13,7 +13,7 @@ import { createPurges, PurgeFloorError } from "./purges.ts";
 import { appConnection, TEST_DB, TEST_FLOORS } from "./test-db.ts";
 
 const sql = appConnection();
-const owner = postgres(ownerUrlFromEnv(TEST_DB), { max: 1, onnotice: () => {} });
+const owner = postgres(ownerUrlFromEnv(TEST_DB), { infer: true, max: 1, onnotice: () => {} });
 const purges = createPurges(sql);
 const journal = createJournal(sql);
 afterAll(async () => {

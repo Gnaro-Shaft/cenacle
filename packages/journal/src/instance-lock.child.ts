@@ -4,6 +4,7 @@ import postgres from "postgres";
 import { holdSingleInstance } from "./instance-lock.ts";
 
 const sql = postgres(process.env.LOCK_URL ?? "", {
+  infer: true,
   max: 1,
   max_lifetime: null,
   idle_timeout: 0,

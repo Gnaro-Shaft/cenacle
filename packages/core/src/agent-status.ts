@@ -12,6 +12,7 @@ import {
   applyTotals,
   type MailCounts,
   MailCountsError,
+  shapeOf,
   startPass,
 } from "./mail-counts.ts";
 
@@ -50,9 +51,15 @@ export interface AgentStatus {
   readonly lastEventId: bigint | null;
 }
 
+/**
+ * A type or an agent's name as a projection error may say it: an identifier,
+ * or "?" — the message reaches the token-less status stream (lot C, 13/11).
+ */
+const nameOf = (text: string): string => (/^[a-z][a-z0-9_.-]{0,63}$/.test(text) ? text : "?");
+
 export class ProjectionError extends Error {
   constructor(event: AgentEvent, message: string) {
-    super(`Event #${event.id} (${event.type}): ${message}`);
+    super(`Event #${event.id} (${nameOf(event.type)}): ${message}`);
     this.name = "ProjectionError";
   }
 }
@@ -177,7 +184,7 @@ function authMissingOf(event: AgentEvent): boolean {
     ["trusted", trusted],
   ] as const) {
     if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
-      throw new ProjectionError(event, `invalid ${name} ${JSON.stringify(value)}`);
+      throw new ProjectionError(event, `invalid ${name} (${shapeOf(value)})`);
     }
   }
   if ((trusted as number) > (mails as number)) {
@@ -189,7 +196,7 @@ function authMissingOf(event: AgentEvent): boolean {
 function proposalId(event: AgentEvent): string {
   const id = event.payload.proposalId;
   if (typeof id !== "string" || !PROPOSAL_ID_RULE.test(id)) {
-    throw new ProjectionError(event, `invalid proposalId ${JSON.stringify(id)}`);
+    throw new ProjectionError(event, `invalid proposalId (${shapeOf(id)})`);
   }
   return id;
 }
@@ -208,7 +215,10 @@ function applyMailEvent(counts: MailCounts | null, event: AgentEvent): MailCount
 /** Applies one event to a status and returns a new status (never mutates). */
 export function applyEvent(status: AgentStatus, event: AgentEvent): AgentStatus {
   if (event.agent !== status.agent) {
-    throw new ProjectionError(event, `belongs to "${event.agent}", not "${status.agent}"`);
+    throw new ProjectionError(
+      event,
+      `belongs to "${nameOf(event.agent)}", not "${nameOf(status.agent)}"`,
+    );
   }
   if (status.lastEventId !== null && event.id <= status.lastEventId) {
     throw new ProjectionError(event, `out of order (last applied: #${status.lastEventId})`);
@@ -219,7 +229,7 @@ export function applyEvent(status: AgentStatus, event: AgentEvent): AgentStatus 
     case "state.changed": {
       const to = event.payload.to;
       if (!isInternalState(to)) {
-        throw new ProjectionError(event, `unknown target state ${JSON.stringify(to)}`);
+        throw new ProjectionError(event, `unknown target state (${shapeOf(to)})`);
       }
       return {
         ...next,
@@ -239,7 +249,7 @@ export function applyEvent(status: AgentStatus, event: AgentEvent): AgentStatus 
       const id = proposalId(event);
       const outcome = event.payload.outcome;
       if (typeof outcome !== "string" || !PROPOSAL_OUTCOMES.has(outcome)) {
-        throw new ProjectionError(event, `unknown outcome ${JSON.stringify(outcome)}`);
+        throw new ProjectionError(event, `unknown outcome (${shapeOf(outcome)})`);
       }
       if (!next.pendingProposalIds.includes(id)) {
         throw new ProjectionError(event, `proposal ${id} is not pending`);

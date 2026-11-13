@@ -52,7 +52,7 @@ export async function resetTestDatabase(): Promise<void> {
   loadEnv();
   requireEnv("CENACLE_DB_OWNER_PASSWORD");
   const ownerUrl = ownerUrlFromEnv("postgres");
-  const admin = postgres(ownerUrl, { max: 1, onnotice: () => {} });
+  const admin = postgres(ownerUrl, { infer: true, max: 1, onnotice: () => {} });
   try {
     await admin.unsafe(`DROP DATABASE IF EXISTS ${TEST_DB} WITH (FORCE)`);
     await admin.unsafe(`CREATE DATABASE ${TEST_DB}`);
@@ -71,11 +71,11 @@ export async function resetTestDatabase(): Promise<void> {
 
 export function appConnection() {
   loadEnv();
-  return postgres(appUrlFromEnv(TEST_DB), { max: 2, onnotice: () => {} });
+  return postgres(appUrlFromEnv(TEST_DB), { infer: true, max: 2, onnotice: () => {} });
 }
 
 /** The executor's connection to the test database. */
 export function executorConnection() {
   loadEnv();
-  return postgres(executorUrlFromEnv(TEST_DB), { max: 2, onnotice: () => {} });
+  return postgres(executorUrlFromEnv(TEST_DB), { infer: true, max: 2, onnotice: () => {} });
 }

@@ -6,7 +6,7 @@
  * answers "budget exhausted" and the CTO must answer with what he has.
  */
 import type { AgentTool } from "@earendil-works/pi-agent-core";
-import { type Static, Type } from "@earendil-works/pi-ai";
+import { num, obj, opt, type Static, str } from "@earendil-works/pi-schema";
 import type { RepoView } from "./repo-view.ts";
 
 export const MAX_TOOL_CALLS = 6;
@@ -49,13 +49,11 @@ function folder(raw: string): string {
   return parts.join("/");
 }
 
-const LIST = Type.Object({ dossier: Type.String() });
-const READ = Type.Object({
-  chemin: Type.String(),
-  debut: Type.Optional(Type.Number()),
-  fin: Type.Optional(Type.Number()),
-});
-const SEARCH = Type.Object({ texte: Type.String() });
+// pi 1.5 builds tool schemas with pi-schema (TypeBox is no longer re-exported).
+// Open, as TypeBox's objects were: an extra argument from the model is ignored.
+const LIST = obj({ dossier: str() }, { open: true });
+const READ = obj({ chemin: str(), debut: opt(num()), fin: opt(num()) }, { open: true });
+const SEARCH = obj({ texte: str() }, { open: true });
 
 export function createReadTools(
   view: RepoView,
