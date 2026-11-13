@@ -33,6 +33,19 @@ export interface LocalModels {
 const CLOUD_MODEL = /(^|[^a-z0-9])cloud($|[^a-z0-9])/i;
 const CLOUD_HOST = /(^|\.)ollama\.com\.?$/i;
 
+/**
+ * This machine, and nothing else (lot D, 13/11): the model must be on the
+ * Mac. Before, only Ollama's cloud was refused — any other host passed, an
+ * online model's API included. The URL parser has already normalised the
+ * name (`127.1` → `127.0.0.1`, IPv6 in brackets). A model on another of my
+ * machines would need its own ADR first.
+ */
+export function isThisMachine(hostname: string): boolean {
+  if (hostname === "localhost" || hostname === "[::1]") return true;
+  const octets = /^127\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(hostname);
+  return octets !== null && octets.slice(1).every((o) => Number(o) <= 255);
+}
+
 export function localModelConfigFromEnv(env: NodeJS.ProcessEnv = process.env): LocalModelConfig {
   const baseUrl = env.LOCAL_MODEL_BASE_URL;
   const modelId = env.LOCAL_MODEL_ID;
@@ -52,6 +65,11 @@ export function localModelConfigFromEnv(env: NodeJS.ProcessEnv = process.env): L
   }
   if (CLOUD_HOST.test(url.hostname)) {
     throw new UsageError("LOCAL_MODEL_BASE_URL is Ollama's cloud: only a local server is allowed");
+  }
+  if (!isThisMachine(url.hostname)) {
+    throw new UsageError(
+      "LOCAL_MODEL_BASE_URL must be this machine (localhost, 127.x.x.x or [::1]): only a local model is allowed",
+    );
   }
   return { baseUrl: baseUrl.replace(/\/$/, ""), modelId };
 }
