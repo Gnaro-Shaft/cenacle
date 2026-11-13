@@ -121,9 +121,10 @@ describe("driving the plan", () => {
     expect(await plans.start(p.id)).toBe(false);
     const [a, b, , d] = p.steps;
     if (a === undefined || b === undefined || d === undefined) throw new Error("steps");
-    const actionId = await actions.enqueueForPlan(p.id, a.host, a.action, T0);
-    expect(await plans.launch(a.id, actionId)).toBe(true);
-    expect(await plans.launch(a.id, actionId)).toBe(false);
+    const actionId = await plans.launchStep(a.id, T0);
+    if (actionId === null) throw new Error("the step did not launch");
+    expect(await plans.launchStep(a.id, T0)).toBeNull();
+    expect((await plans.get(p.id))?.steps[0]).toMatchObject({ state: "lancee", actionId });
     expect(await plans.settle(a.id, "faite", null)).toBe(true);
     expect(await plans.settle(a.id, "arretee", "x")).toBe(false);
     expect(await plans.settle(b.id, "sautee", "plus_de_motif")).toBe(true);
@@ -138,20 +139,99 @@ describe("driving the plan", () => {
   });
 });
 
-describe("a plan's actions", () => {
-  it("runnable at once, tied to the plan alone; never both a finding and a plan", async () => {
+describe("a step and its action: both or neither", () => {
+  /** A confirmed, started plan, the way free. */
+  async function startedPlan() {
+    await freeTheWay();
     const p = await plans.propose(STEPS, T0);
-    const id = await actions.enqueueForPlan(p.id, "vps-b", "services", T0);
+    const t = await plans.ask(p.id, p.token, T0);
+    expect(await plans.confirm(p.id, t ?? "", T0)).toBe("done");
+    expect(await plans.start(p.id)).toBe(true);
+    const plan = await plans.get(p.id);
+    if (plan === null) throw new Error("the plan vanished");
+    return plan;
+  }
+  const actionsOf = async (planId: number) =>
+    (
+      await sql<{ n: number }[]>`
+        select count(*)::int as n from serveur_actions where plan_id = ${planId}`
+    )[0]?.n;
+  /** Leaves no action to run for the other tests' operator. */
+  const settleActions = (planId: number) =>
+    sql`update serveur_actions set state = 'expiree', finished_at = now()
+        where plan_id = ${planId} and state = 'confirmee'`;
+
+  it("runnable at once, tied to the plan alone, read from the step; never a finding as well", async () => {
+    const plan = await startedPlan();
+    const step = plan.steps[1];
+    if (step === undefined) throw new Error("steps");
+    const id = await plans.launchStep(step.id, T0);
+    if (id === null) throw new Error("the step did not launch");
     expect(await actions.get(id)).toMatchObject({
       state: "confirmee",
-      planId: p.id,
+      planId: plan.id,
       findingId: null,
+      host: "vps-b",
+      action: "services",
     });
     await expect(
       sql`insert into serveur_actions (host, action, state, requested_at, confirm_until)
           values ('vps-b', 'services', 'demandee', now(), now() + interval '1 minute')`,
     ).rejects.toThrow();
-    await sql`update serveur_actions set state = 'expiree', finished_at = now() where id = ${id}`;
+    await settleActions(plan.id);
+  });
+
+  it("two passes launching the same step at once: one action, never two", async () => {
+    const plan = await startedPlan();
+    const step = plan.steps[0];
+    if (step === undefined) throw new Error("steps");
+    const made = await Promise.all([
+      plans.launchStep(step.id, T0),
+      plans.launchStep(step.id, T0),
+      plans.launchStep(step.id, T0),
+    ]);
+    expect(made.filter((id) => id !== null)).toHaveLength(1);
+    expect(await actionsOf(plan.id)).toBe(1);
+    await settleActions(plan.id);
+  });
+
+  it("the action cannot be made: the step is not launched either — and the database refuses a second one to run", async () => {
+    const plan = await startedPlan();
+    const step = plan.steps[0];
+    if (step === undefined) throw new Error("steps");
+    // An action already to run for this very step (what a cut between two statements used to leave).
+    await sql`insert into serveur_actions
+                (plan_id, host, action, state, requested_at, confirm_until, confirmed_at)
+              values (${plan.id}, ${step.host}, ${step.action}, 'confirmee', now(),
+                      now() + interval '1 second', now())`;
+    await expect(plans.launchStep(step.id, T0)).rejects.toThrow(/one_pending_per_plan/);
+    expect((await plans.get(plan.id))?.steps[0]).toMatchObject({
+      state: "attente",
+      actionId: null,
+    });
+    expect(await actionsOf(plan.id)).toBe(1);
+    await settleActions(plan.id);
+  });
+
+  it("a plan that does not run, a removed step, an unknown step: nothing is made", async () => {
+    await freeTheWay();
+    const p = await plans.propose(STEPS, T0);
+    const proposed = await plans.get(p.id);
+    const first = proposed?.steps[0];
+    if (first === undefined) throw new Error("steps");
+    expect(await plans.launchStep(first.id, T0)).toBeNull(); // not confirmed
+    const t = await plans.ask(p.id, p.token, T0);
+    expect(await plans.remove(p.id, p.token, "noeud-a", null)).toBe(true);
+    expect(await plans.confirm(p.id, t ?? "", T0)).toBe("done");
+    expect(await plans.launchStep(first.id, T0)).toBeNull(); // confirmed, not started
+    expect(await plans.start(p.id)).toBe(true);
+    const removed = proposed?.steps[3];
+    if (removed === undefined) throw new Error("steps");
+    expect(await plans.launchStep(removed.id, T0)).toBeNull();
+    expect(await plans.launchStep(2 ** 40, T0)).toBeNull();
+    expect(await actionsOf(p.id)).toBe(0);
+    expect(await plans.finish(p.id, "arretee", "essai", T0)).toBe(true);
+    expect(await plans.launchStep(first.id, T0)).toBeNull(); // ended
   });
 });
 

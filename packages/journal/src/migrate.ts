@@ -94,6 +94,8 @@ export async function migrate({
     // Purges that really erase (C1): through these two functions only, never directly.
     await sql.unsafe(`GRANT EXECUTE ON FUNCTION purge_proposals(TIMESTAMPTZ) TO ${APP_ROLE}`);
     await sql.unsafe(`GRANT EXECUTE ON FUNCTION purge_events(TIMESTAMPTZ) TO ${APP_ROLE}`);
+    // The floors of those purges (032): the owner's alone — not even read.
+    await sql.unsafe(`REVOKE ALL ON purge_planchers FROM ${APP_ROLE}`);
     // People's rights (C3): the opposition list, and erasing a person's proposals.
     await sql.unsafe(`REVOKE ALL ON opposed_keys FROM ${APP_ROLE}`);
     await sql.unsafe(`GRANT SELECT, INSERT, DELETE ON opposed_keys TO ${APP_ROLE}`);

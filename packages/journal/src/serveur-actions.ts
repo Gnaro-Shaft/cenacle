@@ -34,6 +34,8 @@ export interface StoredServerAction {
   readonly action: ServerAction;
   readonly state: ServerActionState;
   readonly requestedAt: Date;
+  /** When I confirmed (for a plan's step: when the plan launched it); null before. */
+  readonly confirmedAt: Date | null;
   readonly finishedAt: Date | null;
   readonly exitCode: number | null;
   readonly refusal: string | null;
@@ -45,6 +47,12 @@ export interface StoredServerAction {
 
 /** How long a confirmation stays possible (revised 2026-10-11, from 60 seconds). */
 export const CONFIRM_SECONDS = 120;
+/**
+ * How long my confirmation holds before the operator acts on it: past this, it
+ * is void and the action is refused — a reboot confirmed this morning does not
+ * run when the Mac wakes tonight (ADR-0027, revised 2026-11-13).
+ */
+export const CONFIRMED_VALID_MINUTES = 15;
 /** A run longer than this was cut off (the operator stopped mid-run): it failed. */
 export const STALE_RUN_MINUTES = 5;
 export const ACTIONS_DAYS = 365;
@@ -67,6 +75,7 @@ interface Row {
   action: ServerAction;
   state: ServerActionState;
   requested_at: Date;
+  confirmed_at: Date | null;
   finished_at: Date | null;
   exit_code: number | null;
   refusal: string | null;
@@ -75,7 +84,7 @@ interface Row {
   after_count: number | null;
 }
 const COLUMNS =
-  "id, finding_id, plan_id, host, action, state, requested_at, finished_at, exit_code, refusal, verified, before_count, after_count";
+  "id, finding_id, plan_id, host, action, state, requested_at, confirmed_at, finished_at, exit_code, refusal, verified, before_count, after_count";
 const toAction = (r: Row): StoredServerAction => ({
   id: Number(r.id),
   findingId: r.finding_id === null ? null : Number(r.finding_id),
@@ -84,6 +93,7 @@ const toAction = (r: Row): StoredServerAction => ({
   action: r.action,
   state: r.state,
   requestedAt: r.requested_at,
+  confirmedAt: r.confirmed_at,
   finishedAt: r.finished_at,
   exitCode: r.exit_code,
   refusal: r.refusal,
@@ -111,25 +121,6 @@ export function createServeurActions(sql: Sql) {
         returning id`;
       const id = rows[0]?.id;
       return id === undefined ? null : { id: Number(id), token };
-    },
-
-    /**
-     * A step of a confirmed plan (ADR-0035, J7d): runnable at once, my
-     * confirmation being the plan's. The operator checks it again like any other.
-     */
-    async enqueueForPlan(
-      planId: number,
-      host: string,
-      action: ServerAction,
-      now: Date,
-    ): Promise<number> {
-      const [row] = await sql<{ id: string }[]>`
-        insert into serveur_actions
-          (plan_id, host, action, state, requested_at, confirm_until, confirmed_at)
-        values (${planId}, ${host}, ${action}, 'confirmee', ${now},
-                ${new Date(now.getTime() + 1000)}, ${now})
-        returning id`;
-      return Number(row?.id);
     },
 
     async get(id: number): Promise<StoredServerAction | null> {
