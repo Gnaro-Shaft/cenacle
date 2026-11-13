@@ -41,7 +41,9 @@ describe("a missing setting is named in full", () => {
   it("an unreadable local model URL is named, not quoted", () => {
     const env = { LOCAL_MODEL_BASE_URL: "not a url someone@example.test", LOCAL_MODEL_ID: "m" };
     const text = errorText(thrown(() => localModelConfigFromEnv(env)));
-    expect(text).toBe("TypeError");
+    // The code says which failure (lot C), the URL itself is never quoted.
+    expect(text).toBe("TypeError (ERR_INVALID_URL)");
+    expect(text).not.toContain("example.test");
   });
 
   it.each([

@@ -26,7 +26,7 @@ Le serveur ne montre plus le lien de la page dans la console. Il l'écrit dans u
 
 ## Les journaux de la console
 
-`~/Library/Logs/cenacle/<programme>.log` : des lignes d'état et des noms d'erreur, jamais un contenu de mail ni le jeton de la page. Chacun est vidé au démarrage au-delà de 1 Mo.
+`~/Library/Logs/cenacle/<programme>.log` : des lignes d'état et des noms d'erreur, jamais un contenu de mail ni le jeton de la page. Chaque ligne écrite par nos programmes commence par la date et l'heure (pas celles qu'une bibliothèque écrit directement, comme vite). Un plantage tient en une ligne (`💥 plantage : TypeError (ECONNRESET)`), sans message ni trace : ils peuvent citer une adresse ou le chemin de ton dossier. Chaque journal est vidé au démarrage au-delà de 1 Mo.
 
 ```bash
 tail -f ~/Library/Logs/cenacle/iris.log

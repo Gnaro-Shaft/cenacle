@@ -5,6 +5,7 @@
  * internal error that never says more.
  */
 import type { Context, Hono } from "hono";
+import { type ApiLog, internalLine } from "./api-log.ts";
 import { BoardError, type ProspectionService } from "./prospection-service.ts";
 
 const CARD_ID_RULE = /^[1-9][0-9]{0,15}$/;
@@ -25,12 +26,16 @@ async function body(c: Context): Promise<Record<string, unknown> | Response> {
   return parsed as Record<string, unknown>;
 }
 
-function failure(c: Context, error: unknown): Response {
-  if (error instanceof BoardError) return c.json({ error: error.message }, 409);
-  return c.json({ error: "internal error" }, 500);
-}
-
-export function mountProspection(app: Hono, board: ProspectionService | undefined): void {
+export function mountProspection(
+  app: Hono,
+  board: ProspectionService | undefined,
+  log: ApiLog = (line) => console.error(line),
+): void {
+  const failure = (c: Context, error: unknown): Response => {
+    if (error instanceof BoardError) return c.json({ error: error.message }, 409);
+    log(internalLine(c, error));
+    return c.json({ error: "internal error" }, 500);
+  };
   const absent = (c: Context) => c.json({ error: "le tableau n'est pas branché" }, 503);
 
   app.get("/api/prospection/cartes", async (c) => {

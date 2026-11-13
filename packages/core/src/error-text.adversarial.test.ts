@@ -70,3 +70,48 @@ describe("errorText", () => {
     expect(errorText(renamed)).toBe("UsageError");
   });
 });
+
+describe("errorText — codes and causes (lot C, 13/11)", () => {
+  const withCode = (code: unknown, name = "Error") =>
+    Object.assign(new Error(`connect ${ADDRESS}`), { name, code });
+
+  it.each([
+    ["a Node code", "ECONNREFUSED", "Error (ECONNREFUSED)"],
+    ["an undici code", "UND_ERR_CONNECT_TIMEOUT", "Error (UND_ERR_CONNECT_TIMEOUT)"],
+    ["a SQLSTATE", "57P01", "Error (57P01)"],
+    ["a SQLSTATE of letters", "28P01", "Error (28P01)"],
+  ])("adds %s", (_label, code, text) => {
+    expect(errorText(withCode(code))).toBe(text);
+  });
+
+  it.each([
+    ["an address", ADDRESS],
+    ["a sentence", "connection refused"],
+    ["a lower-case word", "econnrefused"],
+    ["a number", 42],
+    ["a code too long", `E${"X".repeat(40)}`],
+    ["a line break", "EPIPE\nsomeone"],
+    ["an empty code", ""],
+  ])("never adds a code holding %s", (_label, code) => {
+    expect(errorText(withCode(code))).toBe("Error");
+  });
+
+  it("names the cause, never its message: fetch failed ← why", () => {
+    const cause = Object.assign(new Error(`connect to ${ADDRESS}`), { code: "ECONNREFUSED" });
+    const failed = new TypeError("fetch failed", { cause });
+    expect(errorText(failed)).toBe("TypeError ← Error (ECONNREFUSED)");
+  });
+
+  it("one level of cause only, and a cause that is not an Error is ignored", () => {
+    const deep = new Error("a", {
+      cause: new RangeError("b", { cause: new SyntaxError(ADDRESS) }),
+    });
+    expect(errorText(deep)).toBe("Error ← RangeError");
+    expect(errorText(new Error("a", { cause: ADDRESS }))).toBe("Error");
+  });
+
+  it("a safe class keeps its message alone, without code nor cause", () => {
+    const usage = Object.assign(new UsageError("--max attend un nombre"), { code: "EUSAGE" });
+    expect(errorText(usage)).toBe("--max attend un nombre");
+  });
+});

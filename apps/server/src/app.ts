@@ -9,7 +9,9 @@
 import { type CtoReply, CtoServiceError, QuestionError, validQuestion } from "@cenacle/cto";
 import { ProposalError } from "@cenacle/journal";
 import { type Context, Hono } from "hono";
+import { HTTPException } from "hono/http-exception";
 import { streamSSE } from "hono/streaming";
+import { type ApiLog, internalLine, streamLine } from "./api-log.ts";
 import { type GuardConfig, hostGuard, tokenGuard } from "./guard.ts";
 import type { ProposalsService } from "./proposals-service.ts";
 import { mountProspection } from "./prospection-routes.ts";
@@ -30,6 +32,8 @@ export interface AppDeps {
   readonly askCto?: (question: string) => Promise<CtoReply>;
   /** The board of missions (ADR-0032); absent, its routes say so. */
   readonly prospection?: ProspectionService;
+  /** Where a 500 or a broken stream is said in one line (api-log.ts); the console by default. */
+  readonly log?: ApiLog;
 }
 
 /** What the page is told when the CTO cannot answer: a status and a short reason. */
@@ -51,6 +55,14 @@ function ctoFailure(error: unknown): { status: 400 | 502 | 503 | 504; message: s
 
 export function createApp(deps: AppDeps): Hono {
   const app = new Hono();
+  const log = deps.log ?? ((line: string) => console.error(line));
+  // Whatever a route did not catch: one line, then the same silent 500.
+  app.onError((error, c) => {
+    // An answer thrown on purpose (a 401, a body too large) keeps its own status.
+    if (error instanceof HTTPException) return error.getResponse();
+    log(internalLine(c, error));
+    return c.json({ error: "internal error" }, 500);
+  });
   app.use("/api/*", hostGuard(deps.guard));
   app.use("/api/proposals", tokenGuard(deps.guard));
   app.use("/api/proposals/*", tokenGuard(deps.guard));
@@ -59,7 +71,7 @@ export function createApp(deps: AppDeps): Hono {
   app.use("/api/prospection/*", tokenGuard(deps.guard));
 
   app.get("/api/health", (c) => c.json({ ok: true }));
-  mountProspection(app, deps.prospection);
+  mountProspection(app, deps.prospection, log);
 
   // The whole team on one stream (?agents=iris,cto,…): one connection, not one per card.
   app.get("/api/agents/stream", (c) => {
@@ -71,33 +83,45 @@ export function createApp(deps: AppDeps): Hono {
     ) {
       return c.json({ error: "unknown agent" }, 404);
     }
-    return streamSSE(c, async (stream) => {
-      await watchAgents({
-        agents,
-        readAfter: deps.readAfter,
-        send: (message) => stream.writeSSE({ event: message.kind, data: JSON.stringify(message) }),
-        sleep: async (ms) => {
-          await stream.sleep(ms);
-        },
-        isClosed: () => stream.aborted || stream.closed,
-      });
-    });
+    const broken = async (error: Error) => log(streamLine(c, error));
+    return streamSSE(
+      c,
+      async (stream) => {
+        await watchAgents({
+          agents,
+          readAfter: deps.readAfter,
+          send: (message) =>
+            stream.writeSSE({ event: message.kind, data: JSON.stringify(message) }),
+          sleep: async (ms) => {
+            await stream.sleep(ms);
+          },
+          isClosed: () => stream.aborted || stream.closed,
+        });
+      },
+      broken,
+    );
   });
 
   app.get("/api/agents/:agent/stream", (c) => {
     const agent = c.req.param("agent");
     if (!AGENT_RULE.test(agent)) return c.json({ error: "unknown agent" }, 404);
-    return streamSSE(c, async (stream) => {
-      await watchAgent({
-        agent,
-        readAfter: deps.readAfter,
-        send: (message) => stream.writeSSE({ event: message.kind, data: JSON.stringify(message) }),
-        sleep: async (ms) => {
-          await stream.sleep(ms);
-        },
-        isClosed: () => stream.aborted || stream.closed,
-      });
-    });
+    const broken = async (error: Error) => log(streamLine(c, error));
+    return streamSSE(
+      c,
+      async (stream) => {
+        await watchAgent({
+          agent,
+          readAfter: deps.readAfter,
+          send: (message) =>
+            stream.writeSSE({ event: message.kind, data: JSON.stringify(message) }),
+          sleep: async (ms) => {
+            await stream.sleep(ms);
+          },
+          isClosed: () => stream.aborted || stream.closed,
+        });
+      },
+      broken,
+    );
   });
 
   app.get("/api/proposals", async (c) => c.json({ proposals: await deps.proposals.list() }));
@@ -122,6 +146,7 @@ export function createApp(deps: AppDeps): Hono {
       } catch (error) {
         // A refused transition is expected (double click, delay over…): say why.
         if (error instanceof ProposalError) return c.json({ error: error.message }, 409);
+        log(internalLine(c, error));
         return c.json({ error: "internal error" }, 500);
       }
       return c.json({ ok: true });
@@ -164,6 +189,7 @@ export function createApp(deps: AppDeps): Hono {
       return c.json({ reply: await deps.askCto(question) });
     } catch (error) {
       const failure = ctoFailure(error);
+      if (failure.status === 502) log(internalLine(c, error));
       return c.json({ error: failure.message }, failure.status);
     }
   });
