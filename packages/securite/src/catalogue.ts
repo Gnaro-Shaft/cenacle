@@ -25,7 +25,7 @@ const LABEL = /^[A-Za-z0-9 ._()+-]{1,100}$/;
 const HOST = /^[a-z0-9][a-z0-9-]{0,39}$/;
 const MOUNT = /^\/[A-Za-z0-9._/-]{0,100}$/;
 const PORT = /^(?:[a-z]{2,10}\/)?(?:tcp|udp)\/(\d{1,5}|\*)$/;
-/** "Sur homeserv01 : " — where a server command is to be run, the name checked. */
+/** "Sur srv-a : " — where a server command is to be run, the name checked. */
 const on = (p: Readonly<Record<string, string>>) =>
   p.host !== undefined && HOST.test(p.host) ? `Sur ${p.host} : ` : "Sur la machine : ";
 const quoted = (s: string) => `"${s}"`;
