@@ -10,7 +10,7 @@ npm run service -- status all        # chargé ? pid ? dernier code de sortie ?
 npm run service -- uninstall all     # les arrête et les retire
 ```
 
-On peut viser un seul programme : `iris`, `server`, `bot`, `web` ou `cto` à la place de `all`. `npm run iris:service -- install` fait la même chose pour Iris seule.
+On peut viser un seul programme : `iris`, `server`, `bot` ou `cto` à la place de `all`. La page n'est plus un programme à part : le serveur la compile à son démarrage et la sert lui-même (ADR-0037). `npm run iris:service -- install` fait la même chose pour Iris seule.
 
 Avant d'installer, arrête ce que tu as lancé à la main (Ctrl+C). Si tu l'oublies, rien de grave : Iris, le serveur, le bot et le CTO n'acceptent qu'un exemplaire à la fois. Celui de launchd réessaie toutes les 30 s, puis prend le relais quand l'autre s'arrête.
 
@@ -26,7 +26,7 @@ Le serveur ne montre plus le lien de la page dans la console. Il l'écrit dans u
 
 ## Les journaux de la console
 
-`~/Library/Logs/cenacle/<programme>.log` : des lignes d'état et des noms d'erreur, jamais un contenu de mail ni le jeton de la page. Chaque ligne écrite par nos programmes commence par la date et l'heure (pas celles qu'une bibliothèque écrit directement, comme vite). Un plantage tient en une ligne (`💥 plantage : TypeError (ECONNRESET)`), sans message ni trace : ils peuvent citer une adresse ou le chemin de ton dossier. Chaque journal est vidé au démarrage au-delà de 1 Mo.
+`~/Library/Logs/cenacle/<programme>.log` : des lignes d'état et des noms d'erreur, jamais un contenu de mail ni le jeton de la page. Chaque ligne écrite par nos programmes commence par la date et l'heure (pas celles qu'une bibliothèque écrit directement, comme la compilation de la page par vite). Un plantage tient en une ligne (`💥 plantage : TypeError (ECONNRESET)`), sans message ni trace : ils peuvent citer une adresse ou le chemin de ton dossier. Chaque journal est vidé au démarrage au-delà de 1 Mo.
 
 ```bash
 tail -f ~/Library/Logs/cenacle/iris.log

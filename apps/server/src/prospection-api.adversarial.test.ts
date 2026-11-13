@@ -42,8 +42,8 @@ function setup(over: Partial<ProspectionService> = {}) {
 }
 
 const PAGE = {
-  host: "127.0.0.1:5173",
-  origin: "http://127.0.0.1:5173",
+  host: "127.0.0.1:8787",
+  origin: "http://127.0.0.1:8787",
   authorization: `Bearer ${PAGE_PASS}`,
   "content-type": "application/json",
 };
@@ -85,7 +85,7 @@ describe("board API — who may act", () => {
       { ...PAGE, "content-type": "application/x-www-form-urlencoded" },
       415,
     ],
-    ["another host (DNS rebinding)", { ...PAGE, host: "attacker.test:5173" }, 421],
+    ["another host (DNS rebinding)", { ...PAGE, host: "attacker.test:8787" }, 421],
   ])("refuses %s, before the service", async (_label, headers, status) => {
     for (const path of [MOVE, "/api/prospection/cartes"]) {
       const { app, calls } = setup();

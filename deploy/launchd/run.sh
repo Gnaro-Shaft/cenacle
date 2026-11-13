@@ -1,5 +1,5 @@
 #!/bin/sh
-# Starts a Cénacle program under launchd (ADR-0018, ADR-0019). Usage: run.sh iris|server|bot|web|cto|veille|securite|operateur|prospection
+# Starts a Cénacle program under launchd (ADR-0018, ADR-0019). Usage: run.sh iris|server|bot|cto|veille|securite|operateur|prospection
 # The repository is found from this file's place: no personal path is written
 # anywhere in the repository. CENACLE_LOG (set by the installer) is the console
 # log: emptied at start beyond 1 MB, so it never grows without bound.
@@ -20,6 +20,12 @@ iris)
   exec node --env-file=.env --env-file-if-exists=.env.mail --env-file-if-exists=.env.telegram --env-file-if-exists=.env.sentinel apps/iris/src/main.ts
   ;;
 server)
+  # The page is built first, from these very sources, and served by the
+  # server itself (ADR-0037): never two versions. A failed build stops here.
+  ./node_modules/.bin/vite build apps/web --logLevel warn
+  # Never the dev mode under launchd, whatever a .env says: --env-file does
+  # not override a variable already set.
+  export CENACLE_WEB_DEV=0
   # Same files as `npm run server`.
   exec node --env-file=.env --env-file-if-exists=.env.mail --env-file-if-exists=.env.page apps/server/src/main.ts
   ;;
@@ -46,11 +52,6 @@ securite)
 prospection)
   # Same files as `npm run prospection`: the mailbox, read-only, and Telegram (ADR-0032).
   exec node --env-file=.env --env-file-if-exists=.env.mail --env-file-if-exists=.env.telegram apps/prospection/src/main.ts
-  ;;
-web)
-  # Same as `npm run web` (the "dev" script of apps/web: vite), without npm in between.
-  cd apps/web
-  exec ../../node_modules/.bin/vite
   ;;
 *)
   echo "run.sh: unknown program ${1:-}" >&2

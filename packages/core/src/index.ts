@@ -95,6 +95,7 @@ export {
 } from "./heartbeat.ts";
 export { type MailCounts, MailCountsError } from "./mail-counts.ts";
 export { type MailForModel, MODEL_FIELD_MAX, MODEL_TEXT_MAX } from "./mail-for-model.ts";
+export { pageSourcesHash, SOURCES_STAMP } from "./page-sources.ts";
 export {
   COLLECT_EVERY_MINUTES,
   collectDue,

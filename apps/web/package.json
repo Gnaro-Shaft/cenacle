@@ -10,7 +10,8 @@
     "react-dom": "19.3.1"
   },
   "scripts": {
-    "dev": "vite"
+    "dev": "vite",
+    "build": "vite build"
   },
   "devDependencies": {
     "@types/react": "19.3.0",

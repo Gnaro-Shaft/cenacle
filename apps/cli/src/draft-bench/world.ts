@@ -192,8 +192,8 @@ export interface World {
 }
 
 export const pageHeaders = (token: string): Record<string, string> => ({
-  host: "127.0.0.1:5173",
-  origin: "http://127.0.0.1:5173",
+  host: "127.0.0.1:8787",
+  origin: "http://127.0.0.1:8787",
   authorization: `Bearer ${token}`,
   "content-type": "application/json",
 });

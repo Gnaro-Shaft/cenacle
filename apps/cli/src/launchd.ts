@@ -17,7 +17,6 @@ export const PROGRAMS = [
   "iris",
   "server",
   "bot",
-  "web",
   "cto",
   "veille",
   "securite",

@@ -18,15 +18,18 @@ import {
 } from "node:fs";
 import { dirname, join } from "node:path";
 
-/** The only link ever written: the local page, its token in the fragment (never sent to a server). */
-export const PAGE_URL = /^http:\/\/127\.0\.0\.1:5173\/#jeton=[A-Za-z0-9_-]{43}$/;
+/**
+ * The only link ever written: the local page, served by the API on its own
+ * port (ADR-0037), its token in the fragment (never sent to a server).
+ */
+export const PAGE_URL = /^http:\/\/127\.0\.0\.1:[1-9][0-9]{1,4}\/#jeton=[A-Za-z0-9_-]{43}$/;
 
 export function pageUrlPath(home: string): string {
   return join(home, "Library", "Application Support", "cenacle", "page-url");
 }
 
-export function pageUrl(token: string): string {
-  const url = `http://127.0.0.1:5173/#jeton=${token}`;
+export function pageUrl(token: string, port: number): string {
+  const url = `http://127.0.0.1:${port}/#jeton=${token}`;
   if (!PAGE_URL.test(url)) throw new Error("malformed page token");
   return url;
 }

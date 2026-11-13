@@ -37,8 +37,8 @@ function setup() {
 }
 
 const PAGE = {
-  host: "127.0.0.1:5173",
-  origin: "http://127.0.0.1:5173",
+  host: "127.0.0.1:8787",
+  origin: "http://127.0.0.1:8787",
   authorization: `Bearer ${TOKEN}`,
   "content-type": "application/json",
 };
@@ -79,7 +79,7 @@ describe("proposals API — who may act", () => {
       { ...PAGE, "content-type": "application/x-www-form-urlencoded" },
       415,
     ],
-    ["a domain pointed at this machine", { ...PAGE, host: "evil.example:5173" }, 421],
+    ["a domain pointed at this machine", { ...PAGE, host: "evil.example:8787" }, 421],
   ])("refuses %s, before reaching the service", async (_label, headers, status) => {
     const { app, calls } = setup();
     const r = await app.request(
@@ -92,10 +92,10 @@ describe("proposals API — who may act", () => {
 
   it("reading the drafts needs the token too (they are mail content)", async () => {
     const { app } = setup();
-    const r = await app.request("/api/proposals", { headers: { host: "127.0.0.1:5173" } });
+    const r = await app.request("/api/proposals", { headers: { host: "127.0.0.1:8787" } });
     expect(r.status).toBe(401);
     const ok = await app.request("/api/proposals", {
-      headers: { host: "127.0.0.1:5173", authorization: `Bearer ${TOKEN}` },
+      headers: { host: "127.0.0.1:8787", authorization: `Bearer ${TOKEN}` },
     });
     expect(ok.status).toBe(200);
     expect(ok.headers.get("cache-control")).toBe("no-store");

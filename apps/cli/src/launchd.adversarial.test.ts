@@ -218,12 +218,16 @@ describe("the runner", () => {
     expect(branch).toContain(`exec ${script}\n`);
   });
 
-  it("starts the page exactly like `npm run web` (apps/web's dev script: vite)", () => {
-    const web = JSON.parse(readFileSync(join(ROOT, "apps", "web", "package.json"), "utf8"));
-    expect(web.scripts.dev).toBe("vite");
-    expect(readFileSync(RUNNER, "utf8")).toMatch(
-      /^web\)\n\s*#.*\n\s*cd apps\/web\n\s*exec \.\.\/\.\.\/node_modules\/\.bin\/vite\n/m,
-    );
+  it("no page program: the server builds the page first, then serves it (ADR-0037)", () => {
+    const runner = readFileSync(RUNNER, "utf8");
+    expect(runner).not.toMatch(/^web\)$/m);
+    expect(PROGRAMS as readonly string[]).not.toContain("web");
+    const branch = /^server\)\n([\s\S]*?);;/m.exec(runner)?.[1] ?? "";
+    const build = branch.indexOf("./node_modules/.bin/vite build apps/web");
+    expect(build).toBeGreaterThan(-1);
+    expect(build).toBeLessThan(branch.indexOf("exec node"));
+    // The dev mode can never be on under launchd, whatever a .env says.
+    expect(branch).toMatch(/export CENACLE_WEB_DEV=0\n[\s\S]*exec node/);
   });
 
   it("every program has its branch in the runner, and its own plist label", () => {
