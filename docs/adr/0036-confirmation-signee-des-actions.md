@@ -1,6 +1,6 @@
 # ADR-0036 — Ma confirmation d'une action sur un serveur est tenue par construction
 
-**Statut** : proposée (2026-11-13) — à trancher par le responsable ; complète l'ADR-0027 et l'ADR-0035, sur le modèle de l'ADR-0013
+**Statut** : acceptée (2026-11-13) — la signature seule, retenue par le responsable parmi trois options ; complète l'ADR-0027 et l'ADR-0035, sur le modèle de l'ADR-0013
 
 ## Contexte
 
@@ -18,7 +18,7 @@ Ce qui borne le dégât aujourd'hui : l'opérateur revérifie tout avant d'agir 
 
 Qui peut l'écrire : un défaut du code, ou une dépendance compromise, dans n'importe lequel de ces programmes. Les plus exposés lisent du contenu écrit par des inconnus : Iris (les mails), la veille (des flux publics), la prospection (les alertes des plateformes). Aucun modèle n'a d'outil pour écrire en base (règle 1 de la charte) : le risque vient du processus, pas du modèle.
 
-## Décision proposée
+## Décision
 
 **Ma confirmation est signée par le bot, et vérifiée par celui qui exécute.** C'est le mécanisme de l'ADR-0013, appliqué aux gestes confirmés sur Telegram.
 
@@ -46,16 +46,10 @@ Qui peut l'écrire : un défaut du code, ou une dépendance compromise, dans n'i
 - **Rotation de la clé** : même procédure que pour la page, à écrire dans `docs/securite/secrets.md` ; la clé entre dans la sauvegarde chiffrée des secrets.
 - **Travail** : une migration (colonnes de signature, déclencheur des étapes), la signature dans le bot, la vérification dans l'opérateur, une famille de secrets de plus (`.env.bot`), la commande qui tire la paire de clés, les tests. Un jalon ; le second palier (fusion) en est un petit.
 
-## Options à trancher
-
-Le responsable choisit ; ma recommandation est la première.
-
-- **A — La signature seule (proposée ci-dessus).** Elle lie *ce qui* est confirmé (la machine, l'action, les étapes), elle laisse une preuve durable de ma confirmation, et c'est un mécanisme déjà en service et déjà éprouvé pour les mails.
-- **B — Des rôles séparés en base, sans signature.** Un rôle `cenacle_bot`, seul autorisé par déclencheur à passer une ligne à « confirmée » ; un rôle `cenacle_operateur`, seul autorisé à la prendre et à la clore — comme `cenacle_executor` pour l'envoi (migration 009). Aussi fort pour savoir *qui* confirme, et cela empêche en plus les autres programmes d'abîmer ces tables. Mais cela ne lie pas le contenu confirmé sans déclencheurs supplémentaires, cela demande deux mots de passe de plus et un fichier d'environnement par programme, et le propriétaire de la base garde tout pouvoir.
-- **C — La signature, puis les rôles.** A maintenant, B plus tard, quand chaque programme aura son propre rôle en base. C'est ce qu'a fait l'ADR-0013 (la signature en B6, le rôle de l'exécuteur en B7). Ce second temps réglerait aussi les faux événements au journal. C'est le chemin le plus sûr, et le plus long.
-
 ## Alternatives écartées
 
+- **Des rôles séparés en base, sans signature.** Un rôle `cenacle_bot`, seul autorisé par déclencheur à passer une ligne à « confirmée » ; un rôle `cenacle_operateur`, seul autorisé à la prendre et à la clore — comme `cenacle_executor` pour l'envoi (migration 009). Aussi fort pour savoir *qui* confirme, et cela empêcherait en plus les autres programmes d'abîmer ces tables. Mais cela ne lie pas le contenu confirmé sans déclencheurs supplémentaires, cela demande deux mots de passe de plus et un fichier d'environnement par programme, et le propriétaire de la base garde tout pouvoir.
+- **La signature, puis les rôles, en deux temps** (ce qu'a fait l'ADR-0013 : la signature en B6, le rôle de l'exécuteur en B7). **Différé, pas écarté** : le second temps réglerait aussi les faux événements au journal. Il se décidera quand chaque programme aura son propre rôle en base ; ce sera un autre ADR.
 - **Des déclencheurs sans rôle séparé ni signature.** Le rôle applicatif lit le jeton de confirmation dans la table : il satisfait lui-même la condition que le déclencheur vérifierait.
 - **Une signature HMAC partagée** entre le bot et l'opérateur. L'opérateur, qui détient les clés des serveurs, pourrait alors fabriquer une confirmation. Ed25519 ne lui donne que le pouvoir de vérifier.
 - **Chiffrer ou hacher les jetons en base.** Cela corrige la lecture du jeton, pas l'écriture directe de l'état « confirmée ».
