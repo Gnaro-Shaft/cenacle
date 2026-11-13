@@ -110,3 +110,29 @@ describe("gitleaks", () => {
     expect(out.stderr).toContain("gitleaks is not installed");
   });
 });
+
+describe("what the review found (D4)", () => {
+  const LIST = "srv-fictive-01\r\ntailnet-fictif\r\n";
+
+  it("an added line whose text starts with ++ is still read", () => {
+    const r = repo(NOREPLY, LIST);
+    writeFileSync(join(r.dir, "b.txt"), "++ srv-fictive-01\n");
+    r.git("add", "b.txt");
+    expect(r.run().status).toBe(1);
+  });
+
+  it("a file named after a real name is refused, even renamed without a change", () => {
+    const r = repo(NOREPLY, LIST);
+    r.git("mv", "a.txt", "tailnet-fictif.txt");
+    const out = r.run();
+    expect(out.status).toBe(1);
+    expect(out.stderr).toContain("path: tailnet-fictif.txt");
+  });
+
+  it("a list saved with Windows line ends still matches", () => {
+    const r = repo(NOREPLY, LIST);
+    writeFileSync(join(r.dir, "b.txt"), "tailnet-fictif\n");
+    r.git("add", "b.txt");
+    expect(r.run().status).toBe(1);
+  });
+});

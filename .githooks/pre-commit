@@ -20,13 +20,26 @@ esac
 
 names="$(git rev-parse --git-common-dir)/cenacle-real-names"
 if [ -f "$names" ]; then
-  # Comments and blank lines aside; whole words, case ignored, added lines only.
   patterns=$(mktemp)
-  trap 'rm -f "$patterns"' EXIT
-  grep -v '^[[:space:]]*\(#\|$\)' "$names" >"$patterns" || true
+  added=$(mktemp)
+  trap 'rm -f "$patterns" "$added"' EXIT
+  # Comments and blank lines aside, Windows line ends removed.
+  tr -d '\r' <"$names" | grep -v '^[[:space:]]*\(#\|$\)' >"$patterns" || true
   if [ -s "$patterns" ]; then
-    found=$(git diff --cached -U0 --no-color --no-ext-diff |
-      grep '^+' | grep -v '^+++ ' | grep -n -i -w -F -f "$patterns" || true)
+    # What the commit adds: the added lines and the paths of the files it
+    # touches. Fails closed: a diff that cannot be read refuses the commit.
+    if ! git diff --cached -U0 --no-color --no-ext-diff >"$added.diff" ||
+      ! git diff --cached --name-only -z | tr '\0' '\n' >"$added.paths"; then
+      rm -f "$added.diff" "$added.paths"
+      echo "pre-commit: the staged changes could not be read: commit refused." >&2
+      exit 1
+    fi
+    # Only the real header (+++ a/…, b/… or /dev/null) is left out, never a line
+    # whose own text starts with "++".
+    { grep '^+' "$added.diff" | grep -v '^+++ \([ab]/\|/dev/null\)' || true; } >"$added"
+    sed 's/^/path: /' "$added.paths" >>"$added"
+    rm -f "$added.diff" "$added.paths"
+    found=$(grep -n -i -w -F -f "$patterns" "$added" || true)
     if [ -n "$found" ]; then
       echo "pre-commit: a real name of mine (listed in $names) is in the commit:" >&2
       echo "$found" | cut -c1-160 >&2
