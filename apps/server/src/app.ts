@@ -13,6 +13,7 @@ import { HTTPException } from "hono/http-exception";
 import { streamSSE } from "hono/streaming";
 import { type ApiLog, internalLine, streamLine } from "./api-log.ts";
 import { type GuardConfig, hostGuard, tokenGuard } from "./guard.ts";
+import { securityHeaders, servePage } from "./page-files.ts";
 import type { ProposalsService } from "./proposals-service.ts";
 import { mountProspection } from "./prospection-routes.ts";
 import type { ProspectionService } from "./prospection-service.ts";
@@ -32,6 +33,8 @@ export interface AppDeps {
   readonly askCto?: (question: string) => Promise<CtoReply>;
   /** The board of missions (ADR-0032); absent, its routes say so. */
   readonly prospection?: ProspectionService;
+  /** The built page's folder (apps/web/dist), served at / (ADR-0037); absent, only the API. */
+  readonly page?: { readonly dist: string };
   /** Where a 500 or a broken stream is said in one line (api-log.ts); the console by default. */
   readonly log?: ApiLog;
 }
@@ -63,7 +66,9 @@ export function createApp(deps: AppDeps): Hono {
     log(internalLine(c, error));
     return c.json({ error: "internal error" }, 500);
   });
-  app.use("/api/*", hostGuard(deps.guard));
+  // Every answer, page or API: strict headers, and only from this machine's names.
+  app.use("*", securityHeaders);
+  app.use("*", hostGuard(deps.guard));
   app.use("/api/proposals", tokenGuard(deps.guard));
   app.use("/api/proposals/*", tokenGuard(deps.guard));
   app.use("/api/cto", tokenGuard(deps.guard));
@@ -193,6 +198,9 @@ export function createApp(deps: AppDeps): Hono {
       return c.json({ error: failure.message }, failure.status);
     }
   });
+
+  // Last: the page's files, by exact path under dist (page-files.ts).
+  if (deps.page !== undefined) app.use("*", servePage(deps.page.dist));
 
   return app;
 }

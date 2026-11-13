@@ -6,6 +6,7 @@
  * private key of .env.page, loaded by this program only (ADR-0013).
  */
 import { homedir } from "node:os";
+import { join } from "node:path";
 import { privateKeyFromEnv, refuseForeignSecrets } from "@cenacle/core";
 import { askCtoService, ctoSocketPath } from "@cenacle/cto";
 import {
@@ -33,12 +34,22 @@ import { loadProspectionConfig } from "@cenacle/prospection";
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
 import { defaultGuardConfig, newToken } from "./guard.ts";
+import { builtPageProblem } from "./page-files.ts";
 import { pageUrl, pageUrlPath, removePageUrl, writePageUrl } from "./page-url.ts";
 import { createProposalsService } from "./proposals-service.ts";
 import { createProspectionService } from "./prospection-service.ts";
 
 const HOST = "127.0.0.1";
 const PORT = Number(process.env.CENACLE_API_PORT ?? 8787);
+// The built page, served here (ADR-0037); CENACLE_WEB_DEV=1: Vite's dev server serves it instead.
+const WEB_DEV = process.env.CENACLE_WEB_DEV === "1";
+const WEB_DIR = join(import.meta.dirname, "..", "..", "web");
+const pageProblem = WEB_DEV ? null : builtPageProblem(WEB_DIR);
+if (pageProblem !== null) {
+  // Never two versions: a page built from other sources is not served (point 3).
+  console.error(`🛑 ${pageProblem} — le serveur ne démarre pas.`);
+  process.exit(1);
+}
 
 const sql = await waitForDatabase(connectOrQuit());
 const journal = createJournal(sql);
@@ -71,7 +82,8 @@ const acceptKey = privateKeyFromEnv();
 
 const app = createApp({
   readAfter: (agent, afterId) => journal.read({ agent, afterId, limit: 1000 }),
-  guard: defaultGuardConfig(token, PORT),
+  guard: defaultGuardConfig(token, PORT, { devPage: WEB_DEV }),
+  ...(WEB_DEV ? {} : { page: { dist: join(WEB_DIR, "dist") } }),
   prospection: createProspectionService({
     store: board,
     config: () => loadProspectionConfig(),
@@ -95,7 +107,7 @@ const app = createApp({
 });
 
 const linkPath = pageUrlPath(homedir());
-const link = pageUrl(token);
+const link = pageUrl(token, WEB_DEV ? 5173 : PORT);
 const server = serve({ fetch: app.fetch, hostname: HOST, port: PORT }, (info) => {
   // Written only once the port is ours: a server that failed to listen never
   // replaces the link of the one that runs.

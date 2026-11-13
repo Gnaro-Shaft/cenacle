@@ -23,13 +23,23 @@ export interface GuardConfig {
 export const newToken = (): string => randomBytes(32).toString("base64url");
 
 const API_PORT = 8787;
-const WEB_PORT = 5173;
-export function defaultGuardConfig(token: string, apiPort = API_PORT): GuardConfig {
+const WEB_DEV_PORT = 5173;
+/**
+ * The page is served by the API itself (ADR-0037): its origin is the API's.
+ * The Vite dev server's port is accepted only when I work on the page by hand
+ * (`devPage`, CENACLE_WEB_DEV=1), never by default.
+ */
+export function defaultGuardConfig(
+  token: string,
+  apiPort = API_PORT,
+  options: { readonly devPage?: boolean } = {},
+): GuardConfig {
   const names = ["127.0.0.1", "localhost"];
+  const ports = options.devPage === true ? [apiPort, WEB_DEV_PORT] : [apiPort];
   return {
     token,
-    hosts: names.flatMap((n) => [`${n}:${apiPort}`, `${n}:${WEB_PORT}`]),
-    origins: names.map((n) => `http://${n}:${WEB_PORT}`),
+    hosts: names.flatMap((n) => ports.map((p) => `${n}:${p}`)),
+    origins: names.flatMap((n) => ports.map((p) => `http://${n}:${p}`)),
   };
 }
 

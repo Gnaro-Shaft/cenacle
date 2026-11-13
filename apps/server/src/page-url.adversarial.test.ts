@@ -34,7 +34,7 @@ beforeEach(() => {
 
 describe("the page's link", () => {
   it("written 0600 in a 0700 folder, atomically, and read back", () => {
-    const url = pageUrl(newToken());
+    const url = pageUrl(newToken(), 8787);
     writePageUrl(path, url);
     expect(statSync(path).mode & 0o777).toBe(0o600);
     expect(statSync(dirname(path)).mode & 0o777).toBe(0o700);
@@ -43,15 +43,15 @@ describe("the page's link", () => {
   });
 
   it("refuses a malformed token or link: nothing else is ever written", () => {
-    expect(() => pageUrl("short")).toThrow();
-    expect(() => pageUrl(`${newToken()}&next=https://evil.example`)).toThrow();
+    expect(() => pageUrl("short", 8787)).toThrow();
+    expect(() => pageUrl(`${newToken()}&next=https://evil.example`, 8787)).toThrow();
     expect(() => writePageUrl(path, "https://evil.example/#jeton=x")).toThrow();
     expect(existsSync(path)).toBe(false);
   });
 
   it("refuses to read: missing, readable by others, not mine, a symlink, too long, malformed", () => {
     expect(() => readPageUrl(path, uid)).toThrow(PageUrlError);
-    const url = pageUrl(newToken());
+    const url = pageUrl(newToken(), 8787);
     writePageUrl(path, url);
     chmodSync(path, 0o644);
     expect(() => readPageUrl(path, uid)).toThrow(/lisible par d'autres/);
@@ -67,8 +67,8 @@ describe("the page's link", () => {
   });
 
   it("removed only if still ours: a newer server's link is left alone", () => {
-    const mine = pageUrl(newToken());
-    const newer = pageUrl(newToken());
+    const mine = pageUrl(newToken(), 8787);
+    const newer = pageUrl(newToken(), 8787);
     writePageUrl(path, newer);
     removePageUrl(path, mine);
     expect(readPageUrl(path, uid)).toBe(newer);
@@ -83,9 +83,12 @@ describe("the page's link", () => {
     expect(printed.length).toBeGreaterThan(0);
     for (const args of printed) {
       expect(args).not.toMatch(/token|link|jeton=/i);
-      // Only the host and the port are ever interpolated.
+      // Only the host, the port, and why the built page cannot be served
+      // (builtPageProblem: fixed words of the code, ADR-0037) are interpolated.
       const interpolated = [...args.matchAll(/\$\{([^}]*)\}/g)].map((m) => m[1]);
-      for (const name of interpolated) expect(["HOST", "info.port"]).toContain(name);
+      for (const name of interpolated) {
+        expect(["HOST", "info.port", "pageProblem"]).toContain(name);
+      }
     }
   });
 });

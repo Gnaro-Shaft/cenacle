@@ -47,8 +47,8 @@ function setup(askCto?: (q: string) => Promise<CtoReply>) {
 }
 
 const PAGE: Record<string, string> = {
-  host: "127.0.0.1:5173",
-  origin: "http://127.0.0.1:5173",
+  host: "127.0.0.1:8787",
+  origin: "http://127.0.0.1:8787",
   authorization: `Bearer ${TOKEN}`,
   "content-type": "application/json",
 };
@@ -70,7 +70,7 @@ describe("POST /api/cto", () => {
     ["a wrong token", { ...PAGE, authorization: "Bearer nope" }, 401],
     ["another origin", { ...PAGE, origin: "https://evil.example" }, 403],
     ["not JSON", { ...PAGE, "content-type": "text/plain" }, 415],
-    ["another host (DNS rebinding)", { ...PAGE, host: "evil.example:5173" }, 421],
+    ["another host (DNS rebinding)", { ...PAGE, host: "evil.example:8787" }, 421],
   ])("refused with %s, before the CTO", async (_, headers, status) => {
     const { app, asked } = setup(async () => answer);
     const response = await post(app, JSON.stringify({ question: "q" }), headers);

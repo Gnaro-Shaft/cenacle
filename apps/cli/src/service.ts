@@ -26,9 +26,8 @@ refuseForeignSecrets("L'installeur des services", []);
 
 const NAMES: Record<Program, string> = {
   iris: "Iris",
-  server: "Le serveur de la page",
+  server: "Le serveur et la page",
   bot: "Le bot Telegram",
-  web: "La page",
   cto: "Le CTO",
   veille: "La veille du CTO",
   securite: "L'agent sécurité",

@@ -34,7 +34,7 @@ export async function replay(ctx: BenchContext): Promise<Check[]> {
     ["sans jeton", { ...own, authorization: "" }, 401],
     ["depuis une autre page", { ...own, origin: "http://evil.example" }, 403],
     ["sans origine", noOrigin, 403],
-    ["un autre nom d'hôte (DNS rebinding)", { ...own, host: "evil.example:5173" }, 421],
+    ["un autre nom d'hôte (DNS rebinding)", { ...own, host: "evil.example:8787" }, 421],
     ["un simple formulaire", { ...own, "content-type": "text/plain" }, 415],
   ];
   for (const [label, headers, status] of tries) {

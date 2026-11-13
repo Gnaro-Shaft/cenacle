@@ -13,8 +13,8 @@ const ADDRESS = "claire@client.example";
 const leak = () =>
   Object.assign(new Error(`connect ${ADDRESS} at /Users/x`), { code: "ECONNREFUSED" });
 const PAGE = {
-  host: "127.0.0.1:5173",
-  origin: "http://127.0.0.1:5173",
+  host: "127.0.0.1:8787",
+  origin: "http://127.0.0.1:8787",
   authorization: `Bearer ${TOKEN}`,
   "content-type": "application/json",
 };
@@ -94,7 +94,7 @@ describe("a 500 is said in one line", () => {
 
   it("a refusal the code wrote (409) and a refused caller (401) leave nothing", async () => {
     const { app, lines } = setup();
-    await app.request("/api/proposals", { headers: { host: "127.0.0.1:5173" } });
+    await app.request("/api/proposals", { headers: { host: "127.0.0.1:8787" } });
     expect(lines).toEqual([]);
   });
 });
@@ -107,7 +107,7 @@ describe("a broken stream is said in one line", () => {
       },
     });
     const r = await app.request("/api/agents/stream?agents=iris", {
-      headers: { host: "127.0.0.1:5173" },
+      headers: { host: "127.0.0.1:8787" },
     });
     await r.text();
     expect(lines).toEqual(["⚠ API flux /api/agents/stream interrompu : Error (ECONNREFUSED)"]);
@@ -121,7 +121,7 @@ describe("the last resort keeps an answer thrown on purpose", () => {
     app.get("/api/thrown", () => {
       throw new HTTPException(418, { message: "teapot" });
     });
-    const r = await app.request("/api/thrown", { headers: { host: "127.0.0.1:5173" } });
+    const r = await app.request("/api/thrown", { headers: { host: "127.0.0.1:8787" } });
     expect(r.status).toBe(418);
     expect(lines).toEqual([]);
   });
