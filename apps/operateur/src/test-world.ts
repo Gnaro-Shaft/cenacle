@@ -31,6 +31,7 @@ export function world(over: Partial<OperatorDeps> = {}, hosts: string[] = ["vps-
     action: "services",
     state: "confirmee",
     requestedAt: NOW,
+    confirmedAt: new Date(NOW.getTime() - MIN),
     finishedAt: null,
     exitCode: null,
     refusal: null,

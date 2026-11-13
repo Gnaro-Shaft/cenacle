@@ -46,6 +46,8 @@ describe("my confirmation", () => {
     if (r === null) throw new Error("no request");
     expect(r.token).toMatch(/^[0-9a-f]{16}$/);
     expect(await actions.confirm(r.id, r.token, new Date(T0.getTime() + 119 * S))).toBe("done");
+    // The instant of my confirmation is kept: the operator bounds its validity on it.
+    expect((await actions.get(r.id))?.confirmedAt?.getTime()).toBe(T0.getTime() + 119 * S);
     expect(await state(r.id)).toBe("confirmee");
     expect(await actions.confirm(r.id, r.token, new Date(T0.getTime() + 120 * S))).toBe("already");
   });
