@@ -43,6 +43,8 @@ export interface StoredServerAction {
   /** What Legion counted before the action and after it (services, updates), when it counts. */
   readonly beforeCount: number | null;
   readonly afterCount: number | null;
+  /** The bot's signature of my confirmation (ADR-0036); null for a plan's step, signed with its plan. */
+  readonly confirmSig: string | null;
 }
 
 /** How long a confirmation stays possible (revised 2026-10-11, from 60 seconds). */
@@ -82,9 +84,10 @@ interface Row {
   verified: Verified | null;
   before_count: number | null;
   after_count: number | null;
+  confirm_sig: string | null;
 }
 const COLUMNS =
-  "id, finding_id, plan_id, host, action, state, requested_at, confirmed_at, finished_at, exit_code, refusal, verified, before_count, after_count";
+  "id, finding_id, plan_id, host, action, state, requested_at, confirmed_at, finished_at, exit_code, refusal, verified, before_count, after_count, confirm_sig";
 const toAction = (r: Row): StoredServerAction => ({
   id: Number(r.id),
   findingId: r.finding_id === null ? null : Number(r.finding_id),
@@ -100,6 +103,7 @@ const toAction = (r: Row): StoredServerAction => ({
   verified: r.verified,
   beforeCount: r.before_count,
   afterCount: r.after_count,
+  confirmSig: r.confirm_sig,
 });
 
 export function createServeurActions(sql: Sql) {
@@ -129,15 +133,39 @@ export function createServeurActions(sql: Sql) {
       return rows[0] === undefined ? null : toAction(rows[0]);
     },
 
-    /** My confirmation: only with its token, only within its 2 minutes, only once. */
-    async confirm(id: number, token: string, now: Date): Promise<ConfirmOutcome> {
+    /**
+     * My confirmation: only with its token, only within its 2 minutes, only
+     * once. `sign` is the bot's signature of it (ADR-0036): made on the row
+     * locked for this confirmation, as it will read once confirmed, and
+     * written with it — both or neither. A signature that cannot be made
+     * (it throws) confirms nothing.
+     */
+    async confirm(
+      id: number,
+      token: string,
+      now: Date,
+      sign?: (confirmed: StoredServerAction) => string,
+    ): Promise<ConfirmOutcome> {
       if (!TOKEN.test(token)) return "stale";
-      const done = await sql`
-        update serveur_actions
-        set state = 'confirmee', confirmed_at = ${now}, confirm_token = null
-        where id = ${id} and confirm_token = ${token} and state = 'demandee'
-          and confirm_until >= ${now}`;
-      if (done.count === 1) return "done";
+      const done = await sql.begin(async (tx) => {
+        const [row] = await tx<Row[]>`
+          select ${tx.unsafe(COLUMNS)} from serveur_actions
+          where id = ${id} and confirm_token = ${token} and state = 'demandee'
+            and confirm_until >= ${now}
+          for update`;
+        if (row === undefined) return false;
+        const signature =
+          sign === undefined
+            ? null
+            : sign({ ...toAction(row), state: "confirmee", confirmedAt: now });
+        await tx`
+          update serveur_actions
+          set state = 'confirmee', confirmed_at = ${now}, confirm_token = null,
+              confirm_sig = ${signature}
+          where id = ${id}`;
+        return true;
+      });
+      if (done) return "done";
       const [row] = await sql<{ state: ServerActionState; confirm_token: string | null }[]>`
         select state, confirm_token from serveur_actions where id = ${id}`;
       if (row === undefined) return "stale";

@@ -38,6 +38,7 @@ export function world(over: Partial<OperatorDeps> = {}, hosts: string[] = ["vps-
     verified: null,
     beforeCount: null,
     afterCount: null,
+    confirmSig: null,
     told: true,
   }));
   const calls: string[][] = [];

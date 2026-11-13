@@ -7,12 +7,13 @@
 
 | Fichier | Contient | Chargé par |
 |---|---|---|
-| `.env` | Ce qui n'est pas secret (ports, modèle, mesure, clé publique de la page, identifiant Telegram autorisé) et le mot de passe applicatif de la base | Tous |
+| `.env` | Ce qui n'est pas secret (ports, modèle, mesure, clé publique de la page, clé publique du bot, identifiant Telegram autorisé) et le mot de passe applicatif de la base | Tous |
 | `.env.owner` | Le mot de passe du **propriétaire** de la base : il peut tout défaire (déclencheurs, rôles) | `npm run db:migrate`, les tests, Docker Compose |
 | `.env.mail` | Le mot de passe de la boîte, et `CENACLE_MAIL_KEY` (clés HMAC des adresses) | Iris, la page, l'exécuteur, les commandes de messagerie, Docker Compose |
 | `.env.telegram` | Le jeton du bot | Iris, le bot, la veille du CTO, l'agent sécurité |
 | `.env.obs` | L'administrateur de Grafana | Docker Compose |
 | `.env.page` | La clé privée de la page (ADR-0013) | La page seule |
+| `.env.bot` | La clé privée du bot, qui signera ma confirmation d'une action sur un serveur (ADR-0036) | Personne encore : le bot seul, dès qu'il signera (jalon suivant) |
 | `.env.executor` | Le mot de passe du rôle de l'exécuteur (ADR-0013) | L'exécuteur, les migrations, les tests |
 | `.env.sentinel` | Le jeton partagé avec la sentinelle (S2), qui authentifie les battements ; le VPS en garde la copie dans `/etc/cenacle-sentinel.env`, lisible par root seul | Iris, l'exécuteur |
 
@@ -51,6 +52,7 @@ npm run secrets:restore -- --from /Volumes/CLE/cenacle-secrets [--into <dossier>
 Ce que la perte coûterait sans sauvegarde :
 - `CENACLE_MAIL_KEY` : la mémoire des mails devient illisible ; il faut la vider (elle se relit) et la **liste d'opposition** (C3) devient inutilisable : les personnes opposées seraient relues. C'est la perte la plus grave.
 - La clé privée de la page : les acceptations pas encore envoyées échouent ; en tirer une nouvelle (`npm run keys:accept`).
+- La clé privée du bot (ADR-0036) : supprimer `.env.bot`, en tirer une nouvelle (`npm run keys:confirm`), recopier la clé publique affichée dans `.env`, redémarrer le bot. Une fois la vérification en service, les confirmations pas encore exécutées seront refusées.
 - Les mots de passe de la base : se remettent par une migration ; celui de la boîte, chez l'hébergeur.
 
 ## La base de Cénacle n'est pas sauvegardée (décidé le 04/10), sauf la liste d'opposition

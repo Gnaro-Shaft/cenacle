@@ -8,7 +8,7 @@
  * nothing.
  */
 import { randomBytes } from "node:crypto";
-import type { Sql } from "postgres";
+import type { Sql, TransactionSql } from "postgres";
 import type { ServerAction } from "./serveur-actions.ts";
 
 export type PlanState =
@@ -48,6 +48,8 @@ export interface StoredPlan {
   readonly createdAt: Date;
   readonly confirmedAt: Date | null;
   readonly messageId: number | null;
+  /** The bot's signature of my confirmation, steps included (ADR-0036). */
+  readonly confirmSig: string | null;
   readonly steps: readonly PlanStep[];
 }
 export interface NewStep {
@@ -74,6 +76,7 @@ interface PlanRow {
   created_at: Date;
   confirmed_at: Date | null;
   message_id: string | null;
+  confirm_sig: string | null;
 }
 interface StepRow {
   id: string;
@@ -86,10 +89,16 @@ interface StepRow {
   reason: string | null;
 }
 
+const PLAN_COLUMNS = "id, state, created_at, confirmed_at, message_id, confirm_sig";
+
 export function createPlanStore(sql: Sql) {
-  async function load(row: PlanRow | undefined): Promise<StoredPlan | null> {
+  /** The plan with its steps, read on `db`: the pool, or the transaction that holds them. */
+  async function load(
+    row: PlanRow | undefined,
+    db: Sql | TransactionSql = sql,
+  ): Promise<StoredPlan | null> {
     if (row === undefined) return null;
-    const steps = await sql<StepRow[]>`
+    const steps = await db<StepRow[]>`
       select id, position, host, action, conditional, state, serveur_action_id, reason
       from maintenance_etapes where plan_id = ${row.id} order by position`;
     return {
@@ -98,6 +107,7 @@ export function createPlanStore(sql: Sql) {
       createdAt: row.created_at,
       confirmedAt: row.confirmed_at,
       messageId: row.message_id === null ? null : Number(row.message_id),
+      confirmSig: row.confirm_sig,
       steps: steps.map((s) => ({
         id: Number(s.id),
         position: s.position,
@@ -147,13 +157,19 @@ export function createPlanStore(sql: Sql) {
       action: "redemarrer" | null,
     ): Promise<boolean> {
       if (!TOKEN.test(token)) return false;
-      const done = await sql`
-        update maintenance_etapes e set state = 'retiree'
-        from maintenance_plans p
-        where e.plan_id = p.id and p.id = ${id} and p.button_token = ${token}
-          and p.state in ('proposee', 'a_confirmer') and e.host = ${host} and e.state = 'attente'
-          and (${action}::text is null or e.action = ${action})`;
-      return done.count > 0;
+      try {
+        const done = await sql`
+          update maintenance_etapes e set state = 'retiree'
+          from maintenance_plans p
+          where e.plan_id = p.id and p.id = ${id} and p.button_token = ${token}
+            and p.state in ('proposee', 'a_confirmer') and e.host = ${host} and e.state = 'attente'
+            and (${action}::text is null or e.action = ${action})`;
+        return done.count > 0;
+      } catch (error) {
+        // The tap landed as I confirmed: the database froze the steps (033). Nothing removed.
+        if ((error as { code?: string }).code === "42501") return false;
+        throw error;
+      }
     },
 
     /** "Valider": the single-use confirmation token, valid 2 minutes; null if nothing is left to do. */
@@ -169,16 +185,44 @@ export function createPlanStore(sql: Sql) {
       return done.count === 1 ? confirm : null;
     },
 
-    /** My confirmation: only with its token, within its 2 minutes, once, and never beside a running plan. */
-    async confirm(id: number, token: string, now: Date): Promise<PlanConfirmOutcome> {
+    /**
+     * My confirmation: only with its token, within its 2 minutes, once, and
+     * never beside a running plan. `sign` is the bot's signature of it
+     * (ADR-0036): made on the plan and its steps locked for this confirmation,
+     * as they will read once confirmed, and written with it — both or neither.
+     * A signature that cannot be made (it throws) confirms nothing.
+     */
+    async confirm(
+      id: number,
+      token: string,
+      now: Date,
+      sign?: (confirmed: StoredPlan) => string,
+    ): Promise<PlanConfirmOutcome> {
       if (!TOKEN.test(token)) return "stale";
       try {
-        const done = await sql`
-          update maintenance_plans
-          set state = 'confirmee', confirmed_at = ${now}, confirm_token = null, button_token = null
-          where id = ${id} and confirm_token = ${token} and state = 'a_confirmer'
-            and confirm_until >= ${now}`;
-        if (done.count === 1) return "done";
+        const done = await sql.begin(async (tx) => {
+          const [row] = await tx<PlanRow[]>`
+            select ${tx.unsafe(PLAN_COLUMNS)} from maintenance_plans
+            where id = ${id} and confirm_token = ${token} and state = 'a_confirmer'
+              and confirm_until >= ${now}
+            for update`;
+          if (row === undefined) return false;
+          let signature: string | null = null;
+          if (sign !== undefined) {
+            // The steps are held too: a "Retirer" tapped at this instant lands before or after, never during.
+            await tx`select id from maintenance_etapes where plan_id = ${id} for update`;
+            const plan = await load({ ...row, state: "confirmee", confirmed_at: now }, tx);
+            if (plan === null) throw new Error("confirm: the plan vanished under its lock");
+            signature = sign(plan);
+          }
+          await tx`
+            update maintenance_plans
+            set state = 'confirmee', confirmed_at = ${now}, confirm_token = null,
+                button_token = null, confirm_sig = ${signature}
+            where id = ${id}`;
+          return true;
+        });
+        if (done) return "done";
       } catch (error) {
         if ((error as { code?: string }).code === "23505") return "busy";
         throw error;
@@ -192,7 +236,7 @@ export function createPlanStore(sql: Sql) {
 
     async get(id: number): Promise<StoredPlan | null> {
       const [row] = await sql<PlanRow[]>`
-        select id, state, created_at, confirmed_at, message_id from maintenance_plans
+        select ${sql.unsafe(PLAN_COLUMNS)} from maintenance_plans
         where id = ${id}`;
       return load(row);
     },
@@ -200,7 +244,7 @@ export function createPlanStore(sql: Sql) {
     /** The plan the operator drives: confirmed or running, at most one. */
     async running(): Promise<StoredPlan | null> {
       const [row] = await sql<PlanRow[]>`
-        select id, state, created_at, confirmed_at, message_id from maintenance_plans
+        select ${sql.unsafe(PLAN_COLUMNS)} from maintenance_plans
         where state in ('confirmee', 'en_cours') limit 1`;
       return load(row);
     },

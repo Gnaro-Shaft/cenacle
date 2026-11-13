@@ -77,6 +77,7 @@ function world(
               ...plan,
               createdAt: NOW,
               confirmedAt: null,
+              confirmSig: null,
               steps: steps.map((s) => ({ ...s })),
             }
           : null,

@@ -5,23 +5,22 @@
  * public key and only verifies; Iris holds neither. The signature covers the
  * proposal, its mail and the SHA-256 of the exact text I accepted, so a
  * proposal accepted without the page, or whose text changed afterwards, is
- * never sent. Ed25519, from node:crypto: no dependency.
+ * never sent. Ed25519, from node:crypto: no dependency (the mechanics are in
+ * ed25519.ts, shared with the bot's confirmation, ADR-0036 — another pair of keys).
  */
+import { createHash, type KeyObject } from "node:crypto";
 import {
-  createHash,
-  createPrivateKey,
-  createPublicKey,
-  generateKeyPairSync,
-  type KeyObject,
-  sign,
-  verify,
-} from "node:crypto";
+  ed25519Key,
+  generateKeys,
+  privateKeyFromDer,
+  publicKeyFromDer,
+  signMessage,
+  verifyMessage,
+} from "./ed25519.ts";
 
 export const PRIVATE_KEY_VAR = "CENACLE_ACCEPT_PRIVATE_KEY";
 export const PUBLIC_KEY_VAR = "CENACLE_ACCEPT_PUBLIC_KEY";
 const VERSION = "cenacle-accept-v1";
-/** An Ed25519 signature: 64 bytes, base64url. */
-const SIGNATURE_RULE = /^[A-Za-z0-9_-]{86}$/;
 
 export class AcceptanceKeyError extends Error {
   constructor(message: string) {
@@ -55,7 +54,7 @@ export function acceptanceMessage(f: AcceptanceFields): string {
 }
 
 export function signAcceptance(privateKey: KeyObject, f: AcceptanceFields): string {
-  return sign(null, Buffer.from(acceptanceMessage(f)), privateKey).toString("base64url");
+  return signMessage(privateKey, acceptanceMessage(f));
 }
 
 /** Never throws: anything but a valid signature of these exact fields is false. */
@@ -64,27 +63,15 @@ export function verifyAcceptance(
   f: AcceptanceFields,
   signature: string | null,
 ): boolean {
-  if (signature === null || !SIGNATURE_RULE.test(signature)) return false;
   try {
-    return verify(
-      null,
-      Buffer.from(acceptanceMessage(f)),
-      publicKey,
-      Buffer.from(signature, "base64url"),
-    );
+    return verifyMessage(publicKey, acceptanceMessage(f), signature);
   } catch {
     return false;
   }
 }
 
 /** A new key pair, as the base64 DER strings the environment holds. */
-export function generateAcceptanceKeys(): { privateKey: string; publicKey: string } {
-  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
-  return {
-    privateKey: privateKey.export({ type: "pkcs8", format: "der" }).toString("base64"),
-    publicKey: publicKey.export({ type: "spki", format: "der" }).toString("base64"),
-  };
-}
+export const generateAcceptanceKeys = generateKeys;
 
 function read(env: NodeJS.ProcessEnv, name: string): Buffer {
   const value = env[name] ?? "";
@@ -96,31 +83,19 @@ function read(env: NodeJS.ProcessEnv, name: string): Buffer {
   return Buffer.from(value, "base64");
 }
 
-function loadKey(name: string, make: () => KeyObject): KeyObject {
-  let key: KeyObject;
-  try {
-    key = make();
-  } catch {
-    throw new AcceptanceKeyError(`${name} is not a valid key`);
-  }
-  if (key.asymmetricKeyType !== "ed25519") {
-    throw new AcceptanceKeyError(`${name} is not an Ed25519 key`);
-  }
-  return key;
-}
+const loadKey = (name: string, make: () => KeyObject): KeyObject =>
+  ed25519Key(name, make, (message) => new AcceptanceKeyError(message));
 
 /** The page's server only. */
 export function privateKeyFromEnv(env: NodeJS.ProcessEnv = process.env): KeyObject {
   const der = read(env, PRIVATE_KEY_VAR);
-  return loadKey(PRIVATE_KEY_VAR, () =>
-    createPrivateKey({ key: der, format: "der", type: "pkcs8" }),
-  );
+  return loadKey(PRIVATE_KEY_VAR, () => privateKeyFromDer(der));
 }
 
 /** The executor. */
 export function publicKeyFromEnv(env: NodeJS.ProcessEnv = process.env): KeyObject {
   const der = read(env, PUBLIC_KEY_VAR);
-  return loadKey(PUBLIC_KEY_VAR, () => createPublicKey({ key: der, format: "der", type: "spki" }));
+  return loadKey(PUBLIC_KEY_VAR, () => publicKeyFromDer(der));
 }
 
 /** A program refuses to start with another program's secret in its environment (ADR-0013). */

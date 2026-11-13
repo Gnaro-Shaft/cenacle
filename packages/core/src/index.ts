@@ -32,6 +32,25 @@ export {
   ProjectionError,
   projectStatus,
 } from "./agent-status.ts";
+export {
+  type ActionConfirmation,
+  actionConfirmationMessage,
+  CONFIRM_PRIVATE_KEY_VAR,
+  CONFIRM_PUBLIC_KEY_VAR,
+  ConfirmationFieldError,
+  ConfirmationKeyError,
+  confirmPrivateKeyFromEnv,
+  confirmPublicKeyFromEnv,
+  generateConfirmationKeys,
+  type PlanConfirmation,
+  type PlanStepFields,
+  planConfirmationMessage,
+  planStepsHash,
+  signActionConfirmation,
+  signPlanConfirmation,
+  verifyActionConfirmation,
+  verifyPlanConfirmation,
+} from "./confirmation.ts";
 export { conversationIds, countConversations, type Threaded } from "./conversations.ts";
 export { errorText, type SafeErrorClass, UsageError } from "./error-text.ts";
 export {
