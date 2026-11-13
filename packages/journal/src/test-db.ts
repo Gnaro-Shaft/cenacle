@@ -13,8 +13,11 @@ import {
   ownerUrlFromEnv,
   requireEnv,
 } from "./migrate.ts";
+import { type PurgeFloors, setPurgeFloors } from "./purge-floors.ts";
 
 export const TEST_DB = "cenacle_test";
+/** The test database's purge floors: the retentions cadre.toml ships. */
+export const TEST_FLOORS: PurgeFloors = { journalJours: 180, propositionsJours: 90 };
 
 /** Turns a raw connection error into an actionable message. */
 function explainConnectionError(error: unknown): string {
@@ -63,6 +66,7 @@ export async function resetTestDatabase(): Promise<void> {
     appPassword: requireEnv("CENACLE_DB_APP_PASSWORD"),
     executorPassword: requireEnv(EXECUTOR_PASSWORD_VAR),
   });
+  await setPurgeFloors(TEST_FLOORS, TEST_DB);
 }
 
 export function appConnection() {
