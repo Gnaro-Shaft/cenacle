@@ -1,6 +1,6 @@
 # ADR-0037 — La page compilée, servie par le serveur de l'API
 
-**Statut** : proposée (2026-11-13) — remplacerait le point 5 de l'ADR-0019
+**Statut** : acceptée (2026-11-13) — remplace le point 5 de l'ADR-0019
 
 ## Contexte
 

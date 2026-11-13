@@ -18,7 +18,7 @@ Trois différences avec Iris :
 2. **Le jeton n'est plus jamais écrit dans la console.** Une fois son port ouvert — jamais avant —, le serveur écrit le lien de la page dans un fichier que je suis seul à pouvoir lire (`~/Library/Application Support/cenacle/page-url`, droits 0600, dossier 0700), par écriture atomique. Il l'efface à l'arrêt propre, s'il est toujours le sien. **`npm run page`** l'ouvre dans le navigateur sans l'afficher, et refuse un fichier absent, qui n'est pas à moi, lisible par d'autres, lien symbolique, trop long, ou dont le contenu n'est pas exactement un lien vers la page locale. Le jeton reste dans le fragment de l'adresse (`#jeton=`), jamais envoyé à un serveur.
 3. **Un seul serveur et un seul bot à la fois**, par le verrou de l'ADR-0018 (`server`, `bot`) : un second sort avec le code 75, et celui de `launchd` prend le relais quand le premier s'arrête. Un serveur refusé n'écrit jamais de lien : il ne remplace pas celui du serveur qui tourne. La page n'a pas de verrou : son port fixe (`strictPort`) suffit.
 4. **Une seule commande** : `npm run service -- install|uninstall|status iris|server|bot|web|all` ; `npm run iris:service` reste, pour Iris seule. Le lanceur charge exactement les fichiers `.env*` des scripts npm de chaque programme ; l'installeur ne charge aucun secret.
-5. **La page tourne avec le serveur de développement Vite** (option A du 09/10), comme lorsque je la lance à la main.
+5. **La page tourne avec le serveur de développement Vite** (option A du 09/10), comme lorsque je la lance à la main. *Remplacé le 2026-11-13 par l'[ADR-0037](0037-page-compilee-servie-par-l-api.md) : la page est compilée et servie par le serveur de l'API.*
 
 ## Conséquences
 
