@@ -22,6 +22,7 @@ import {
   createJournal,
   createVeilleStore,
   holdSingleInstance,
+  waitForDatabase,
 } from "@cenacle/journal";
 import { createTelegramApi } from "@cenacle/telegram/api";
 
@@ -43,7 +44,7 @@ const local = createLocalModels({
   contextWindow: 65_536,
   maxTokens: 8_000,
 });
-const sql = connectOrQuit();
+const sql = await waitForDatabase(connectOrQuit());
 // One veille at a time: one run by hand during the 8 o'clock one sends nothing (75).
 const lockSql = connectOrQuit("lock");
 const instance = await holdSingleInstance(lockSql, "veille");

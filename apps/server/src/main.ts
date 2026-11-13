@@ -16,6 +16,7 @@ import {
   createProposalStore,
   createProspectionStore,
   holdSingleInstance,
+  waitForDatabase,
   watchOrQuit,
 } from "@cenacle/journal";
 import {
@@ -40,7 +41,7 @@ import { createProspectionService } from "./prospection-service.ts";
 const HOST = "127.0.0.1";
 const PORT = Number(process.env.CENACLE_API_PORT ?? 8787);
 
-const sql = connectOrQuit();
+const sql = await waitForDatabase(connectOrQuit());
 const journal = createJournal(sql);
 const store = createProposalStore(sql);
 const board = createProspectionStore(sql);

@@ -19,6 +19,7 @@ import {
   createServeurActions,
   holdSingleInstance,
   latestEventAt,
+  waitForDatabase,
 } from "@cenacle/journal";
 import {
   LEGION_VERDICT_PATH,
@@ -132,7 +133,7 @@ async function pass(sql: ReturnType<typeof connectOrQuit>): Promise<void> {
   }
 }
 
-const sql = connectOrQuit();
+const sql = await waitForDatabase(connectOrQuit());
 const lockSql = connectOrQuit("lock");
 let instance: Awaited<ReturnType<typeof holdSingleInstance>> = null;
 try {

@@ -24,6 +24,7 @@ import {
   createSecuriteStore,
   holdSingleInstance,
   latestEventAt,
+  waitForDatabase,
 } from "@cenacle/journal";
 import {
   buildCommentPrompt,
@@ -58,7 +59,8 @@ const USAGE = "usage : npm run securite [-- constats | accepter <n°> <raison>]"
 const [command, ...rest] = process.argv.slice(2);
 
 refuseForeignSecrets("L'agent sécurité", ["telegram", "sentinel"]);
-const sql = connectOrQuit();
+// The round waits for the base (launchd, at the Mac's start); a command run by hand says at once.
+const sql = command === undefined ? await waitForDatabase(connectOrQuit()) : connectOrQuit();
 const store = createSecuriteStore(sql);
 
 async function round(): Promise<void> {
