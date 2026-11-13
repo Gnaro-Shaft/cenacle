@@ -42,7 +42,6 @@ export async function cardsRights(deps: CardsRightsDeps, now: Date): Promise<voi
   if (name.replace(/\s/g, "").length < 3)
     throw new UsageError("nom trop court : rien n'a été fait");
   const cards = await deps.mentioning(name);
-  await deps.record("person.exported", cards.length);
   if (cards.length === 0) {
     deps.log("ℹ aucune carte ne porte ce nom");
     return;
@@ -52,6 +51,8 @@ export async function cardsRights(deps: CardsRightsDeps, now: Date): Promise<voi
   }
   if (deps.write !== null) {
     deps.write(`${JSON.stringify(cardsExport(cards, now), null, 2)}\n`);
+    // Journaled only once given: a look-up is not an export (D2 review).
+    await deps.record("person.exported", cards.length);
     deps.log(`✔ export écrit (lisible par toi seul) : ${cards.length} carte(s)`);
   }
   const confirm = await deps.ask(
@@ -62,7 +63,13 @@ export async function cardsRights(deps: CardsRightsDeps, now: Date): Promise<voi
     return;
   }
   let erased = 0;
-  for (const c of cards) if (await deps.erase(c.id)) erased++;
-  await deps.record("person.erased", erased);
-  deps.log(`✔ ${erased} carte(s) effacée(s)`);
+  try {
+    for (const c of cards) if (await deps.erase(c.id)) erased++;
+  } finally {
+    // What is gone is journaled, even when an erasure fails halfway (D2 review).
+    await deps.record("person.erased", erased);
+    deps.log(
+      `${erased === cards.length ? "✔" : "⚠"} ${erased} carte(s) effacée(s) sur ${cards.length}`,
+    );
+  }
 }

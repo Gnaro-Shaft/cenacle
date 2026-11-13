@@ -1,7 +1,8 @@
 // No person's name on a card (lot D, 13/11): the names an alert presents as a
-// person — after a label such as « Contact : » — are removed by code from
-// the card's title, company and place, whatever the model wrote. A job title
-// is never mistaken for one. Fictional names only.
+// person — after a label such as « Recruteuse : » — are removed by code from
+// the card's title, company and place, whatever the model wrote. Careful: a
+// job title, a company after « Contact : », a first name inside a company's
+// name are never touched. Fictional names only.
 import { describe, expect, it } from "vitest";
 import { offerWithoutNames, presentedNames, withoutNames } from "./people-names.ts";
 import { runProspection } from "./run.ts";
@@ -9,25 +10,27 @@ import { source, world } from "./run-test-world.ts";
 
 describe("the names an alert presents", () => {
   it.each([
-    ["Contact : Marie-Anne Martin\nTJM 600", [["marie", "anne", "martin"]]],
-    ["Votre recruteuse – Élodie Lefèvre", [["elodie", "lefevre"]]],
-    ["CONTACT : Jean DUPONT", [["jean", "dupont"]]],
+    ["Recruteuse : Marie-Anne Martin\nTJM 600", [["marie", "anne", "martin"]]],
+    ["RECRUTEUR : Jean DUPONT", [["jean", "dupont"]]],
     ["Publiée par Paul Durand le 12/11", [["paul", "durand"]]],
     ["Talent Acquisition Partner: Nora Benali", [["nora", "benali"]]],
-    ["Contact :\nJean Valjean\nTJM 600", [["jean", "valjean"]]],
-    ["Interlocutrice : Ana", [["ana"]]],
+    ["Chargée de recrutement : Élodie Lefèvre", [["elodie", "lefevre"]]],
   ])("%j", (text, names) => {
     expect(presentedNames(text)).toEqual(names);
   });
 
+  // Careful by design (D2 review): a card damaged in silence is worse than a name missed.
   it.each([
-    "Consultante Java Senior H/F",
-    "Recruteur de talents : postulez vite",
-    "contact: support",
-    "Contact : 06 12 34 56 78",
-    "Référente technique sur le projet",
-    "Mission à Lyon, contactez-nous",
-  ])("no name in %j", (text) => {
+    ["a job title after a hyphen", "Consultant - Développeur Java Senior"],
+    ["a company after « Contact : »", "Contact : Banque Fictive RH"],
+    ["« Contact : » at all (a name missed, said in the notice)", "Contact : Jean Dupont"],
+    ["a label inside a word", "Recontact: Marc Dupont"],
+    ["the next line's heading", "Recruteur :\nTarif 500"],
+    ["one word only", "Interlocutrice : Ana"],
+    ["lower case", "recruteur : support technique"],
+    ["a role word as a title", "Consultante Java Senior H/F"],
+    ["a phone number", "Recruteur : 06 12 34 56 78"],
+  ])("no name for %s", (_label, text) => {
     expect(presentedNames(text)).toEqual([]);
   });
 });
@@ -35,15 +38,22 @@ describe("the names an alert presents", () => {
 describe("a card without them", () => {
   const names = [["jean", "valjean"]];
 
-  it("removes each word of the name, accents and case aside, and nothing else", () => {
+  it("removes the whole name, accents and case aside, and nothing else", () => {
     expect(withoutNames("Mission Data — Jean Valjean", names)).toBe("Mission Data —");
     expect(withoutNames("JEAN-VALJEAN Conseil", names)).toBe("Conseil");
     expect(withoutNames("Jeanne Valjeantik SA", names)).toBe("Jeanne Valjeantik SA");
   });
 
+  it("never one of its words elsewhere: a first name stays in a company's name", () => {
+    expect(withoutNames("Pierre & Vacances", [["pierre", "martin"]])).toBe("Pierre & Vacances");
+    expect(withoutNames("Valjean Industries pour Jean", names)).toBe(
+      "Valjean Industries pour Jean",
+    );
+  });
+
   it("a company that was only the name becomes « not said »", () => {
     const offer = { title: "Ingénieur IA", company: "Jean Valjean", place: "Lyon" };
-    expect(offerWithoutNames(offer, "Contact : Jean Valjean")).toEqual({
+    expect(offerWithoutNames(offer, "Recruteur : Jean Valjean")).toEqual({
       title: "Ingénieur IA",
       company: null,
       place: "Lyon",
@@ -65,7 +75,7 @@ describe("a pass: what the model wrote, the code still cleans", () => {
   it("the model puts the recruiter as the company: the card says « not said »", async () => {
     const alert = source(
       "alertes@plateforme.example",
-      '<p>Ingénieur IA, Lyon <a href="https://plateforme.example/m/1">voir</a></p><p>Contact : Jean Valjean</p>',
+      '<p>Ingénieur IA, Lyon <a href="https://plateforme.example/m/1">voir</a></p><p>Recruteur : Jean Valjean</p>',
     );
     const answer = JSON.stringify([
       {

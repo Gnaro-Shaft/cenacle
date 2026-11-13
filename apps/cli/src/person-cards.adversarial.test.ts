@@ -62,7 +62,8 @@ describe("a person's cards", () => {
     await cardsRights(s.deps, NOW);
     expect(s.logs.filter((l) => l.startsWith("  n°"))).toHaveLength(2);
     expect(s.erased).toEqual([]);
-    expect(s.records).toEqual([["person.exported", 2]]);
+    // A look-up is not an export: nothing journaled.
+    expect(s.records).toEqual([]);
   });
 
   it.each(["oui", "effacer", "EFFACER ", "yes"])(
@@ -78,10 +79,7 @@ describe("a person's cards", () => {
     const s = setup(["Jean Valjean", "EFFACER"], [card(3), card(9)]);
     await cardsRights(s.deps, NOW);
     expect(s.erased).toEqual([3, 9]);
-    expect(s.records).toEqual([
-      ["person.exported", 2],
-      ["person.erased", 2],
-    ]);
+    expect(s.records).toEqual([["person.erased", 2]]);
     expect(JSON.stringify(s.records)).not.toContain("Valjean");
   });
 
@@ -101,10 +99,23 @@ describe("a person's cards", () => {
   it("the export: the card in the notice's words, nothing of the agent's", async () => {
     const s = setup(["Jean Valjean", ""], [card(3, { note: "Rappeler Jean Valjean" })], true);
     await cardsRights(s.deps, NOW);
+    expect(s.records).toEqual([["person.exported", 1]]);
     const doc = JSON.parse(s.written[0] ?? "{}");
     expect(doc).toEqual(cardsExport([card(3, { note: "Rappeler Jean Valjean" })], NOW));
     expect(Object.keys(doc.cartes[0]).sort()).toEqual(
       ["creee_le", "entreprise", "intitule", "lien", "lieu", "note"].sort(),
     );
+  });
+
+  it("an erasure that fails halfway: what is gone is journaled, the failure thrown", async () => {
+    const s = setup(["Jean Valjean", "EFFACER"], [card(3), card(9)]);
+    s.deps.erase = async (id: number) => {
+      if (id === 9) throw new Error("connection lost");
+      s.erased.push(id);
+      return true;
+    };
+    await expect(cardsRights(s.deps, NOW)).rejects.toThrow("connection lost");
+    expect(s.records).toEqual([["person.erased", 1]]);
+    expect(s.logs.at(-1)).toBe("⚠ 1 carte(s) effacée(s) sur 2");
   });
 });

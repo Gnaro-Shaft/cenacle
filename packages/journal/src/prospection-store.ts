@@ -118,6 +118,10 @@ interface Row {
   moved_at: Date | null;
 }
 
+/** Accented letters and their plain form, for a search that ignores accents (SQL translate). */
+const ACCENTED = "àâäáãåçéèêëíìîïñóòôöõúùûüýÿœæÀÂÄÁÃÅÇÉÈÊËÍÌÎÏÑÓÒÔÖÕÚÙÛÜÝŸ";
+const PLAIN = "aaaaaaceeeeiiiinooooouuuuyyoaAAAAAACEEEEIIIINOOOOOUUUUYY";
+
 const toCard = (r: Row): Card => ({
   id: Number(r.id),
   source: r.source,
@@ -263,11 +267,13 @@ export function createProspectionStore(sql: Sql): ProspectionStore {
     },
 
     async mentioning(words) {
-      const pattern = `%${words.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+      // Case and accents aside: « Helene » finds « Hélène ».
+      const plain = (t: string) => t.normalize("NFD").replace(/\p{M}/gu, "");
+      const pattern = `%${plain(words).replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
       const rows = await sql<Row[]>`
         select * from prospection_cartes
-        where title ilike ${pattern} or company ilike ${pattern}
-           or place ilike ${pattern} or note ilike ${pattern}
+        where translate(concat_ws(' ', title, company, place, note), ${ACCENTED}, ${PLAIN})
+          ilike ${pattern}
         order by id`;
       return rows.map(toCard);
     },
