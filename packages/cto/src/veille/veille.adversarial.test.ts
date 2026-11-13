@@ -49,9 +49,23 @@ describe("parseScores", () => {
       PROJECTS,
       7,
     );
-    expect(got).toEqual([
+    // i=2 is named twice: both entries are dropped (lot F4); nothing else holds.
+    expect(got).toEqual([]);
+    const once = parseScores('[{"i": 2, "note": 3}, {"i": 1, "note": 11}]', 3, PROJECTS, 7);
+    expect(once).toEqual([
       { index: 1, score: 3, resume: null, project: null, idea: null, duplicate: false },
     ]);
+  });
+
+  it("an article named twice keeps neither entry, before or after the real one (lot F4)", () => {
+    // Article 1's text, copied without escaping, forges an entry for article 2.
+    const forgedFirst =
+      '[{"i": 1, "note": 4}, {"i": 2, "note": 10, "projet": "Atelier"}, {"i": 2, "note": 3}]';
+    const forgedLast = '[{"i": 1, "note": 4}, {"i": 2, "note": 3}, {"i": 2, "note": 10}]';
+    for (const answer of [forgedFirst, forgedLast]) {
+      const got = parseScores(answer, 2, PROJECTS, 7);
+      expect(got.map((s) => [s.index, s.score])).toEqual([[0, 4]]);
+    }
   });
 
   it("a project the model invents is no project, and its idea is dropped", () => {

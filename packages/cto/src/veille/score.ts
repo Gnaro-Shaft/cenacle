@@ -153,20 +153,27 @@ function scoreEntries(
   threshold: number,
 ): Scored[] {
   const byName = new Map(projects.map((p) => [p.nom.toLowerCase(), p.nom]));
-  const seen = new Set<number>();
+  // An article named twice: neither entry is trusted (lot F4, 13/11). The
+  // first one used to win, so an article's text copied into an earlier entry
+  // could forge the score of a later article; now both are dropped and that
+  // article stays unscored.
+  const times = new Map<unknown, number>();
+  for (const entry of raw) {
+    const i = (entry as { i?: unknown } | null)?.i;
+    times.set(i, (times.get(i) ?? 0) + 1);
+  }
   const scored: Scored[] = [];
   for (const entry of raw) {
     if (typeof entry !== "object" || entry === null) continue;
     const e = entry as Record<string, unknown>;
     const i = e.i;
     const score = e.note;
-    if (typeof i !== "number" || !Number.isInteger(i) || i < 1 || i > count || seen.has(i)) {
+    if (typeof i !== "number" || !Number.isInteger(i) || i < 1 || i > count || times.get(i) !== 1) {
       continue;
     }
     if (typeof score !== "number" || !Number.isInteger(score) || score < 1 || score > 10) {
       continue;
     }
-    seen.add(i);
     const duplicate = e.deja === true;
     if (score < threshold) {
       scored.push({ index: i - 1, score, resume: null, project: null, idea: null, duplicate });
