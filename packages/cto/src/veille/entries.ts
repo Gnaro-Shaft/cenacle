@@ -3,9 +3,9 @@
  * The answer is a JSON array of small objects. On 34 veilles, 14 first
  * answers failed as a whole: cut at the model's 8 000-token bound, or one
  * entry malformed — and one bad entry threw away the 29 good ones. Now the
- * array is read whole when it can be; otherwise each `{…}` at the array's
- * top level is read on its own, and an entry that does not parse, or that
- * the cut left open, is counted as unreadable.
+ * array is read whole when it can be; otherwise its entries are read one by
+ * one, in order (i = 1, 2, 3…), up to the first that does not parse, breaks
+ * the order, or was left open by the cut: those are counted as unreadable.
  */
 
 export interface Entries {
@@ -43,31 +43,57 @@ function objectTexts(text: string): { closed: string[]; open: boolean } {
   return { closed, open: depth > 0 };
 }
 
-/** Null when the answer holds no array at all. */
-export function readEntries(answer: string): Entries | null {
-  const start = answer.indexOf("[");
-  if (start < 0) return null;
+/** The array starting at `at` read whole (to the last `]`), or null. */
+function whole(answer: string, at: number): Entries | null {
   const end = answer.lastIndexOf("]");
-  if (end > start) {
-    try {
-      const whole: unknown = JSON.parse(answer.slice(start, end + 1));
-      if (Array.isArray(whole)) return { entries: whole, unreadable: 0, oneByOne: false };
-    } catch {
-      // Read one by one below.
-    }
+  if (end <= at) return null;
+  try {
+    const value: unknown = JSON.parse(answer.slice(at, end + 1));
+    return Array.isArray(value) ? { entries: value, unreadable: 0, oneByOne: false } : null;
+  } catch {
+    return null;
   }
-  // One by one from the array of objects: `[{`, not a `[` in the prose before it.
-  const objects = answer.search(/\[\s*\{/);
-  if (objects < 0) return { entries: [], unreadable: 0, oneByOne: true };
-  const { closed, open } = objectTexts(answer.slice(objects + 1));
+}
+
+/**
+ * Null when the answer holds no array at all. Each array of objects (`[{`)
+ * is tried — prose may show an example first — whole, else one by one; the
+ * one giving the most entries wins, a whole one on a tie.
+ */
+export function readEntries(answer: string): Entries | null {
+  const first = answer.indexOf("[");
+  if (first < 0) return null;
+  let best: Entries | null = null;
+  for (const match of answer.matchAll(/\[\s*\{/g)) {
+    const read = whole(answer, match.index) ?? leadingRun(answer.slice(match.index + 1));
+    if (best === null || read.entries.length > best.entries.length) best = read;
+  }
+  return best ?? whole(answer, first) ?? { entries: [], unreadable: 0, oneByOne: true };
+}
+
+/**
+ * The entries read one by one, kept only while they follow 1, 2, 3… and
+ * stopping at the first unreadable one (C3 review). An entry the model left
+ * malformed — a quote of an article not escaped — is where an article's own
+ * text could pass for entries: past it, nothing is trusted. A forged entry
+ * before it must also carry the very next number, so it can take at most one
+ * article's score, never add one.
+ */
+function leadingRun(text: string): Entries {
+  const { closed, open } = objectTexts(text);
   const entries: unknown[] = [];
-  let unreadable = open ? 1 : 0;
-  for (const text of closed) {
+  for (const [k, part] of closed.entries()) {
+    let entry: unknown;
     try {
-      entries.push(JSON.parse(text));
+      entry = JSON.parse(part);
     } catch {
-      unreadable++;
+      return { entries, unreadable: closed.length - k + (open ? 1 : 0), oneByOne: true };
     }
+    const i = (entry as { i?: unknown } | null)?.i;
+    if (i !== entries.length + 1) {
+      return { entries, unreadable: closed.length - k + (open ? 1 : 0), oneByOne: true };
+    }
+    entries.push(entry);
   }
-  return { entries, unreadable, oneByOne: true };
+  return { entries, unreadable: open ? 1 : 0, oneByOne: true };
 }
