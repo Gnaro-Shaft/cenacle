@@ -13,9 +13,9 @@
   "dependencies": {
     "@cenacle/brain": "0.0.0",
     "@cenacle/journal": "0.0.0",
-    "@earendil-works/pi-agent-core": "1.5.1",
-    "@earendil-works/pi-ai": "1.5.1",
-    "@earendil-works/pi-schema": "1.5.1",
+    "@earendil-works/pi-agent-core": "1.5.2",
+    "@earendil-works/pi-ai": "1.5.2",
+    "@earendil-works/pi-schema": "1.5.2",
     "smol-toml": "1.9.1"
   }
 }
