@@ -80,7 +80,13 @@ export async function executeDue(deps: ExecutorDeps): Promise<RoundResult> {
   const interrupted: string[] = [];
   const stuckBefore = new Date(deps.now().getTime() - STUCK_SENDING_MS);
   for (const p of await deps.store.stuckSending(stuckBefore)) {
-    await deps.store.markFailed(p.id, deps.now());
+    try {
+      await deps.store.markFailed(p.id, deps.now());
+    } catch (error) {
+      // Closed meanwhile by another executor: nothing to do, the round goes on (F1 review).
+      if (error instanceof ProposalError) continue;
+      throw error;
+    }
     await deps.journal.append({
       agent: AGENT,
       type: "send.failed",

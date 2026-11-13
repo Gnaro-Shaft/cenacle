@@ -76,3 +76,27 @@ describe("a sending cut off", () => {
     expect(JSON.stringify(w.journal.events.map((e) => e.payload))).not.toContain("650");
   });
 });
+
+describe("a sending closed meanwhile by another executor (F1 review)", () => {
+  it("is skipped, and the round goes on to what is due", async () => {
+    const { w, id } = await (async () => {
+      const w = world();
+      const id = await w.accepted();
+      await w.store.claim(id, at(120_000));
+      return { w, id };
+    })();
+    const other = await w.accepted();
+    // The other executor closes it between the read and the mark.
+    const stuck = w.store.stuckSending.bind(w.store);
+    w.store.stuckSending = async (before) => {
+      const found = await stuck(before);
+      await w.store.markSent(id, at(121_000));
+      return found;
+    };
+    w.at(at(120_000 + STUCK_SENDING_MS + 1000));
+    const r = await executeDue(w.deps);
+    expect(r.interrupted).toEqual([]);
+    expect((await w.store.get(id))?.status).toBe("sent");
+    expect(r.sent).toEqual([other]);
+  });
+});
