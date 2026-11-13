@@ -18,6 +18,7 @@ import {
   InvalidEventError,
   latestEventAt,
   readAllEvents,
+  waitForDatabase,
   watchOrQuit,
 } from "@cenacle/journal";
 import { parseMaintenanceSwitch, parseServerSwitch } from "@cenacle/securite";
@@ -49,7 +50,7 @@ const signers = confirmSigners();
 if (signers.problem !== null) {
   console.error(`⚠ ${signers.problem} : aucune action sur un serveur ne pourra être confirmée`);
 }
-const sql = connectOrQuit();
+const sql = await waitForDatabase(connectOrQuit());
 const journal = createJournal(sql);
 // One bot at a time (ADR-0019): Telegram refuses two pollers (409), and the
 // refused one would crash and be restarted every 30 s.

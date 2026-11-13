@@ -126,3 +126,10 @@ export {
   type NewArchivedArticle,
   type VeilleStore,
 } from "./veille-store.ts";
+export {
+  DatabaseWaitError,
+  notYet,
+  untilDatabaseAnswers,
+  WAIT_MAX_MS,
+  waitForDatabase,
+} from "./wait-database.ts";

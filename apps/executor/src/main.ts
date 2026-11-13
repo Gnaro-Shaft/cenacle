@@ -19,6 +19,7 @@ import {
   createMailStore,
   createProposalStore,
   readAllEvents,
+  waitForDatabase,
 } from "@cenacle/journal";
 import {
   buildReply,
@@ -49,7 +50,7 @@ if (loadCadre().mail.sending === "none") {
 }
 const acceptKey = publicKeyFromEnv();
 // Its own database role: the only one allowed to claim and close a sending (B7).
-const sql = connectOrQuit("executor");
+const sql = await waitForDatabase(connectOrQuit("executor"));
 const journal = createJournal(sql);
 const store = createProposalStore(sql);
 const mails = createMailStore(sql);

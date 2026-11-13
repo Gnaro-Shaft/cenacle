@@ -19,12 +19,18 @@ import {
   listenCto,
   reviewCto,
 } from "@cenacle/cto";
-import { connectOrQuit, createJournal, holdSingleInstance, watchOrQuit } from "@cenacle/journal";
+import {
+  connectOrQuit,
+  createJournal,
+  holdSingleInstance,
+  waitForDatabase,
+  watchOrQuit,
+} from "@cenacle/journal";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
 // The CTO reads documentation, never mail: no secret family at all (ADR-0017).
 refuseForeignSecrets("Le CTO", []);
-const sql = connectOrQuit();
+const sql = await waitForDatabase(connectOrQuit());
 // One service at a time: a second one would take over the socket of the first.
 const lockSql = connectOrQuit("lock");
 const instance = await holdSingleInstance(lockSql, "cto");

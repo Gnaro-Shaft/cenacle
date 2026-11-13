@@ -85,19 +85,31 @@ export interface TelegramApi {
 
 const TOKEN_RULE = /^\d{6,12}:[A-Za-z0-9_-]{30,}$/;
 
+/**
+ * How long a call may hang before it is a network failure (lot C, 13/11):
+ * without a bound, a connection Telegram never answers held the bot forever.
+ * The long poll waits its own `timeout` on Telegram's side, plus this margin.
+ */
+export const CALL_TIMEOUT_MS = 15_000;
+
 export function createTelegramApi(token: string, fetchFn: typeof fetch = fetch): TelegramApi {
   if (!TOKEN_RULE.test(token)) {
     throw new TelegramError("TELEGRAM_BOT_TOKEN is missing or malformed (expected digits:secret)");
   }
   const redact = (text: string) => text.split(token).join("<token>");
 
-  async function call<T>(method: string, body: Record<string, unknown>): Promise<T> {
+  async function call<T>(
+    method: string,
+    body: Record<string, unknown>,
+    waitMs = CALL_TIMEOUT_MS,
+  ): Promise<T> {
     let response: Response;
     try {
       response = await fetchFn(`https://api.telegram.org/bot${token}/${method}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(waitMs),
       });
     } catch (error) {
       throw new TelegramError(
@@ -126,11 +138,11 @@ export function createTelegramApi(token: string, fetchFn: typeof fetch = fetch):
 
   return {
     getUpdates: (offset, timeoutSeconds) =>
-      call("getUpdates", {
-        offset,
-        timeout: timeoutSeconds,
-        allowed_updates: ["message", "callback_query"],
-      }),
+      call(
+        "getUpdates",
+        { offset, timeout: timeoutSeconds, allowed_updates: ["message", "callback_query"] },
+        timeoutSeconds * 1000 + CALL_TIMEOUT_MS,
+      ),
     async sendMessage(chatId, text) {
       await call("sendMessage", { chat_id: chatId, text });
     },

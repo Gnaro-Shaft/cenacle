@@ -23,6 +23,7 @@ import {
   createProspectionStore,
   holdSingleInstance,
   latestEventAt,
+  waitForDatabase,
 } from "@cenacle/journal";
 import {
   CadreError,
@@ -70,7 +71,7 @@ const local = createLocalModels({
   contextWindow: 32_768,
   maxTokens: 6_000,
 });
-const sql = connectOrQuit();
+const sql = await waitForDatabase(connectOrQuit());
 const lockSql = connectOrQuit("lock");
 const instance = await holdSingleInstance(lockSql, "prospection");
 if (instance === null) {

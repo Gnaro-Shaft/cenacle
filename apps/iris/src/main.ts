@@ -15,6 +15,7 @@ import {
   createPurges,
   holdSingleInstance,
   readAllEvents,
+  waitForDatabase,
   watchOrQuit,
 } from "@cenacle/journal";
 import {
@@ -40,7 +41,7 @@ if (!Number.isSafeInteger(chatId) || chatId === 0) {
   throw new Error("TELEGRAM_ALLOWED_CHAT_ID is missing or not a number (see .env.example)");
 }
 const telegram = createTelegramApi(process.env.TELEGRAM_BOT_TOKEN ?? "");
-const sql = connectOrQuit();
+const sql = await waitForDatabase(connectOrQuit());
 // One Iris at a time (ADR-0018): its own connection holds the lock for the
 // whole run. Refused = exit 75 ("try again later"): launchd keeps retrying and
 // takes over once the other Iris stops. No database = a crash, retried too.
