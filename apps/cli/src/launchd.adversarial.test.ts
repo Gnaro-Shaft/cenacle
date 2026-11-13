@@ -236,6 +236,18 @@ describe("the runner", () => {
     expect(labels.size).toBe(PROGRAMS.length);
   });
 
+  it("loads the dated console before every program, quoted, keeping NODE_OPTIONS (lot C)", () => {
+    const runner = readFileSync(RUNNER, "utf8");
+    const line = /^NODE_OPTIONS="--import=\\"\$ROOT\/([^"\\]+)\\" \$\{NODE_OPTIONS:-\}"$/m.exec(
+      runner,
+    );
+    expect(line?.[1]).toBe("packages/core/src/console-stamp-install.ts");
+    expect(existsSync(join(ROOT, line?.[1] ?? "none"))).toBe(true);
+    expect(runner).toMatch(/^export NODE_OPTIONS$/m);
+    // Before the programs, so that each one (vite included) gets it.
+    expect(runner.indexOf("export NODE_OPTIONS")).toBeLessThan(runner.indexOf('case "${1:-}" in'));
+  });
+
   it("an unknown program: refused (64)", () => {
     expect(spawnSync("/bin/sh", [RUNNER, "rm"]).status).toBe(64);
   });

@@ -10,6 +10,10 @@ if [ -n "${CENACLE_LOG:-}" ] && [ -f "$CENACLE_LOG" ] &&
   [ "$(wc -c <"$CENACLE_LOG")" -gt 1048576 ]; then
   : >"$CENACLE_LOG"
 fi
+# Dated lines and one-line crashes in the log (lot C, 13/11): loaded before
+# each program, vite included. Not set by npm: a program run by hand prints as before.
+NODE_OPTIONS="--import=\"$ROOT/packages/core/src/console-stamp-install.ts\" ${NODE_OPTIONS:-}"
+export NODE_OPTIONS
 case "${1:-}" in
 iris)
   # Same files as `npm run iris` (package.json): checked by a test.
