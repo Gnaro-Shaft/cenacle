@@ -4,7 +4,7 @@ import { appUrlFromEnv, executorUrlFromEnv } from "./migrate.ts";
 
 /** Connects as the application role (INSERT and SELECT only). */
 export function connectAsApp(database = "cenacle"): Sql {
-  return postgres(appUrlFromEnv(database), { max: 2, onnotice: () => {} });
+  return postgres(appUrlFromEnv(database), { infer: true, max: 2, onnotice: () => {} });
 }
 
 /**
@@ -17,6 +17,7 @@ export function connectAsApp(database = "cenacle"): Sql {
  */
 export function connectLockAsApp(database = "cenacle"): Sql {
   return postgres(appUrlFromEnv(database), {
+    infer: true,
     max: 1,
     max_lifetime: null,
     idle_timeout: 0,
@@ -26,7 +27,7 @@ export function connectLockAsApp(database = "cenacle"): Sql {
 
 /** Connects as the executor, the only role that may claim and close a sending (ADR-0013). */
 export function connectAsExecutor(database = "cenacle"): Sql {
-  return postgres(executorUrlFromEnv(database), { max: 2, onnotice: () => {} });
+  return postgres(executorUrlFromEnv(database), { infer: true, max: 2, onnotice: () => {} });
 }
 
 /**

@@ -113,7 +113,7 @@ describe("a real client, the base's door opening late", () => {
     });
     const url = new URL(target);
     url.port = String(port);
-    const sql = postgres(url.toString(), { max: 1, onnotice: () => {} });
+    const sql = postgres(url.toString(), { infer: true, max: 1, onnotice: () => {} });
     const lines: string[] = [];
     const opening = setTimeout(() => door.listen(port, "127.0.0.1"), 2500);
     try {

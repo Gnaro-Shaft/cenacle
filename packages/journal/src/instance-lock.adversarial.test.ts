@@ -105,6 +105,7 @@ describe("holdSingleInstance", () => {
 
   it("an unreachable database throws: no lock, no start", async () => {
     const dead = postgres("postgres://nobody:x@127.0.0.1:1/none", {
+      infer: true,
       max: 1,
       max_lifetime: null,
       connect_timeout: 2,
