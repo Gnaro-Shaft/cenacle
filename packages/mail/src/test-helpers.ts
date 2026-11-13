@@ -164,7 +164,8 @@ export function memoryProposalStore(): ProposalStore {
   const rows = new Map<string, Proposal>();
   const move = (id: string, from: ProposalStatus[], to: Partial<Proposal>) => {
     const p = rows.get(id);
-    if (p === undefined || !from.includes(p.status)) throw new Error(`cannot move ${id}`);
+    // As the real store: a transition the state refuses is a ProposalError.
+    if (p === undefined || !from.includes(p.status)) throw new ProposalError(`cannot move ${id}`);
     const next = { ...p, ...to };
     rows.set(id, next);
     return next;
@@ -261,6 +262,11 @@ export function memoryProposalStore(): ProposalStore {
     async dueForSending(now) {
       return [...rows.values()].filter(
         (p) => p.status === "accepted" && (p.sendAfter?.getTime() ?? Infinity) <= now.getTime(),
+      );
+    },
+    async stuckSending(before) {
+      return [...rows.values()].filter(
+        (p) => p.status === "sending" && (p.sentAt?.getTime() ?? Infinity) < before.getTime(),
       );
     },
     async claim(id, now) {

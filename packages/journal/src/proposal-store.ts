@@ -92,6 +92,8 @@ export interface ProposalStore {
   cancel(id: string, now: Date): Promise<Proposal>;
   /** Proposals whose undo delay is over: ready for the executor. */
   dueForSending(now: Date): Promise<Proposal[]>;
+  /** Claimed for sending before this instant and never closed: the executor stopped mid-send (lot F1). */
+  stuckSending(before: Date): Promise<Proposal[]>;
   /**
    * The executor takes an accepted proposal whose undo delay is over, BEFORE
    * talking to the mail server. Atomic: of two executors, one wins, the other
@@ -283,6 +285,12 @@ export function createProposalStore(sql: Sql): ProposalStore {
     async dueForSending(now) {
       const rows = await sql<Row[]>`
         select * from proposals where status = 'accepted' and send_after <= ${now} order by send_after`;
+      return rows.map(toProposal);
+    },
+
+    async stuckSending(before) {
+      const rows = await sql<Row[]>`
+        select * from proposals where status = 'sending' and sent_at < ${before} order by sent_at`;
       return rows.map(toProposal);
     },
 

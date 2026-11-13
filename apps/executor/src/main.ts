@@ -76,6 +76,7 @@ const LAPSE = {
   answered: "tu as déjà répondu",
   no_recipient: "adresse illisible",
   unauthenticated: "expéditeur non authentifié",
+  too_old: "acceptée il y a plus de 24 h",
 };
 
 let stopping = false;
@@ -140,6 +141,10 @@ while (!stopping) {
     for (const id of r.unsigned)
       console.log(`🛑 ${id} : acceptée sans la signature de la page — non envoyée, voir la page`);
     for (const l of r.lapsed) console.log(`🗑 ${l.id} caduc : ${LAPSE[l.reason]}`);
+    for (const id of r.interrupted)
+      console.log(
+        `⚠ ${id} : envoi interrompu — peut-être parti, vérifie tes Envoyés ; jamais renvoyé`,
+      );
     const today = dayStart(new Date()).toISOString();
     if (r.limited && limitedDay !== today) {
       limitedDay = today;

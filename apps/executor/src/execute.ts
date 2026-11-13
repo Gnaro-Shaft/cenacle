@@ -44,7 +44,16 @@ export interface ExecutorDeps {
   readonly authenticated: (p: Proposal) => Promise<boolean>;
 }
 
-export type LapseReason = "gone" | "answered" | "no_recipient" | "unauthenticated";
+export type LapseReason = "gone" | "answered" | "no_recipient" | "unauthenticated" | "too_old";
+
+/**
+ * An acceptance older than this is not sent (lot F1, 13/11): the executor runs
+ * when I start it, and a reply accepted days ago may no longer be the right
+ * one. 24 h leaves a night of a sleeping Mac.
+ */
+export const MAX_ACCEPTANCE_AGE_MS = 24 * 3_600_000;
+/** A sending claimed this long ago and never closed was cut off: an SMTP send takes seconds. */
+export const STUCK_SENDING_MS = 15 * 60_000;
 
 export interface RoundResult {
   readonly sent: readonly string[];
@@ -52,6 +61,8 @@ export interface RoundResult {
   /** Accepted without a valid signature of the page: never sent. */
   readonly unsigned: readonly string[];
   readonly lapsed: readonly { readonly id: string; readonly reason: LapseReason }[];
+  /** Claimed, then cut off before the answer of the mail server: failed, never sent again. */
+  readonly interrupted: readonly string[];
   /** The daily limit stopped this round. */
   readonly limited: boolean;
 }
@@ -63,14 +74,34 @@ export async function executeDue(deps: ExecutorDeps): Promise<RoundResult> {
   const failed: string[] = [];
   const unsigned: string[] = [];
   const lapsed: { id: string; reason: LapseReason }[] = [];
+  // A sending left open by an executor that stopped mid-send: whether the mail
+  // left is unknown, so it is closed as failed and never sent again — I check
+  // my Sent folder (lot F1). Before, it stayed « being sent » forever.
+  const interrupted: string[] = [];
+  const stuckBefore = new Date(deps.now().getTime() - STUCK_SENDING_MS);
+  for (const p of await deps.store.stuckSending(stuckBefore)) {
+    try {
+      await deps.store.markFailed(p.id, deps.now());
+    } catch (error) {
+      // Closed meanwhile by another executor: nothing to do, the round goes on (F1 review).
+      if (error instanceof ProposalError) continue;
+      throw error;
+    }
+    await deps.journal.append({
+      agent: AGENT,
+      type: "send.failed",
+      payload: { proposalId: p.id, reason: "interrupted" },
+    });
+    interrupted.push(p.id);
+  }
   const due = await deps.store.dueForSending(deps.now());
-  if (due.length === 0) return { sent, failed, unsigned, lapsed, limited: false };
+  if (due.length === 0) return { sent, failed, unsigned, lapsed, interrupted, limited: false };
   const mine = await deps.freshSent();
 
   for (const p of due) {
     const now = deps.now();
     if ((await deps.store.sendsSince(dayStart(now))) >= deps.maxPerDay) {
-      return { sent, failed, unsigned, lapsed, limited: true };
+      return { sent, failed, unsigned, lapsed, interrupted, limited: true };
     }
     const journalUnsigned = async () => {
       await deps.journal.append({
@@ -91,6 +122,11 @@ export async function executeDue(deps: ExecutorDeps): Promise<RoundResult> {
       await deps.proposals.lapse(p.id, now);
       lapsed.push({ id: p.id, reason });
     };
+    // Too old to send: what I accepted then may no longer be the right answer.
+    if (now.getTime() - p.decidedAt.getTime() > MAX_ACCEPTANCE_AGE_MS) {
+      await lapse("too_old");
+      continue;
+    }
     const mail = await deps.mailOf(p);
     if (mail === null) {
       await lapse("gone");
@@ -157,5 +193,5 @@ export async function executeDue(deps: ExecutorDeps): Promise<RoundResult> {
       });
     }
   }
-  return { sent, failed, unsigned, lapsed, limited: false };
+  return { sent, failed, unsigned, lapsed, interrupted, limited: false };
 }
