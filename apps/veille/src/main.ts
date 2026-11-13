@@ -102,7 +102,7 @@ try {
   const seconds = Math.round((Date.now() - started) / 1000);
   console.log(
     outcome.kind === "sent"
-      ? `✔ Veille ${dryRunFile === undefined ? "envoyée" : "écrite sans envoi"} en ${seconds} s : ${outcome.kept} retenu(s) sur ${outcome.scanned} lu(s), ${outcome.repeated} déjà reçu(s) écarté(s), ${outcome.archived} archivé(s), ${outcome.failed} source(s) injoignable(s)`
+      ? `✔ Veille ${dryRunFile === undefined ? "envoyée" : "écrite sans envoi"} en ${seconds} s : ${outcome.kept} retenu(s) sur ${outcome.scanned} lu(s), ${outcome.repeated} déjà reçu(s) écarté(s), ${outcome.archived} archivé(s), ${outcome.failed} source(s) injoignable(s)${outcome.unscored > 0 ? `, ${outcome.unscored} sans note` : ""}`
       : `⚠ Veille non faite (${outcome.reason}) : le message l'a dit`,
   );
 } catch (error) {

@@ -13,7 +13,7 @@ import { ModelUnavailableError } from "@cenacle/brain";
 import type { Journal } from "@cenacle/journal";
 import { formatDigest, type Kept } from "./digest.ts";
 import type { FeedItem, FeedRead } from "./feeds.ts";
-import { buildVeillePrompt, parseScores, ScoreError } from "./score.ts";
+import { buildVeillePrompt, readScores, ScoreError } from "./score.ts";
 import type { VeilleConfig } from "./sources.ts";
 
 const AGENT = "cto";
@@ -67,6 +67,8 @@ export type VeilleOutcome =
       /** Left out as already sent: by link, then by the model. */
       readonly repeated: number;
       readonly archived: number;
+      /** Articles the model's answer gave no readable score for (cut or malformed entries). */
+      readonly unscored: number;
     }
   | { readonly kind: "not_done"; readonly reason: string };
 
@@ -76,13 +78,17 @@ export const NOT_DONE =
 const expected = (error: unknown): error is Error =>
   error instanceof ModelUnavailableError || error instanceof ScoreError;
 
+/** Why an attempt failed: a ScoreError's own words (written here, no data), else the name. */
+const why = (error: Error): string =>
+  error instanceof ScoreError ? `${error.name} (${error.message})` : error.name;
+
 async function keep(
   deps: VeilleDeps,
   items: readonly FeedItem[],
   alreadySent: readonly string[],
-): Promise<{ kept: Kept[]; duplicates: number }> {
+): Promise<{ kept: Kept[]; duplicates: number; unscored: number }> {
   const { settings, projects } = deps.config;
-  if (items.length === 0) return { kept: [], duplicates: 0 };
+  if (items.length === 0) return { kept: [], duplicates: 0, unscored: 0 };
   const attempts = deps.attempts ?? 3;
   const retryMs = deps.retryMs ?? 600_000;
   for (let attempt = 1; ; attempt++) {
@@ -96,7 +102,15 @@ async function keep(
         nonce,
         alreadySent,
       );
-      const scored = parseScores(await deps.ask(prompt), items.length, projects, settings.seuil);
+      // Half the articles at least, or try again; the last attempt takes what it can read.
+      const minShare = attempt >= attempts ? 0 : 0.5;
+      const { scored, unscored } = readScores(
+        await deps.ask(prompt),
+        items.length,
+        projects,
+        settings.seuil,
+        minShare,
+      );
       const good = scored.filter((s) => s.score >= settings.seuil);
       const kept = good
         .filter((s) => !s.duplicate)
@@ -106,10 +120,13 @@ async function keep(
         })
         .sort((a, b) => b.scored.score - a.scored.score || b.item.publishedAt - a.item.publishedAt)
         .slice(0, settings.maxRetenus);
-      return { kept, duplicates: good.filter((s) => s.duplicate).length };
+      if (unscored > 0) {
+        deps.log?.(`⚠ Veille : ${unscored} article(s) sur ${items.length} sans note lisible`);
+      }
+      return { kept, duplicates: good.filter((s) => s.duplicate).length, unscored };
     } catch (error) {
       if (!expected(error) || attempt >= attempts) throw error;
-      deps.log?.(`⚠ Veille : ${error.name}, nouvel essai dans ${Math.round(retryMs / 60_000)} min`);
+      deps.log?.(`⚠ Veille : ${why(error)}, nouvel essai dans ${Math.round(retryMs / 60_000)} min`);
       await deps.sleep(retryMs);
     }
   }
@@ -146,14 +163,18 @@ export async function runVeille(deps: VeilleDeps): Promise<VeilleOutcome> {
   );
   let kept: Kept[];
   let duplicates: number;
+  let unscored: number;
   try {
-    ({ kept, duplicates } = await keep(deps, items, recent));
+    ({ kept, duplicates, unscored } = await keep(deps, items, recent));
   } catch (error) {
     if (!expected(error)) throw error;
     await deps.journal.append({
       agent: AGENT,
       type: "veille.failed",
-      payload: { reason: error.name },
+      payload: {
+        reason: error.name,
+        ...(error instanceof ScoreError ? { detail: error.message } : {}),
+      },
     });
     await deps.send(NOT_DONE);
     return { kind: "not_done", reason: error.name };
@@ -164,6 +185,7 @@ export async function runVeille(deps: VeilleDeps): Promise<VeilleOutcome> {
     kept,
     failed: read.failed,
     threshold: settings.seuil,
+    unscored,
     exampleProjects: deps.config.exampleProjects,
   });
   // Sent first: a message that failed to leave archives nothing, nothing is lost.
@@ -189,6 +211,7 @@ export async function runVeille(deps: VeilleDeps): Promise<VeilleOutcome> {
     failed: read.failed.length,
     repeated: read.items.length - fresh.length + duplicates,
     archived,
+    unscored,
   };
   const { kind: _, ...counts } = outcome;
   await deps.journal.append({ agent: AGENT, type: "veille.sent", payload: counts });

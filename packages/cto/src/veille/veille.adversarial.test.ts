@@ -247,7 +247,7 @@ describe("runVeille", () => {
       {
         agent: "cto",
         type: "veille.sent",
-        payload: { scanned: 3, kept: 2, failed: 1, repeated: 0, archived: 2 },
+        payload: { scanned: 3, kept: 2, failed: 1, repeated: 0, archived: 2, unscored: 0 },
       },
     ]);
     expect(JSON.stringify(w.events)).not.toMatch(/Article|news\.example|utile/);

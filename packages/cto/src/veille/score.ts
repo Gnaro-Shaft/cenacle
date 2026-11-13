@@ -6,6 +6,7 @@
  * titles and links always come from the feeds, never from it; any URL it
  * writes is removed; a project it names must be one of mine, or none.
  */
+import { readEntries } from "./entries.ts";
 import type { FeedItem } from "./feeds.ts";
 import type { Project } from "./sources.ts";
 
@@ -102,27 +103,55 @@ function clean(value: unknown, max: number): string | null {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
 
+/** What could be read of the model's answer. */
+export interface ScoreReading {
+  readonly scored: Scored[];
+  /** Articles the answer gave no readable score for (an entry cut or malformed, or missing). */
+  readonly unscored: number;
+}
+
 /**
- * Reads the model's answer. Entries that do not hold — an index out of range
- * or seen twice, a score that is not 1 to 10 — are dropped; an answer with no
- * readable array at all is a ScoreError.
+ * Reads the model's answer (readEntries): the array whole, or entry by entry
+ * when it is cut or one entry is malformed. Entries that do not hold — an
+ * index out of range or seen twice, a score that is not 1 to 10 — are
+ * dropped. A ScoreError when no array is there, or when an answer read entry
+ * by entry scores less than `minShare` of the articles (another attempt may
+ * do better; the last one takes what it gets, `minShare` 0, one entry at least).
  */
+export function readScores(
+  answer: string,
+  count: number,
+  projects: readonly Project[],
+  threshold: number,
+  minShare = 0,
+): ScoreReading {
+  const read = readEntries(answer);
+  if (read === null) throw new ScoreError("the model gave no JSON array");
+  const scored = scoreEntries(read.entries, count, projects, threshold);
+  if (read.oneByOne && (scored.length === 0 || scored.length < minShare * count)) {
+    throw new ScoreError(
+      `the model's array is cut or malformed: ${scored.length} of ${count} articles readable`,
+    );
+  }
+  return { scored, unscored: count - scored.length };
+}
+
+/** The scores alone (readScores, taking whatever can be read). */
 export function parseScores(
   answer: string,
   count: number,
   projects: readonly Project[],
   threshold: number,
 ): Scored[] {
-  const start = answer.indexOf("[");
-  const end = answer.lastIndexOf("]");
-  if (start < 0 || end <= start) throw new ScoreError("the model gave no JSON array");
-  let raw: unknown;
-  try {
-    raw = JSON.parse(answer.slice(start, end + 1));
-  } catch {
-    throw new ScoreError("the model's array is not valid JSON");
-  }
-  if (!Array.isArray(raw)) throw new ScoreError("the model's answer is not an array");
+  return readScores(answer, count, projects, threshold).scored;
+}
+
+function scoreEntries(
+  raw: readonly unknown[],
+  count: number,
+  projects: readonly Project[],
+  threshold: number,
+): Scored[] {
   const byName = new Map(projects.map((p) => [p.nom.toLowerCase(), p.nom]));
   const seen = new Set<number>();
   const scored: Scored[] = [];
