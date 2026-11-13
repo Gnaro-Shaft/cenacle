@@ -76,9 +76,8 @@ export function createLocationStore(sql: Sql): LocationStore {
     },
 
     async keepCursors(folderKeys) {
-      return (
-        await sql`delete from mail_folders where not (folder_key = any(${sql.array([...folderKeys])}))`
-      ).count;
+      return (await sql`delete from mail_folders where not (folder_key = any(${[...folderKeys]}))`)
+        .count;
     },
 
     async all() {
@@ -93,7 +92,7 @@ export function createLocationStore(sql: Sql): LocationStore {
       if (ids.length === 0) return new Map();
       const rows = await sql<Row[]>`
         select id::text, folder_key, uid_validity, uid::text, message_key from mail_locations
-        where id = any(${sql.array(ids.map(String))}::bigint[])`;
+        where id = any(${ids.map(String)}::bigint[])`;
       return new Map(rows.map((r) => [Number(r.id), toLocated(r)]));
     },
 
@@ -118,7 +117,7 @@ export function createLocationStore(sql: Sql): LocationStore {
       return (
         await sql`
           delete from mail_locations
-          where not (id = any(${sql.array(ids.map(String))}::bigint[]))`
+          where not (id = any(${ids.map(String)}::bigint[]))`
       ).count;
     },
   };

@@ -34,7 +34,7 @@ export async function setPurgeFloors(floors: PurgeFloors, database = "cenacle"):
     { cle: "journal_jours", jours: days(floors.journalJours, "journal_jours") },
     { cle: "propositions_jours", jours: days(floors.propositionsJours, "propositions_jours") },
   ];
-  const sql = postgres(ownerUrlFromEnv(database), { max: 1, onnotice: () => {} });
+  const sql = postgres(ownerUrlFromEnv(database), { infer: true, max: 1, onnotice: () => {} });
   try {
     await sql.begin(async (tx) => {
       for (const row of rows) {
