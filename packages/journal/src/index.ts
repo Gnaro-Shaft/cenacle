@@ -79,7 +79,8 @@ export {
   READ_OUTCOMES,
   type ReadOutcome,
 } from "./prospection-store.ts";
-export { createPurges, type Purges } from "./purges.ts";
+export { type PurgeFloors, setPurgeFloors } from "./purge-floors.ts";
+export { createPurges, PurgeFloorError, type Purges } from "./purges.ts";
 export {
   createSecuriteDecisions,
   type DecideOutcome,

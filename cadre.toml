@@ -32,6 +32,8 @@ rang_attendu = 0
 
 # How long each store keeps what it keeps, in days (phase 5, C1). The purges
 # read these values; nothing else in the code decides a retention.
+# The database holds propositions_jours and journal_jours too, and refuses a
+# purge more recent than them: after changing either, run `npm run db:migrate`.
 [conservation]
 # What Iris remembers of a mail (keys, dates, category), after its arrival.
 memoire_jours = 90
