@@ -134,3 +134,27 @@ export function watchOrQuit(lock: InstanceLock, who: string): void {
     },
   });
 }
+
+/**
+ * A program's single instance, or one line and exit 75 (lot E4, 13/11): the
+ * block six programs wrote out each — take the lock; another holds it: say
+ * so, close both connections, leave with 75 (launchd tries again later);
+ * then, for a program that lives, watch the lock (ADR-0023).
+ */
+export async function holdOrQuit(
+  lockSql: Sql,
+  sql: Sql,
+  program: string,
+  refused: string,
+  watchAs?: string,
+): Promise<InstanceLock> {
+  const instance = await holdSingleInstance(lockSql, program);
+  if (instance === null) {
+    console.error(`🛑 ${refused}`);
+    await Promise.all([lockSql.end(), sql.end()]);
+    process.exit(75);
+  }
+  // A cut of the database drops the lock silently: checked and taken again.
+  if (watchAs !== undefined) watchOrQuit(instance, watchAs);
+  return instance;
+}

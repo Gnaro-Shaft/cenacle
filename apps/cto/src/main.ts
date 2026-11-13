@@ -19,13 +19,7 @@ import {
   listenCto,
   reviewCto,
 } from "@cenacle/cto";
-import {
-  connectOrQuit,
-  createJournal,
-  holdSingleInstance,
-  waitForDatabase,
-  watchOrQuit,
-} from "@cenacle/journal";
+import { connectOrQuit, createJournal, holdOrQuit, waitForDatabase } from "@cenacle/journal";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
 // The CTO reads documentation, never mail: no secret family at all (ADR-0017).
@@ -33,14 +27,14 @@ refuseForeignSecrets("Le CTO", []);
 const sql = await waitForDatabase(connectOrQuit());
 // One service at a time: a second one would take over the socket of the first.
 const lockSql = connectOrQuit("lock");
-const instance = await holdSingleInstance(lockSql, "cto");
-if (instance === null) {
-  console.error("🛑 Un autre service du CTO tourne déjà : celui-ci ne démarre pas.");
-  await Promise.all([lockSql.end(), sql.end()]);
-  process.exit(75);
-}
-// A cut of the database drops the lock silently: checked and taken again (ADR-0023).
-watchOrQuit(instance, "Le CTO");
+// One at a time; for a program that lives, the lock is watched (ADR-0023).
+const instance = await holdOrQuit(
+  lockSql,
+  sql,
+  "cto",
+  "Un autre service du CTO tourne déjà : celui-ci ne démarre pas.",
+  "Le CTO",
+);
 const journal = createJournal(sql);
 const local = ctoModels();
 const service = createCtoService({
