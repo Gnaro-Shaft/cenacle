@@ -32,7 +32,8 @@ Requirements: Node (see `.nvmrc`), Docker (PostgreSQL and the GreenMail test mai
 
 ```bash
 npm install
-cp .env.example .env          # fill it in: every secret is generated locally (see the comments)
+npm run setup                 # writes .env and one file per family of secrets, all drawn here (0600)
+                              # then set LOCAL_MODEL_ID in .env (as `ollama list` names it)
 npm run db:up                 # PostgreSQL + GreenMail, bound to 127.0.0.1
 npm run db:migrate
 npm run mail:load -- --reset  # loads the fictional test mailbox
