@@ -13,7 +13,7 @@
 | `.env.telegram` | Le jeton du bot | Iris, le bot, la veille du CTO, l'agent sécurité |
 | `.env.obs` | L'administrateur de Grafana | Docker Compose |
 | `.env.page` | La clé privée de la page (ADR-0013) | La page seule |
-| `.env.bot` | La clé privée du bot, qui signera ma confirmation d'une action sur un serveur (ADR-0036) | Personne encore : le bot seul, dès qu'il signera (jalon suivant) |
+| `.env.bot` | La clé privée du bot, qui signe ma confirmation d'une action sur un serveur ou d'un plan (ADR-0036) | Le bot seul |
 | `.env.executor` | Le mot de passe du rôle de l'exécuteur (ADR-0013) | L'exécuteur, les migrations, les tests |
 | `.env.sentinel` | Le jeton partagé avec la sentinelle (S2), qui authentifie les battements ; le VPS en garde la copie dans `/etc/cenacle-sentinel.env`, lisible par root seul | Iris, l'exécuteur |
 
@@ -21,7 +21,7 @@ Tous sont ignorés par git et lisibles par moi seul (droits 600).
 
 **Le lien de la page** (ADR-0019) n'est pas un fichier `.env` mais il porte un secret : le serveur de la page écrit le lien et son jeton de session dans `~/Library/Application Support/cenacle/page-url` (droits 600, dossier 700), une fois son port ouvert, et l'efface à l'arrêt propre ; `npm run page` l'ouvre sans l'afficher. Le jeton change à chaque démarrage du serveur et n'apparaît jamais dans les journaux.
 
-**Refus au démarrage** : Iris (boîte, Telegram, sentinelle), la page (boîte, clé privée), l'exécuteur (boîte, son rôle, sentinelle), le bot (Telegram), la veille du CTO (Telegram), l'agent sécurité (Telegram ; et, pour les PR de J6c, l'accès `gh` déjà installé sur le Mac, dans le trousseau, jamais dans un `.env`) et le service du CTO (aucune famille) refusent de démarrer s'ils trouvent un secret d'une autre famille. Le message nomme la variable, jamais sa valeur.
+**Refus au démarrage** : Iris (boîte, Telegram, sentinelle), la page (boîte, clé privée), l'exécuteur (boîte, son rôle, sentinelle), le bot (Telegram, sa clé de confirmation), la veille du CTO (Telegram), l'agent sécurité (Telegram ; et, pour les PR de J6c, l'accès `gh` déjà installé sur le Mac, dans le trousseau, jamais dans un `.env`) et le service du CTO (aucune famille) refusent de démarrer s'ils trouvent un secret d'une autre famille. Le message nomme la variable, jamais sa valeur.
 
 **Limite assumée** (ADR-0013) : sur un Mac à utilisateur unique, un programme qui tourne sous mon compte peut lire tous ces fichiers. La séparation protège contre une erreur ou une dépendance compromise **dans un processus**, pas contre la prise de mon compte macOS.
 
@@ -52,7 +52,7 @@ npm run secrets:restore -- --from /Volumes/CLE/cenacle-secrets [--into <dossier>
 Ce que la perte coûterait sans sauvegarde :
 - `CENACLE_MAIL_KEY` : la mémoire des mails devient illisible ; il faut la vider (elle se relit) et la **liste d'opposition** (C3) devient inutilisable : les personnes opposées seraient relues. C'est la perte la plus grave.
 - La clé privée de la page : les acceptations pas encore envoyées échouent ; en tirer une nouvelle (`npm run keys:accept`).
-- La clé privée du bot (ADR-0036) : supprimer `.env.bot`, en tirer une nouvelle (`npm run keys:confirm`), recopier la clé publique affichée dans `.env`, redémarrer le bot. Une fois la vérification en service, les confirmations pas encore exécutées seront refusées.
+- La clé privée du bot (ADR-0036) : supprimer `.env.bot`, en tirer une nouvelle (`npm run keys:confirm`), recopier la clé publique affichée dans `.env`, redémarrer le bot. Les confirmations pas encore exécutées sont refusées, et dites.
 - Les mots de passe de la base : se remettent par une migration ; celui de la boîte, chez l'hébergeur.
 
 ## La base de Cénacle n'est pas sauvegardée (décidé le 04/10), sauf la liste d'opposition

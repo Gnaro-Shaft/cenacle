@@ -6,7 +6,14 @@
  * runnable. The bot holds no key and runs nothing: the operator, alone,
  * acts within the minute. Both taps are written before any answer.
  */
-import type { SecuriteDecisions, SecuriteStore, ServeurActions } from "@cenacle/journal";
+import { ConfirmationFieldError } from "@cenacle/core";
+import type {
+  ConfirmOutcome,
+  SecuriteDecisions,
+  SecuriteStore,
+  ServeurActions,
+  StoredServerAction,
+} from "@cenacle/journal";
 import { ANSWER, opKeyboard, SERVER_CATALOGUE, type ServerActionName } from "@cenacle/securite";
 import type { InlineButton, TelegramApi, TelegramCallback } from "./api.ts";
 
@@ -15,6 +22,8 @@ export interface ServerBotDeps {
   readonly store: Pick<SecuriteStore, "open">;
   readonly decisions: Pick<SecuriteDecisions, "check">;
   readonly serverActions: Pick<ServeurActions, "request" | "confirm">;
+  /** My confirmation, signed (ADR-0036): null without the bot's key — then nothing is confirmed. */
+  readonly signAction: ((confirmed: StoredServerAction) => string) | null;
   /** `[serveurs] actif` of securite.toml, read at each tap. */
   readonly serversActive: () => boolean;
   readonly decided: (action: string) => Promise<unknown>;
@@ -68,7 +77,19 @@ export async function confirmServer(
   op: { id: number; token: string },
   deps: ServerBotDeps,
 ): Promise<void> {
-  const outcome = await deps.serverActions.confirm(op.id, op.token, deps.now());
+  if (deps.signAction === null) {
+    await deps.api.answerCallback(cb.id, ANSWER.serverNoKey);
+    return;
+  }
+  let outcome: ConfirmOutcome;
+  try {
+    // Signed on the row held for this confirmation, and written with it (ADR-0036).
+    outcome = await deps.serverActions.confirm(op.id, op.token, deps.now(), deps.signAction);
+  } catch (error) {
+    if (!(error instanceof ConfirmationFieldError)) throw error;
+    await deps.api.answerCallback(cb.id, ANSWER.serverUnsignable);
+    return;
+  }
   if (outcome === "done") await deps.decided("server_confirm");
   await deps.api.answerCallback(
     cb.id,

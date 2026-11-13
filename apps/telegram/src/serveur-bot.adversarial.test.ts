@@ -4,114 +4,10 @@
 // within its 2 minutes, once, with its own token; anyone but me is ignored;
 // the bot never runs anything — the operator does. The buttons appear only
 // where they belong.
-import type { ConfirmOutcome, StoredFinding } from "@cenacle/journal";
 import { keyboard, parseOpPressed, parsePressed } from "@cenacle/securite";
 import { describe, expect, it } from "vitest";
-import type { TelegramCallback } from "./api.ts";
-import { handleCallback, listFindings, type SecuriteBotDeps } from "./securite-bot.ts";
-
-const OWNER = 4242;
-// Fake tokens, built by pieces (test values, not secrets).
-const TOKEN = ["01234567", "89abcdef"].join("");
-const OP = ["fedcba98", "76543210"].join("");
-const NOW = new Date("2026-10-11T10:00:00Z");
-
-const finding = (id: number, type: string, target = "v10-essai"): StoredFinding =>
-  ({
-    id,
-    type,
-    target,
-    occurrence: "-",
-    status: "ouvert",
-    severity: "moyen",
-    title: "x",
-    params: {},
-  }) as StoredFinding;
-
-function world(
-  opts: { active?: boolean; findings?: readonly StoredFinding[]; pending?: boolean } = {},
-) {
-  const calls: string[] = [];
-  const requests: { findingId: number; host: string; at: Date }[] = [];
-  let until = NOW.getTime() + 120_000;
-  let confirmed = false;
-  const deps: SecuriteBotDeps = {
-    allowedChatId: OWNER,
-    api: {
-      sendMessage: async (_c, text) => {
-        calls.push(`send ${text}`);
-      },
-      sendWithButtons: async (_c, text, rows) => {
-        calls.push(
-          `buttons ${text} ${rows
-            .flat()
-            .map((b) => b.callback_data)
-            .join(",")}`,
-        );
-        return 1;
-      },
-      askReply: async () => 1,
-      answerCallback: async (_id, text) => {
-        calls.push(`answer ${text}`);
-      },
-      editButtons: async (_c, _m, rows) => {
-        calls.push(`edit ${rows.length}`);
-      },
-    },
-    store: { open: async () => [...(opts.findings ?? [finding(41, "serveur_services")])] },
-    decisions: {
-      tokens: async (ids) => new Map(ids.map((id) => [id, TOKEN])),
-      check: async (_id, token) => (token === TOKEN ? "done" : "stale"),
-      decide: async () => "done",
-      askReason: async () => undefined,
-      giveReason: async () => "unknown",
-      isAsking: async () => false,
-      requestPr: async () => "stale",
-      requestFix: async () => "stale",
-      purge: async () => 0,
-    },
-    serverActions: {
-      request: async (findingId, host, _action, now) => {
-        if (opts.pending === true) return null;
-        requests.push({ findingId, host, at: now });
-        return { id: 7, token: OP };
-      },
-      confirm: async (id, token, now): Promise<ConfirmOutcome> => {
-        if (id !== 7 || token !== OP) return "stale";
-        if (confirmed) return "already";
-        if (now.getTime() > until) return "expired";
-        confirmed = true;
-        return "done";
-      },
-    },
-    serversActive: () => opts.active ?? true,
-    journal: {
-      append: async (e) => {
-        calls.push(`journal ${JSON.stringify(e.payload)}`);
-        return { id: 1n, occurredAt: NOW, agent: e.agent, type: e.type, payload: e.payload ?? {} };
-      },
-    },
-    now: () => NOW,
-  };
-  return {
-    deps,
-    calls,
-    requests,
-    late: () => {
-      until = NOW.getTime() - 1;
-    },
-  };
-}
-const tap = (data: string, from = OWNER): TelegramCallback => ({
-  id: "cb1",
-  from: { id: from },
-  data,
-  message: {
-    message_id: 10,
-    chat: { id: OWNER, type: "private" },
-    reply_markup: { inline_keyboard: [] },
-  },
-});
+import { handleCallback, listFindings } from "./securite-bot.ts";
+import { finding, NOW, OP, OWNER, SIG, TOKEN, tap, world } from "./test-serveur-bot-world.ts";
 
 describe("🔁 under a server finding", () => {
   it("a request for that machine, then my confirmation asked, with its own button", async () => {
@@ -162,6 +58,33 @@ describe("✅ Confirmer", () => {
     ]);
     await handleCallback(tap(`o:7:${OP}`), w.deps);
     expect(w.calls.at(-1)).toMatch(/déjà confirmée/);
+  });
+
+  it("my confirmation reaches the store with the bot's signer, and is signed there", async () => {
+    const w = world();
+    await handleCallback(tap(`o:7:${OP}`), w.deps);
+    expect(w.signatures).toEqual([SIG]);
+  });
+
+  it("without the bot's key: nothing reaches the store, nothing is journaled, and it is said", async () => {
+    const w = world({ noKey: true });
+    await handleCallback(tap(`o:7:${OP}`), w.deps);
+    expect(w.signatures).toEqual([]);
+    expect(w.calls).toHaveLength(1);
+    expect(w.calls[0]).toMatch(
+      /^answer 🛑 Je n'ai pas ma clé de confirmation .* rien n'est confirmé/,
+    );
+  });
+
+  it("a row that cannot be signed: nothing confirmed, nothing journaled, said — and the next tap is not 'already'", async () => {
+    const w = world({ unsignable: true });
+    await handleCallback(tap(`o:7:${OP}`), w.deps);
+    expect(w.signatures).toEqual([]);
+    expect(w.calls).toEqual([
+      "answer 🛑 Cette demande ne peut pas être signée : rien n'est confirmé.",
+    ]);
+    await handleCallback(tap(`o:7:${OP}`), w.deps);
+    expect(w.calls.at(-1)).not.toMatch(/déjà confirmée/);
   });
 
   it("too late: nothing will be done, said, the button gone", async () => {

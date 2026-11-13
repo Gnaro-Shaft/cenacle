@@ -5,6 +5,7 @@
 // the buttons; "Confirmer" works within its 2 minutes, once, never beside a
 // running plan, and takes the buttons away; a stale tap changes nothing. The
 // bot never runs anything — the operator does.
+import { ConfirmationFieldError } from "@cenacle/core";
 import type { PlanConfirmOutcome, PlanStep, StoredPlan } from "@cenacle/journal";
 import { describe, expect, it } from "vitest";
 import type { TelegramCallback } from "./api.ts";
@@ -19,10 +20,21 @@ const STALE = "answer Ce bouton n'est plus valable (plan remplacé ou déjà tra
 
 type Step = { -readonly [K in keyof PlanStep]: PlanStep[K] };
 
+/** A signature's shape (86 base64url characters); what it signs is tested where it is made. */
+const SIG = "s".repeat(86);
+
 function world(
-  opts: { maintenance?: boolean; servers?: boolean; confirm?: PlanConfirmOutcome } = {},
+  opts: {
+    maintenance?: boolean;
+    servers?: boolean;
+    confirm?: PlanConfirmOutcome;
+    noKey?: boolean;
+    unsignable?: boolean;
+  } = {},
 ) {
   const calls: string[] = [];
+  /** The steps the signer was shown, per confirmation. */
+  const signed: string[][] = [];
   const steps: Step[] = (
     [
       ["vps-b", "maj_securite"],
@@ -93,13 +105,33 @@ function world(
       },
       ask: async (id, token) =>
         id === plan.id && token === BTN && steps.some((s) => s.state === "attente") ? CONF : null,
-      confirm: async (id, token) => {
+      confirm: async (id, token, now, sign) => {
         if (id !== plan.id || token !== CONF) return "stale";
         const outcome = opts.confirm ?? "done";
-        if (outcome === "done") plan.state = "confirmee";
+        if (outcome === "done") {
+          // As the real store: signed first, on the plan as it reads once confirmed.
+          sign?.({
+            ...plan,
+            state: "confirmee",
+            createdAt: NOW,
+            confirmedAt: now,
+            confirmSig: null,
+            steps: steps.map((s) => ({ ...s })),
+          });
+          plan.state = "confirmee";
+        }
         return outcome;
       },
     },
+    signAction: null,
+    signPlan:
+      opts.noKey === true
+        ? null
+        : (confirmed) => {
+            if (opts.unsignable === true) throw new ConfirmationFieldError("not a plain name");
+            signed.push(confirmed.steps.filter((s) => s.state !== "retiree").map((s) => s.host));
+            return SIG;
+          },
     journal: {
       append: async (e) => {
         calls.push(`journal ${e.type} ${JSON.stringify(e.payload)}`);
@@ -108,7 +140,7 @@ function world(
     },
     now: () => NOW,
   };
-  return { deps, calls, steps, plan, removed };
+  return { deps, calls, steps, plan, removed, signed };
 }
 
 const tap = (data: string, from = OWNER, messageId = 900): TelegramCallback => ({
@@ -230,6 +262,31 @@ describe("Confirmer", () => {
       expect(w.calls).toEqual([`answer ${said}`, ...edits]);
     },
   );
+
+  it("signed by the bot on the plan as confirmed, with the steps I kept", async () => {
+    const w = world();
+    (w.steps[2] as Step).state = "retiree";
+    await handleCallback(tap(`m:c:7:${CONF}`, OWNER, 950), w.deps);
+    expect(w.signed).toEqual([["vps-b", "vps-b"]]);
+    expect(w.plan.state).toBe("confirmee");
+  });
+
+  it("without the bot's key: nothing confirmed, nothing journaled, and it is said", async () => {
+    const w = world({ noKey: true });
+    await handleCallback(tap(`m:c:7:${CONF}`, OWNER, 950), w.deps);
+    expect(w.calls).toHaveLength(1);
+    expect(w.calls[0]).toMatch(
+      /^answer 🛑 Je n'ai pas ma clé de confirmation .* rien n'est confirmé/,
+    );
+    expect(w.plan.state).toBe("proposee");
+  });
+
+  it("a plan that cannot be signed: nothing confirmed, nothing journaled, said", async () => {
+    const w = world({ unsignable: true });
+    await handleCallback(tap(`m:c:7:${CONF}`, OWNER, 950), w.deps);
+    expect(w.calls).toEqual(["answer 🛑 Ce plan ne peut pas être signé : rien n'est confirmé."]);
+    expect(w.plan.state).toBe("proposee");
+  });
 
   it("the button's token instead of the confirmation's: stale", async () => {
     const w = world();

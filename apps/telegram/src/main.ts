@@ -24,6 +24,7 @@ import { parseMaintenanceSwitch, parseServerSwitch } from "@cenacle/securite";
 import { perform } from "./actions.ts";
 import { createTelegramApi, TelegramError, type TelegramFailure } from "./api.ts";
 import { sleepUnless } from "./backoff.ts";
+import { confirmSigners } from "./confirm-signers.ts";
 import { relayToCto } from "./cto-relay.ts";
 import { handleUpdate } from "./handler.ts";
 import { poll } from "./poll.ts";
@@ -39,8 +40,15 @@ if (!Number.isSafeInteger(allowedChatId) || allowedChatId === 0) {
   throw new Error("TELEGRAM_ALLOWED_CHAT_ID is missing or not a number (see .env.example)");
 }
 const api = createTelegramApi(process.env.TELEGRAM_BOT_TOKEN ?? "");
-// The bot holds its token, and nothing of the mailbox, the page or the database owner (S1).
-refuseForeignSecrets("The Telegram bot", ["telegram"]);
+// The bot holds its token and its own signing key (ADR-0036), and nothing of the
+// mailbox, the page or the database owner (S1).
+refuseForeignSecrets("The Telegram bot", ["telegram", "bot"]);
+// My confirmations are signed here. Without the key the bot still answers: it
+// confirms nothing, and each tap says so.
+const signers = confirmSigners();
+if (signers.problem !== null) {
+  console.error(`⚠ ${signers.problem} : aucune action sur un serveur ne pourra être confirmée`);
+}
 const sql = connectOrQuit();
 const journal = createJournal(sql);
 // One bot at a time (ADR-0019): Telegram refuses two pollers (409), and the
@@ -102,6 +110,8 @@ const securite: SecuriteBotDeps = {
   decisions: createSecuriteDecisions(sql),
   // Actions on the servers (J6f1b): the bot records; the operator, alone, acts.
   serverActions: createServeurActions(sql),
+  signAction: signers.signAction,
+  signPlan: signers.signPlan,
   serversActive: () => {
     try {
       return parseServerSwitch(readFileSync(join(ROOT, "securite.toml"), "utf8"));

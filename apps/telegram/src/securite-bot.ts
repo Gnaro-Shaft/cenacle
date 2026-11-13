@@ -13,6 +13,8 @@ import type {
   SecuriteDecisions,
   SecuriteStore,
   ServeurActions,
+  StoredPlan,
+  StoredServerAction,
 } from "@cenacle/journal";
 import {
   ANSWER,
@@ -43,6 +45,9 @@ export interface SecuriteBotDeps {
   readonly decisions: SecuriteDecisions;
   /** Actions on the servers (J6f1b): requested and confirmed here, run by the operator. */
   readonly serverActions: Pick<ServeurActions, "request" | "confirm">;
+  /** My confirmations, signed (ADR-0036): null without the bot's key — then nothing is confirmed. */
+  readonly signAction: ((confirmed: StoredServerAction) => string) | null;
+  readonly signPlan: ((confirmed: StoredPlan) => string) | null;
   /** `[serveurs] actif` of securite.toml, read at each use. */
   readonly serversActive: () => boolean;
   /** The maintenance plans (J7d): proposed by the operator, validated and confirmed here. */

@@ -18,6 +18,8 @@ const WHY: Readonly<Record<string, string>> = {
   etat_inconnu: "l'action a été coupée en cours (Mac endormi ?) — état inconnu",
   injoignable: "serveur injoignable ou clé refusée",
   action_disparue: "l'action lancée est introuvable",
+  confirmation_non_signee:
+    "sa confirmation n'est pas signée par le bot, ou ses étapes ne sont plus celles que tu as confirmées",
 };
 
 function why(reason: string | null): string {
@@ -78,4 +80,9 @@ export function planExpired(plan: StoredPlan): string {
 export function planSwitchedOff(plan: StoredPlan): string {
   const cancelled = plan.steps.filter((s) => s.state === "annulee").length;
   return `🛑 Plan n°${plan.id} arrêté : ${why("interrupteur")}. ${cancelled} étape(s) annulée(s) ; celle en cours, s'il y en avait une, va à son terme.`;
+}
+
+export function planUnsigned(plan: StoredPlan): string {
+  const cancelled = plan.steps.filter((s) => s.state === "annulee").length;
+  return `🛑 Plan n°${plan.id} arrêté : ${why("confirmation_non_signee")}. ${cancelled} étape(s) annulée(s). Rien ne sera fait : revalide le plan au prochain récapitulatif.`;
 }

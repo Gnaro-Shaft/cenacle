@@ -17,6 +17,12 @@ const REFUSAL: Readonly<Record<string, string>> = {
   releve_illisible: "le relevé de Legion est illisible",
   plus_de_motif: "le dernier relevé de Legion ne montre plus le problème : rien à faire",
   redemarrage_recent: "Cénacle l'a déjà redémarrée il y a moins de 24 heures",
+  confirmation_non_signee:
+    "cette confirmation n'est pas signée par le bot : je ne l'exécute pas. Si c'est bien toi, redemande l'action",
+  etape_hors_plan:
+    "cette action se dit étape d'un plan, mais ce n'est pas l'étape en cours de ce plan : je ne l'exécute pas",
+  cle_de_confirmation_absente:
+    "je n'ai pas la clé publique du bot (CENACLE_CONFIRM_PUBLIC_KEY dans .env, donnée par npm run keys:confirm) : je ne peux rien vérifier, donc rien exécuter",
   confirmation_perimee:
     "ta confirmation a plus de 15 minutes (le Mac dormait, ou l'opérateur était arrêté) : redemande l'action si elle vaut encore",
 };
