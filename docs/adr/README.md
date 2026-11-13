@@ -40,5 +40,6 @@ Elles sont rédigées en français (le code et le README sont en anglais).
 | [0033](0033-contexte-du-cto-selon-la-question.md) | Le contexte du CTO : un socle, une carte, et les documents de la question | Acceptée |
 | [0034](0034-cartes-candidature.md) | Les cartes « Candidature », créées depuis les confirmations des plateformes | Acceptée |
 | [0035](0035-plan-de-maintenance.md) | Le plan de maintenance : un récapitulatif, une validation, des gestes enchaînés | Acceptée |
+| [0036](0036-confirmation-signee-des-actions.md) | Ma confirmation d'une action sur un serveur est signée par le bot, vérifiée par l'opérateur | **Proposée** — à trancher |
 
 Les règles dures qui s'appliquent à tout le code sont dans [`../charte.md`](../charte.md).
