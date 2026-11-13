@@ -9,6 +9,7 @@
  * and the tests may.
  */
 import { PRIVATE_KEY_VAR } from "./acceptance.ts";
+import { CONFIRM_PRIVATE_KEY_VAR } from "./confirmation.ts";
 
 export const SECRET_FAMILIES = {
   /** The database owner: migrations and tests only. */
@@ -23,6 +24,8 @@ export const SECRET_FAMILIES = {
   obs: { file: ".env.obs", vars: ["GRAFANA_ADMIN_PASSWORD"] },
   /** The page's signing key (B6). */
   page: { file: ".env.page", vars: [PRIVATE_KEY_VAR] },
+  /** The bot's signing key: my confirmation of an action on a server (ADR-0036). */
+  bot: { file: ".env.bot", vars: [CONFIRM_PRIVATE_KEY_VAR] },
   /** The executor's database role (B7). */
   executor: { file: ".env.executor", vars: ["CENACLE_DB_EXECUTOR_PASSWORD"] },
   /** Shared with the sentinel (S2): Iris, the executor and the security agent (J6e1) beat with it. */

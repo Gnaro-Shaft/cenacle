@@ -29,6 +29,7 @@ export function planWorld(
     createdAt: NOW,
     confirmedAt: new Date(NOW.getTime() - (over.confirmedAgo ?? MIN)),
     messageId: null,
+    confirmSig: null,
     steps: steps.map(
       ([host, action, conditional], i): Step => ({
         id: 100 + i,
@@ -78,6 +79,7 @@ export function planWorld(
           verified: null,
           beforeCount: null,
           afterCount: null,
+          confirmSig: null,
         });
         s.state = "lancee";
         s.actionId = actionId;
