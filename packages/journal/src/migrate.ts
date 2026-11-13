@@ -30,7 +30,12 @@ export function requireEnv(name: string): string {
 }
 
 /** Creates a login role, or resets its password. */
-async function loginRole(sql: postgres.Sql, role: string, password: string, what: string) {
+async function loginRole(
+  sql: postgres.TransactionSql,
+  role: string,
+  password: string,
+  what: string,
+) {
   // The password is interpolated into DDL (Postgres does not accept bind
   // parameters there), so it must match a strict allowlist — never escape.
   if (!PASSWORD_RULE.test(password))
@@ -66,81 +71,91 @@ export async function migrate({
   const sql = postgres(ownerUrl, { infer: true, max: 1, onnotice: () => {} });
   const applied: string[] = [];
   try {
-    for (const file of readdirSync(SQL_DIR)
-      .filter((f) => f.endsWith(".sql"))
-      .sort()) {
-      await sql.unsafe(readFileSync(join(SQL_DIR, file), "utf8"));
-      applied.push(file);
-    }
-    const [db] = await sql<{ name: string }[]>`select current_database() as name`;
-    if (db === undefined) throw new Error("Could not read the current database name");
-    await loginRole(sql, APP_ROLE, appPassword, "CENACLE_DB_APP_PASSWORD");
-    await sql.unsafe(`GRANT CONNECT ON DATABASE "${db.name}" TO ${APP_ROLE}`);
-    await sql.unsafe(`GRANT USAGE ON SCHEMA public TO ${APP_ROLE}`);
-    await sql.unsafe(`REVOKE ALL ON events FROM ${APP_ROLE}`);
-    await sql.unsafe(`GRANT INSERT, SELECT ON events TO ${APP_ROLE}`);
-    // Mail items change (a category is set once) and expire (retention), but
-    // the app still cannot alter the table's structure.
-    await sql.unsafe(`REVOKE ALL ON mail_items FROM ${APP_ROLE}`);
-    await sql.unsafe(`GRANT SELECT, INSERT, UPDATE, DELETE ON mail_items TO ${APP_ROLE}`);
-    // Where each remembered mail is, and how far each folder was read (ADR-0016).
-    await sql.unsafe(`REVOKE ALL ON mail_folders, mail_locations FROM ${APP_ROLE}`);
-    await sql.unsafe(
-      `GRANT SELECT, INSERT, UPDATE, DELETE ON mail_folders, mail_locations TO ${APP_ROLE}`,
-    );
-    // Proposals are never deleted (their history matters); only their text is wiped.
-    await sql.unsafe(`REVOKE ALL ON proposals FROM ${APP_ROLE}`);
-    await sql.unsafe(`GRANT SELECT, INSERT, UPDATE ON proposals TO ${APP_ROLE}`);
-    // Purges that really erase (C1): through these two functions only, never directly.
-    await sql.unsafe(`GRANT EXECUTE ON FUNCTION purge_proposals(TIMESTAMPTZ) TO ${APP_ROLE}`);
-    await sql.unsafe(`GRANT EXECUTE ON FUNCTION purge_events(TIMESTAMPTZ) TO ${APP_ROLE}`);
-    // The floors of those purges (032): the owner's alone — not even read.
-    await sql.unsafe(`REVOKE ALL ON purge_planchers FROM ${APP_ROLE}`);
-    // People's rights (C3): the opposition list, and erasing a person's proposals.
-    await sql.unsafe(`REVOKE ALL ON opposed_keys FROM ${APP_ROLE}`);
-    await sql.unsafe(`GRANT SELECT, INSERT, DELETE ON opposed_keys TO ${APP_ROLE}`);
-    // Only the last trace changes; the key and the date of the request never do.
-    await sql.unsafe(`GRANT UPDATE (last_seen) ON opposed_keys TO ${APP_ROLE}`);
-    await sql.unsafe(
-      `GRANT EXECUTE ON FUNCTION erase_proposals_for(TEXT, BIGINT[]) TO ${APP_ROLE}`,
-    );
-    // The veille's archive (ADR-0024): written once, read, purged — never changed.
-    await sql.unsafe(`REVOKE ALL ON veille_articles FROM ${APP_ROLE}`);
-    await sql.unsafe(`GRANT SELECT, INSERT, DELETE ON veille_articles TO ${APP_ROLE}`);
-    // The prospection agent's cards (ADR-0032): added, read, purged — never changed by it.
-    await sql.unsafe(`REVOKE ALL ON prospection_cartes FROM ${APP_ROLE}`);
-    await sql.unsafe(`GRANT SELECT, INSERT, DELETE ON prospection_cartes TO ${APP_ROLE}`);
-    // My moves, from the page's server: the column, its decider and reason, the date — nothing else.
-    await sql.unsafe(
-      `GRANT UPDATE (board_column, decided_by, reason, moved_at) ON prospection_cartes TO ${APP_ROLE}`,
-    );
-    // The alerts it read: marked once, erased with the mail (trigger of 027).
-    await sql.unsafe(`REVOKE ALL ON prospection_mails_lus FROM ${APP_ROLE}`);
-    await sql.unsafe(`GRANT SELECT, INSERT, DELETE ON prospection_mails_lus TO ${APP_ROLE}`);
-    // The security agent's findings (ADR-0025): followed, closed, purged.
-    await sql.unsafe(`REVOKE ALL ON securite_constats FROM ${APP_ROLE}`);
-    await sql.unsafe(`GRANT SELECT, INSERT, UPDATE, DELETE ON securite_constats TO ${APP_ROLE}`);
-    await sql.unsafe(`REVOKE ALL ON securite_raisons FROM ${APP_ROLE}`);
-    await sql.unsafe(`GRANT SELECT, INSERT, DELETE ON securite_raisons TO ${APP_ROLE}`);
-    // Actions on the servers (ADR-0027): requested, confirmed, run, verified, purged.
-    await sql.unsafe(`REVOKE ALL ON serveur_actions FROM ${APP_ROLE}`);
-    await sql.unsafe(`GRANT SELECT, INSERT, UPDATE, DELETE ON serveur_actions TO ${APP_ROLE}`);
-    // The maintenance plans (ADR-0035, J7d): proposed, confirmed, chained, purged.
-    await sql.unsafe(`REVOKE ALL ON maintenance_plans FROM ${APP_ROLE}`);
-    await sql.unsafe(`GRANT SELECT, INSERT, UPDATE, DELETE ON maintenance_plans TO ${APP_ROLE}`);
-    await sql.unsafe(`REVOKE ALL ON maintenance_etapes FROM ${APP_ROLE}`);
-    await sql.unsafe(`GRANT SELECT, INSERT, UPDATE, DELETE ON maintenance_etapes TO ${APP_ROLE}`);
-    // The executor reads what Iris remembers, journals, and moves proposals
-    // (claim, sent, failed — refused to every other role by the database).
-    await loginRole(sql, EXECUTOR_ROLE, executorPassword, EXECUTOR_PASSWORD_VAR);
-    await sql.unsafe(`GRANT CONNECT ON DATABASE "${db.name}" TO ${EXECUTOR_ROLE}`);
-    await sql.unsafe(`GRANT USAGE ON SCHEMA public TO ${EXECUTOR_ROLE}`);
-    await sql.unsafe(
-      `REVOKE ALL ON events, mail_items, proposals, mail_folders, mail_locations FROM ${EXECUTOR_ROLE}`,
-    );
-    await sql.unsafe(`GRANT INSERT, SELECT ON events TO ${EXECUTOR_ROLE}`);
-    await sql.unsafe(`GRANT SELECT ON mail_items, mail_locations TO ${EXECUTOR_ROLE}`);
-    await sql.unsafe(`GRANT SELECT, UPDATE ON proposals TO ${EXECUTOR_ROLE}`);
+    // One transaction (lot F2, 13/11): the files drop and recreate triggers
+    // (the journal's append-only one among them) and every grant is revoked
+    // then given again. Out of a transaction, a running program saw, for an
+    // instant, a table without its trigger or a role without its rights.
+    // Now it sees the old state or the new one, never one in between.
+    await sql.begin(async (tx) => {
+      // Never wait long behind a running program's lock (F2 review): past 5 s
+      // the whole migration is undone and says so — run it again; nothing half done.
+      await tx.unsafe("set local lock_timeout = '5s'");
+      for (const file of readdirSync(SQL_DIR)
+        .filter((f) => f.endsWith(".sql"))
+        .sort()) {
+        await tx.unsafe(readFileSync(join(SQL_DIR, file), "utf8"));
+        applied.push(file);
+      }
+      const [db] = await tx<{ name: string }[]>`select current_database() as name`;
+      if (db === undefined) throw new Error("Could not read the current database name");
+      await loginRole(tx, APP_ROLE, appPassword, "CENACLE_DB_APP_PASSWORD");
+      await tx.unsafe(`GRANT CONNECT ON DATABASE "${db.name}" TO ${APP_ROLE}`);
+      await tx.unsafe(`GRANT USAGE ON SCHEMA public TO ${APP_ROLE}`);
+      await tx.unsafe(`REVOKE ALL ON events FROM ${APP_ROLE}`);
+      await tx.unsafe(`GRANT INSERT, SELECT ON events TO ${APP_ROLE}`);
+      // Mail items change (a category is set once) and expire (retention), but
+      // the app still cannot alter the table's structure.
+      await tx.unsafe(`REVOKE ALL ON mail_items FROM ${APP_ROLE}`);
+      await tx.unsafe(`GRANT SELECT, INSERT, UPDATE, DELETE ON mail_items TO ${APP_ROLE}`);
+      // Where each remembered mail is, and how far each folder was read (ADR-0016).
+      await tx.unsafe(`REVOKE ALL ON mail_folders, mail_locations FROM ${APP_ROLE}`);
+      await tx.unsafe(
+        `GRANT SELECT, INSERT, UPDATE, DELETE ON mail_folders, mail_locations TO ${APP_ROLE}`,
+      );
+      // Proposals are never deleted (their history matters); only their text is wiped.
+      await tx.unsafe(`REVOKE ALL ON proposals FROM ${APP_ROLE}`);
+      await tx.unsafe(`GRANT SELECT, INSERT, UPDATE ON proposals TO ${APP_ROLE}`);
+      // Purges that really erase (C1): through these two functions only, never directly.
+      await tx.unsafe(`GRANT EXECUTE ON FUNCTION purge_proposals(TIMESTAMPTZ) TO ${APP_ROLE}`);
+      await tx.unsafe(`GRANT EXECUTE ON FUNCTION purge_events(TIMESTAMPTZ) TO ${APP_ROLE}`);
+      // The floors of those purges (032): the owner's alone — not even read.
+      await tx.unsafe(`REVOKE ALL ON purge_planchers FROM ${APP_ROLE}`);
+      // People's rights (C3): the opposition list, and erasing a person's proposals.
+      await tx.unsafe(`REVOKE ALL ON opposed_keys FROM ${APP_ROLE}`);
+      await tx.unsafe(`GRANT SELECT, INSERT, DELETE ON opposed_keys TO ${APP_ROLE}`);
+      // Only the last trace changes; the key and the date of the request never do.
+      await tx.unsafe(`GRANT UPDATE (last_seen) ON opposed_keys TO ${APP_ROLE}`);
+      await tx.unsafe(
+        `GRANT EXECUTE ON FUNCTION erase_proposals_for(TEXT, BIGINT[]) TO ${APP_ROLE}`,
+      );
+      // The veille's archive (ADR-0024): written once, read, purged — never changed.
+      await tx.unsafe(`REVOKE ALL ON veille_articles FROM ${APP_ROLE}`);
+      await tx.unsafe(`GRANT SELECT, INSERT, DELETE ON veille_articles TO ${APP_ROLE}`);
+      // The prospection agent's cards (ADR-0032): added, read, purged — never changed by it.
+      await tx.unsafe(`REVOKE ALL ON prospection_cartes FROM ${APP_ROLE}`);
+      await tx.unsafe(`GRANT SELECT, INSERT, DELETE ON prospection_cartes TO ${APP_ROLE}`);
+      // My moves, from the page's server: the column, its decider and reason, the date — nothing else.
+      await tx.unsafe(
+        `GRANT UPDATE (board_column, decided_by, reason, moved_at) ON prospection_cartes TO ${APP_ROLE}`,
+      );
+      // The alerts it read: marked once, erased with the mail (trigger of 027).
+      await tx.unsafe(`REVOKE ALL ON prospection_mails_lus FROM ${APP_ROLE}`);
+      await tx.unsafe(`GRANT SELECT, INSERT, DELETE ON prospection_mails_lus TO ${APP_ROLE}`);
+      // The security agent's findings (ADR-0025): followed, closed, purged.
+      await tx.unsafe(`REVOKE ALL ON securite_constats FROM ${APP_ROLE}`);
+      await tx.unsafe(`GRANT SELECT, INSERT, UPDATE, DELETE ON securite_constats TO ${APP_ROLE}`);
+      await tx.unsafe(`REVOKE ALL ON securite_raisons FROM ${APP_ROLE}`);
+      await tx.unsafe(`GRANT SELECT, INSERT, DELETE ON securite_raisons TO ${APP_ROLE}`);
+      // Actions on the servers (ADR-0027): requested, confirmed, run, verified, purged.
+      await tx.unsafe(`REVOKE ALL ON serveur_actions FROM ${APP_ROLE}`);
+      await tx.unsafe(`GRANT SELECT, INSERT, UPDATE, DELETE ON serveur_actions TO ${APP_ROLE}`);
+      // The maintenance plans (ADR-0035, J7d): proposed, confirmed, chained, purged.
+      await tx.unsafe(`REVOKE ALL ON maintenance_plans FROM ${APP_ROLE}`);
+      await tx.unsafe(`GRANT SELECT, INSERT, UPDATE, DELETE ON maintenance_plans TO ${APP_ROLE}`);
+      await tx.unsafe(`REVOKE ALL ON maintenance_etapes FROM ${APP_ROLE}`);
+      await tx.unsafe(`GRANT SELECT, INSERT, UPDATE, DELETE ON maintenance_etapes TO ${APP_ROLE}`);
+      // The executor reads what Iris remembers, journals, and moves proposals
+      // (claim, sent, failed — refused to every other role by the database).
+      await loginRole(tx, EXECUTOR_ROLE, executorPassword, EXECUTOR_PASSWORD_VAR);
+      await tx.unsafe(`GRANT CONNECT ON DATABASE "${db.name}" TO ${EXECUTOR_ROLE}`);
+      await tx.unsafe(`GRANT USAGE ON SCHEMA public TO ${EXECUTOR_ROLE}`);
+      await tx.unsafe(
+        `REVOKE ALL ON events, mail_items, proposals, mail_folders, mail_locations FROM ${EXECUTOR_ROLE}`,
+      );
+      await tx.unsafe(`GRANT INSERT, SELECT ON events TO ${EXECUTOR_ROLE}`);
+      await tx.unsafe(`GRANT SELECT ON mail_items, mail_locations TO ${EXECUTOR_ROLE}`);
+      await tx.unsafe(`GRANT SELECT, UPDATE ON proposals TO ${EXECUTOR_ROLE}`);
+    });
   } finally {
     await sql.end();
   }
