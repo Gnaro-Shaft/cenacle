@@ -33,6 +33,24 @@ describe("every call has a bound", () => {
     expect(Date.now() - started).toBeGreaterThanOrEqual(CALL_TIMEOUT_MS - 100);
   }, 30_000);
 
+  it("a body that stalls after the headers is a network failure too", async () => {
+    const fetchFn = ((_url: string, init: RequestInit) => {
+      const signal = init.signal as AbortSignal;
+      const body = new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('{"ok": tr'));
+          signal.addEventListener("abort", () => controller.error(signal.reason));
+        },
+      });
+      return Promise.resolve(new Response(body, { status: 200 }));
+    }) as unknown as typeof fetch;
+    const error = await createTelegramApi(TOKEN, fetchFn)
+      .sendMessage(1, "x")
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(TelegramError);
+    expect((error as TelegramError).kind).toBe("network");
+  }, 30_000);
+
   it("the long poll gets its own wait plus the margin, the others the margin", async () => {
     const seen: number[] = [];
     const real = AbortSignal.timeout;

@@ -67,8 +67,8 @@ describe("waiting for the base", () => {
     expect((error as Error).message).toMatch(
       /^the database did not answer in 5 min \(Error(?: \(ECONNREFUSED\))?\)$/,
     );
-    expect(f.sleeps.reduce((a, b) => a + b, 0)).toBeGreaterThanOrEqual(WAIT_MAX_MS);
-    expect(f.sleeps.reduce((a, b) => a + b, 0)).toBeLessThan(WAIT_MAX_MS + 30_000);
+    // Exactly the bound: the last wait is cut to what is left.
+    expect(f.sleeps.reduce((a, b) => a + b, 0)).toBe(WAIT_MAX_MS);
     expect(JSON.stringify(f.lines)).not.toContain("example.test");
   });
 
@@ -87,6 +87,7 @@ describe("waiting for the base", () => {
   it("only the absence of the base is worth waiting for", () => {
     expect(notYet(failure("ECONNREFUSED"))).toBe(true);
     expect(notYet(failure("CONNECTION_ENDED"))).toBe(true);
+    expect(notYet(failure("ENOTFOUND"))).toBe(true);
     expect(notYet(failure("28P01"))).toBe(false);
     expect(notYet({ code: "ECONNREFUSED" })).toBe(false);
     expect(notYet("ECONNREFUSED")).toBe(false);

@@ -21,7 +21,12 @@ describe("the programs' first connection", () => {
   it.each(SERVICES)("%s waits for the base", (app) => {
     const main = readFileSync(join(APPS, app, "src", "main.ts"), "utf8");
     const first = /^const sql = (.*)$/m.exec(main)?.[1] ?? "";
-    expect(first).toMatch(/^await waitForDatabase\(connectOrQuit\((?:"executor")?\)\);$/);
+    // The security agent's commands run by hand do not wait: only its round does.
+    const waits =
+      app === "securite"
+        ? /^command === undefined \? await waitForDatabase\(connectOrQuit\(\)\) : connectOrQuit\(\);$/
+        : /^await waitForDatabase\(connectOrQuit\((?:"executor")?\)\);$/;
+    expect(first).toMatch(waits);
     // Before anything else touches the base: no query nor lock above that line.
     const before = main.slice(0, main.indexOf("const sql = "));
     expect(before).not.toMatch(/connectOrQuit\("lock"\)|sql`|holdSingleInstance\(/);

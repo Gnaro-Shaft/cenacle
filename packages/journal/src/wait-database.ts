@@ -19,6 +19,7 @@ const NOT_YET: ReadonlySet<string> = new Set([
   "EHOSTUNREACH",
   "ENETUNREACH",
   "EAI_AGAIN",
+  "ENOTFOUND", // a host name not resolvable yet: the network comes up after the session
   "CONNECT_TIMEOUT",
   "CONNECTION_CLOSED",
   "CONNECTION_ENDED",
@@ -89,7 +90,8 @@ export async function untilDatabaseAnswers(
         );
         said = true;
       }
-      await deps.sleep(delay);
+      // Never past the bound: the last wait is cut to what is left of it.
+      await deps.sleep(Math.min(delay, maxMs - (deps.now() - started)));
       delay = Math.min(delay * 2, MAX_DELAY_MS);
     }
   }

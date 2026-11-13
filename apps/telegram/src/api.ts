@@ -117,7 +117,16 @@ export function createTelegramApi(token: string, fetchFn: typeof fetch = fetch):
         "network",
       );
     }
-    const data = (await response.json().catch(() => null)) as {
+    // A body that stalls after the headers is cut by the same bound: a network failure too.
+    const data = (await response.json().catch((error: unknown) => {
+      if (
+        error instanceof Error &&
+        (error.name === "TimeoutError" || error.name === "AbortError")
+      ) {
+        throw new TelegramError(`Telegram unreachable (${method}): body timed out`, "network");
+      }
+      return null;
+    })) as {
       ok?: boolean;
       result?: T;
       description?: string;
