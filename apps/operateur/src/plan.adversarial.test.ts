@@ -5,152 +5,16 @@
 // back. A stale, future or unreadable verdict waits; six hours after my
 // confirmation, the rest expires. A reboot waits while a cluster lacks its
 // quorum or a machine of the plan does not answer. The switch off stops it.
-import type { PlanStep, StoredPlan, StoredServerAction, Verified } from "@cenacle/journal";
+// A step and its action are launched together, or not at all.
+import type { Verified } from "@cenacle/journal";
 import type { Observation } from "@cenacle/securite";
 import { describe, expect, it } from "vitest";
-import { drivePlan, type PlanDeps } from "./plan.ts";
+import { drivePlan } from "./plan.ts";
+import { type Action, obs, type Step, planWorld as world } from "./plan-test-world.ts";
 import { runOperator } from "./run.ts";
 import { MIN, NOW, world as operatorWorld, type Row } from "./test-world.ts";
 
-type Step = { -readonly [K in keyof PlanStep]: PlanStep[K] };
-type Action = { -readonly [K in keyof StoredServerAction]: StoredServerAction[K] };
 const HOUR = 60 * MIN;
-const obs = (type: string, target: string): Observation => ({
-  type,
-  target,
-  occurrence: "-",
-  severity: "moyen",
-  title: "x",
-});
-
-function world(
-  steps: Array<[string, Step["action"], boolean]>,
-  over: { confirmedAgo?: number; state?: StoredPlan["state"] } = {},
-) {
-  const plan = {
-    id: 7,
-    state: over.state ?? ("confirmee" as StoredPlan["state"]),
-    createdAt: NOW,
-    confirmedAt: new Date(NOW.getTime() - (over.confirmedAgo ?? MIN)),
-    messageId: null,
-    steps: steps.map(
-      ([host, action, conditional], i): Step => ({
-        id: 100 + i,
-        position: i,
-        host,
-        action,
-        conditional,
-        state: "attente",
-        actionId: null,
-        reason: null,
-      }),
-    ),
-  };
-  const actions = new Map<number, Action>();
-  const sent: string[] = [];
-  const events: Array<{ type: string; payload: Record<string, unknown> }> = [];
-  let verdictAt = NOW.getTime() - 5 * MIN;
-  let etats: Record<string, string> = { "vps-b": "SOUFFRANT", "noeud-a": "SOUFFRANT" };
-  let seen: Observation[] = [];
-  const snapshot = (): StoredPlan => ({ ...plan, steps: plan.steps.map((s) => ({ ...s })) });
-  const step = (id: number) => plan.steps.find((s) => s.id === id);
-  const deps: PlanDeps = {
-    active: true,
-    plans: {
-      running: async () => (["confirmee", "en_cours"].includes(plan.state) ? snapshot() : null),
-      get: async () => snapshot(),
-      start: async () => {
-        plan.state = "en_cours";
-        return true;
-      },
-      launch: async (id, actionId) => {
-        const s = step(id);
-        if (s === undefined || s.state !== "attente") return false;
-        s.state = "lancee";
-        s.actionId = actionId;
-        return true;
-      },
-      settle: async (id, state, reason) => {
-        const s = step(id);
-        if (s === undefined || !["attente", "lancee"].includes(s.state)) return false;
-        s.state = state;
-        s.reason = reason;
-        return true;
-      },
-      finish: async (_, state) => {
-        plan.state = state;
-        for (const s of plan.steps) if (s.state === "attente") s.state = "annulee";
-        return true;
-      },
-      purge: async () => 0,
-    },
-    actions: {
-      enqueueForPlan: async (planId, host, action) => {
-        const id = 500 + actions.size;
-        actions.set(id, {
-          id,
-          findingId: null,
-          planId,
-          host,
-          action,
-          state: "confirmee",
-          requestedAt: NOW,
-          finishedAt: null,
-          exitCode: null,
-          refusal: null,
-          verified: null,
-          beforeCount: null,
-          afterCount: null,
-        });
-        return id;
-      },
-      get: async (id) => actions.get(id) ?? null,
-    },
-    verdict: () =>
-      [
-        "bulletin=1",
-        `instant=${Math.floor(verdictAt / 1000)}`,
-        ...Object.entries(etats).map(([h, e]) => `${h}.etat=${e}`),
-        "fin=1",
-      ].join("\n"),
-    parseVerdict: () => seen,
-    send: async (text) => {
-      sent.push(text);
-    },
-    journal: {
-      append: async (e) => {
-        events.push({ type: e.type, payload: e.payload ?? {} });
-        return { id: 1n, occurredAt: NOW, agent: e.agent, type: e.type, payload: e.payload ?? {} };
-      },
-    },
-    now: () => NOW,
-  };
-  /** The action the launched step made, ended as the operator would end it. */
-  const answer = (patch: Partial<Action>) => {
-    const launched = plan.steps.find((s) => s.state === "lancee");
-    const a = actions.get(launched?.actionId ?? -1);
-    if (a === undefined) throw new Error("nothing launched");
-    Object.assign(a, patch);
-  };
-  return {
-    deps,
-    plan,
-    actions,
-    sent,
-    events,
-    answer,
-    seen: (s: Observation[]) => {
-      seen = s;
-    },
-    verdictAt: (ms: number) => {
-      verdictAt = ms;
-    },
-    etats: (e: Record<string, string>) => {
-      etats = e;
-    },
-  };
-}
-
 const proved = (verified: Verified): Partial<Action> => ({ state: "faite", exitCode: 0, verified });
 
 describe("a plan's first pass", () => {
@@ -171,6 +35,15 @@ describe("a plan's first pass", () => {
       findingId: null,
       action: "maj_securite",
     });
+  });
+
+  it("another pass launched the step meanwhile: no action made, nothing journaled as launched", async () => {
+    const w = world([["vps-b", "services", false]]);
+    w.seen([obs("serveur_services", "vps-b")]);
+    await drivePlan({ ...w.deps, plans: { ...w.deps.plans, launchStep: async () => null } });
+    expect(w.actions.size).toBe(0);
+    expect(w.plan.steps[0]?.state).toBe("attente");
+    expect(w.events.some((e) => e.payload.quoi === "lancee")).toBe(false);
   });
 
   it("no plan: nothing at all", async () => {

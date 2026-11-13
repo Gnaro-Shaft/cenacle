@@ -43,9 +43,9 @@ export interface PlanDeps {
   readonly active: boolean;
   readonly plans: Pick<
     PlanStore,
-    "running" | "get" | "start" | "launch" | "settle" | "finish" | "purge"
+    "running" | "get" | "start" | "launchStep" | "settle" | "finish" | "purge"
   >;
-  readonly actions: Pick<ServeurActions, "enqueueForPlan" | "get">;
+  readonly actions: Pick<ServeurActions, "get">;
   readonly verdict: () => string | null;
   readonly parseVerdict: (raw: string, nowMs: number) => Observation[];
   readonly send: (text: string) => Promise<void>;
@@ -209,8 +209,9 @@ export async function drivePlan(deps: PlanDeps): Promise<void> {
       continue;
     }
     if (next.action === "redemarrer" && !rebootMayGo(plan, v)) return;
-    const id = await deps.actions.enqueueForPlan(plan.id, next.host, next.action, deps.now());
-    await deps.plans.launch(next.id, id);
+    // The step and its action, both or neither (the store's transaction). Null:
+    // another pass launched it meanwhile — nothing made here, nothing to say.
+    if ((await deps.plans.launchStep(next.id, deps.now())) === null) return;
     await record(deps, { quoi: "lancee", action: next.action });
     return; // the operator runs it in this same pass
   }

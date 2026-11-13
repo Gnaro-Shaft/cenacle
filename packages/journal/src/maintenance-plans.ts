@@ -211,12 +211,34 @@ export function createPlanStore(sql: Sql) {
       return done.count === 1;
     },
 
-    /** A step launched: the action it made. */
-    async launch(stepId: number, actionId: number): Promise<boolean> {
-      const done = await sql`
-        update maintenance_etapes set state = 'lancee', serveur_action_id = ${actionId}
-        where id = ${stepId} and state = 'attente'`;
-      return done.count === 1;
+    /**
+     * A step launched: its action, runnable at once (my confirmation being the
+     * plan's), and the step tied to it — both or neither, in one transaction.
+     * The machine and the action are read from the step itself, never from the
+     * caller (charter, rule 5). Null when the step no longer waits (another
+     * pass launched it) or its plan is not running: then nothing is made. The
+     * operator checks the action again like any other.
+     */
+    async launchStep(stepId: number, now: Date): Promise<number | null> {
+      return sql.begin(async (tx) => {
+        const [step] = await tx<{ plan_id: string; host: string; action: ServerAction }[]>`
+          update maintenance_etapes e set state = 'lancee'
+          from maintenance_plans p
+          where e.id = ${stepId} and e.state = 'attente'
+            and p.id = e.plan_id and p.state = 'en_cours'
+          returning e.plan_id, e.host, e.action`;
+        if (step === undefined) return null;
+        const [row] = await tx<{ id: string }[]>`
+          insert into serveur_actions
+            (plan_id, host, action, state, requested_at, confirm_until, confirmed_at)
+          values (${step.plan_id}, ${step.host}, ${step.action}, 'confirmee', ${now},
+                  ${new Date(now.getTime() + 1000)}, ${now})
+          returning id`;
+        if (row === undefined) throw new Error("launchStep: the database returned no action");
+        await tx`
+          update maintenance_etapes set serveur_action_id = ${row.id} where id = ${stepId}`;
+        return Number(row.id);
+      });
     },
 
     /** A step settled: done, skipped (with why), or the one that stopped the plan. */
