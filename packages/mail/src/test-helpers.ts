@@ -263,6 +263,11 @@ export function memoryProposalStore(): ProposalStore {
         (p) => p.status === "accepted" && (p.sendAfter?.getTime() ?? Infinity) <= now.getTime(),
       );
     },
+    async stuckSending(before) {
+      return [...rows.values()].filter(
+        (p) => p.status === "sending" && (p.sentAt?.getTime() ?? Infinity) < before.getTime(),
+      );
+    },
     async claim(id, now) {
       const p = rows.get(id);
       if (
