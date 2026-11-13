@@ -42,5 +42,6 @@ Elles sont rédigées en français (le code et le README sont en anglais).
 | [0035](0035-plan-de-maintenance.md) | Le plan de maintenance : un récapitulatif, une validation, des gestes enchaînés | Acceptée |
 | [0036](0036-confirmation-signee-des-actions.md) | Ma confirmation d'une action sur un serveur est signée par le bot, vérifiée par l'opérateur | Acceptée |
 | [0037](0037-page-compilee-servie-par-l-api.md) | La page compilée, servie par le serveur de l'API | Acceptée |
+| [0038](0038-proprietaire-sans-super-utilisateur.md) | Le propriétaire de la base n'est plus super-utilisateur | Proposée |
 
 Les règles dures qui s'appliquent à tout le code sont dans [`../charte.md`](../charte.md).
