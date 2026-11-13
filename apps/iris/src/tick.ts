@@ -23,7 +23,6 @@ export interface TickDeps {
   readonly startedAt: Date;
   readonly journal: Journal;
   readonly store: MailStore;
-  /** All journal events of an agent, oldest first. */
   /** The latest event of an agent among these types (latestEvent): never the whole journal. */
   readonly latest: (agent: string, types: readonly string[]) => Promise<StoredEvent | undefined>;
   readonly runPass: () => Promise<void>;

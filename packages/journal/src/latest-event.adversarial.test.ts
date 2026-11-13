@@ -50,6 +50,12 @@ describe("latestEvent", () => {
     }
   });
 
+  it("its index is there: (agent, type, id), so a type never seen is not a scan (034)", async () => {
+    const rows = await sql<{ def: string }[]>`
+      select indexdef as def from pg_indexes where tablename = 'events' and indexname = 'events_agent_type_id'`;
+    expect(rows[0]?.def).toMatch(/\(agent, type, id\)/);
+  });
+
   it("a type looking like SQL is only a value", async () => {
     expect(await latestEvent(sql, "iris", ["x' or '1'='1"])).toBeUndefined();
   });

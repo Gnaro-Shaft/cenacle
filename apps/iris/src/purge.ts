@@ -18,7 +18,6 @@ const DAY_MS = 24 * 3600 * 1000;
 export interface PurgeDeps {
   readonly now: () => Date;
   readonly journal: Journal;
-  /** Iris's journal events, oldest first. */
   /** The latest purge.done of Iris, or undefined (latestEvent: one row, not the journal). */
   readonly lastPurge: () => Promise<StoredEvent | undefined>;
   readonly conservation: Conservation;
