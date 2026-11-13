@@ -98,7 +98,7 @@ describe("accepting", () => {
       replyToElsewhere: false,
     });
     await propose(SIGNED);
-    await service.accept("p-1");
+    await service.accept("p-1", SIGNED);
     const accepted = await store.get("p-1");
     expect(accepted?.status).toBe("accepted");
     // Signed by the page, for this very text: what the executor will check.
@@ -110,7 +110,7 @@ describe("accepting", () => {
     const target = { uid: 7, to: "claire@client.example", replyToElsewhere: false };
     const { service, propose, store } = setup(target, "8", 10 * 60_000);
     await propose(SIGNED);
-    await service.accept("p-1");
+    await service.accept("p-1", SIGNED);
     expect((await store.get("p-1"))?.sendAfter?.toISOString()).toBe("2026-10-05T10:10:00.000Z");
   });
 
@@ -118,7 +118,7 @@ describe("accepting", () => {
     const target = { uid: 7, to: "claire@client.example", replyToElsewhere: false };
     const { service, propose, store } = setup(target, "8", 30_000);
     await propose(SIGNED);
-    await expect(service.accept("p-1")).rejects.toThrow(/undo delay/);
+    await expect(service.accept("p-1", SIGNED)).rejects.toThrow(/undo delay/);
     expect((await store.get("p-1"))?.status).toBe("pending");
   });
 
@@ -128,7 +128,7 @@ describe("accepting", () => {
   ])("refuses when %s", async (_label, target, error) => {
     const { service, propose, store } = setup(target as ReplyTarget | undefined);
     await propose(SIGNED);
-    await expect(service.accept("p-1")).rejects.toThrow(error);
+    await expect(service.accept("p-1", SIGNED)).rejects.toThrow(error);
     expect((await store.get("p-1"))?.status).toBe("pending");
   });
 
@@ -138,6 +138,78 @@ describe("accepting", () => {
       expect(() => cleanDraft(bad)).toThrow();
     }
   });
+});
+
+describe("accepting signs the text I was shown, or nothing (lot B, 13/11)", () => {
+  const target = { uid: 7, to: "claire@client.example", replyToElsewhere: false };
+
+  it("a text changed since the page showed it (another tab, the CLI) is not signed", async () => {
+    const { service, propose, store, journal } = setup(target);
+    await propose(SIGNED);
+    const shown = (await service.list())[0]?.draft ?? "";
+    const before = journal.events.length;
+    await store.edit("p-1", `${SIGNED}\nPS : virement sur le compte FR76…`);
+    await expect(service.accept("p-1", shown)).rejects.toThrow(/changed since it was shown/);
+    const p = await store.get("p-1");
+    expect(p?.status).toBe("pending");
+    expect(p?.acceptanceSig).toBeNull();
+    expect(journal.events).toHaveLength(before);
+  });
+
+  it.each([
+    ["no text at all", undefined],
+    ["null", null],
+    ["a number", 42],
+    ["an object", { draft: SIGNED }],
+    ["an array", [SIGNED]],
+  ])("refuses an acceptance carrying %s", async (_label, seen) => {
+    const { service, propose, store } = setup(target);
+    await propose(SIGNED);
+    await expect(service.accept("p-1", seen)).rejects.toThrow(/needs the text shown/);
+    expect((await store.get("p-1"))?.status).toBe("pending");
+  });
+
+  it.each([
+    ["CRLF line breaks", SIGNED.replace(/\n/g, "\r\n")],
+    ["a trailing space", `${SIGNED} `],
+    ["a leading line break", `\n${SIGNED}`],
+    ["a composed é written as e + accent", SIGNED.replace("à", "a\u0300")],
+    ["the empty text", ""],
+    ["a prefix of the text", SIGNED.slice(0, -1)],
+  ])("compares exactly, never normalised: %s is refused", async (_label, seen) => {
+    const { service, propose, store } = setup(target);
+    await propose(SIGNED);
+    await expect(service.accept("p-1", seen)).rejects.toThrow(/changed since it was shown/);
+    expect((await store.get("p-1"))?.status).toBe("pending");
+  });
+
+  it("an unknown proposal says so, whatever text comes with it", async () => {
+    const { service } = setup(target);
+    await expect(service.accept("p-none", SIGNED)).rejects.toThrow(/does not exist/);
+  });
+
+  it("a double click: the second acceptance of the same text is refused by the state", async () => {
+    const { service, propose, store } = setup(target);
+    await propose(SIGNED);
+    await service.accept("p-1", SIGNED);
+    await expect(service.accept("p-1", SIGNED)).rejects.toThrow();
+    expect((await store.get("p-1"))?.sendAfter?.toISOString()).toBe("2026-10-05T10:02:00.000Z");
+  });
+
+  it.each([
+    [2 * 60_000, 2],
+    [10 * 60_000, 10],
+    [150_000, 2],
+    [10 * 60_000 - 1, 9],
+    [30_000, 1],
+  ])(
+    "the page is told the box's undo delay, never more (%i ms → %i min)",
+    async (undoMs, minutes) => {
+      const { service, propose } = setup(target, "8", undoMs);
+      await propose(SIGNED);
+      expect((await service.list())[0]?.undoMinutes).toBe(minutes);
+    },
+  );
 });
 
 describe("where an accepted reply goes, shown on every proposal (M3)", () => {

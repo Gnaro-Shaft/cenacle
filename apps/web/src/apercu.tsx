@@ -100,6 +100,7 @@ const draft = (over: Partial<ProposalView>): ProposalView => ({
   toComplete: ["heure"],
   unsupported: [],
   delivery: "real",
+  undoMinutes: 10,
   ...over,
 });
 

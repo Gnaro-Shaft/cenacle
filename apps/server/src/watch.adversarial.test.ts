@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentMessage } from "@cenacle/core";
+import { type AgentEvent, type AgentMessage, INTERNAL_STATES } from "@cenacle/core";
 import { describe, expect, it } from "vitest";
 import { createApp } from "./app.ts";
 import { defaultGuardConfig } from "./guard.ts";
@@ -167,5 +167,74 @@ describe("HTTP API — adversarial", () => {
   it("exposes nothing but the declared routes", async () => {
     expect((await app.request("/api/events", local)).status).toBe(404);
     expect((await app.request("/", local)).status).toBe(404);
+  });
+});
+
+// The stream needs no token (app.ts): it must never carry mail content
+// (ADR-0005). Pinned here: the keys it may send, and payload extras dropped.
+describe("the status stream carries states and counts, never content (lot B, 13/11)", () => {
+  const STATUS_KEYS = [
+    "agent",
+    "internal",
+    "kind",
+    "lastEventId",
+    "mail",
+    "note",
+    "pendingApprovals",
+    "since",
+    "visual",
+  ];
+  const LEAK = "claire.dubois@client.example";
+  const rich = (id: number, type: string, payload: Record<string, unknown>): AgentEvent => ({
+    ...ev(id, type),
+    payload: { ...payload, subject: `Devis ${LEAK}`, from: LEAK, draft: `Bonjour ${LEAK}` },
+  });
+
+  it("a status message holds only its known keys, and no payload extra", async () => {
+    const sent: AgentMessage[] = [];
+    let polls = 0;
+    await watchAgent({
+      agent: "iris",
+      readAfter: async () =>
+        polls++ === 0
+          ? [
+              rich(1, "state.changed", { to: "reading" }),
+              rich(2, "proposal.created", { proposalId: "p-1" }),
+              rich(3, "mail.sender_auth", { mails: 2, trusted: 2 }),
+              rich(4, "mail.totals", {
+                clients_prospects: 1,
+                administratif: 0,
+                bruit: 3,
+                missions: 0,
+                a_trier: 0,
+                pending: 0,
+                waiting: 0,
+                due: 0,
+              }),
+            ]
+          : [],
+      send: async (m) => {
+        sent.push(m);
+      },
+      sleep: async () => {},
+      isClosed: () => polls > 1,
+    });
+    expect(sent.length).toBeGreaterThan(0);
+    for (const m of sent) {
+      expect(m.kind).toBe("status");
+      expect(Object.keys(m).sort()).toEqual(STATUS_KEYS);
+      expect(JSON.stringify(m)).not.toContain(LEAK);
+      if (m.kind !== "status") continue;
+      // Values too: enums, counts and dates only — no free text can ride along.
+      expect(m.agent).toBe("iris");
+      expect(["resting", "working", "sick"]).toContain(m.visual);
+      expect(INTERNAL_STATES).toContain(m.internal);
+      expect([null, "waiting_for_mac", "purge_failed", "auth_missing"]).toContain(m.note);
+      expect(m.since === null || !Number.isNaN(Date.parse(m.since))).toBe(true);
+      expect(Number.isSafeInteger(m.pendingApprovals)).toBe(true);
+      expect(m.lastEventId === null || /^\d+$/.test(m.lastEventId)).toBe(true);
+      for (const n of Object.values(m.mail ?? {})) expect(Number.isSafeInteger(n)).toBe(true);
+    }
+    expect(sent.at(-1)).toMatchObject({ pendingApprovals: 1, internal: "reading" });
   });
 });

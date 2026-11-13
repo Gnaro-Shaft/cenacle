@@ -1,7 +1,10 @@
 /**
  * HTTP API. Bound to 127.0.0.1 by main.ts; reachable from elsewhere only
- * through Tailscale later (ADR-0006). The status stream carries counters
- * only; the proposals and the CTO need the token (see guard.ts).
+ * through Tailscale later (ADR-0006). The status stream carries states and
+ * counters only, never mail content (ADR-0005), so it stays open without the
+ * token: an EventSource cannot send a header, and the token never goes in a
+ * URL. A test pins the keys it may carry. The proposals and the CTO need the
+ * token (see guard.ts).
  */
 import { type CtoReply, CtoServiceError, QuestionError, validQuestion } from "@cenacle/cto";
 import { ProposalError } from "@cenacle/journal";
@@ -130,7 +133,7 @@ export function createApp(deps: AppDeps): Hono {
   );
   app.post(
     "/api/proposals/:id/accept",
-    action((id) => deps.proposals.accept(id)),
+    action((id, body) => deps.proposals.accept(id, body.draft)),
   );
   app.post(
     "/api/proposals/:id/refuse",

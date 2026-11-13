@@ -15,8 +15,8 @@ function setup() {
     edit: async (id, draft) => {
       calls.push(`edit ${id} ${String(draft)}`);
     },
-    accept: async (id) => {
-      calls.push(`accept ${id}`);
+    accept: async (id, seen) => {
+      calls.push(`accept ${id} ${JSON.stringify(seen)}`);
       if (id === "p-done")
         throw new ProposalError(`proposal ${id} cannot be accepted: it is refused`);
       if (id === "p-boom") throw new Error("connect ECONNREFUSED claire@client.example");
@@ -53,9 +53,15 @@ const without = (key: keyof typeof PAGE) =>
 describe("proposals API — who may act", () => {
   it("the page with the token can accept", async () => {
     const { app, calls } = setup();
-    const r = await app.request("/api/proposals/p-1/accept", post());
+    const r = await app.request("/api/proposals/p-1/accept", post(PAGE, '{"draft":"Bonjour"}'));
     expect(r.status).toBe(200);
-    expect(calls).toEqual(["accept p-1"]);
+    expect(calls).toEqual(['accept p-1 "Bonjour"']);
+  });
+
+  it("an acceptance without a text reaches the service with none, for it to refuse", async () => {
+    const { app, calls } = setup();
+    await app.request("/api/proposals/p-1/accept", post());
+    expect(calls).toEqual(["accept p-1 undefined"]);
   });
 
   it.each([

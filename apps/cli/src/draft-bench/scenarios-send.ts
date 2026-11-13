@@ -129,6 +129,13 @@ export async function undoDelay(ctx: BenchContext): Promise<Check[]> {
     await world.act(page, slot, "draft", undefined, JSON.stringify({ draft: mine })),
     200,
   );
+  // An older page (another tab) still shows the text before my edit: not signed (lot B).
+  const stale = JSON.stringify({ draft });
+  c.equal(
+    "accepter le texte d'avant",
+    await world.act(page, slot, "accept", undefined, stale),
+    409,
+  );
   c.equal("puis j'accepte", await world.act(page, slot, "accept"), 200);
   world.advance(UNDO_DELAY_MS);
   c.equal("envoyée après le délai", (await world.execute()).sent, [slot]);
