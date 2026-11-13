@@ -47,11 +47,35 @@ describe("localModelConfigFromEnv", () => {
     expect(read).toThrow(/Ollama's cloud/);
   });
 
-  it("a host that only ends like it is not Ollama's cloud", () => {
-    const baseUrl = "http://notollama.com.example.test:11434/v1";
+  it.each([
+    ["an online model's API", "https://api.openai.com/v1"],
+    ["a host that only ends like Ollama's", "http://notollama.com.example.test:11434/v1"],
+    ["another machine on the network", "http://192.168.1.20:11434/v1"],
+    ["a name that starts like localhost", "http://localhost.example.test:11434/v1"],
+    ["localhost with a trailing dot", "http://localhost.:11434/v1"],
+    ["the unspecified address", "http://0.0.0.0:11434/v1"],
+    ["an IPv4-mapped IPv6 address", "http://[::ffff:127.0.0.1]:11434/v1"],
+    ["another IPv6 address", "http://[fe80::1]:11434/v1"],
+    ["credentials pointing elsewhere", "http://127.0.0.1@models.example.test:11434/v1"],
+  ])("refuses %s: only this machine (lot D)", (_label, baseUrl) => {
+    const read = () =>
+      localModelConfigFromEnv({ LOCAL_MODEL_BASE_URL: baseUrl, LOCAL_MODEL_ID: "m" });
+    expect(read).toThrow(UsageError);
+    expect(read).toThrow(/must be this machine/);
+  });
+
+  it.each([
+    "http://localhost:11434/v1",
+    "http://LOCALHOST:11434/v1",
+    "http://127.0.0.1:11434/v1",
+    "http://127.1:11434/v1",
+    "http://127.255.0.9:1234/v1",
+    "http://[::1]:11434/v1",
+    "https://localhost/v1",
+  ])("accepts this machine %j", (baseUrl) => {
     expect(
-      localModelConfigFromEnv({ LOCAL_MODEL_BASE_URL: baseUrl, LOCAL_MODEL_ID: "m" }).baseUrl,
-    ).toBe(baseUrl);
+      localModelConfigFromEnv({ LOCAL_MODEL_BASE_URL: baseUrl, LOCAL_MODEL_ID: "m" }).modelId,
+    ).toBe("m");
   });
 
   it("the error never quotes the configured value", () => {
