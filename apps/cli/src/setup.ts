@@ -6,27 +6,57 @@
  * when I want them (.env.example says where).
  */
 import { randomBytes } from "node:crypto";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { lstatSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { generateAcceptanceKeys, generateConfirmationKeys } from "@cenacle/core";
+import { errorText, generateAcceptanceKeys, generateConfirmationKeys } from "@cenacle/core";
 import { setupFiles } from "./setup-env.ts";
 
-export function writeSetup(root: string): { written: string[]; present: string[] } {
+type Write = (path: string, text: string) => void;
+const writeForMe: Write = (path, text) => writeFileSync(path, text, { mode: 0o600, flag: "wx" });
+
+export function writeSetup(
+  root: string,
+  write: Write = writeForMe,
+): { written: string[]; present: string[] } {
   const files = setupFiles(readFileSync(join(root, ".env.example"), "utf8"), {
     hex: (bytes) => randomBytes(bytes).toString("hex"),
     acceptKeys: generateAcceptanceKeys(),
     confirmKeys: generateConfirmationKeys(),
   });
-  const present = [...files.keys()].filter((name) => existsSync(join(root, name)));
+  // lstat, not exists: a dangling link is something there too (D5 review).
+  const present = [...files.keys()].filter((name) => {
+    try {
+      lstatSync(join(root, name));
+      return true;
+    } catch {
+      return false;
+    }
+  });
   if (present.length > 0) return { written: [], present };
-  for (const [name, text] of files) {
-    writeFileSync(join(root, name), text, { mode: 0o600, flag: "wx" });
+  // All or nothing: a write that fails midway takes back the ones before it,
+  // so that a rerun is never refused by half a set of fresh secrets.
+  const written: string[] = [];
+  try {
+    for (const [name, text] of files) {
+      write(join(root, name), text);
+      written.push(name);
+    }
+  } catch (error) {
+    for (const name of written) unlinkSync(join(root, name));
+    throw error;
   }
-  return { written: [...files.keys()], present: [] };
+  return { written, present: [] };
 }
 
 if (import.meta.main) {
-  const { written, present } = writeSetup(join(import.meta.dirname, "..", "..", ".."));
+  let result: ReturnType<typeof writeSetup>;
+  try {
+    result = writeSetup(join(import.meta.dirname, "..", "..", ".."));
+  } catch (error) {
+    console.error(`🛑 ${errorText(error)} — rien n'est écrit.`);
+    process.exit(1);
+  }
+  const { written, present } = result;
   if (present.length > 0) {
     console.error(
       `🛑 déjà là : ${present.join(", ")} — rien n'est écrit (aucun secret n'est remplacé).`,

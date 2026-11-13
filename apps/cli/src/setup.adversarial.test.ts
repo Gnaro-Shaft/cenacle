@@ -5,8 +5,10 @@ import {
   copyFileSync,
   existsSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   statSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -109,4 +111,26 @@ describe("never over an existing file", () => {
       expect(existsSync(join(dir, name === ".env" ? ".env.owner" : ".env"))).toBe(false);
     },
   );
+});
+
+describe("what the review found (D5)", () => {
+  it("a dangling link where a file goes counts as there: nothing written", () => {
+    const dir = fresh();
+    symlinkSync(join(dir, "nowhere"), join(dir, ".env.owner"));
+    expect(writeSetup(dir)).toEqual({ written: [], present: [".env.owner"] });
+    expect(existsSync(join(dir, ".env"))).toBe(false);
+  });
+
+  it("a write that fails midway (disk full) takes back the files before it", () => {
+    const dir = fresh();
+    const before = readdirSync(dir).sort();
+    const failing = (path: string, text: string) => {
+      if (path.endsWith(".env.page")) throw new Error("ENOSPC");
+      writeFileSync(path, text, { mode: 0o600, flag: "wx" });
+    };
+    expect(() => writeSetup(dir, failing)).toThrow("ENOSPC");
+    expect(readdirSync(dir).sort()).toEqual(before);
+    // And a rerun is not refused by half a set.
+    expect(writeSetup(dir).written).toHaveLength(7);
+  });
 });
