@@ -77,6 +77,9 @@ export async function migrate({
     // instant, a table without its trigger or a role without its rights.
     // Now it sees the old state or the new one, never one in between.
     await sql.begin(async (tx) => {
+      // Never wait long behind a running program's lock (F2 review): past 5 s
+      // the whole migration is undone and says so — run it again; nothing half done.
+      await tx.unsafe("set local lock_timeout = '5s'");
       for (const file of readdirSync(SQL_DIR)
         .filter((f) => f.endsWith(".sql"))
         .sort()) {
