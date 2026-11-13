@@ -41,5 +41,6 @@ Elles sont rédigées en français (le code et le README sont en anglais).
 | [0034](0034-cartes-candidature.md) | Les cartes « Candidature », créées depuis les confirmations des plateformes | Acceptée |
 | [0035](0035-plan-de-maintenance.md) | Le plan de maintenance : un récapitulatif, une validation, des gestes enchaînés | Acceptée |
 | [0036](0036-confirmation-signee-des-actions.md) | Ma confirmation d'une action sur un serveur est signée par le bot, vérifiée par l'opérateur | Acceptée |
+| [0037](0037-page-compilee-servie-par-l-api.md) | La page compilée, servie par le serveur de l'API | Acceptée |
 
 Les règles dures qui s'appliquent à tout le code sont dans [`../charte.md`](../charte.md).
