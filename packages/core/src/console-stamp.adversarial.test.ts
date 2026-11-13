@@ -13,6 +13,8 @@ const INSTALL = join(import.meta.dirname, "console-stamp-install.ts");
 function fake() {
   const lines: unknown[][] = [];
   const target: StampTarget = {
+    debug: (...a) => lines.push(["debug", ...a]),
+    trace: (...a) => lines.push(["trace", ...a]),
     log: (...a) => lines.push(["log", ...a]),
     info: (...a) => lines.push(["info", ...a]),
     warn: (...a) => lines.push(["warn", ...a]),
@@ -42,11 +44,13 @@ describe("dated lines", () => {
     f.target.info({ k: 2 });
     f.target.warn("w");
     f.target.error("e");
+    f.target.debug("d");
     expect(f.lines).toEqual([
       ["log", "2026-11-13 12:00:00", "a", 1],
       ["info", "2026-11-13 12:00:00", { k: 2 }],
       ["warn", "2026-11-13 12:00:00", "w"],
       ["error", "2026-11-13 12:00:00", "e"],
+      ["debug", "2026-11-13 12:00:00", "d"],
     ]);
   });
 

@@ -1,6 +1,7 @@
 // A 500 or a broken stream leaves one line in the log (lot C, 13/11): the
 // route's pattern and the error's name and code — never a value of the
 // request, never the error's message, never a stack.
+import { HTTPException } from "hono/http-exception";
 import { describe, expect, it } from "vitest";
 import { createApp } from "./app.ts";
 import { defaultGuardConfig, newToken } from "./guard.ts";
@@ -111,5 +112,17 @@ describe("a broken stream is said in one line", () => {
     await r.text();
     expect(lines).toEqual(["⚠ API flux /api/agents/stream interrompu : Error (ECONNREFUSED)"]);
     clean(lines);
+  });
+});
+
+describe("the last resort keeps an answer thrown on purpose", () => {
+  it("an HTTPException keeps its status and leaves no line", async () => {
+    const { app, lines } = setup();
+    app.get("/api/thrown", () => {
+      throw new HTTPException(418, { message: "teapot" });
+    });
+    const r = await app.request("/api/thrown", { headers: { host: "127.0.0.1:5173" } });
+    expect(r.status).toBe(418);
+    expect(lines).toEqual([]);
   });
 });

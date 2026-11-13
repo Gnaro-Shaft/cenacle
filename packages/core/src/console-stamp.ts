@@ -25,6 +25,8 @@ export function crashLine(error: unknown): string {
 
 type Write = (...args: unknown[]) => void;
 export interface StampTarget {
+  debug: Write;
+  trace: Write;
   log: Write;
   info: Write;
   warn: Write;
@@ -53,7 +55,7 @@ export function installConsoleStamp(
   const marked = target as StampTarget & { [INSTALLED]?: true };
   if (marked[INSTALLED]) return;
   marked[INSTALLED] = true;
-  for (const level of ["log", "info", "warn", "error"] as const) {
+  for (const level of ["debug", "trace", "log", "info", "warn", "error"] as const) {
     const write = target[level].bind(target);
     target[level] = (...args: unknown[]) => write(stamp(now()), ...args);
   }

@@ -9,6 +9,7 @@
 import { type CtoReply, CtoServiceError, QuestionError, validQuestion } from "@cenacle/cto";
 import { ProposalError } from "@cenacle/journal";
 import { type Context, Hono } from "hono";
+import { HTTPException } from "hono/http-exception";
 import { streamSSE } from "hono/streaming";
 import { type ApiLog, internalLine, streamLine } from "./api-log.ts";
 import { type GuardConfig, hostGuard, tokenGuard } from "./guard.ts";
@@ -57,6 +58,8 @@ export function createApp(deps: AppDeps): Hono {
   const log = deps.log ?? ((line: string) => console.error(line));
   // Whatever a route did not catch: one line, then the same silent 500.
   app.onError((error, c) => {
+    // An answer thrown on purpose (a 401, a body too large) keeps its own status.
+    if (error instanceof HTTPException) return error.getResponse();
     log(internalLine(c, error));
     return c.json({ error: "internal error" }, 500);
   });
