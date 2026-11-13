@@ -2,11 +2,24 @@
  * The drafts waiting for me (phase 4, B3). Each one shows its imposed
  * recipient (not editable), its red flags, the text I can edit, and
  * Accept / Refuse. Accept stays locked while a slot is left, while my edit
- * is not saved, or when the recipient cannot be read. Once accepted, I have
- * 2 minutes to cancel. Nothing is sent from here: the executor does it (B4).
+ * is not saved, or when the recipient cannot be read, and it carries the
+ * text I was shown. Refusing asks once more: it is final. Once accepted, I
+ * have the box's undo delay to cancel. The rules live in proposal-rules.ts.
+ * Nothing is sent from here: the executor does it (B4).
  */
 import { useCallback, useEffect, useState } from "react";
-import { ApiError, act, listProposals, type ProposalView, saveDraft } from "./api.ts";
+import { ApiError, accept, act, listProposals, type ProposalView, saveDraft } from "./api.ts";
+import {
+  acceptBlockers,
+  acceptBody,
+  acceptedMessage,
+  countdown,
+  type RefuseClick,
+  type RefuseStep,
+  realRecipientWarning,
+  refuseStep,
+  slotsLeft,
+} from "./proposal-rules.ts";
 import { forgetToken } from "./token.ts";
 
 const REFRESH_MS = 30_000;
@@ -31,9 +44,10 @@ export function Card({
 }) {
   const [text, setText] = useState(p.draft);
   const [busy, setBusy] = useState(false);
+  const [refusing, setRefusing] = useState<RefuseStep>("idle");
   const now = useNow(1000);
   const dirty = text !== p.draft;
-  const leftSlots = [...text.matchAll(/\{([a-z_]+) \?\}/g)].map((m) => m[1]);
+  const leftSlots = slotsLeft(text);
 
   const run = async (what: () => Promise<unknown>, done: string) => {
     setBusy(true);
@@ -65,7 +79,7 @@ export function Card({
   }
 
   if (p.status === "accepted") {
-    const left = Math.max(0, Math.ceil((Date.parse(p.sendAfter ?? "") - now) / 1000));
+    const { left, text: line } = countdown(p.sendAfter, now);
     return (
       <article className="proposal accepted" aria-label={`Brouillon accepté ${p.id}`}>
         <header>
@@ -73,11 +87,7 @@ export function Card({
           <span className="to">À : {p.mail?.to ?? "—"}</span>
         </header>
         <pre className="draft-text">{p.draft}</pre>
-        <p className="countdown">
-          {left > 0
-            ? `✓ Accepté — annulable encore ${Math.floor(left / 60)} min ${String(left % 60).padStart(2, "0")} s`
-            : "✓ Accepté — l'exécuteur l'envoie à son prochain passage (npm run executor)"}
-        </p>
+        <p className="countdown">{line}</p>
         {left > 0 && (
           <button
             type="button"
@@ -91,14 +101,12 @@ export function Card({
     );
   }
 
-  const blockers = [
-    ...(p.mail === null
-      ? ["le mail n'est plus sur le serveur (ce brouillon sera clos à la prochaine relève)"]
-      : []),
-    ...(p.mail !== null && p.mail.to === null ? ["l'adresse de l'expéditeur est illisible"] : []),
-    ...(leftSlots.length > 0 ? [`case${leftSlots.length > 1 ? "s" : ""} à compléter`] : []),
-    ...(dirty ? ["enregistre d'abord ta modification"] : []),
-  ];
+  const blockers = acceptBlockers(p, text);
+  const onRefuse = (click: RefuseClick) => {
+    const next = refuseStep(refusing, click);
+    setRefusing(next.step);
+    if (next.send) void run(() => act(token, p.id, "refuse"), "Refusé : il ne reviendra pas.");
+  };
 
   return (
     <article className="proposal" aria-label={`Brouillon ${p.id}`}>
@@ -110,12 +118,7 @@ export function Card({
         </span>
       </header>
       <ul className="flags">
-        {p.delivery === "real" && (
-          <li className="red">
-            Destinataire réel : une fois acceptée, cette réponse partira vraiment chez ton
-            correspondant (10 minutes pour changer d'avis).
-          </li>
-        )}
+        {p.delivery === "real" && <li className="red">{realRecipientWarning(p.undoMinutes)}</li>}
         {p.delivery === "my_list" && (
           <li>Envoi limité à ta liste fermée : rien ne partira chez un correspondant.</li>
         )}
@@ -141,33 +144,45 @@ export function Card({
           maxLength={5000}
         />
       </label>
-      <div className="actions">
-        {dirty && (
+      {refusing === "confirming" ? (
+        <fieldset className="actions confirm">
+          <legend className="confirm-refus">
+            Refuser définitivement ? Ce brouillon ne reviendra pas, et rien ne partira.
+          </legend>
+          <button type="button" disabled={busy} onClick={() => onRefuse("confirm")}>
+            Oui, refuser
+          </button>
+          <button type="button" disabled={busy} onClick={() => onRefuse("keep")}>
+            Garder
+          </button>
+        </fieldset>
+      ) : (
+        <div className="actions">
+          {dirty && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => run(() => saveDraft(token, p.id, text), "Modification enregistrée.")}
+            >
+              Enregistrer
+            </button>
+          )}
           <button
             type="button"
-            disabled={busy}
-            onClick={() => run(() => saveDraft(token, p.id, text), "Modification enregistrée.")}
+            className="accept"
+            disabled={busy || blockers.length > 0}
+            title={blockers.join(" · ")}
+            onClick={() =>
+              run(() => accept(token, p.id, acceptBody(p)), acceptedMessage(p.undoMinutes))
+            }
           >
-            Enregistrer
+            Accepter
           </button>
-        )}
-        <button
-          type="button"
-          className="accept"
-          disabled={busy || blockers.length > 0}
-          title={blockers.join(" · ")}
-          onClick={() => run(() => act(token, p.id, "accept"), "Accepté : 2 minutes pour annuler.")}
-        >
-          Accepter
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => run(() => act(token, p.id, "refuse"), "Refusé : il ne reviendra pas.")}
-        >
-          Refuser
-        </button>
-      </div>
+          <button type="button" disabled={busy} onClick={() => onRefuse("refuse")}>
+            Refuser…
+          </button>
+        </div>
+      )}
       {blockers.length > 0 && <p className="detail">Accepter : {blockers.join(" · ")}</p>}
     </article>
   );
@@ -230,7 +245,9 @@ export function Proposals({
       ) : (
         items.map((p) => (
           <Card
-            key={`${p.id}-${p.status}-${p.draft.length}`}
+            // A new text, even of the same length, is a new card: a refusal
+            // question left open never applies to a text I have not seen.
+            key={`${p.id}-${p.status}-${p.draft}`}
             p={p}
             token={token}
             onDone={(m) => {

@@ -181,7 +181,7 @@ export interface World {
   execute(pause?: () => Promise<void>): Promise<RoundResult>;
   /** A start of the API server: a new token each time. */
   startPage(): Page;
-  /** The page acts, with its own headers unless others are given. Returns the HTTP status. */
+  /** The page acts, with its own headers unless others are given; « accept » sends the text it shows. Returns the HTTP status. */
   act(
     page: Page,
     id: string,
@@ -197,6 +197,20 @@ export const pageHeaders = (token: string): Record<string, string> => ({
   authorization: `Bearer ${token}`,
   "content-type": "application/json",
 });
+
+/**
+ * What the real page sends on « Accepter » (lot B, 13/11): the text the list
+ * shows. A proposal no longer listed (refused, sent, cancelled) gets the last
+ * text the page saw — the stored one — so that only its state refuses it.
+ */
+async function shownText(page: Page, id: string, lastSeen: string | null): Promise<string> {
+  const res = await page.app.request("/api/proposals", { headers: pageHeaders(page.token) });
+  const { proposals } = (await res.json()) as {
+    proposals?: { id: string; draft: string }[];
+  };
+  const draft = proposals?.find((p) => p.id === id)?.draft ?? lastSeen;
+  return draft === null ? "{}" : JSON.stringify({ draft });
+}
 
 let ids = 0;
 
@@ -342,11 +356,15 @@ export function createWorld(
         }),
       };
     },
-    async act(page, id, action, headers, body = "{}") {
+    async act(page, id, action, headers, body) {
       const res = await page.app.request(`/api/proposals/${id}/${action}`, {
         method: action === "draft" ? "PUT" : "POST",
         headers: headers ?? pageHeaders(page.token),
-        body,
+        body:
+          body ??
+          (action === "accept"
+            ? await shownText(page, id, (await store.get(id))?.draft ?? null)
+            : "{}"),
       });
       if (action === "accept" && res.status === 200) acceptedByPage.set(id, now());
       return res.status;

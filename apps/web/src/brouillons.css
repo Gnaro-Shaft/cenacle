@@ -64,6 +64,18 @@
   gap: 0.5rem;
   margin-top: 0.6rem;
 }
+.actions.confirm {
+  border: 0;
+  padding: 0;
+  margin-inline: 0;
+}
+.confirm-refus {
+  flex-basis: 100%;
+  padding: 0;
+  margin: 0;
+  color: var(--accent);
+  font-weight: 600;
+}
 .countdown {
   font-family: var(--titres);
   font-weight: 600;

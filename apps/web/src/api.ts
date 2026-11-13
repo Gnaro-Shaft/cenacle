@@ -17,6 +17,8 @@ export interface ProposalView {
   readonly unsupported: readonly string[];
   /** Where an accepted reply goes (M3). */
   readonly delivery: "test" | "my_list" | "real";
+  /** The box's undo delay, in minutes (2 on a test box, 10 on the real one). */
+  readonly undoMinutes: number;
 }
 
 export class ApiError extends Error {
@@ -50,7 +52,14 @@ export const saveDraft = (token: string, id: string, draft: string) =>
     body: JSON.stringify({ draft }),
   });
 
-export const act = (token: string, id: string, action: "accept" | "refuse" | "cancel") =>
+/** Accepting carries the text I was shown (proposal-rules.ts): the server signs only that one. */
+export const accept = (token: string, id: string, body: { readonly draft: string }) =>
+  call(token, `/api/proposals/${encodeURIComponent(id)}/accept`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+
+export const act = (token: string, id: string, action: "refuse" | "cancel") =>
   call(token, `/api/proposals/${encodeURIComponent(id)}/${action}`, { method: "POST", body: "{}" });
 
 /** The CTO's checked answer (ADR-0020). */

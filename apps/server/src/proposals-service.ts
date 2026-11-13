@@ -6,6 +6,8 @@
  * Red flags: slots left for me, facts absent from the thread, a Reply-To
  * elsewhere. Accepting needs a readable recipient and no slot left.
  * Accepting is signed here (ADR-0013): the executor sends nothing else.
+ * Accepting carries the text the page showed me: if the stored text is no
+ * longer exactly that one, nothing is signed (lot B, 13/11).
  * Nothing is sent here: the executor (B4) is the only one that sends.
  */
 import { checkDraft, type MailForModel } from "@cenacle/core";
@@ -42,6 +44,8 @@ export interface ProposalView {
   readonly unsupported: readonly string[];
   /** Where an accepted reply goes: test domains, my closed list, or the real correspondent (M3). */
   readonly delivery: Delivery;
+  /** The box's undo delay, in minutes: what the page tells me before and after accepting. */
+  readonly undoMinutes: number;
 }
 
 export type Delivery = "test" | "my_list" | "real";
@@ -50,7 +54,8 @@ export interface ProposalsService {
   list(): Promise<ProposalView[]>;
   /** My text, as sent by the page: checked here (type, length, characters). */
   edit(id: string, draft: unknown): Promise<void>;
-  accept(id: string): Promise<void>;
+  /** `seen`: the text the page showed me, as it sent it; signed only if it is still the stored one. */
+  accept(id: string, seen: unknown): Promise<void>;
   refuse(id: string): Promise<void>;
   cancel(id: string): Promise<void>;
 }
@@ -146,6 +151,8 @@ export function createProposalsService(deps: ServiceDeps): ProposalsService {
           toComplete: [...p.draft.matchAll(SLOT_LEFT)].map((m) => m[1] ?? ""),
           unsupported: checkDraft(p.draft, sources).unsupported.map((f) => f.raw),
           delivery,
+          // Rounded down, never under 1: the page never promises more time than there is.
+          undoMinutes: Math.max(1, Math.floor(deps.undoMs / 60_000)),
         };
       });
     },
@@ -154,9 +161,18 @@ export function createProposalsService(deps: ServiceDeps): ProposalsService {
       await deps.store.edit(id, cleanDraft(draft));
     },
 
-    async accept(id) {
+    async accept(id, seen) {
+      if (typeof seen !== "string") {
+        throw new ProposalError(`proposal ${id}: accepting needs the text shown, reload the page`);
+      }
       const p = await deps.store.get(id);
       if (p === null) throw new ProposalError(`proposal ${id} does not exist`);
+      // Exact, never normalised: what I saw is what gets signed, or nothing is.
+      if (p.draft !== seen) {
+        throw new ProposalError(
+          `proposal ${id}: the text changed since it was shown, reload the page`,
+        );
+      }
       const target = await targetOf(p);
       if (target === undefined) {
         throw new ProposalError(`proposal ${id}: the mail is no longer on the server`);
