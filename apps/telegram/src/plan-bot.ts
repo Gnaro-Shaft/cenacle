@@ -2,12 +2,14 @@
  * The maintenance plan's buttons, on the bot's side (J7d, ADR-0035): my taps
  * under the summary and under the question. "Retirer" takes a reboot or a
  * machine out, "Valider" asks — with exactly what will run — and only my
- * "Confirmer" within 2 minutes makes the plan run; the operator alone acts.
+ * "Confirmer" within 2 minutes makes the plan run — signed by the bot's own
+ * key with the steps I kept (ADR-0036); the operator alone acts.
  * Every tap is decided by the database with the plan's tokens; the decision
  * is written before any answer, so a failed edit of a message loses nothing.
  * Both switches are read at each tap. No AI decides anything here.
  */
-import type { Journal, PlanStore } from "@cenacle/journal";
+import { ConfirmationFieldError } from "@cenacle/core";
+import type { Journal, PlanConfirmOutcome, PlanStore, StoredPlan } from "@cenacle/journal";
 import {
   confirmPlanKeyboard,
   PLAN_ANSWER,
@@ -21,6 +23,8 @@ import type { InlineButton, TelegramApi, TelegramCallback } from "./api.ts";
 export interface PlanBotDeps {
   readonly api: Pick<TelegramApi, "sendWithButtons" | "answerCallback" | "editButtons">;
   readonly plans: Pick<PlanStore, "get" | "remove" | "ask" | "confirm">;
+  /** My confirmation, signed with the plan's steps (ADR-0036): null without the bot's key. */
+  readonly signPlan: ((confirmed: StoredPlan) => string) | null;
   /** `[serveurs] actif` and `[maintenance] actif` of securite.toml, read at each tap. */
   readonly serversActive: () => boolean;
   readonly maintenanceActive: () => boolean;
@@ -72,7 +76,19 @@ export async function pressPlan(
     return;
   }
   if (pressed.kind === "confirmer") {
-    const outcome = await deps.plans.confirm(pressed.planId, pressed.token, now);
+    if (deps.signPlan === null) {
+      await deps.api.answerCallback(cb.id, PLAN_ANSWER.noKey);
+      return;
+    }
+    let outcome: PlanConfirmOutcome;
+    try {
+      // Signed on the plan and its steps, held for this confirmation (ADR-0036).
+      outcome = await deps.plans.confirm(pressed.planId, pressed.token, now, deps.signPlan);
+    } catch (error) {
+      if (!(error instanceof ConfirmationFieldError)) throw error;
+      await deps.api.answerCallback(cb.id, PLAN_ANSWER.unsignable);
+      return;
+    }
     if (outcome === "done") await noted(deps, "confirme");
     await deps.api.answerCallback(cb.id, PLAN_ANSWER[outcome === "done" ? "confirmed" : outcome]);
     if (outcome === "done" || outcome === "expired") {

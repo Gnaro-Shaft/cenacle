@@ -102,6 +102,7 @@ export function planWorld(
     actions: {
       get: async (id) => actions.get(id) ?? null,
     },
+    planSigned: () => true,
     verdict: () =>
       [
         "bulletin=1",

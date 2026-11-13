@@ -32,6 +32,7 @@ import {
   type ServersConfigProblem,
 } from "@cenacle/securite";
 import { createTelegramApi } from "@cenacle/telegram/api";
+import { confirmKeyOrNull, notConfirmed, planSigned } from "./confirmation.ts";
 import { drivePlan } from "./plan.ts";
 import { runRecap } from "./recap.ts";
 import { runOperator } from "./run.ts";
@@ -74,14 +75,18 @@ async function pass(sql: ReturnType<typeof connectOrQuit>): Promise<void> {
   publishState(OPERATOR_STATE_PATH, config, Date.now());
   const store = createServeurActions(sql);
   const journal = createJournal(sql);
+  const plans = createPlanStore(sql);
+  // The public key of the bot (ADR-0036): without it nothing is verified, so nothing runs.
+  const confirmKey = confirmKeyOrNull();
   const securiteToml = read(join(ROOT, "securite.toml")) ?? "";
   const send = (text: string) => telegram.sendMessage(chatId, text);
   // The validated maintenance plan (J7d), before the actions: a step it
   // launches runs in this same pass.
   await drivePlan({
     active: parseMaintenanceSwitch(securiteToml),
-    plans: createPlanStore(sql),
+    plans,
     actions: store,
+    planSigned: (plan) => planSigned(confirmKey, plan),
     verdict: () => read(LEGION_VERDICT_PATH),
     parseVerdict: parseLegionVerdict,
     send,
@@ -95,6 +100,7 @@ async function pass(sql: ReturnType<typeof connectOrQuit>): Promise<void> {
     verdict: () => read(LEGION_VERDICT_PATH),
     parseVerdict: parseLegionVerdict,
     keyIsPrivate: (path) => keyIsPrivate(path),
+    notConfirmed: (a) => notConfirmed({ publicKey: confirmKey, plans }, a),
     ssh: (args) => runSsh(args),
     send,
     journal,

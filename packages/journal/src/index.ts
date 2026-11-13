@@ -1,3 +1,4 @@
+export { actionConfirmationOf, planConfirmationOf } from "./confirmation-fields.ts";
 export { connectAsApp, connectAsExecutor, connectLockAsApp, connectOrQuit } from "./connect.ts";
 export {
   holdSingleInstance,

@@ -166,6 +166,9 @@ export const ANSWER = {
   serverExpired:
     "⌛ Délai de 2 minutes dépassé : rien ne sera fait. Rappuie sur 🔁 pour recommencer.",
   serverAlready: "Cette demande est déjà confirmée, ou terminée.",
+  serverNoKey:
+    "🛑 Je n'ai pas ma clé de confirmation (npm run keys:confirm, puis redémarre le bot) : rien n'est confirmé.",
+  serverUnsignable: "🛑 Cette demande ne peut pas être signée : rien n'est confirmé.",
   serverPending: "Une demande attend déjà pour ce constat : rien de plus.",
   serverOff:
     "Les actions sur les serveurs sont coupées ([serveurs] actif dans securite.toml) : rien n'a changé.",

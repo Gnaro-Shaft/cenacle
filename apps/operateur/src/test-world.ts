@@ -96,6 +96,7 @@ export function world(over: Partial<OperatorDeps> = {}, hosts: string[] = ["vps-
       `bulletin=1\ninstant=${Math.floor(verdictAt / 1000)}\nvps-b.etat=${hostEtat}\nfin=1`,
     parseVerdict: () => seen,
     keyIsPrivate: () => true,
+    notConfirmed: async () => null,
     ssh: async (args) => {
       calls.push([...args]);
       return 0;

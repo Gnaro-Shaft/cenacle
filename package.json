@@ -24,7 +24,7 @@
     "server": "node --env-file=.env --env-file-if-exists=.env.mail --env-file-if-exists=.env.page apps/server/src/main.ts",
     "web": "npm run dev -w @cenacle/web",
     "simulate": "node --env-file=.env apps/cli/src/simulate.ts",
-    "bot": "node --env-file=.env --env-file-if-exists=.env.telegram apps/telegram/src/main.ts",
+    "bot": "node --env-file=.env --env-file-if-exists=.env.telegram --env-file-if-exists=.env.bot apps/telegram/src/main.ts",
     "veille": "node --env-file=.env --env-file-if-exists=.env.telegram apps/veille/src/main.ts",
     "veille:archive": "node --env-file=.env apps/veille/src/archive.ts",
     "securite": "node --env-file=.env --env-file-if-exists=.env.telegram --env-file-if-exists=.env.sentinel apps/securite/src/main.ts",

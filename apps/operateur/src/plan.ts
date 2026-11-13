@@ -35,6 +35,7 @@ import {
   planStarted,
   planStopped,
   planSwitchedOff,
+  planUnsigned,
 } from "./plan-messages.ts";
 import { FRESH_VERDICT_MS } from "./run.ts";
 
@@ -46,6 +47,8 @@ export interface PlanDeps {
     "running" | "get" | "start" | "launchStep" | "settle" | "finish" | "purge"
   >;
   readonly actions: Pick<ServeurActions, "get">;
+  /** Is this the plan I confirmed, with the very steps I confirmed (ADR-0036)? */
+  readonly planSigned: (plan: StoredPlan) => boolean;
   readonly verdict: () => string | null;
   readonly parseVerdict: (raw: string, nowMs: number) => Observation[];
   readonly send: (text: string) => Promise<void>;
@@ -164,6 +167,12 @@ export async function drivePlan(deps: PlanDeps): Promise<void> {
   if (plan === null) return;
   if (!deps.active) {
     await end(deps, plan, "arretee", "interrupteur", planSwitchedOff);
+    return;
+  }
+  // Verified at every pass, before any step: a plan no bot signed, or whose
+  // steps are no longer the ones I confirmed, stops here.
+  if (!deps.planSigned(plan)) {
+    await end(deps, plan, "arretee", "confirmation_non_signee", planUnsigned);
     return;
   }
   if (plan.state === "confirmee") {

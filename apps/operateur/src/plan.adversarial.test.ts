@@ -10,8 +10,8 @@ import type { Verified } from "@cenacle/journal";
 import type { Observation } from "@cenacle/securite";
 import { describe, expect, it } from "vitest";
 import { drivePlan } from "./plan.ts";
-import { type Action, obs, type Step, planWorld as world } from "./plan-test-world.ts";
 import { runOperator } from "./run.ts";
+import { type Action, obs, type Step, planWorld as world } from "./test-plan-world.ts";
 import { MIN, NOW, world as operatorWorld, type Row } from "./test-world.ts";
 
 const HOUR = 60 * MIN;

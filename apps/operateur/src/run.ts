@@ -77,6 +77,8 @@ export interface OperatorDeps {
   /** The verdict's findings; throws when it is not a valid, fresh verdict. */
   readonly parseVerdict: (raw: string, nowMs: number) => Observation[];
   readonly keyIsPrivate: (path: string) => boolean;
+  /** Why this action is not one I confirmed — the refusal's name — or null when it is (ADR-0036). */
+  readonly notConfirmed: (a: StoredServerAction) => Promise<string | null>;
   readonly ssh: (args: readonly string[]) => Promise<number>;
   readonly send: (text: string) => Promise<void>;
   readonly journal: Pick<Journal, "append">;
@@ -101,6 +103,9 @@ async function whyNot(
   nowMs: number,
 ): Promise<string | null> {
   if (!deps.active) return "interrupteur";
+  // The bot's signature of my confirmation, verified before anything else is believed.
+  const unsigned = await deps.notConfirmed(a);
+  if (unsigned !== null) return unsigned;
   // My confirmation is for now, not for whenever the operator comes back (the
   // Mac asleep, the operator stopped): too old, missing or from the future, it
   // is void — the button has to be pressed again.

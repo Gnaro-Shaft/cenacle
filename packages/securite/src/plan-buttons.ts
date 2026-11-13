@@ -125,6 +125,9 @@ export const PLAN_ANSWER = {
   expired: "Délai de 2 minutes dépassé : rappuie sur ✅ Valider le plan.",
   already: "Ce plan est déjà confirmé.",
   busy: "Un plan tourne déjà : celui-ci attendra le prochain récapitulatif.",
+  noKey:
+    "🛑 Je n'ai pas ma clé de confirmation (npm run keys:confirm, puis redémarre le bot) : rien n'est confirmé.",
+  unsignable: "🛑 Ce plan ne peut pas être signé : rien n'est confirmé.",
   stale: "Ce bouton n'est plus valable (plan remplacé ou déjà traité).",
   off: "Le plan de maintenance ou les actions sur les serveurs sont coupés (securite.toml).",
 } as const;
