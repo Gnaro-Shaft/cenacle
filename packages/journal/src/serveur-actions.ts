@@ -113,25 +113,6 @@ export function createServeurActions(sql: Sql) {
       return id === undefined ? null : { id: Number(id), token };
     },
 
-    /**
-     * A step of a confirmed plan (ADR-0035, J7d): runnable at once, my
-     * confirmation being the plan's. The operator checks it again like any other.
-     */
-    async enqueueForPlan(
-      planId: number,
-      host: string,
-      action: ServerAction,
-      now: Date,
-    ): Promise<number> {
-      const [row] = await sql<{ id: string }[]>`
-        insert into serveur_actions
-          (plan_id, host, action, state, requested_at, confirm_until, confirmed_at)
-        values (${planId}, ${host}, ${action}, 'confirmee', ${now},
-                ${new Date(now.getTime() + 1000)}, ${now})
-        returning id`;
-      return Number(row?.id);
-    },
-
     async get(id: number): Promise<StoredServerAction | null> {
       const rows = await sql<Row[]>`
         select ${sql.unsafe(COLUMNS)} from serveur_actions where id = ${id}`;
