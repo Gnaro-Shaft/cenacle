@@ -86,6 +86,11 @@ export interface ProspectionStore {
   byCompany(words: string): Promise<Card[]>;
   /** Erases one card; true when it existed. */
   erase(id: number): Promise<boolean>;
+  /**
+   * The cards whose title, company, place or note holds these words (case
+   * ignored): a person named on a card, found for their rights (lot D).
+   */
+  mentioning(words: string): Promise<Card[]>;
   /** Cards neither created nor moved since the cutoff are deleted; returns how many. */
   purge(cutoff: Date): Promise<number>;
 }
@@ -254,6 +259,16 @@ export function createProspectionStore(sql: Sql): ProspectionStore {
       const rows = await sql<Row[]>`
         select * from prospection_cartes
         where company ilike ${pattern} order by id`;
+      return rows.map(toCard);
+    },
+
+    async mentioning(words) {
+      const pattern = `%${words.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+      const rows = await sql<Row[]>`
+        select * from prospection_cartes
+        where title ilike ${pattern} or company ilike ${pattern}
+           or place ilike ${pattern} or note ilike ${pattern}
+        order by id`;
       return rows.map(toCard);
     },
 

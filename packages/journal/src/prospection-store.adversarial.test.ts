@@ -168,6 +168,20 @@ describe("prospection store — purge, search, erasure", () => {
     expect(await store.byCompany(`%${run}`)).toHaveLength(0);
   });
 
+  it("finds a name in a title, company, place or note (lot D), never % nor _ as wildcards", async () => {
+    await store.recordMail(mailId(), "read", [
+      card({ title: `Mission pour Valjean_${run}` }),
+      card({ company: `valjean_${run} SARL` }),
+      card({ place: `Chez Valjean_${run}` }),
+    ]);
+    await store.addByHand(
+      card({ source: "me", platform: null, decidedBy: "me", note: `Appeler VALJEAN_${run}` }),
+    );
+    expect(await store.mentioning(`Valjean_${run}`)).toHaveLength(4);
+    expect(await store.mentioning(`Valjean%${run}`)).toHaveLength(0);
+    expect(await store.mentioning(`Valjean__${run}`)).toHaveLength(0);
+  });
+
   it("erases one card, and says when there was none", async () => {
     await store.recordMail(mailId(), "read", [card({ title: `Effacée ${run}` })]);
     const target = (await store.cards()).find((c) => c.title === `Effacée ${run}`);
