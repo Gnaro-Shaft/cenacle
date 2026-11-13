@@ -74,6 +74,10 @@ export function localModelConfigFromEnv(env: NodeJS.ProcessEnv = process.env): L
   return { baseUrl: baseUrl.replace(/\/$/, ""), modelId };
 }
 
+/** The model's HTTP calls: like fetch, but a redirect fails instead of being followed. */
+export const noRedirect: typeof fetch = (input, init) =>
+  fetch(input, { ...init, redirect: "error" });
+
 export function createLocalModels(config: LocalModelConfig): LocalModels {
   const model: Model<"openai-completions"> = {
     id: config.modelId,
@@ -111,5 +115,11 @@ export function createLocalModels(config: LocalModelConfig): LocalModels {
   });
   const models = createModels();
   models.setProvider(provider);
+  // Never a redirect (lot F5, 13/11): the address is checked to be this
+  // machine (isThisMachine), but a local server answering 3xx would have led
+  // the request — a mail's content — elsewhere. A redirect is an error.
+  const stream = models.streamSimple.bind(models);
+  models.streamSimple = (m, context, options) =>
+    stream(m, context, { ...options, fetch: noRedirect });
   return { models, model };
 }
