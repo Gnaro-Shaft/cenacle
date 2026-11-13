@@ -106,6 +106,7 @@ export {
 export {
   ACTIONS_DAYS,
   CONFIRM_SECONDS,
+  CONFIRMED_VALID_MINUTES,
   type ConfirmOutcome,
   createServeurActions,
   type FinalState,

@@ -17,6 +17,8 @@ const REFUSAL: Readonly<Record<string, string>> = {
   releve_illisible: "le relevé de Legion est illisible",
   plus_de_motif: "le dernier relevé de Legion ne montre plus le problème : rien à faire",
   redemarrage_recent: "Cénacle l'a déjà redémarrée il y a moins de 24 heures",
+  confirmation_perimee:
+    "ta confirmation a plus de 15 minutes (le Mac dormait, ou l'opérateur était arrêté) : redemande l'action si elle vaut encore",
 };
 
 /** What is wrong with serveurs.local.toml, by kind; the detail stays on the Mac. */

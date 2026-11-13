@@ -71,6 +71,7 @@ export function planWorld(
           action: s.action,
           state: "confirmee",
           requestedAt: NOW,
+          confirmedAt: NOW,
           finishedAt: null,
           exitCode: null,
           refusal: null,

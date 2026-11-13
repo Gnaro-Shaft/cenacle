@@ -8,7 +8,13 @@
  * outcome is told to me once the message has left, and journaled as counts.
  * No model anywhere.
  */
-import type { Journal, ServeurActions, StoredServerAction, Verified } from "@cenacle/journal";
+import {
+  CONFIRMED_VALID_MINUTES,
+  type Journal,
+  type ServeurActions,
+  type StoredServerAction,
+  type Verified,
+} from "@cenacle/journal";
 import {
   answerOf,
   hostAnswered,
@@ -95,6 +101,14 @@ async function whyNot(
   nowMs: number,
 ): Promise<string | null> {
   if (!deps.active) return "interrupteur";
+  // My confirmation is for now, not for whenever the operator comes back (the
+  // Mac asleep, the operator stopped): too old, missing or from the future, it
+  // is void — the button has to be pressed again.
+  // Written as what holds, not as what fails: an instant that is no instant
+  // (NaN) makes every comparison false, and must be refused too.
+  const age = nowMs - (a.confirmedAt?.getTime() ?? Number.NaN);
+  const holds = age <= CONFIRMED_VALID_MINUTES * 60_000 && age >= -AHEAD_MS;
+  if (!holds) return "confirmation_perimee";
   if (typeof deps.config === "string") return `config_${deps.config}`;
   const server = deps.config.servers.find((s) => s.name === a.host);
   if (server === undefined) return "machine_inconnue";
