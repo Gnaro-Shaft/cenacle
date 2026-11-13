@@ -151,3 +151,21 @@ export async function latestEventAt(
     where agent = ${agent} and type = ${type} and payload @> ${sql.json(payload)}`;
   return row?.at ?? null;
 }
+
+/**
+ * The latest event of this agent among these types, or undefined — one row,
+ * never the whole journal (lot F3, 13/11): Iris asked her whole journal, 9 000
+ * events and growing, up to three times a minute, only to find the last one.
+ */
+export async function latestEvent(
+  sql: Sql,
+  agent: string,
+  types: readonly string[],
+): Promise<StoredEvent | undefined> {
+  const [row] = await sql<Row[]>`
+    select id::text, occurred_at, agent, type, payload from events
+    where agent = ${agent} and type = any(${[...types]}::text[])
+    -- events.id, the number: "order by id" would sort the text column above ("998" > "16840").
+    order by events.id desc limit 1`;
+  return row === undefined ? undefined : toStored(row);
+}

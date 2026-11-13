@@ -23,8 +23,8 @@ export interface TickDeps {
   readonly startedAt: Date;
   readonly journal: Journal;
   readonly store: MailStore;
-  /** All journal events of an agent, oldest first. */
-  readonly events: (agent: string) => Promise<readonly StoredEvent[]>;
+  /** The latest event of an agent among these types (latestEvent): never the whole journal. */
+  readonly latest: (agent: string, types: readonly string[]) => Promise<StoredEvent | undefined>;
   readonly runPass: () => Promise<void>;
   /** Totals with the follow-up counters (mailTotals). */
   readonly totals: (now: Date) => Promise<{ readonly waiting: number; readonly due: number }>;
@@ -42,10 +42,6 @@ export interface TickDeps {
 }
 
 export type TickOutcome = "stopped" | "done";
-
-function lastOf(events: readonly StoredEvent[], type: string): StoredEvent | undefined {
-  return events.findLast((e) => e.type === type);
-}
 
 function localHour(at: Date): number {
   return zonedParts(at.getTime(), TIME_ZONE).h;
@@ -68,9 +64,7 @@ async function freshCounts(store: MailStore, since: Date): Promise<NewCounts> {
 
 /** The start of the current Telegram outage, read from the journal (a restart loses nothing). */
 async function outageSince(deps: TickDeps): Promise<StoredEvent | undefined> {
-  const last = (await deps.events(AGENT)).findLast(
-    (e) => e.type === "notify.failed" || e.type === "notify.recovered",
-  );
+  const last = await deps.latest(AGENT, ["notify.failed", "notify.recovered"]);
   return last?.type === "notify.failed" ? last : undefined;
 }
 
@@ -110,7 +104,7 @@ async function notify(
 }
 
 export async function tick(deps: TickDeps): Promise<TickOutcome> {
-  const stop = lastOf(await deps.events("cenacle"), "stop.requested");
+  const stop = await deps.latest("cenacle", ["stop.requested"]);
   if (stop !== undefined && stop.occurredAt.getTime() > deps.startedAt.getTime()) return "stopped";
   await deps.heartbeat?.();
   if (deps.purge !== undefined) {
@@ -121,8 +115,7 @@ export async function tick(deps: TickDeps): Promise<TickOutcome> {
     }
   }
 
-  let events = await deps.events(AGENT);
-  const lastFetch = lastOf(events, "mail.fetched");
+  const lastFetch = await deps.latest(AGENT, ["mail.fetched"]);
   if (collectDue(deps.now(), lastFetch?.occurredAt ?? null)) {
     await deps.runPass();
     if (deps.draft !== undefined) {
@@ -134,7 +127,6 @@ export async function tick(deps: TickDeps): Promise<TickOutcome> {
         await deps.journal.append({ agent: AGENT, type: "draft.failed", payload: { reason } });
       }
     }
-    events = await deps.events(AGENT);
   }
 
   const now = deps.now();
@@ -152,7 +144,7 @@ export async function tick(deps: TickDeps): Promise<TickOutcome> {
     }
   }
 
-  const lastRecap = lastOf(events, "recap.sent");
+  const lastRecap = await deps.latest(AGENT, ["recap.sent"]);
   const lastSlot =
     typeof lastRecap?.payload.slot === "string" ? new Date(lastRecap.payload.slot) : null;
   // A recap is a message on Iris's initiative: never in quiet hours.
@@ -186,3 +178,9 @@ export async function tick(deps: TickDeps): Promise<TickOutcome> {
   }
   return "done";
 }
+
+/** latest over an event list in memory (the bench, the tests): the last of these types. */
+export const latestIn =
+  (events: readonly StoredEvent[]) =>
+  async (agent: string, types: readonly string[]): Promise<StoredEvent | undefined> =>
+    events.filter((e) => e.agent === agent && types.includes(e.type)).at(-1);

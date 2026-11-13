@@ -14,7 +14,7 @@ import {
   createProposalStore,
   createPurges,
   holdOrQuit,
-  readAllEvents,
+  latestEvent,
   waitForDatabase,
 } from "@cenacle/journal";
 import {
@@ -115,7 +115,7 @@ while (!stopping) {
       startedAt,
       journal,
       store,
-      events: (agent) => readAllEvents(journal, agent),
+      latest: (agent, types) => latestEvent(sql, agent, types),
       runPass: async () => {
         await runMailPass({
           journal,
@@ -151,7 +151,7 @@ while (!stopping) {
         await purgeDue({
           now: () => new Date(),
           journal,
-          events: () => readAllEvents(journal, "iris"),
+          lastPurge: () => latestEvent(sql, "iris", ["purge.done"]),
           conservation,
           wipeTexts: (now, days) => proposalStore.wipeOldTexts(now, days),
           purges: createPurges(sql),

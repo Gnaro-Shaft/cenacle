@@ -24,7 +24,7 @@ import {
 import type { NewEvent, StoredEvent } from "@cenacle/journal";
 import { memoryMailStore } from "@cenacle/mail/test-helpers";
 import { TelegramError } from "@cenacle/telegram/api";
-import { tick } from "./tick.ts";
+import { latestIn, tick } from "./tick.ts";
 
 const MINUTE = 60_000;
 export const START = new Date("2026-09-21T00:00:00+02:00");
@@ -126,7 +126,7 @@ export async function runAlertBench(outages: readonly Outage[] = []): Promise<Be
       startedAt: START,
       journal,
       store,
-      events: async (agent) => events.filter((e) => e.agent === agent),
+      latest: latestIn(events),
       runPass: async () => {
         while (next < mails.length && Date.parse(mails[next]?.date ?? "") <= now.getTime()) {
           const m = mails[next];
