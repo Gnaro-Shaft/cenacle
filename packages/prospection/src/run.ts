@@ -25,6 +25,7 @@ import {
   type Offer,
   parseExtraction,
 } from "./extract.ts";
+import { offerWithoutNames } from "./people-names.ts";
 import { type AgentColumn, duplicateKey, triage } from "./triage.ts";
 
 export const AGENT = "prospection";
@@ -198,7 +199,9 @@ export async function runProspection(deps: RunDeps): Promise<PassSummary> {
       break;
     }
     if (application) {
-      const offer = parseApplication(answer, body.links, platform);
+      const read = parseApplication(answer, body.links, platform);
+      // No person's name on a card: the ones the mail presents are removed by code.
+      const offer = read === null ? null : offerWithoutNames(read, body.text);
       if (offer === null) {
         await finish(id, "application_unreadable");
         continue;
@@ -216,8 +219,10 @@ export async function runProspection(deps: RunDeps): Promise<PassSummary> {
     let offers: readonly Offer[];
     try {
       const extraction = parseExtraction(answer, body.links, platform, config.perMailMax);
-      offers = extraction.offers;
-      counts.rejected = (counts.rejected ?? 0) + extraction.rejected;
+      // No person's name on a card: the ones the alert presents are removed by code.
+      offers = extraction.offers.flatMap((o) => offerWithoutNames(o, body.text) ?? []);
+      counts.rejected =
+        (counts.rejected ?? 0) + extraction.rejected + extraction.offers.length - offers.length;
       counts.over_cap = (counts.over_cap ?? 0) + extraction.overCap;
     } catch (error) {
       if (!(error instanceof ExtractError)) throw error;
