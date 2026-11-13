@@ -17,10 +17,20 @@ export type MailCounts = Readonly<Record<Category, number>> & {
 
 export class MailCountsError extends Error {}
 
+/**
+ * What a bad value is, never the value (lot C, 13/11): a projection error
+ * reaches the page's token-less status stream, and a payload may hold data.
+ */
+export function shapeOf(value: unknown): string {
+  if (value === null) return "null";
+  if (Array.isArray(value)) return "an array";
+  return `a ${typeof value}`;
+}
+
 function count(payload: Readonly<Record<string, unknown>>, key: string): number {
   const value = payload[key];
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
-    throw new MailCountsError(`invalid ${key} ${JSON.stringify(value)}`);
+    throw new MailCountsError(`invalid ${key} (${shapeOf(value)})`);
   }
   return value;
 }
@@ -96,7 +106,7 @@ export function applyModelSort(
   }
   const category = payload.category;
   if (!isModelCategory(category))
-    throw new MailCountsError(`unknown category ${JSON.stringify(category)}`);
+    throw new MailCountsError(`unknown category (${shapeOf(category)})`);
   return { ...counts, [category]: counts[category] + 1, pending: counts.pending - 1 };
 }
 
