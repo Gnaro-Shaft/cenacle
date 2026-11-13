@@ -1,6 +1,42 @@
 #!/bin/sh
-# Blocks any commit that contains a secret.
-# Fails closed: if gitleaks is missing, the commit is refused (no silent failure).
+# Before a commit to this public repository (CLAUDE.md, ADR-0011):
+# 1. the author's address must be GitHub's noreply one — 9 commits of
+#    2026-10-02 carry a personal address (audit of 2026-11-13, lot D4);
+# 2. no added line may hold a real name of mine — a host, a tailnet, an
+#    address — listed one per line in a file that is never versioned:
+#    $(git rev-parse --git-common-dir)/cenacle-real-names (shared by worktrees);
+# 3. no secret: gitleaks. Fails closed: gitleaks missing, the commit is refused.
+set -eu
+
+email=$(git var GIT_AUTHOR_IDENT | sed -n 's/.*<\(.*\)>.*/\1/p')
+case "$email" in
+*@users.noreply.github.com) ;;
+*)
+  echo "pre-commit: author address not GitHub's noreply one — the repository is public." >&2
+  echo "  set it: git config user.email <id>+<login>@users.noreply.github.com" >&2
+  exit 1
+  ;;
+esac
+
+names="$(git rev-parse --git-common-dir)/cenacle-real-names"
+if [ -f "$names" ]; then
+  # Comments and blank lines aside; whole words, case ignored, added lines only.
+  patterns=$(mktemp)
+  trap 'rm -f "$patterns"' EXIT
+  grep -v '^[[:space:]]*\(#\|$\)' "$names" >"$patterns" || true
+  if [ -s "$patterns" ]; then
+    found=$(git diff --cached -U0 --no-color --no-ext-diff |
+      grep '^+' | grep -v '^+++ ' | grep -n -i -w -F -f "$patterns" || true)
+    if [ -n "$found" ]; then
+      echo "pre-commit: a real name of mine (listed in $names) is in the commit:" >&2
+      echo "$found" | cut -c1-160 >&2
+      exit 1
+    fi
+  fi
+else
+  echo "pre-commit: no list of real names ($names): names not checked." >&2
+fi
+
 if ! command -v gitleaks >/dev/null 2>&1; then
   echo "pre-commit: gitleaks is not installed — run: brew install gitleaks" >&2
   exit 1
