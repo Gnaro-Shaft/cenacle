@@ -23,6 +23,9 @@ server)
   # The page is built first, from these very sources, and served by the
   # server itself (ADR-0037): never two versions. A failed build stops here.
   ./node_modules/.bin/vite build apps/web --logLevel warn
+  # Never the dev mode under launchd, whatever a .env says: --env-file does
+  # not override a variable already set.
+  export CENACLE_WEB_DEV=0
   # Same files as `npm run server`.
   exec node --env-file=.env --env-file-if-exists=.env.mail --env-file-if-exists=.env.page apps/server/src/main.ts
   ;;

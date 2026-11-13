@@ -226,6 +226,8 @@ describe("the runner", () => {
     const build = branch.indexOf("./node_modules/.bin/vite build apps/web");
     expect(build).toBeGreaterThan(-1);
     expect(build).toBeLessThan(branch.indexOf("exec node"));
+    // The dev mode can never be on under launchd, whatever a .env says.
+    expect(branch).toMatch(/export CENACLE_WEB_DEV=0\n[\s\S]*exec node/);
   });
 
   it("every program has its branch in the runner, and its own plist label", () => {

@@ -43,6 +43,9 @@ const HOST = "127.0.0.1";
 const PORT = Number(process.env.CENACLE_API_PORT ?? 8787);
 // The built page, served here (ADR-0037); CENACLE_WEB_DEV=1: Vite's dev server serves it instead.
 const WEB_DEV = process.env.CENACLE_WEB_DEV === "1";
+if (WEB_DEV) {
+  console.error("⚠ Mode développement : la page n'est pas servie ici, l'origine 5173 peut agir.");
+}
 const WEB_DIR = join(import.meta.dirname, "..", "..", "web");
 const pageProblem = WEB_DEV ? null : builtPageProblem(WEB_DIR);
 if (pageProblem !== null) {

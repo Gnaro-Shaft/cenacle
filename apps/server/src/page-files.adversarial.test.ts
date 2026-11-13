@@ -1,7 +1,7 @@
 // The built page, served by the API (ADR-0037): only dist's files, by an exact
 // path — nothing above it, no dot file, no link out —, strict headers on every
 // answer, this machine's names only, and never a page built from other sources.
-import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pageSourcesHash, SOURCES_STAMP } from "@cenacle/core";
@@ -117,6 +117,21 @@ describe("never two versions (ADR-0037, point 3)", () => {
     const { web } = site();
     writeFileSync(join(web, "src", "page.adversarial.test.ts"), "// a test\n");
     expect(builtPageProblem(web)).toBeNull();
+  });
+
+  it("a build cut short (a file the page names is missing): refused", () => {
+    const { web, dist } = site();
+    writeFileSync(
+      join(dist, "index.html"),
+      '<script type="module" src="/assets/gone.js"></script>',
+    );
+    expect(builtPageProblem(web)).toMatch(/incomplète/);
+  });
+
+  it("dist gone while the server runs: not found, never a 500", async () => {
+    const { app, dist } = site();
+    rmSync(dist, { recursive: true });
+    expect((await app.request("/", { headers: HOST })).status).toBe(404);
   });
 
   it("no build, or no fingerprint: refused, and it says how to build", () => {

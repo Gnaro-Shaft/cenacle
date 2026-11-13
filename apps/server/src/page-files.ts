@@ -58,6 +58,15 @@ export function builtPageProblem(webDir: string): string | null {
   if (readFileSync(stamp, "utf8").trim() !== pageSourcesHash(webDir)) {
     return "la page compilée date d'autres sources (npm run web:build)";
   }
+  // Every file the page names is there: a build cut short is not a page.
+  const named = readFileSync(join(dist, "index.html"), "utf8").matchAll(
+    /(?:src|href)="\/([^"]+)"/g,
+  );
+  for (const [, file] of named) {
+    if (file !== undefined && pageFile(dist, `/${file}`) === null) {
+      return "la page compilée est incomplète (npm run web:build)";
+    }
+  }
   return null;
 }
 
@@ -73,7 +82,12 @@ export function pageFile(dist: string, urlPath: string): string | null {
   if (!path.startsWith("/") || /[\\\0]/.test(path)) return null;
   const parts = path.slice(1).split("/");
   if (parts.some((p) => p === "" || p.startsWith(".")) || !(extname(path) in TYPES)) return null;
-  const root = realpathSync(dist);
+  let root: string;
+  try {
+    root = realpathSync(dist);
+  } catch {
+    return null; // dist gone (a rebuild by hand): not found, never a 500
+  }
   const file = resolve(root, ...parts);
   if (!file.startsWith(root + sep)) return null;
   try {

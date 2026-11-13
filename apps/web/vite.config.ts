@@ -8,7 +8,8 @@ import { defineConfig, type Plugin } from "vite";
 const stampSources = (): Plugin => ({
   name: "cenacle-sources-stamp",
   apply: "build",
-  closeBundle() {
+  // writeBundle runs only once the files are written: a failed build stamps nothing.
+  writeBundle() {
     const web = import.meta.dirname;
     writeFileSync(join(web, "dist", SOURCES_STAMP), `${pageSourcesHash(web)}\n`);
   },
