@@ -19,7 +19,8 @@ export interface PurgeDeps {
   readonly now: () => Date;
   readonly journal: Journal;
   /** Iris's journal events, oldest first. */
-  readonly events: () => Promise<readonly StoredEvent[]>;
+  /** The latest purge.done of Iris, or undefined (latestEvent: one row, not the journal). */
+  readonly lastPurge: () => Promise<StoredEvent | undefined>;
   readonly conservation: Conservation;
   readonly wipeTexts: (now: Date, days: number) => Promise<number>;
   readonly purges: Purges;
@@ -35,7 +36,7 @@ export interface PurgeResult {
 /** Runs the purge if the last one is a day old (or never ran); null otherwise. */
 export async function purgeDue(deps: PurgeDeps): Promise<PurgeResult | null> {
   const now = deps.now();
-  const last = (await deps.events()).findLast((e) => e.type === "purge.done");
+  const last = await deps.lastPurge();
   if (last !== undefined && now.getTime() - last.occurredAt.getTime() < DAY_MS) return null;
   const c = deps.conservation;
   try {

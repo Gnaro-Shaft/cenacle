@@ -5,7 +5,7 @@ import type { Conservation } from "@cenacle/mail";
 import { memoryJournal, memoryMailStore } from "@cenacle/mail/test-helpers";
 import { describe, expect, it } from "vitest";
 import { purgeDue } from "./purge.ts";
-import { tick } from "./tick.ts";
+import { latestIn, tick } from "./tick.ts";
 
 const DAY = 24 * 3600 * 1000;
 const NOW = new Date("2026-11-02T10:00:00+01:00");
@@ -39,7 +39,7 @@ function world(fail = false) {
   const deps = {
     now: () => now,
     journal,
-    events: async () => journal.events.filter((e) => e.agent === "iris"),
+    lastPurge: () => latestIn(journal.events)("iris", ["purge.done"]),
     conservation: C,
     wipeTexts: async (at: Date, days: number) => {
       calls.push(`texts ${days}d at ${at.toISOString()}`);
@@ -101,7 +101,7 @@ describe("purgeDue", () => {
       startedAt: NOW,
       journal,
       store: memoryMailStore(),
-      events: async (agent) => journal.events.filter((e) => e.agent === agent),
+      latest: latestIn(journal.events),
       runPass: async () => {},
       totals: async () => ({ waiting: 0, due: 0 }),
       send: async () => {},

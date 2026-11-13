@@ -7,7 +7,7 @@ import { memoryMailStore } from "@cenacle/mail/test-helpers";
 import { TelegramError } from "@cenacle/telegram/api";
 import { describe, expect, it } from "vitest";
 import { urgentAlert } from "./messages.ts";
-import { type TickDeps, tick } from "./tick.ts";
+import { latestIn, type TickDeps, tick } from "./tick.ts";
 
 const SECRET_PART = "AAHfake_token_for_tests_only_000000000";
 
@@ -38,7 +38,7 @@ function world(start: string, events: StoredEvent[] = []) {
     startedAt: new Date(start),
     journal,
     store,
-    events: async (agent) => events.filter((e) => e.agent === agent),
+    latest: latestIn(events),
     runPass: async () => {
       await journal.append({ agent: "iris", type: "mail.fetched", payload: { count: 0 } });
     },
