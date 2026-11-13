@@ -238,3 +238,28 @@ describe("the status stream carries states and counts, never content (lot B, 13/
     expect(sent.at(-1)).toMatchObject({ pendingApprovals: 1, internal: "reading" });
   });
 });
+
+describe("a problem on the token-less stream quotes no value (lot C, 13/11)", () => {
+  it("a malformed payload: the agent is shown sick, the message says what, not the value", async () => {
+    const sent: AgentMessage[] = [];
+    let polls = 0;
+    const leak = "claire.dubois@client.example";
+    await watchAgent({
+      agent: "iris",
+      readAfter: async () =>
+        polls++ === 0 ? [{ ...ev(1, "state.changed"), payload: { to: `Devis ${leak}` } }] : [],
+      send: async (m) => {
+        sent.push(m);
+      },
+      sleep: async () => {},
+      isClosed: () => polls > 3,
+    });
+    expect(sent).toEqual([
+      {
+        kind: "problem",
+        agent: "iris",
+        message: "Event #1 (state.changed): unknown target state (a string)",
+      },
+    ]);
+  });
+});
