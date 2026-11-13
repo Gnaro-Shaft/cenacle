@@ -21,7 +21,7 @@ import {
   connectOrQuit,
   createJournal,
   createVeilleStore,
-  holdSingleInstance,
+  holdOrQuit,
   waitForDatabase,
 } from "@cenacle/journal";
 import { createTelegramApi } from "@cenacle/telegram/api";
@@ -47,12 +47,13 @@ const local = createLocalModels({
 const sql = await waitForDatabase(connectOrQuit());
 // One veille at a time: one run by hand during the 8 o'clock one sends nothing (75).
 const lockSql = connectOrQuit("lock");
-const instance = await holdSingleInstance(lockSql, "veille");
-if (instance === null) {
-  console.error("🛑 Une autre veille tourne déjà : celle-ci ne fait rien.");
-  await Promise.all([lockSql.end(), sql.end()]);
-  process.exit(75);
-}
+// One at a time; for a program that lives, the lock is watched (ADR-0023).
+const instance = await holdOrQuit(
+  lockSql,
+  sql,
+  "veille",
+  "Une autre veille tourne déjà : celle-ci ne fait rien.",
+);
 const journal = createJournal(sql);
 const store = createVeilleStore(sql);
 
