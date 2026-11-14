@@ -1,6 +1,6 @@
 # ADR-0039 — Les mesures du parc : charge, mémoire, disques et machines virtuelles
 
-**Statut** : proposée (2026-11-14)
+**Statut** : acceptée (2026-11-14)
 
 ## Contexte
 

@@ -43,6 +43,6 @@ Elles sont rédigées en français (le code et le README sont en anglais).
 | [0036](0036-confirmation-signee-des-actions.md) | Ma confirmation d'une action sur un serveur est signée par le bot, vérifiée par l'opérateur | Acceptée |
 | [0037](0037-page-compilee-servie-par-l-api.md) | La page compilée, servie par le serveur de l'API | Acceptée |
 | [0038](0038-proprietaire-sans-super-utilisateur.md) | Le propriétaire de la base n'est plus super-utilisateur | Acceptée |
-| [0039](0039-mesures-du-parc.md) | Les mesures du parc : charge, mémoire, disques et machines virtuelles | Proposée |
+| [0039](0039-mesures-du-parc.md) | Les mesures du parc : charge, mémoire, disques et machines virtuelles | Acceptée |
 
 Les règles dures qui s'appliquent à tout le code sont dans [`../charte.md`](../charte.md).
