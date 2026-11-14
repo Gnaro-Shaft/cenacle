@@ -4,8 +4,8 @@
  * software of my list, as a whole word. A bulletin is outside text: its title
  * is cleaned and capped, never shown when it reads like an order, and its
  * link kept only in the CERT-FR's exact form — on its old host or its new
- * one (cert.cyber.gouv.fr since October 2026), the finding's link always on
- * the new one. An alert speaks at once (high);
+ * one (cert.cyber.gouv.fr since October 2026, its feed's links with "www."
+ * since late October), the finding's link always on the new one. An alert speaks at once (high);
  * an advisory (medium) waits for the morning report, and closes quietly once out of
  * the feed (lifecycle.ts). Pure.
  */
@@ -27,9 +27,13 @@ export const bulletinCheck = (kind: BulletinKind) =>
   kind === "alerte" ? "certfr_alertes" : "certfr_avis";
 
 const DAY_MS = 86_400_000;
-/** The feed reader drops the trailing slash; the identifier is what counts. */
+/**
+ * The feed reader drops the trailing slash; the identifier is what counts.
+ * The new host's feed names its bulletins with "www." (seen 14/11, after two
+ * weeks of a check that could not run): both forms of the new host count.
+ */
 const LINK =
-  /^https:\/\/(?:www\.cert\.ssi\.gouv\.fr|cert\.cyber\.gouv\.fr)\/(alerte|avis)\/(CERTFR-\d{4}-(?:ALE|AVI)-\d{1,5})\/?$/;
+  /^https:\/\/(?:www\.cert\.ssi\.gouv\.fr|(?:www\.)?cert\.cyber\.gouv\.fr)\/(alerte|avis)\/(CERTFR-\d{4}-(?:ALE|AVI)-\d{1,5})\/?$/;
 
 /**
  * How many items of a feed carry a link of this kind in the CERT-FR's form.

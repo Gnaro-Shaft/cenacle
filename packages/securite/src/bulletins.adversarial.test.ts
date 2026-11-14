@@ -94,6 +94,18 @@ describe("a bulletin, as a finding", () => {
     ["the new host without its dots", "https://certXcyberXgouvXfr/avis/CERTFR-2026-AVI-1"],
     ["the old host without www", "https://cert.ssi.gouv.fr/avis/CERTFR-2026-AVI-1"],
     ["a path after the id, new host", "https://cert.cyber.gouv.fr/avis/CERTFR-2026-AVI-1/../x"],
+    // The new host with "www." counts (14/11); nothing that only looks like it does.
+    [
+      "a prefix before www on the new host",
+      "https://evil.www.cert.cyber.gouv.fr/avis/CERTFR-2026-AVI-1",
+    ],
+    ["www without its dot", "https://wwwcert.cyber.gouv.fr/avis/CERTFR-2026-AVI-1"],
+    ["www twice", "https://www.www.cert.cyber.gouv.fr/avis/CERTFR-2026-AVI-1"],
+    ["plain http on www of the new host", "http://www.cert.cyber.gouv.fr/avis/CERTFR-2026-AVI-1/"],
+    [
+      "a look-alike of www on the new host",
+      "https://www.cert.cyber.gouv.fr.example.test/avis/CERTFR-2026-AVI-1/",
+    ],
     [
       "another site carrying the CERT-FR's link",
       "https://evil.example.test/?u=https://www.cert.ssi.gouv.fr/avis/CERTFR-2026-AVI-1",
@@ -124,6 +136,7 @@ describe("a bulletin, as a finding", () => {
       );
     const old = at("www.cert.ssi.gouv.fr");
     expect(old).toEqual(at("cert.cyber.gouv.fr"));
+    expect(old).toEqual(at("www.cert.cyber.gouv.fr"));
     expect(old[0]?.params?.url).toBe("https://cert.cyber.gouv.fr/avis/CERTFR-2026-AVI-7/");
   });
 
@@ -153,6 +166,44 @@ describe("a bulletin, as a finding", () => {
     expect(recognizedLinks(items, "avis")).toBe(2);
     expect(recognizedLinks(items, "alerte")).toBe(1);
     expect(recognizedLinks([], "avis")).toBe(0);
+  });
+
+  it("the feed as the CERT-FR serves it since late October: every link counts (14/11)", () => {
+    // Two weeks of « could not run »: its links had gained "www.", none was recognized.
+    const served = [
+      {
+        title: "x",
+        link: "https://www.cert.cyber.gouv.fr/avis/CERTFR-2026-AVI-1500/",
+        publishedAt: NOW,
+      },
+      {
+        title: "x",
+        link: "https://www.cert.cyber.gouv.fr/avis/CERTFR-2026-AVI-1501/",
+        publishedAt: NOW,
+      },
+      {
+        title: "x",
+        link: "https://www.cert.cyber.gouv.fr/alerte/CERTFR-2015-ALE-009/",
+        publishedAt: NOW,
+      },
+    ];
+    expect(recognizedLinks(served, "avis")).toBe(2);
+    expect(recognizedLinks(served, "alerte")).toBe(1);
+    const found = bulletinObservations(
+      [
+        {
+          title: "Multiples vulnérabilités dans Ubuntu",
+          link: "https://www.cert.cyber.gouv.fr/avis/CERTFR-2026-AVI-1500/",
+          publishedAt: NOW - DAY,
+        },
+      ],
+      "avis",
+      SOFTWARE,
+      NOW,
+    );
+    expect(found).toHaveLength(1);
+    // The finding's link stays on the new host, as it was built before.
+    expect(found[0]?.params?.url).toBe("https://cert.cyber.gouv.fr/avis/CERTFR-2026-AVI-1500/");
   });
 
   it("an alert: high; older than a year or closed by the CERT-FR, left out", () => {
