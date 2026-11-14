@@ -1,0 +1,58 @@
+#!/bin/bash
+# What a server says of itself, for the Parc tab (ADR-0039). Ported from
+# Legion's legion-bulletin-hote (its ADR-029): the same idea, the same form —
+# key=value lines between bulletin=1 and fin=1 — only the measures the page
+# shows, nothing else: no ports, no logs, no user, no address.
+#
+# STRICTLY READ-ONLY: it writes nothing, installs nothing, changes nothing,
+# and needs no sudo. That is what makes a standing key acceptable. The key
+# that calls it is locked on the server side:
+#   command="/usr/local/bin/cenacle-bulletin",restrict,from="<the Mac>"
+# Its own key: never one of the operator's action keys (ADR-0027).
+#
+# The original lives in Cénacle's repository, deploy/serveurs/; a change made
+# on the server is lost at the next install.
+
+set -u
+export LC_ALL=C
+
+# printf, not echo: a value starting with "-e" would be taken as an option.
+say() { printf '%s=%s\n' "$1" "$2"; }
+# An empty value is a fact that could not be read: not said at all.
+say_if() { [ -n "${2:-}" ] && say "$1" "$2"; }
+
+printf 'bulletin=1\n'
+say version 1
+say hote "$(hostname)"
+say instant "$(date -u +%s)"
+say_if uptime "$(cut -d' ' -f1 /proc/uptime 2>/dev/null | cut -d. -f1)"
+
+# Load, in hundredths: whole numbers only, never a decimal separator to guess.
+if [ -r /proc/loadavg ]; then
+    read -r c1 c5 c15 _ < /proc/loadavg
+    say_if charge1 "$(awk -v v="$c1" 'BEGIN { printf "%d", v * 100 + 0.5 }')"
+    say_if charge5 "$(awk -v v="$c5" 'BEGIN { printf "%d", v * 100 + 0.5 }')"
+    say_if charge15 "$(awk -v v="$c15" 'BEGIN { printf "%d", v * 100 + 0.5 }')"
+fi
+say_if processeurs "$(nproc 2>/dev/null)"
+
+if [ -r /proc/meminfo ]; then
+    say_if memoire.totale "$(awk '/^MemTotal:/ {print $2}' /proc/meminfo)"
+    say_if memoire.disponible "$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)"
+fi
+
+# Real file systems only (a full tmpfs is normal), and only the mounts that
+# matter, as Legion does; numbered, so that a path never becomes a key.
+n=0
+while read -r _ blocks _ _ percent mount; do
+    case "$mount" in
+        /|/var|/home|/srv|/opt|/boot|/var/lib/vz)
+            n=$((n + 1))
+            say "disque.$n.montage" "$mount"
+            say "disque.$n.pourcent" "${percent%\%}"
+            say "disque.$n.kilooctets" "$blocks"
+            ;;
+    esac
+done < <(df -P -l -x tmpfs -x devtmpfs -x squashfs -x overlay 2>/dev/null | tail -n +2)
+
+printf 'fin=1\n'

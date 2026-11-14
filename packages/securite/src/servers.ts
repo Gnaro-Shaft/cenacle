@@ -129,11 +129,11 @@ export class ServersConfigError extends Error {
   }
 }
 
-const NAME = /^[a-z0-9][a-z0-9-]{0,39}$/;
+export const NAME = /^[a-z0-9][a-z0-9-]{0,39}$/;
 /** A host name or an IPv4 address: never an option, a user, a port or a space. */
-const ADDRESS =
+export const ADDRESS =
   /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)*$/;
-const ACCOUNT = /^[a-z_][a-z0-9_-]{0,31}$/;
+export const ACCOUNT = /^[a-z_][a-z0-9_-]{0,31}$/;
 
 function plainPath(p: unknown, what: string): string {
   if (

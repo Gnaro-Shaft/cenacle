@@ -31,6 +31,15 @@ Ce qui existe déjà :
 5. **L'onglet « Parc » change de forme** : une carte par machine, comme sur le modèle — jauges de charge, de mémoire et de disques ; machines virtuelles sous chaque nœud Proxmox ; l'état selon Legion et ses motifs en dessous, tant que Legion tourne. Les cartes « Sécurité » et « Veille » restent.
 6. **Vérifié par le code** : la clé et le jeton ne sont jamais dans une adresse, un journal ou une erreur ; un certificat ou une empreinte d'hôte qui ne correspond pas est refusé ; une réponse hors forme ou trop grosse rend « illisible » ; aucun programme d'autre que le serveur de la page ne peut charger `.env.proxmox` ; le script récitant ne lit que ce qu'il récite (relu, et essayé sur une machine).
 
+### Révision du 2026-11-14 — la frontière `ssh` de l'ADR-0027
+
+L'ADR-0027 fait de l'opérateur le seul programme qui lance `ssh` et détient des clés, et un test le vérifie dans tout le code. Elle protège les **clés d'action**, celles qui changent une machine. Le point 1 ci-dessus fait lire les bulletins par le serveur de la page, en `ssh` : une **exception étroite**, choisie le 14/11 plutôt que de faire relire les bulletins par l'opérateur et de les garder en base.
+
+- Le serveur de la page lance `ssh` depuis **un seul fichier** (`apps/server/src/machines.ts`), avec `/usr/bin/ssh`, sans agent, avec les seules clés de `parc.local.toml` : des clés de **lecture**, verrouillées sur `cenacle-bulletin`.
+- `parc.local.toml` est **un fichier à part** de `serveurs.local.toml` : l'opérateur reste seul à lire celui-ci et à connaître une clé d'action ; il ne lit jamais celui-là.
+- Le test de frontière de l'opérateur le vérifie : `ssh` nulle part ailleurs ; ce fichier ne nomme ni `serveurs.local.toml`, ni une clé ou un script d'action ; l'opérateur ne lit pas `parc.local.toml`.
+- L'identité de la machine est prouvée par son empreinte épinglée, pas par le nom qu'elle donne dans son bulletin.
+
 ## Conséquences
 
 - Un pas de plus pour remplacer Legion : Cénacle a son propre bulletin des machines, que sa ronde de sécurité pourra reprendre ensuite à la place du verdict de Legion (une autre ADR).
