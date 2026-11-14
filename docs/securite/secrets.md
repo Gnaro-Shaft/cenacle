@@ -34,6 +34,18 @@ npm run secrets:split
 
 Le script montre ce qui part où (noms seulement), demande `OUI`, copie l'ancien `.env` dans `.env.avant-split` (600), puis écrit les fichiers. Il refuse si une variable est déjà dans son fichier cible. Supprimer `.env.avant-split` une fois que tout tourne, **après** une sauvegarde.
 
+## Le propriétaire sans super-utilisateur (ADR-0038)
+
+Une installation faite avant l'ADR-0038 a un `cenacle_owner` super-utilisateur. La bascule se fait une fois :
+
+```
+npm run db:bascule -- --essai   # ce qu'elle ferait, rien n'est changé
+npm run db:bascule              # la bascule
+npm run db:migrate && npm test && npm run secrets:backup -- --out …
+```
+
+Elle sauvegarde d'abord la base (`pg_dump`) dans `~/Library/Application Support/cenacle/sauvegardes/` (fichier 600, dossier 700), puis renomme le super-utilisateur en `cenacle_admin` (son mot de passe passe dans `.env.admin`) et crée un nouveau `cenacle_owner`, avec un nouveau mot de passe dans `.env.owner`. L'ancien `.env.owner` reste dans `.env.owner.avant-bascule`. **Une fois la bascule vérifiée, supprimer la sauvegarde** (elle contient les données de la base) **et `.env.owner.avant-bascule`**. Retour arrière : `npm run db:bascule -- --retour`.
+
 ## Sauvegarder
 
 ```
