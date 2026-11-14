@@ -6,6 +6,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { ApiError, getParc, type ParcView } from "./api.ts";
+import { Machines } from "./Machines.tsx";
 import {
   ago,
   parkTone,
@@ -13,8 +14,6 @@ import {
   SEVERITIES,
   severityLabel,
   severityTone,
-  stateLabel,
-  stateTone,
   type Tone,
 } from "./parc-rules.ts";
 import { forgetToken } from "./token.ts";
@@ -25,10 +24,11 @@ function Dot({ tone, label }: { readonly tone: Tone; readonly label: string }) {
   return <span className={`point ton-${tone}`} role="img" aria-label={label} />;
 }
 
-function Servers({ view, now }: { readonly view: ParcView["servers"]; readonly now: number }) {
+/** Legion's verdict, in one line: its age, or why there is none — never "all is well". */
+function LegionNote({ view, now }: { readonly view: ParcView["servers"]; readonly now: number }) {
   if (view.read !== "ok") {
     return (
-      <p className="parc-vide">
+      <p className="parc-note perime">
         {view.read === "missing"
           ? "Aucun verdict de Legion sur ce Mac : l'état des serveurs est inconnu."
           : "Le verdict de Legion est illisible : l'état des serveurs est inconnu."}
@@ -36,28 +36,10 @@ function Servers({ view, now }: { readonly view: ParcView["servers"]; readonly n
     );
   }
   return (
-    <>
-      <p className={view.stale ? "parc-note perime" : "parc-note"}>
-        Verdict de Legion {ago(view.at, now)}
-        {view.stale && " — périmé : rien n'est sûr pour maintenant"}
-      </p>
-      <ul className="parc-lignes">
-        {view.hosts.map((host) => (
-          <li key={host.name} className="parc-ligne">
-            <Dot tone={stateTone(host.state, view.stale)} label={stateLabel(host.state)} />
-            <span className="parc-nom">{host.name}</span>
-            <span className="parc-valeur">{stateLabel(host.state)}</span>
-            {host.motifs.length > 0 && (
-              <ul className="parc-motifs">
-                {host.motifs.map((motif) => (
-                  <li key={motif}>{motif}</li>
-                ))}
-              </ul>
-            )}
-          </li>
-        ))}
-      </ul>
-    </>
+    <p className={view.stale ? "parc-note perime" : "parc-note"}>
+      Verdict de Legion {ago(view.at, now)}
+      {view.stale && " — périmé : rien n'est sûr pour maintenant"}
+    </p>
   );
 }
 
@@ -174,16 +156,14 @@ export function Parc({ token, onLost }: { readonly token: string; readonly onLos
   return (
     <section className="parc" aria-label="Le parc">
       {message !== null && <p className="message">{message}</p>}
+      <Machines view={view} />
       <article className={`bloc parc-carte ton-cadre-${tone}`}>
-        <h2>Serveurs</h2>
-        <Servers view={view.servers} now={now} />
-      </article>
-      <article className="bloc parc-carte">
         <h2>Sécurité</h2>
         <Findings view={view.findings} now={now} />
       </article>
       <article className="bloc parc-carte">
         <h2>Veille</h2>
+        <LegionNote view={view.servers} now={now} />
         <Watch round={view.lastRound} sentinel={view.sentinel} now={now} />
       </article>
     </section>
