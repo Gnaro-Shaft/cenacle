@@ -15,6 +15,7 @@
 | `.env.obs` | L'administrateur de Grafana | Docker Compose |
 | `.env.page` | La clé privée de la page (ADR-0013) | La page seule |
 | `.env.bot` | La clé privée du bot, qui signe ma confirmation d'une action sur un serveur ou d'un plan (ADR-0036) | Le bot seul |
+| `.env.proxmox` | Le jeton **en lecture seule** de la grappe Proxmox (`cenacle@pve`, rôle `PVEAuditor`, ADR-0039) : il voit la grappe, il ne peut rien y changer | Le serveur de la page seul |
 | `.env.executor` | Le mot de passe du rôle de l'exécuteur (ADR-0013) | L'exécuteur, les migrations, les tests |
 | `.env.sentinel` | Le jeton partagé avec la sentinelle (S2), qui authentifie les battements ; le VPS en garde la copie dans `/etc/cenacle-sentinel.env`, lisible par root seul | Iris, l'exécuteur |
 
@@ -45,6 +46,19 @@ npm run db:migrate && npm test && npm run secrets:backup -- --out …
 ```
 
 Elle sauvegarde d'abord la base (`pg_dump`) dans `~/Library/Application Support/cenacle/sauvegardes/` (fichier 600, dossier 700), puis renomme le super-utilisateur en `cenacle_admin` (son mot de passe passe dans `.env.admin`) et crée un nouveau `cenacle_owner`, avec un nouveau mot de passe dans `.env.owner`. L'ancien `.env.owner` reste dans `.env.owner.avant-bascule`. **Une fois la bascule vérifiée, supprimer la sauvegarde** (elle contient les données de la base) **et `.env.owner.avant-bascule`**. Si un programme tient un verrou plus de 5 s, la bascule est annulée et le dit : la relancer. Si son issue est incertaine (connexion perdue au moment de valider), rien n'est effacé : les nouveaux mots de passe restent dans `.env.owner.nouveau` et `.env.admin.nouveau`. Retour arrière : `npm run db:bascule -- --retour`.
+
+## La grappe Proxmox, en lecture seule (ADR-0039)
+
+Dans Proxmox (interface ou shell d'un nœud), une fois :
+
+```
+pveum user add cenacle@pve --comment "Cenacle, lecture seule"
+pveum acl modify / --users cenacle@pve --roles PVEAuditor
+pveum user token add cenacle@pve parc --privsep 1
+pveum acl modify / --tokens 'cenacle@pve!parc' --roles PVEAuditor
+```
+
+La dernière commande affiche la valeur du jeton **une seule fois** : dans `.env.proxmox`, `CENACLE_PROXMOX_TOKEN=cenacle@pve!parc=<valeur>`. Puis copie l'autorité de la grappe (`/etc/pve/pve-root-ca.pem`, un certificat public, pas un secret) sur le Mac, et dans `.env` : `CENACLE_PROXMOX_CA=<chemin de ce fichier>` et `CENACLE_PROXMOX_NODES=<nom du nœud>@<adresse Tailscale>:8006,…` — le nom du nœud est celui que porte son certificat, vérifié à chaque appel. Redémarre le serveur de la page. **En cas de doute** : `pveum user token remove cenacle@pve parc`, et le jeton ne vaut plus rien.
 
 ## Sauvegarder
 

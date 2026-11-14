@@ -93,6 +93,7 @@ describe("the route", () => {
       "findings",
       "lastRound",
       "machines",
+      "proxmox",
       "sentinel",
       "servers",
     ]);
