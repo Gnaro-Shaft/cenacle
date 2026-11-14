@@ -1,9 +1,12 @@
 // S1: no program starts with a secret that is not its own, and splitting .env
 // moves each secret once, keeps everything else, and never shows a value.
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { refuseForeignSecrets, SecretPlacementError, splitEnv } from "./secrets.ts";
 
 const ALL = {
+  CENACLE_DB_ADMIN_PASSWORD: "admin-value",
   CENACLE_DB_OWNER_PASSWORD: "owner-secret-value",
   CENACLE_TEST_MAIL_PASSWORD: "mail-secret-value",
   CENACLE_MAIL_KEY: "k".repeat(64),
@@ -91,5 +94,31 @@ describe("splitting .env", () => {
 
   it("a .env without secrets moves nothing", () => {
     expect(splitEnv("CENACLE_DB_PORT=1\n").moved).toEqual({});
+  });
+});
+
+describe("the database's superuser is held by no program (ADR-0038)", () => {
+  it("a program that finds the admin password refuses to start, naming it only", () => {
+    const env = { CENACLE_DB_ADMIN_PASSWORD: "admin-value" };
+    expect(() => refuseForeignSecrets("the CTO", [], env)).toThrow(/CENACLE_DB_ADMIN_PASSWORD/);
+    expect(() => refuseForeignSecrets("the CTO", [], env)).not.toThrow(/admin-value/);
+  });
+
+  it("no program in the tree lists the admin family among its own", () => {
+    const root = join(import.meta.dirname, "..", "..", "..");
+    const calls: string[] = [];
+    for (const top of ["apps", "packages"]) {
+      for (const file of readdirSync(join(root, top), { recursive: true, encoding: "utf8" })) {
+        if (!file.endsWith(".ts") || file.includes("node_modules") || file.includes(".test.")) {
+          continue;
+        }
+        const text = readFileSync(join(root, top, file), "utf8");
+        for (const m of text.matchAll(/refuseForeignSecrets\(\s*[^,]+,\s*\[([^\]]*)\]/g)) {
+          calls.push(`${top}/${file}: ${m[1] ?? ""}`);
+        }
+      }
+    }
+    expect(calls.length).toBeGreaterThan(10); // the scan really found the programs
+    expect(calls.filter((c) => /["']admin["']/.test(c))).toEqual([]);
   });
 });

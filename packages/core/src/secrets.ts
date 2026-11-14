@@ -14,6 +14,11 @@ import { CONFIRM_PRIVATE_KEY_VAR } from "./confirmation.ts";
 export const SECRET_FAMILIES = {
   /** The database owner: migrations and tests only. */
   owner: { file: ".env.owner", vars: ["CENACLE_DB_OWNER_PASSWORD"] },
+  /**
+   * The database's superuser (ADR-0038): loaded by no program, not even the
+   * migrations — Docker Compose reads it, and I use it by hand, rarely.
+   */
+  admin: { file: ".env.admin", vars: ["CENACLE_DB_ADMIN_PASSWORD"] },
   /** The mailbox password and the HMAC key of addresses. */
   mail: {
     file: ".env.mail",

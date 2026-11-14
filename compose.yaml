@@ -4,15 +4,19 @@ services:
     image: postgres:18-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: cenacle_owner
-      POSTGRES_PASSWORD: ${CENACLE_DB_OWNER_PASSWORD:?set CENACLE_DB_OWNER_PASSWORD in .env.owner}
+      # The superuser (ADR-0038): the image creates it, it stays rare and manual.
+      POSTGRES_USER: cenacle_admin
+      POSTGRES_PASSWORD: ${CENACLE_DB_ADMIN_PASSWORD:?set CENACLE_DB_ADMIN_PASSWORD in .env.admin}
       POSTGRES_DB: cenacle
+      # Read once, on a fresh volume, by initdb/10-proprietaire.sh.
+      CENACLE_DB_OWNER_PASSWORD: ${CENACLE_DB_OWNER_PASSWORD:?set CENACLE_DB_OWNER_PASSWORD in .env.owner}
     ports:
       - "127.0.0.1:${CENACLE_DB_PORT:-55432}:5432"
     volumes:
       - db-data:/var/lib/postgresql
+      - ./deploy/postgres/initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U cenacle_owner -d cenacle"]
+      test: ["CMD-SHELL", "pg_isready -U cenacle_admin -d cenacle"]
       interval: 5s
       timeout: 3s
       retries: 10

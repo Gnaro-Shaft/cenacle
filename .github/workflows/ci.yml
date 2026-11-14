@@ -33,13 +33,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
         env:
-          POSTGRES_USER: cenacle_owner
-          POSTGRES_PASSWORD: ci_owner_only_for_ci_0000
+          # As compose.yaml (ADR-0038): the image makes the superuser, the
+          # owner is made without it by the step "The owner, without superuser".
+          POSTGRES_USER: cenacle_admin
+          # Nobody logs in as the superuser in CI (the init step uses the local
+          # socket): its password is drawn per run, never written down.
+          POSTGRES_PASSWORD: ${{ format('ci-{0}-{1}-admin', github.run_id, github.run_attempt) }}
           POSTGRES_DB: cenacle
         ports:
           - 55432:5432
         options: >-
-          --health-cmd "pg_isready -U cenacle_owner -d cenacle"
+          --health-cmd "pg_isready -U cenacle_admin -d cenacle"
           --health-interval 5s --health-timeout 3s --health-retries 10
       mail:
         # GreenMail has no public mirror: mirror-images.yml copied its official
@@ -65,6 +69,13 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # A service container cannot mount the init scripts: the CI runs the
+      # very script a fresh volume runs (deploy/postgres/initdb), inside it.
+      - name: The owner, without superuser
+        run: |
+          id='${{ job.services.db.id }}'
+          docker cp deploy/postgres/initdb/10-proprietaire.sh "$id:/tmp/10-proprietaire.sh"
+          docker exec -e CENACLE_DB_OWNER_PASSWORD "$id" sh /tmp/10-proprietaire.sh
       - run: npm run check
       - name: Audit dependencies
         run: npm audit --audit-level=high
