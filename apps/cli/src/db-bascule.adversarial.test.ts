@@ -2,10 +2,17 @@
 // never a password the database does not know, never one it knows that no
 // file keeps, never a value shown. The database side is a fake here; the real
 // one is tested on a throwaway Postgres (packages/journal/src/bascule.integration.test.ts).
-import { existsSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Cluster } from "@cenacle/journal";
+import { BasculeError, type Cluster, NothingChanged } from "@cenacle/journal";
 import { describe, expect, it, vi } from "vitest";
 import { type BasculeDb, back, forward, readVar } from "./db-bascule.ts";
 
@@ -29,9 +36,13 @@ function root(
 
 function fakeDb(overrides: Partial<BasculeDb> = {}) {
   const db = {
-    preview: vi.fn(async () => ({ state: "before" as const, statements: [] })),
-    switch: vi.fn(async () => ({ transferred: 30, testDropped: true })),
-    back: vi.fn(async () => {}),
+    preview: vi.fn(async () => ({
+      state: "before" as const,
+      statements: [] as string[],
+      scram: true,
+    })),
+    switch: vi.fn(async () => ({ transferred: 30, testDropped: true, switchRoleLeft: false })),
+    back: vi.fn(async () => ({ switchRoleLeft: false })),
     ...overrides,
   };
   return db as typeof db & BasculeDb;
@@ -80,7 +91,7 @@ describe("the switch, on the files", () => {
     const before = read(dir, ".env.owner");
     const db = fakeDb({
       switch: vi.fn(async () => {
-        throw new Error("rolled back");
+        throw new NothingChanged("rolled back");
       }),
     });
     await expect(forward({ root: dir, cluster: CLUSTER, dump: () => "d", db })).rejects.toThrow(
@@ -115,7 +126,13 @@ describe("the switch, on the files", () => {
 
   it("refuses a switch already made, before any dump", async () => {
     const dir = root();
-    const db = fakeDb({ preview: vi.fn(async () => ({ state: "done" as const, statements: [] })) });
+    const db = fakeDb({
+      preview: vi.fn(async () => ({
+        state: "done" as const,
+        statements: [] as string[],
+        scram: true,
+      })),
+    });
     const dump = vi.fn(() => "d");
     await expect(forward({ root: dir, cluster: CLUSTER, dump, db })).rejects.toThrow("déjà faite");
     expect(dump).not.toHaveBeenCalled();
@@ -125,13 +142,77 @@ describe("the switch, on the files", () => {
     const dir = root();
     const db = fakeDb({
       switch: vi.fn(async () => {
-        throw new Error("rolled back");
+        throw new NothingChanged("rolled back");
       }),
     });
     const error = await forward({ root: dir, cluster: CLUSTER, dump: () => "d", db }).catch(
       (e) => e,
     );
     expect(String(error)).not.toContain(TODAY);
+  });
+});
+
+describe("what the review found (ADR-0038)", () => {
+  it("an outcome the database could not confirm keeps every new password, and says where", async () => {
+    const dir = root();
+    const db = fakeDb({
+      switch: vi.fn(async () => {
+        throw new BasculeError("connection lost after COMMIT — the outcome is uncertain");
+      }),
+    });
+    const error = await forward({ root: dir, cluster: CLUSTER, dump: () => "d", db }).catch(
+      (e) => e,
+    );
+    expect(String(error)).toMatch(/\.env\.owner\.nouveau/);
+    expect(error).not.toBeInstanceOf(NothingChanged);
+    expect(valueIn(dir, ".env.owner.nouveau", "CENACLE_DB_OWNER_PASSWORD")).toMatch(
+      /^[0-9a-f]{48}$/,
+    );
+    expect(valueIn(dir, ".env.admin.nouveau", "CENACLE_DB_ADMIN_PASSWORD")).toBe(TODAY);
+    expect(valueIn(dir, ".env.owner", "CENACLE_DB_OWNER_PASSWORD")).toBe(TODAY);
+  });
+
+  it("a .env.owner that is a link (a worktree's) is refused before anything", async () => {
+    const real = root();
+    const dir = mkdtempSync(join(tmpdir(), "bascule-link-"));
+    symlinkSync(join(real, ".env.owner"), join(dir, ".env.owner"));
+    const db = fakeDb();
+    const dump = vi.fn(() => "d");
+    await expect(forward({ root: dir, cluster: CLUSTER, dump, db })).rejects.toThrow(/lien/);
+    expect(dump).not.toHaveBeenCalled();
+    expect(db.preview).not.toHaveBeenCalled();
+  });
+
+  it("a password a rename would clear (not SCRAM) is refused before the dump", async () => {
+    const dir = root();
+    const db = fakeDb({
+      preview: vi.fn(async () => ({
+        state: "before" as const,
+        statements: [] as string[],
+        scram: false,
+      })),
+    });
+    const dump = vi.fn(() => "d");
+    await expect(forward({ root: dir, cluster: CLUSTER, dump, db })).rejects.toThrow(/SCRAM/);
+    expect(dump).not.toHaveBeenCalled();
+    expect(existsSync(join(dir, ".env.owner.nouveau"))).toBe(false);
+  });
+
+  it("the way back, uncertain, keeps the admin's file and the new .env.owner aside", async () => {
+    const dir = root({
+      ".env.owner": line("CENACLE_DB_OWNER_PASSWORD", "b".repeat(48)),
+      ".env.admin": line("CENACLE_DB_ADMIN_PASSWORD", TODAY),
+    });
+    const db = fakeDb({
+      back: vi.fn(async () => {
+        throw new BasculeError("uncertain");
+      }),
+    });
+    await expect(back({ root: dir, cluster: CLUSTER, db })).rejects.toThrow(
+      /\.env\.owner\.nouveau/,
+    );
+    expect(valueIn(dir, ".env.owner.nouveau", "CENACLE_DB_OWNER_PASSWORD")).toBe(TODAY);
+    expect(valueIn(dir, ".env.admin", "CENACLE_DB_ADMIN_PASSWORD")).toBe(TODAY);
   });
 });
 
@@ -159,7 +240,7 @@ describe("the way back, on the files", () => {
     const owner = read(dir, ".env.owner");
     const db = fakeDb({
       back: vi.fn(async () => {
-        throw new Error("refused");
+        throw new NothingChanged("refused");
       }),
     });
     await expect(back({ root: dir, cluster: CLUSTER, db })).rejects.toThrow("refused");
@@ -194,8 +275,7 @@ describe("reading a password from its file", () => {
 
   it("reads the right variable, not one whose name merely contains it", () => {
     const dir = root({
-      ".env.owner":
-        "XCENACLE_DB_OWNER_PASSWORD=wrong\nCENACLE_DB_OWNER_PASSWORD = right \n",
+      ".env.owner": "XCENACLE_DB_OWNER_PASSWORD=wrong\nCENACLE_DB_OWNER_PASSWORD = right \n",
     });
     expect(readVar(dir, ".env.owner", "CENACLE_DB_OWNER_PASSWORD")).toBe("right");
   });

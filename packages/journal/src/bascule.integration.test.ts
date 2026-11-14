@@ -7,15 +7,15 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   ADMIN_ROLE,
-  BasculeError,
   type Cluster,
+  NothingChanged,
   OWNER_ROLE,
-  ownedLeft,
   ownerState,
   SWITCH_ROLE,
   switchBack,
   switchOwner,
 } from "./bascule.ts";
+import { ownedLeft } from "./bascule-objects.ts";
 import { migrate } from "./migrate.ts";
 
 const IMAGE = process.env.CENACLE_TEST_PG_IMAGE ?? "postgres:18-alpine";
@@ -41,6 +41,10 @@ async function withSql<T>(role: string, password: string, run: (sql: postgres.Sq
     await sql.end();
   }
 }
+
+/** A shell command inside the throwaway container, over its local socket (trusted). */
+const inContainer = (command: string) =>
+  execFileSync("docker", ["exec", NAME, "sh", "-c", command], { stdio: "ignore" });
 
 const code = (error: unknown) => String((error as { code?: string }).code ?? error);
 
@@ -93,6 +97,10 @@ beforeAll(async () => {
   await withSql(OWNER_ROLE, P0, async (sql) => {
     await sql`insert into purge_planchers (cle, jours) values ('journal_jours', 180), ('propositions_jours', 90)`;
     await sql.unsafe("CREATE DATABASE cenacle_test");
+    // Extended statistics do not follow their table: the switch must move them itself.
+    await sql.unsafe(
+      "CREATE STATISTICS events_agent_type (dependencies) ON agent, type FROM events",
+    );
   });
   await withSql("cenacle_app", APP, async (sql) => {
     await sql`insert into events (agent, type, payload) values ('bascule', 'heartbeat', '{}')`;
@@ -109,15 +117,34 @@ describe("the switch refuses before touching anything", () => {
     ["a password with a quote", { current: P0, next: `${draw()}'x`, temp: draw() }],
     ["a short password", { current: P0, next: "short", temp: draw() }],
   ])("%s", async (_what, passwords) => {
-    await expect(switchOwner(cluster, passwords)).rejects.toThrow(BasculeError);
+    await expect(switchOwner(cluster, passwords)).rejects.toThrow(NothingChanged);
     expect(await roles()).toBe("owner");
   });
 
   it("a wrong current password: refused by the database, nothing changed", async () => {
-    await expect(
-      switchOwner(cluster, { current: draw(), next: P1, temp: draw() }),
-    ).rejects.toThrow();
+    await expect(switchOwner(cluster, { current: draw(), next: P1, temp: draw() })).rejects.toThrow(
+      NothingChanged,
+    );
     expect(await roles()).toBe("owner");
+  });
+
+  it("an MD5 password, which a rename would clear: refused, nothing changed", async () => {
+    // An old volume: MD5 stored, and the md5 method that still accepts it.
+    inContainer("sed -i 's/scram-sha-256$/md5/' \"$PGDATA/pg_hba.conf\"");
+    inContainer(
+      `psql -q -U ${OWNER_ROLE} -d cenacle -c "SET password_encryption = 'md5'" -c "ALTER ROLE ${OWNER_ROLE} PASSWORD '${P0}'" -c "SELECT pg_reload_conf()"`,
+    );
+    try {
+      await expect(switchOwner(cluster, { current: P0, next: P1, temp: draw() })).rejects.toThrow(
+        /not SCRAM/,
+      );
+      expect(await roles()).toBe("owner");
+    } finally {
+      inContainer("sed -i 's/md5$/scram-sha-256/' \"$PGDATA/pg_hba.conf\"");
+      inContainer(
+        `psql -q -U ${OWNER_ROLE} -d cenacle -c "ALTER ROLE ${OWNER_ROLE} PASSWORD '${P0}'" -c "SELECT pg_reload_conf()"`,
+      );
+    }
   });
 });
 
@@ -128,7 +155,7 @@ describe("a switch that fails midway changes nothing", () => {
     };
     await expect(
       switchOwner(cluster, { current: P0, next: P1, temp: draw() }, { beforeCommit: failing }),
-    ).rejects.toThrow("cut short");
+    ).rejects.toThrow(NothingChanged);
     await withSql(OWNER_ROLE, P0, async (sql) => {
       expect(await ownerState(sql)).toBe("before");
       const left =
@@ -138,6 +165,28 @@ describe("a switch that fails midway changes nothing", () => {
       expect(await sql`select 1 from pg_database where datname = 'cenacle_test'`).toHaveLength(1);
     });
   });
+});
+
+describe("a program holding a lock", () => {
+  it("does not hold the switch for long: refused after 5 s, rolled back, said", async () => {
+    const app = as("cenacle_app", APP);
+    try {
+      const started = Date.now();
+      const failure = await app.begin(async (tx) => {
+        await tx`select count(*) from events`; // holds a lock on events till the end
+        return switchOwner(cluster, { current: P0, next: P1, temp: draw() }).catch((e) => e);
+      });
+      expect(failure).toBeInstanceOf(NothingChanged);
+      expect(String(failure)).toMatch(/lock/);
+      expect(Date.now() - started).toBeLessThan(20_000);
+    } finally {
+      await app.end();
+    }
+    expect(await roles()).toBe("owner");
+    await withSql(OWNER_ROLE, P0, async (sql) => {
+      expect(await sql`select rolname from pg_roles where rolname = ${SWITCH_ROLE}`).toEqual([]);
+    });
+  }, 30_000);
 });
 
 describe("the switch, then back", () => {

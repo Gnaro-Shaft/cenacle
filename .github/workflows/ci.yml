@@ -79,6 +79,8 @@ jobs:
       - name: The owner, without superuser
         run: |
           id='${{ job.services.db.id }}'
+          # The image's init server listens on the socket only: TCP ready means init is over.
+          until docker exec "$id" pg_isready -q -h 127.0.0.1; do sleep 1; done
           docker cp deploy/postgres/initdb/10-proprietaire.sh "$id:/tmp/10-proprietaire.sh"
           docker exec -e CENACLE_DB_OWNER_PASSWORD "$id" sh /tmp/10-proprietaire.sh
       - run: npm run check
