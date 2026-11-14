@@ -68,6 +68,7 @@
     "regles:domaines": "node --env-file=.env --env-file-if-exists=.env.mail apps/cli/src/regles-domaines.ts",
     "prospection:releve": "node --env-file=.env --env-file-if-exists=.env.mail apps/cli/src/prospection-releve.ts",
     "mesure:fuites": "node --env-file=.env --env-file-if-exists=.env.mail apps/cli/src/mesure-fuites.ts",
+    "db:bascule": "node --env-file=.env apps/cli/src/db-bascule.ts",
     "setup": "node apps/cli/src/setup.ts",
     "secrets:split": "node apps/cli/src/secrets-split.ts",
     "secrets:backup": "node apps/cli/src/secrets-backup.ts backup",

@@ -1,3 +1,19 @@
+export {
+  ADMIN_ROLE,
+  BasculeError,
+  type Cluster,
+  NothingChanged,
+  OWNER_ROLE,
+  type OwnerState,
+  ownerState,
+  SWITCH_ROLE,
+  type Switched,
+  type SwitchOptions,
+  switchBack,
+  switchOwner,
+  switchPreview,
+} from "./bascule.ts";
+export { ownedLeft, ownedStatements } from "./bascule-objects.ts";
 export { actionConfirmationOf, planConfirmationOf } from "./confirmation-fields.ts";
 export { connectAsApp, connectAsExecutor, connectLockAsApp, connectOrQuit } from "./connect.ts";
 export {

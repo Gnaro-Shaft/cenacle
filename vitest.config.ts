@@ -20,6 +20,8 @@ export default defineConfig({
         test: {
           name: "db",
           include: ["packages/journal/src/**/*.test.ts", "apps/cli/src/draft-bench/**/*.test.ts"],
+          // A *.integration.test.ts needs Docker or a mail server: the services project runs it.
+          exclude: ["**/node_modules/**", "**/*.integration.test.ts"],
           // The draft bench recreates the test database at each run: one file at a time.
           testTimeout: 60_000,
           globalSetup: ["packages/journal/src/global-setup.ts"],

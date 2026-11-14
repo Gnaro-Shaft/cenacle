@@ -20,6 +20,7 @@ jobs:
       # Throwaway values for the CI database only — not secrets.
       CENACLE_DB_PORT: "55432"
       CENACLE_DB_OWNER_PASSWORD: ci_owner_only_for_ci_0000
+      CENACLE_TEST_PG_IMAGE: ghcr.io/gnaro-shaft/postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
       CENACLE_DB_APP_PASSWORD: ci_app_only_for_ci_00000
       CENACLE_DB_EXECUTOR_PASSWORD: ci_executor_only_for_ci_0
       CENACLE_TEST_MAIL_PASSWORD: ci_test_mailbox_only_000
@@ -69,11 +70,17 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # The switch's test (ADR-0038) starts a throwaway Postgres of its own:
+      # from this repository's copy, never Docker Hub's anonymous pulls.
+      - name: Log in to this repository's registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       # A service container cannot mount the init scripts: the CI runs the
       # very script a fresh volume runs (deploy/postgres/initdb), inside it.
       - name: The owner, without superuser
         run: |
           id='${{ job.services.db.id }}'
+          # The image's init server listens on the socket only: TCP ready means init is over.
+          until docker exec "$id" pg_isready -q -h 127.0.0.1; do sleep 1; done
           docker cp deploy/postgres/initdb/10-proprietaire.sh "$id:/tmp/10-proprietaire.sh"
           docker exec -e CENACLE_DB_OWNER_PASSWORD "$id" sh /tmp/10-proprietaire.sh
       - run: npm run check
