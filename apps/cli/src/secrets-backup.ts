@@ -24,6 +24,7 @@ import {
   VaultError,
 } from "@cenacle/core";
 import { connectAsApp, createPeople, type OppositionEntry } from "@cenacle/journal";
+import { backupTargetProblem } from "./backup-target.ts";
 import { createPrompt } from "./prompt.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
@@ -75,6 +76,9 @@ try {
   const from = option("--from");
   const into = option("--into");
   if (action === "backup" && out !== undefined) {
+    // Before the base and the passphrase: a target that cannot take the backup is said now.
+    const problem = backupTargetProblem(out);
+    if (problem !== null) throw new UsageError(`${problem} — rien n'a été écrit`);
     const files: Record<string, string> = {};
     for (const name of FILES) {
       if (existsSync(join(ROOT, name))) files[name] = readFileSync(join(ROOT, name), "utf8");
