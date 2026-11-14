@@ -15,6 +15,12 @@ import { rangeTarget } from "./review.ts";
 import { buildPasses, MAX_REVIEWED_FILES, QUESTIONS } from "./review-passes.ts";
 
 let root = "";
+/**
+ * The review of the change, built once: every buildPasses test reads the same
+ * result. Built per test it ran some fifty git commands each, and under a
+ * heavy load (a load average of 15) the file passed its 5 s timeout.
+ */
+let built: ReturnType<typeof buildPasses>;
 const git = (...args: string[]) =>
   execFileSync("git", ["-C", root, ...args], { stdio: "pipe" })
     .toString()
@@ -55,6 +61,7 @@ beforeAll(() => {
   // One changed line each: fewer changes than every real file above, so they fill the cap last.
   for (let i = 0; i < MAX_REVIEWED_FILES; i++) put(`src/extra${i}.ts`, lines(1, `x${i}_`));
   commit("change");
+  built = buildPasses(target(), gitView(root, "HEAD"));
 });
 afterAll(() => rmSync(root, { recursive: true, force: true }));
 
@@ -62,7 +69,7 @@ const target = () => rangeTarget(root, "HEAD^", "HEAD", "change");
 
 describe("buildPasses", () => {
   it("code files only, the most changed first, capped; the rest named", () => {
-    const { passes, skipped } = buildPasses(target(), gitView(root, "HEAD"));
+    const { passes, skipped } = built;
     expect(passes).toHaveLength(MAX_REVIEWED_FILES);
     expect(passes[0]?.label).toBe("src/genere.ts");
     expect(skipped).toContain("docs/notes.md");
@@ -71,7 +78,7 @@ describe("buildPasses", () => {
   });
 
   it("a huge file never displaces the small change: each file has its own pass and diff", () => {
-    const { passes } = buildPasses(target(), gitView(root, "HEAD"));
+    const { passes } = built;
     const small = passes.find((p) => p.label === "src/petit.ts");
     expect(small?.prompt).toContain("// changé");
     expect(small?.prompt).not.toContain("export const g2999");
@@ -81,21 +88,21 @@ describe("buildPasses", () => {
   });
 
   it("a long file: numbered windows around the hunk, with the right line numbers", () => {
-    const { passes } = buildPasses(target(), gitView(root, "HEAD"));
+    const { passes } = built;
     const long = passes.find((p) => p.label === "src/long.ts")?.prompt ?? "";
     expect(long).toContain("501: export const l500 = 5000;");
     expect(long).not.toContain("1: export const l0 = 0;\n");
   });
 
   it("callers of a new exported name are found, never in the file itself", () => {
-    const { passes } = buildPasses(target(), gitView(root, "HEAD"));
+    const { passes } = built;
     const small = passes.find((p) => p.label === "src/petit.ts")?.prompt ?? "";
     expect(small).toMatch(/nouveauNom :\nsrc\/user\.ts:\d+/);
     expect(small).not.toMatch(/nouveauNom :\nsrc\/petit\.ts/);
   });
 
   it("every pass asks the fixed questions about its own file only", () => {
-    const { passes } = buildPasses(target(), gitView(root, "HEAD"));
+    const { passes } = built;
     for (const p of passes) {
       expect(p.prompt).toContain(`\`${p.label}\``);
       for (const q of QUESTIONS) expect(p.prompt).toContain(q);
