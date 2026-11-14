@@ -1,0 +1,141 @@
+/* The Parc tab (14/11): cards side by side, a dot per line, counters on top.
+   The charter's paper and ink; three tones of state, readable in both themes. */
+:root {
+  --ton-bon: #2f7a4b;
+  --ton-attention: #b07a0a;
+  --ton-mauvais: #b8261a;
+  --ton-inconnu: #8a857c;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ton-bon: #5fbf85;
+    --ton-attention: #d9a93a;
+    --ton-mauvais: #e0574a;
+    --ton-inconnu: #8f887e;
+  }
+}
+
+/* The tabs, in the header. */
+.onglets {
+  display: flex;
+  gap: 0.3rem;
+}
+.onglets button {
+  font: inherit;
+  font-family: var(--titres);
+  background: none;
+  border: 1px solid var(--trait);
+  border-radius: 4px;
+  padding: 0.2rem 0.8rem;
+  color: var(--encre-douce);
+  cursor: pointer;
+}
+.onglets button[aria-selected="true"] {
+  color: var(--encre);
+  border-color: var(--encre);
+}
+
+.parc {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(22rem, 1fr));
+  gap: 1.2rem;
+  align-items: start;
+}
+.parc-carte > h2 {
+  margin-bottom: 0.5rem;
+}
+.parc-carte.ton-cadre-mauvais {
+  border-color: var(--ton-mauvais);
+}
+.parc-carte.ton-cadre-attention {
+  border-color: var(--ton-attention);
+}
+
+.parc-lignes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.parc-ligne {
+  display: grid;
+  grid-template-columns: 0.8rem minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0.3rem 0.6rem;
+  padding: 0.45rem 0;
+  border-top: 1px solid var(--trait);
+}
+.parc-ligne:first-child {
+  border-top: none;
+}
+.parc-nom {
+  overflow-wrap: anywhere;
+}
+.parc-valeur {
+  color: var(--encre-douce);
+  white-space: nowrap;
+  font-size: 0.92rem;
+}
+.parc-motifs {
+  grid-column: 2 / -1;
+  margin: 0;
+  padding-left: 1rem;
+  color: var(--encre-douce);
+  font-size: 0.9rem;
+}
+
+.point {
+  display: inline-block;
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+  background: var(--ton-inconnu);
+}
+.point.ton-bon {
+  background: var(--ton-bon);
+}
+.point.ton-attention {
+  background: var(--ton-attention);
+}
+.point.ton-mauvais {
+  background: var(--ton-mauvais);
+}
+
+.parc-compteurs {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+.parc-compteur {
+  display: grid;
+  justify-items: center;
+  padding: 0.4rem 0.2rem;
+  border-radius: 4px;
+  border: 1px solid var(--trait);
+  border-top: 3px solid var(--ton-inconnu);
+}
+.parc-compteur.ton-mauvais {
+  border-top-color: var(--ton-mauvais);
+}
+.parc-compteur.ton-attention {
+  border-top-color: var(--ton-attention);
+}
+.parc-chiffre {
+  font-family: var(--titres);
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+.parc-etiquette {
+  font-size: 0.8rem;
+  color: var(--encre-douce);
+}
+
+.parc-note,
+.parc-vide {
+  color: var(--encre-douce);
+  font-size: 0.92rem;
+  margin: 0 0 0.4rem;
+}
+.parc-note.perime {
+  color: var(--ton-mauvais);
+}

@@ -14,6 +14,7 @@ import { streamSSE } from "hono/streaming";
 import { type ApiLog, internalLine, streamLine } from "./api-log.ts";
 import { type GuardConfig, hostGuard, tokenGuard } from "./guard.ts";
 import { securityHeaders, servePage } from "./page-files.ts";
+import type { ParcView } from "./parc.ts";
 import type { ProposalsService } from "./proposals-service.ts";
 import { mountProspection } from "./prospection-routes.ts";
 import type { ProspectionService } from "./prospection-service.ts";
@@ -33,6 +34,8 @@ export interface AppDeps {
   readonly askCto?: (question: string) => Promise<CtoReply>;
   /** The board of missions (ADR-0032); absent, its routes say so. */
   readonly prospection?: ProspectionService;
+  /** The Parc tab (parc.ts): what Cénacle knows of the machines; absent, the route says so. */
+  readonly parc?: () => Promise<ParcView>;
   /** The built page's folder (apps/web/dist), served at / (ADR-0037); absent, only the API. */
   readonly page?: { readonly dist: string };
   /** Where a 500 or a broken stream is said in one line (api-log.ts); the console by default. */
@@ -74,8 +77,14 @@ export function createApp(deps: AppDeps): Hono {
   app.use("/api/cto", tokenGuard(deps.guard));
   app.use("/api/prospection", tokenGuard(deps.guard));
   app.use("/api/prospection/*", tokenGuard(deps.guard));
+  app.use("/api/parc", tokenGuard(deps.guard));
 
   app.get("/api/health", (c) => c.json({ ok: true }));
+  // Errors go to onError: one line in the log, a silent 500 to the page.
+  app.get("/api/parc", async (c) => {
+    if (deps.parc === undefined) return c.json({ error: "le parc n'est pas branché" }, 503);
+    return c.json(await deps.parc());
+  });
   mountProspection(app, deps.prospection, log);
 
   // The whole team on one stream (?agents=iris,cto,…): one connection, not one per card.

@@ -74,6 +74,16 @@ export {
 } from "./maintenance-plans.ts";
 export { EXECUTOR_PASSWORD_VAR } from "./migrate.ts";
 export {
+  createParcStore,
+  type FindingSeverity,
+  type LastRound,
+  MAX_LISTED,
+  type OpenFinding,
+  type ParcFindings,
+  type ParcStore,
+  type SentinelWord,
+} from "./parc-store.ts";
+export {
   createPeople,
   type Erasure,
   type Holdings,

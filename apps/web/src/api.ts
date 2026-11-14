@@ -124,3 +124,40 @@ export const moveCard = (token: string, id: number, colonne: string) =>
     method: "POST",
     body: JSON.stringify({ colonne }),
   });
+
+/** The Parc tab (14/11): what Cénacle knows of the machines, read-only. */
+export interface ParcView {
+  readonly at: string;
+  readonly servers:
+    | { readonly read: "missing" | "unreadable" }
+    | {
+        readonly read: "ok";
+        readonly state: "SAIN" | "SOUFFRANT" | "MALADE";
+        readonly at: string;
+        readonly stale: boolean;
+        readonly hosts: readonly {
+          readonly name: string;
+          readonly state: "SAIN" | "SOUFFRANT" | "MALADE";
+          readonly motifs: readonly string[];
+        }[];
+      };
+  readonly findings: {
+    readonly counts: Readonly<Record<"critique" | "eleve" | "moyen" | "faible" | "info", number>>;
+    readonly setAside: number;
+    readonly open: readonly {
+      readonly severity: "critique" | "eleve" | "moyen" | "faible" | "info";
+      readonly inCharge: boolean;
+      readonly title: string;
+      readonly since: string;
+    }[];
+  };
+  readonly lastRound: {
+    readonly at: string;
+    readonly checks: number;
+    readonly impossible: number;
+    readonly network: boolean;
+  } | null;
+  readonly sentinel: { readonly up: boolean; readonly since: string } | null;
+}
+
+export const getParc = (token: string) => call<ParcView>(token, "/api/parc");

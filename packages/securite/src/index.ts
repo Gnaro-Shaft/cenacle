@@ -101,6 +101,9 @@ export {
   classifyMotif,
   LEGION_STALE_MS,
   LEGION_VERDICT_PATH,
+  type LegionState,
+  type LegionView,
+  legionView,
   parseLegionVerdict,
 } from "./parse-legion.ts";
 export {
