@@ -57,14 +57,31 @@ function sources(dir: string): string[] {
 describe("ssh, and the servers' list, belong to the operator alone", () => {
   const all = [...sources(join(ROOT, "apps")), ...sources(join(ROOT, "packages"))];
 
+  // The one exception (ADR-0039): the page's server reads the machines'
+  // bulletins, in this file alone, with read-only keys only.
+  const BULLETINS = join(ROOT, "apps", "server", "src", "machines.ts");
+
   it("no other program launches ssh or reads serveurs.local.toml", () => {
     const outside = all.filter((p) => !p.startsWith(join(ROOT, "apps", "operateur")));
     for (const file of outside) {
       const text = readFileSync(file, "utf8");
-      expect(text, relative(ROOT, file)).not.toMatch(/["'`]\/usr\/bin\/ssh["'`]/);
+      if (file !== BULLETINS) {
+        expect(text, relative(ROOT, file)).not.toMatch(/["'`]\/usr\/bin\/ssh["'`]/);
+      }
       expect(text, relative(ROOT, file)).not.toMatch(/serveurs\.local\.toml["'`]\)/);
       expect(text, relative(ROOT, file)).not.toMatch(/import [^\n]*from "@cenacle\/operateur/);
     }
+  });
+
+  it("the bulletins' reader never touches an action key, nor the operator's list", () => {
+    const text = readFileSync(BULLETINS, "utf8");
+    expect(text).not.toMatch(/serveurs\.local|parseServers|\.keys\b|\bcles\b/);
+    expect(text).not.toMatch(/cenacle-(services|redemarrer|maj)/);
+    expect(text).not.toMatch(/SSH_AUTH_SOCK|\.\.\.process\.env/);
+    // Its keys come from parc.local.toml alone, a file the operator never reads.
+    expect(text).toMatch(/parseParkMachines/);
+    const operator = sources(join(ROOT, "apps", "operateur")).map((f) => readFileSync(f, "utf8"));
+    for (const t of operator) expect(t).not.toMatch(/parc\.local\.toml|parseParkMachines/);
   });
 
   it("ssh's path is absolute, and its environment has no agent socket", () => {

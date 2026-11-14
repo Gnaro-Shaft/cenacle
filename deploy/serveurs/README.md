@@ -71,6 +71,28 @@ ssh-keygen -t ed25519 -N "" -C "cenacle vps-b redemarrer" -f ~/.ssh/cenacle/vps-
 command="sudo -n /usr/local/sbin/cenacle-redemarrer",restrict,from="<adresse Tailscale du Mac>" ssh-ed25519 AAAA… cenacle vps-b redemarrer
 ```
 
+## Le bulletin, pour l'onglet « Parc » (ADR-0039)
+
+`cenacle-bulletin` **récite** les mesures de la machine — charge, processeurs, mémoire, disques — entre `bulletin=1` et `fin=1`, porté du bulletin de Legion. Il est **en lecture seule** : il n'écrit rien, ne change rien, et n'a pas besoin de `sudo`. `install.sh` le pose dans `/usr/local/bin`.
+
+Sa **propre clé**, jamais une clé d'action (une clé qui met à jour ou redémarre ne sert pas à regarder) :
+
+```
+ssh-keygen -t ed25519 -N "" -C "cenacle vps-b bulletin" -f ~/.ssh/cenacle/vps-b-bulletin
+```
+
+```
+command="/usr/local/bin/cenacle-bulletin",restrict,from="<adresse Tailscale du Mac>" ssh-ed25519 AAAA… cenacle vps-b bulletin
+```
+
+L'essai, depuis le Mac — attendu : des lignes `clé=valeur`, de `bulletin=1` à `fin=1` :
+
+```
+ssh -T -F /dev/null -i ~/.ssh/cenacle/vps-b-bulletin -o IdentitiesOnly=yes -o UserKnownHostsFile=~/.ssh/cenacle/known_hosts -l cenacle <vps>
+```
+
+Puis copie `parc.local.example.toml` en `parc.local.toml` (ignoré par git), une ligne `[[machine]]` par machine, et redémarre le serveur de la page. Un fichier **à part** de `serveurs.local.toml` : le serveur de la page ne voit jamais une clé d'action, l'opérateur reste seul à les connaître.
+
 ## L'essai à la main, avant tout bouton
 
 Depuis le Mac (`<vps>` : son nom Tailscale) :

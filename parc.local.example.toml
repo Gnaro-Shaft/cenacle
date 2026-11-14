@@ -1,0 +1,18 @@
+# The machines whose measures the Parc tab shows (ADR-0039). Copy to
+# parc.local.toml (git-ignored: addresses and paths of your machine).
+# See deploy/serveurs/README.md, « Le bulletin ». A file apart from
+# serveurs.local.toml: the page's server never sees an action key.
+#
+#   known_hosts  Cénacle's own known_hosts, the servers' fingerprints pinned
+#   nom          the machine as the page shows it
+#   adresse      its host name (Tailscale)
+#   compte       the dedicated account on it, never root
+#   cle          its read-only key, locked on cenacle-bulletin, readable by you only
+
+known_hosts = "/Users/exemple/.ssh/cenacle/known_hosts"
+
+[[machine]]
+nom = "vps-b"
+adresse = "vps-b.exemple.test"
+compte = "cenacle"
+cle = "/Users/exemple/.ssh/cenacle/vps-b-bulletin"

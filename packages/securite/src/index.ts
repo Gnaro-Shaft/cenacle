@@ -1,6 +1,7 @@
 // The security agent (J6, ADR-0025): checks, the finding lifecycle, the
 // closed catalogue of fixes, the CTO's comment and the messages.
 
+export { type Bulletin, BulletinError, MAX_BULLETIN, parseBulletin } from "./bulletin.ts";
 export {
   BULLETIN_DAYS,
   BULLETIN_FEEDS,
@@ -97,6 +98,14 @@ export {
   operatorObservations,
   parseOperatorState,
 } from "./operator-state.ts";
+export {
+  asServer,
+  PARK_FILE,
+  type ParkConfig,
+  ParkConfigError,
+  type ParkMachine,
+  parseParkMachines,
+} from "./park-machines.ts";
 export { MAX_LEAKS, parseGitleaks } from "./parse-gitleaks.ts";
 export {
   classifyMotif,

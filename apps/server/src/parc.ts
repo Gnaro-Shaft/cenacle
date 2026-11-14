@@ -11,6 +11,7 @@
 import { readFileSync } from "node:fs";
 import type { FindingSeverity, ParcStore } from "@cenacle/journal";
 import { type LegionState, legionView } from "@cenacle/securite";
+import type { MachinesView } from "./machines.ts";
 
 /** A verdict is a few lines: anything larger is not one. */
 const MAX_VERDICT = 64 * 1024;
@@ -47,6 +48,8 @@ export interface ParcView {
     readonly network: boolean;
   } | null;
   readonly sentinel: { readonly up: boolean; readonly since: string } | null;
+  /** Each machine's own bulletin (ADR-0039); null when not wired. */
+  readonly machines: MachinesView | null;
 }
 
 export interface ParcDeps {
@@ -54,6 +57,8 @@ export interface ParcDeps {
   /** The raw verdict, or null when there is none. */
   readonly readVerdict: () => string | null;
   readonly now: () => Date;
+  /** The machines' bulletins (machines.ts); absent, none are read. */
+  readonly machines?: () => Promise<MachinesView>;
 }
 
 /** The verdict file at `path`: null when absent; any other failure is thrown. */
@@ -94,10 +99,11 @@ function servers(read: () => string | null, now: Date): ParcView["servers"] {
 export function createParc(deps: ParcDeps): () => Promise<ParcView> {
   return async () => {
     const now = deps.now();
-    const [findings, lastRound, sentinel] = await Promise.all([
+    const [findings, lastRound, sentinel, machines] = await Promise.all([
       deps.store.findings(),
       deps.store.lastRound(),
       deps.store.sentinel(),
+      deps.machines?.() ?? Promise.resolve(null),
     ]);
     return {
       at: now.toISOString(),
@@ -122,6 +128,7 @@ export function createParc(deps: ParcDeps): () => Promise<ParcView> {
               network: lastRound.network,
             },
       sentinel: sentinel === null ? null : { up: sentinel.up, since: sentinel.since.toISOString() },
+      machines,
     };
   };
 }

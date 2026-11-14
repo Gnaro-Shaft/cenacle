@@ -20,6 +20,8 @@ install -d -m 0700 -o cenacle -g cenacle ~cenacle/.ssh
 for script in cenacle-services cenacle-redemarrer cenacle-maj-securite; do
   install -m 0755 -o root -g root "$here/$script" "/usr/local/sbin/$script"
 done
+# The bulletin (ADR-0039): read-only, no sudo — the account runs it itself.
+install -m 0755 -o root -g root "$here/cenacle-bulletin" /usr/local/bin/cenacle-bulletin
 
 install -d -m 0755 /etc/cenacle
 if [ ! -e /etc/cenacle/services-exclus ]; then
