@@ -42,6 +42,7 @@ import { pageUrl, pageUrlPath, removePageUrl, writePageUrl } from "./page-url.ts
 import { createParc, verdictFile } from "./parc.ts";
 import { createProposalsService } from "./proposals-service.ts";
 import { createProspectionService } from "./prospection-service.ts";
+import { createProxmox, getJson, proxmoxConfig } from "./proxmox.ts";
 
 const HOST = "127.0.0.1";
 const PORT = Number(process.env.CENACLE_API_PORT ?? 8787);
@@ -72,7 +73,7 @@ const locator = createLocator({
   keyer: keyerFromEnv(),
   locations: createLocationStore(sql),
 });
-refuseForeignSecrets("The page's server", ["mail", "page"]);
+refuseForeignSecrets("The page's server", ["mail", "page", "proxmox"]);
 // One server at a time (ADR-0019): a second one would fail on the port, or
 // worse, replace the page's link with a token the running server never drew.
 const lockSql = connectOrQuit("lock");
@@ -99,6 +100,11 @@ const app = createApp({
       readConfig: configFile(join(import.meta.dirname, "..", "..", "..", PARK_FILE)),
       run: runSsh,
       keyOk: (path) => keyIsPrivate(path),
+      now: () => Date.now(),
+    }),
+    proxmox: createProxmox({
+      config: () => proxmoxConfig(process.env),
+      get: getJson,
       now: () => Date.now(),
     }),
   }),

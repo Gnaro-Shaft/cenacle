@@ -40,6 +40,10 @@ L'ADR-0027 fait de l'opérateur le seul programme qui lance `ssh` et détient de
 - Le test de frontière de l'opérateur le vérifie : `ssh` nulle part ailleurs ; ce fichier ne nomme ni `serveurs.local.toml`, ni une clé ou un script d'action ; l'opérateur ne lit pas `parc.local.toml`.
 - L'identité de la machine est prouvée par son empreinte épinglée, pas par le nom qu'elle donne dans son bulletin.
 
+### Révision du 2026-11-14 — le certificat de Proxmox, vérifié contre l'autorité de la grappe
+
+Au lieu d'une empreinte dans `.env`, le serveur de la page vérifie le certificat du nœud **comme un navigateur le ferait**, mais contre la seule autorité de la grappe (`/etc/pve/pve-root-ca.pem`, copiée sur le Mac, `CENACLE_PROXMOX_CA`), et sur le **nom du nœud** que porte ce certificat (`CENACLE_PROXMOX_NODES=<nœud>@<adresse>:<port>`). C'est plus strict qu'une empreinte : un certificat renouvelé par la grappe reste accepté, un certificat d'une autre autorité ou pour un autre nom est refusé avant qu'aucune requête — donc aucun jeton — ne parte. La vérification n'est jamais désactivée ; un test le prouve avec une autorité étrangère.
+
 ## Conséquences
 
 - Un pas de plus pour remplacer Legion : Cénacle a son propre bulletin des machines, que sa ronde de sécurité pourra reprendre ensuite à la place du verdict de Legion (une autre ADR).

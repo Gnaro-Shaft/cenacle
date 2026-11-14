@@ -31,6 +31,8 @@ export const SECRET_FAMILIES = {
   page: { file: ".env.page", vars: [PRIVATE_KEY_VAR] },
   /** The bot's signing key: my confirmation of an action on a server (ADR-0036). */
   bot: { file: ".env.bot", vars: [CONFIRM_PRIVATE_KEY_VAR] },
+  /** The Proxmox cluster's read-only token (ADR-0039): the page's server alone. */
+  proxmox: { file: ".env.proxmox", vars: ["CENACLE_PROXMOX_TOKEN"] },
   /** The executor's database role (B7). */
   executor: { file: ".env.executor", vars: ["CENACLE_DB_EXECUTOR_PASSWORD"] },
   /** Shared with the sentinel (S2): Iris, the executor and the security agent (J6e1) beat with it. */

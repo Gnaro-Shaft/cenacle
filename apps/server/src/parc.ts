@@ -12,6 +12,7 @@ import { readFileSync } from "node:fs";
 import type { FindingSeverity, ParcStore } from "@cenacle/journal";
 import { type LegionState, legionView } from "@cenacle/securite";
 import type { MachinesView } from "./machines.ts";
+import type { ProxmoxView } from "./proxmox.ts";
 
 /** A verdict is a few lines: anything larger is not one. */
 const MAX_VERDICT = 64 * 1024;
@@ -50,6 +51,8 @@ export interface ParcView {
   readonly sentinel: { readonly up: boolean; readonly since: string } | null;
   /** Each machine's own bulletin (ADR-0039); null when not wired. */
   readonly machines: MachinesView | null;
+  /** The Proxmox cluster (ADR-0039); null when not wired. */
+  readonly proxmox: ProxmoxView | null;
 }
 
 export interface ParcDeps {
@@ -59,6 +62,8 @@ export interface ParcDeps {
   readonly now: () => Date;
   /** The machines' bulletins (machines.ts); absent, none are read. */
   readonly machines?: () => Promise<MachinesView>;
+  /** The Proxmox cluster (proxmox.ts); absent, it is not read. */
+  readonly proxmox?: () => Promise<ProxmoxView>;
 }
 
 /** The verdict file at `path`: null when absent; any other failure is thrown. */
@@ -99,11 +104,12 @@ function servers(read: () => string | null, now: Date): ParcView["servers"] {
 export function createParc(deps: ParcDeps): () => Promise<ParcView> {
   return async () => {
     const now = deps.now();
-    const [findings, lastRound, sentinel, machines] = await Promise.all([
+    const [findings, lastRound, sentinel, machines, proxmox] = await Promise.all([
       deps.store.findings(),
       deps.store.lastRound(),
       deps.store.sentinel(),
       deps.machines?.() ?? Promise.resolve(null),
+      deps.proxmox?.() ?? Promise.resolve(null),
     ]);
     return {
       at: now.toISOString(),
@@ -129,6 +135,7 @@ export function createParc(deps: ParcDeps): () => Promise<ParcView> {
             },
       sentinel: sentinel === null ? null : { up: sentinel.up, since: sentinel.since.toISOString() },
       machines,
+      proxmox,
     };
   };
 }

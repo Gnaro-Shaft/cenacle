@@ -27,7 +27,7 @@ server)
   # not override a variable already set.
   export CENACLE_WEB_DEV=0
   # Same files as `npm run server`.
-  exec node --env-file=.env --env-file-if-exists=.env.mail --env-file-if-exists=.env.page apps/server/src/main.ts
+  exec node --env-file=.env --env-file-if-exists=.env.mail --env-file-if-exists=.env.page --env-file-if-exists=.env.proxmox apps/server/src/main.ts
   ;;
 bot)
   # Same files as `npm run bot`: its token, and its own signing key (ADR-0036).
