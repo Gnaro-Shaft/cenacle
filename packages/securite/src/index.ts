@@ -64,6 +64,7 @@ export {
   parseDelegations,
   type TrustRecord,
 } from "./delegations.ts";
+export { type HeldBack, heldBackRules, isHeldBack } from "./held-back.ts";
 export {
   type ActiveFinding,
   type ActiveStatus,
