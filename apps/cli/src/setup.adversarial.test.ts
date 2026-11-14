@@ -39,6 +39,7 @@ describe("a fresh checkout", () => {
     expect(written.sort()).toEqual(
       [
         ".env",
+        ".env.admin",
         ".env.bot",
         ".env.executor",
         ".env.mail",
@@ -74,6 +75,7 @@ describe("a fresh checkout", () => {
     writeSetup(b);
     const read = (dir: string, file: string) => parse(readFileSync(join(dir, file), "utf8"));
     for (const [file, name, length] of [
+      [".env.admin", "CENACLE_DB_ADMIN_PASSWORD", 48],
       [".env.owner", "CENACLE_DB_OWNER_PASSWORD", 48],
       [".env.executor", "CENACLE_DB_EXECUTOR_PASSWORD", 48],
       [".env", "CENACLE_DB_APP_PASSWORD", 48],
@@ -131,6 +133,6 @@ describe("what the review found (D5)", () => {
     expect(() => writeSetup(dir, failing)).toThrow("ENOSPC");
     expect(readdirSync(dir).sort()).toEqual(before);
     // And a rerun is not refused by half a set.
-    expect(writeSetup(dir).written).toHaveLength(7);
+    expect(writeSetup(dir).written).toHaveLength(8);
   });
 });

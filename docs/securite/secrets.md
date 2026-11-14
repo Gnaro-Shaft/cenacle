@@ -8,7 +8,8 @@
 | Fichier | Contient | Chargé par |
 |---|---|---|
 | `.env` | Ce qui n'est pas secret (ports, modèle, mesure, clé publique de la page, clé publique du bot, identifiant Telegram autorisé) et le mot de passe applicatif de la base | Tous |
-| `.env.owner` | Le mot de passe du **propriétaire** de la base : il peut tout défaire (déclencheurs, rôles) | `npm run db:migrate`, les tests, Docker Compose |
+| `.env.owner` | Le mot de passe du **propriétaire** de la base : il peut tout défaire dans la base de Cénacle (déclencheurs, rôles des programmes), mais n'est pas super-utilisateur (ADR-0038) : ni fichier du serveur, ni commande du système | `npm run db:migrate`, les tests, Docker Compose |
+| `.env.admin` | Le mot de passe du **super-utilisateur** `cenacle_admin` (ADR-0038) : il peut tout, y compris dans le conteneur | **Aucun programme**, ni les migrations : Docker Compose seul, et moi à la main, rarement |
 | `.env.mail` | Le mot de passe de la boîte, et `CENACLE_MAIL_KEY` (clés HMAC des adresses) | Iris, la page, l'exécuteur, les commandes de messagerie, Docker Compose |
 | `.env.telegram` | Le jeton du bot | Iris, le bot, la veille du CTO, l'agent sécurité |
 | `.env.obs` | L'administrateur de Grafana | Docker Compose |

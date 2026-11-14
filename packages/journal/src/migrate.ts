@@ -41,10 +41,61 @@ async function loginRole(
   if (!PASSWORD_RULE.test(password))
     throw new UsageError(`${what} must be 16-128 chars of [A-Za-z0-9_-]`);
   const [exists] = await sql`select 1 from pg_roles where rolname = ${role}`;
-  const verb = exists === undefined ? "CREATE" : "ALTER";
+  // ADR-0038: the owner is no superuser, and a non-superuser may not even
+  // write NOSUPERUSER in an ALTER ROLE. So the attributes are set once, at
+  // creation, and afterwards only read back (lockedDown) — never rewritten.
   await sql.unsafe(
-    `${verb} ROLE ${role} LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD '${password}'`,
+    exists === undefined
+      ? `CREATE ROLE ${role} LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD '${password}'`
+      : `ALTER ROLE ${role} LOGIN PASSWORD '${password}'`,
   );
+  await lockedDown(sql, role);
+}
+
+/**
+ * Refuses to go on if a program's role holds more than it should: an
+ * attribute, or membership of any other role (whose rights it would borrow).
+ * Throwing undoes the whole migration (one transaction).
+ */
+export async function lockedDown(sql: postgres.Sql | postgres.TransactionSql, role: string) {
+  const [row] = await sql<
+    {
+      super: boolean;
+      createrole: boolean;
+      createdb: boolean;
+      replication: boolean;
+      bypassrls: boolean;
+    }[]
+  >`select rolsuper as super, rolcreaterole as createrole, rolcreatedb as createdb,
+           rolreplication as replication, rolbypassrls as bypassrls
+      from pg_roles where rolname = ${role}`;
+  if (row === undefined) throw new Error(`Role ${role} is missing`);
+  const gained = Object.entries(row)
+    .filter(([, held]) => held)
+    .map(([right]) => right.toUpperCase());
+  const memberOf = await sql<{ name: string }[]>`
+    select g.rolname as name from pg_auth_members m
+      join pg_roles g on g.oid = m.roleid
+      join pg_roles r on r.oid = m.member
+     where r.rolname = ${role} order by 1`;
+  gained.push(...memberOf.map((m) => `member of ${m.name}`));
+  if (gained.length > 0) {
+    throw new Error(
+      `${role} holds rights it must never have (${gained.join(", ")}): remove them as cenacle_admin, then migrate again (ADR-0038)`,
+    );
+  }
+}
+
+/** Whether the role the migrations run as is a superuser — it must not be (ADR-0038). */
+export async function runsAsSuperuser(url: string): Promise<boolean> {
+  const sql = postgres(url, { infer: true, max: 1, onnotice: () => {} });
+  try {
+    const [row] = await sql<{ super: boolean }[]>`
+      select rolsuper as super from pg_roles where rolname = current_user`;
+    return row?.super === true;
+  } finally {
+    await sql.end();
+  }
 }
 
 export interface MigrateOptions {
@@ -199,4 +250,9 @@ if (import.meta.main) {
     executorPassword: requireEnv(EXECUTOR_PASSWORD_VAR),
   });
   console.log(`Migrations applied: ${applied.join(", ")}`);
+  if (await runsAsSuperuser(ownerUrlFromEnv("cenacle"))) {
+    console.log(
+      "⚠ Le propriétaire de la base est encore super-utilisateur : npm run db:bascule (ADR-0038).",
+    );
+  }
 }
