@@ -1,6 +1,6 @@
 # ADR-0038 — Le propriétaire de la base n'est plus super-utilisateur
 
-**Statut** : proposée (2026-11-13)
+**Statut** : acceptée (2026-11-14)
 
 ## Contexte
 
