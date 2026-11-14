@@ -131,6 +131,22 @@ describe("the review's findings (ADR-0039)", () => {
   });
 });
 
+describe("one machine, whatever case its name is written in (14/11)", () => {
+  it("Legion's « alpha » and Proxmox's « Alpha »: one card, Legion's name, both sources on it", () => {
+    const cards = machinesOf(
+      view({
+        machines: { config: "ok", machines: [{ name: "alpha", read: "ok", bulletin: BULLETIN }] },
+        proxmox: { read: "ok", nodes: [{ ...NODE, name: "Alpha" }] },
+      }),
+    );
+    expect(cards.filter((c) => c.name.toLowerCase() === "alpha")).toHaveLength(1);
+    const [alpha] = cards;
+    expect(alpha?.name).toBe("alpha");
+    expect(alpha).toMatchObject({ cpu: 12, memory: 25, disks: [{ label: "/", percent: 93 }] });
+    expect(alpha?.node?.guests[0]?.name).toBe("nut");
+  });
+});
+
 describe("the gauges' colours", () => {
   it.each([
     [0, "bon"],

@@ -76,24 +76,33 @@ function nodeMemory(node: ProxmoxNodeView | null): number | null {
   return clamp((node.memory.used / node.memory.total) * 100);
 }
 
-export function machinesOf(view: ParcView): MachineCard[] {
-  const names = new Set<string>();
-  const legion = view.servers.read === "ok" ? view.servers : null;
-  for (const h of legion?.hosts ?? []) names.add(h.name);
-  const bulletins = new Map((view.machines?.machines ?? []).map((m) => [m.name, m]));
-  for (const name of bulletins.keys()) names.add(name);
-  const nodes = new Map(
-    (view.proxmox?.read === "ok" ? view.proxmox.nodes : []).map((n) => [n.name, n]),
-  );
-  for (const name of nodes.keys()) names.add(name);
+/**
+ * One machine, whatever case each source writes its name in: Legion and the
+ * bulletin may say « node01 », Proxmox « Node01 » (seen 14/11) — one card, not two.
+ * The name shown is the first source's: Legion, then the bulletin, then Proxmox.
+ */
+const keyOf = (name: string) => name.toLowerCase();
 
-  return [...names]
-    .sort((a, b) => a.localeCompare(b))
-    .map((name) => {
-      const host = legion?.hosts.find((h) => h.name === name);
-      const read = bulletins.get(name);
+export function machinesOf(view: ParcView): MachineCard[] {
+  const shown = new Map<string, string>();
+  const see = (name: string) => {
+    if (!shown.has(keyOf(name))) shown.set(keyOf(name), name);
+  };
+  const legion = view.servers.read === "ok" ? view.servers : null;
+  for (const h of legion?.hosts ?? []) see(h.name);
+  const bulletins = new Map((view.machines?.machines ?? []).map((m) => [keyOf(m.name), m]));
+  for (const m of view.machines?.machines ?? []) see(m.name);
+  const proxmoxNodes = view.proxmox?.read === "ok" ? view.proxmox.nodes : [];
+  const nodes = new Map(proxmoxNodes.map((n) => [keyOf(n.name), n]));
+  for (const n of proxmoxNodes) see(n.name);
+
+  return [...shown.entries()]
+    .sort((a, b) => a[1].localeCompare(b[1]))
+    .map(([key, name]) => {
+      const host = legion?.hosts.find((h) => keyOf(h.name) === key);
+      const read = bulletins.get(key);
       const bulletin = read?.read === "ok" ? read.bulletin : null;
-      const node = nodes.get(name) ?? null;
+      const node = nodes.get(key) ?? null;
       const unread: string[] = [];
       if (read !== undefined && read.read !== "ok") {
         unread.push(BULLETIN_UNREAD[read.read] ?? "bulletin illisible");
