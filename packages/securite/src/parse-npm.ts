@@ -97,8 +97,14 @@ export function parseNpmAudit(raw: string): Observation[] {
   return out;
 }
 
-/** Direct dependencies a whole major version behind: worth a look, never urgent. */
-export function parseNpmOutdated(raw: string): Observation[] {
+/**
+ * Direct dependencies a whole major version behind: worth a look, never
+ * urgent — unless that version is held back on purpose (held-back.ts).
+ */
+export function parseNpmOutdated(
+  raw: string,
+  heldBack: (pkg: string, latest: string) => boolean = () => false,
+): Observation[] {
   const text = plainOutput(raw).trim();
   const data = text === "" ? {} : json(text, "npm_outdated");
   const out = new Map<string, Observation>();
@@ -110,6 +116,7 @@ export function parseNpmOutdated(raw: string): Observation[] {
       if (typeof current !== "string" || typeof latest !== "string") continue;
       if (!SEMVER.test(current) || !SEMVER.test(latest)) continue;
       if (Number(latest.split(".")[0]) <= Number(current.split(".")[0])) continue;
+      if (heldBack(pkg, latest)) continue;
       out.set(pkg, {
         type: "npm_major",
         target: pkg,

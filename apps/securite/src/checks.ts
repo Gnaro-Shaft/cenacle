@@ -9,6 +9,9 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   type CheckResult,
+  type HeldBack,
+  heldBackRules,
+  isHeldBack,
   LEGION_VERDICT_PATH,
   npmCheck,
   type Observation,
@@ -141,9 +144,25 @@ export function specs(root: string, nodeDir: string, macMajor: number): Spec[] {
       args: ["outdated", "--json"],
       cwd: root,
       codes: [0, 1],
-      parse: parseNpmOutdated,
+      // Read at each round: lifting a rule in dependabot.yml makes the check speak again.
+      parse: (raw) => {
+        const rules = loadHeldBack(root);
+        return parseNpmOutdated(raw, (pkg, latest) => isHeldBack(rules, pkg, latest));
+      },
     },
   ];
+}
+
+/**
+ * What Dependabot is told to leave alone (finding n° 242): missing or
+ * unreadable, nothing is held back — the check says more, never less.
+ */
+export function loadHeldBack(root: string): HeldBack[] {
+  try {
+    return heldBackRules(readFileSync(join(root, ".github", "dependabot.yml"), "utf8"));
+  } catch {
+    return [];
+  }
 }
 
 /** My other projects (J6e2): securite.local.toml at the root; absent, no project. */
