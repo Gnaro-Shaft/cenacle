@@ -14,6 +14,7 @@ import {
   createJournal,
   createLocationStore,
   createMailStore,
+  createParcStore,
   createProposalStore,
   createProspectionStore,
   holdOrQuit,
@@ -31,11 +32,13 @@ import {
   signProposal,
 } from "@cenacle/mail";
 import { loadProspectionConfig } from "@cenacle/prospection";
+import { LEGION_VERDICT_PATH } from "@cenacle/securite";
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
 import { defaultGuardConfig, newToken } from "./guard.ts";
 import { builtPageProblem } from "./page-files.ts";
 import { pageUrl, pageUrlPath, removePageUrl, writePageUrl } from "./page-url.ts";
+import { createParc, verdictFile } from "./parc.ts";
 import { createProposalsService } from "./proposals-service.ts";
 import { createProspectionService } from "./prospection-service.ts";
 
@@ -87,6 +90,11 @@ const app = createApp({
   readAfter: (agent, afterId) => journal.read({ agent, afterId, limit: 1000 }),
   guard: defaultGuardConfig(token, PORT, { devPage: WEB_DEV }),
   ...(WEB_DEV ? {} : { page: { dist: join(WEB_DIR, "dist") } }),
+  parc: createParc({
+    store: createParcStore(sql),
+    readVerdict: verdictFile(LEGION_VERDICT_PATH),
+    now: () => new Date(),
+  }),
   prospection: createProspectionService({
     store: board,
     config: () => loadProspectionConfig(),

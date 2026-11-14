@@ -133,7 +133,48 @@ export function classifyMotif(host: string, motif: string): Observation[] {
   return [finding(host, "serveur_autre", occurrence, "moyen", `${host} : ${motif.slice(0, 200)}`)];
 }
 
-export function parseLegionVerdict(raw: string, nowMs: number): Observation[] {
+export type LegionState = "SAIN" | "SOUFFRANT" | "MALADE";
+const STATES: readonly string[] = ["SAIN", "SOUFFRANT", "MALADE"];
+
+/** The verdict as the page shows it (the Parc tab): stale is said, not refused. */
+export interface LegionView {
+  readonly state: LegionState;
+  /** When Legion gave it, in ms. */
+  readonly at: number;
+  /** Three relays missed, or from the future: shown, marked. */
+  readonly stale: boolean;
+  readonly hosts: readonly {
+    readonly name: string;
+    readonly state: LegionState;
+    /** Each motif in words (the findings' titles, without the host). */
+    readonly motifs: readonly string[];
+  }[];
+}
+
+/** The verdict for the page: as strict as the check, except on its age. */
+export function legionView(raw: string, nowMs: number): LegionView {
+  const fields = verdictFields(raw);
+  const at = Number(fields.get("instant")) * 1000;
+  const age = nowMs - at;
+  const hosts = hostsOf(fields).map((name) => {
+    const state = fields.get(`${name}.etat`) ?? "";
+    if (!STATES.includes(state)) throw fail();
+    const motifs = [...fields]
+      .filter(([key]) => /^(.+)\.motif\d{1,2}$/.exec(key)?.[1] === name)
+      .flatMap(([, value]) => classifyMotif(name, value))
+      .map((o) => o.title.slice(name.length + 3));
+    return { name, state: state as LegionState, motifs };
+  });
+  return {
+    state: fields.get("etat") as LegionState,
+    at,
+    stale: age > LEGION_STALE_MS || age < -FUTURE_TOLERANCE_MS,
+    hosts,
+  };
+}
+
+/** The verdict's fields, checked whole: cut short, undated or out of shape "could not run". */
+function verdictFields(raw: string): Map<string, string> {
   const lines = plainOutput(raw)
     .split("\n")
     .map((l) => l.trim())
@@ -147,25 +188,38 @@ export function parseLegionVerdict(raw: string, nowMs: number): Observation[] {
     if (fields.has(key)) throw fail();
     fields.set(key, line.slice(at + 1));
   }
-  const instant = fields.get("instant") ?? "";
-  if (!/^\d{9,11}$/.test(instant)) throw fail();
-  const age = nowMs - Number(instant) * 1000;
-  // Too old (three relays missed) or from the future: Legion's watch is not seen.
-  if (age > LEGION_STALE_MS || age < -FUTURE_TOLERANCE_MS) throw fail();
-  if (!["SAIN", "SOUFFRANT", "MALADE"].includes(fields.get("etat") ?? "")) throw fail();
+  if (!/^\d{9,11}$/.test(fields.get("instant") ?? "")) throw fail();
+  if (!STATES.includes(fields.get("etat") ?? "")) throw fail();
+  const hosts = hostsOf(fields);
+  // Every motif belongs to a host the verdict counts, in Legion's words.
+  for (const [key, value] of fields) {
+    const m = /^([^.]+)\.motif(\d{1,2})$/.exec(key);
+    if (m === null) continue;
+    if (!hosts.includes(m[1] ?? "") || !MOTIF.test(value)) throw fail();
+  }
+  return fields;
+}
+
+/** The hosts the verdict names, as many as it says, each a plain name. */
+function hostsOf(fields: ReadonlyMap<string, string>): string[] {
   const hosts = [...fields.keys()].flatMap((k) => {
     const h = /^([^.]+)\.etat$/.exec(k)?.[1];
     return h === undefined ? [] : [h];
   });
   if (hosts.length !== Number(fields.get("hotes")) || hosts.length > 50) throw fail();
   if (!hosts.every((h) => HOST.test(h))) throw fail();
+  return hosts;
+}
+
+export function parseLegionVerdict(raw: string, nowMs: number): Observation[] {
+  const fields = verdictFields(raw);
+  const age = nowMs - Number(fields.get("instant")) * 1000;
+  // Too old (three relays missed) or from the future: Legion's watch is not seen.
+  if (age > LEGION_STALE_MS || age < -FUTURE_TOLERANCE_MS) throw fail();
   const out: Observation[] = [];
   for (const [key, value] of fields) {
     const m = /^([^.]+)\.motif(\d{1,2})$/.exec(key);
-    if (m === null) continue;
-    const host = m[1] ?? "";
-    if (!hosts.includes(host) || !MOTIF.test(value)) throw fail();
-    out.push(...classifyMotif(host, value));
+    if (m !== null) out.push(...classifyMotif(m[1] ?? "", value));
   }
   return out;
 }

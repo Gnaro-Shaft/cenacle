@@ -9,6 +9,7 @@
     "src/presence.ts",
     "src/board-rules.ts",
     "src/proposal-rules.ts",
+    "src/parc-rules.ts",
     "src/api.ts"
   ],
   "exclude": []

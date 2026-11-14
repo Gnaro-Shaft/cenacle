@@ -3,6 +3,7 @@ import { AgentBox } from "./AgentBox.tsx";
 import type { Emblem } from "./Avatar.tsx";
 import { Board } from "./Board.tsx";
 import { CtoAsk } from "./CtoAsk.tsx";
+import { Parc } from "./Parc.tsx";
 import { Proposals } from "./Proposals.tsx";
 import { takeToken } from "./token.ts";
 import { useTeamStream } from "./useTeamStream.ts";
@@ -42,6 +43,8 @@ const AGENTS = TEAM.map((member) => member.agent);
 export function App() {
   const team = useTeamStream(AGENTS);
   const [token, setToken] = useState<string | null>(() => takeToken());
+  /** The work (missions, drafts, the CTO) or the park (the machines): one at a time. */
+  const [view, setView] = useState<"travail" | "parc">("travail");
   // The link pasted into an already open page changes only the part after #.
   useEffect(() => {
     const onHash = () => {
@@ -55,6 +58,19 @@ export function App() {
     <main className="page">
       <header className="entete">
         <h1>Cénacle</h1>
+        <div className="onglets" role="tablist" aria-label="Vues">
+          {(["travail", "parc"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              role="tab"
+              aria-selected={view === v}
+              onClick={() => setView(v)}
+            >
+              {v === "travail" ? "Travail" : "Parc"}
+            </button>
+          ))}
+        </div>
         <span className="date">{TODAY.format(new Date())}</span>
       </header>
       <aside className="equipe" aria-label="L'équipe">
@@ -73,9 +89,11 @@ export function App() {
       </aside>
       {token === null ? (
         <p className="bloc verrou">
-          Pour voir les missions, les brouillons et parler au CTO, ouvre la page avec{" "}
+          Pour voir les missions, les brouillons, le parc et parler au CTO, ouvre la page avec{" "}
           <code>npm run page</code> (le lien change à chaque démarrage du serveur).
         </p>
+      ) : view === "parc" ? (
+        <Parc token={token} onLost={() => setToken(null)} />
       ) : (
         <div className="colonnes">
           <div className="cote-missions">
