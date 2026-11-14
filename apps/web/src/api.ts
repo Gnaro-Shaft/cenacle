@@ -198,7 +198,7 @@ export interface ProxmoxNodeView {
     readonly name: string;
     readonly kind: "vm" | "ct";
     readonly running: boolean;
-    readonly cpuPercent: number;
+    readonly cpuPercent: number | null;
     readonly memoryPercent: number | null;
   }[];
   readonly disks:

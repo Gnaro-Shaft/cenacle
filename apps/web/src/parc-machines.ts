@@ -26,7 +26,7 @@ export interface MachineCard {
 }
 
 const BULLETIN_UNREAD: Readonly<Record<string, string>> = {
-  injoignable: "bulletin injoignable",
+  injoignable: "bulletin injoignable (machine éteinte, réseau, ou clé d'hôte refusée)",
   illisible: "bulletin illisible",
   cle: "clé du bulletin mal protégée : non utilisée",
 };
@@ -42,6 +42,25 @@ function loadPercent(b: BulletinView): number | null {
 function memoryPercent(b: BulletinView): number | null {
   if (b.memory === null || b.memory.total === 0) return null;
   return clamp(((b.memory.total - b.memory.available) / b.memory.total) * 100);
+}
+
+const RANK: Readonly<Record<Tone, number>> = { bon: 0, inconnu: 1, attention: 2, mauvais: 3 };
+const worst = (tones: readonly Tone[]): Tone =>
+  tones.reduce<Tone>((a, b) => (RANK[b] > RANK[a] ? b : a), "bon");
+
+/**
+ * The card's frame: the worst of what is known — Legion's state, a gauge, a
+ * disk in fault, something unread. Nothing known at all: unknown, never green.
+ */
+export function cardTone(m: MachineCard, legionTone: Tone | null): Tone {
+  const tones: Tone[] = [];
+  if (legionTone !== null) tones.push(legionTone);
+  for (const p of [m.cpu, m.memory, ...m.disks.map((d) => d.percent)]) {
+    if (p !== null) tones.push(gaugeTone(p));
+  }
+  if (m.node?.disks?.some((d) => d.healthy === false)) tones.push("mauvais");
+  if (m.unread.length > 0) tones.push("attention");
+  return tones.length === 0 ? "inconnu" : worst(tones);
 }
 
 /** Green under 70 %, amber under 90 %, red beyond. */
@@ -80,6 +99,7 @@ export function machinesOf(view: ParcView): MachineCard[] {
         unread.push(BULLETIN_UNREAD[read.read] ?? "bulletin illisible");
       }
       if (node !== null && !node.online) unread.push("nœud hors ligne pour Proxmox");
+      if (node?.online && node.disks === null) unread.push("disques du nœud non lus");
       // Proxmox measures the processor itself; the bulletin, the load: Proxmox first.
       return {
         name,

@@ -4,7 +4,7 @@
  * Legion's word and motifs below. Plain text everywhere (React escapes it).
  */
 import type { ParcView } from "./api.ts";
-import { gaugeTone, type MachineCard, machinesOf } from "./parc-machines.ts";
+import { cardTone, gaugeTone, type MachineCard, machinesOf } from "./parc-machines.ts";
 import { stateLabel, stateTone, type Tone } from "./parc-rules.ts";
 
 function Dot({ tone, label }: { readonly tone: Tone; readonly label: string }) {
@@ -41,7 +41,7 @@ function Guests({ node }: { readonly node: NonNullable<MachineCard["node"]> }) {
           </span>
           <span className="parc-valeur">
             {g.running
-              ? `${g.cpuPercent} % · ${g.memoryPercent === null ? "—" : `${g.memoryPercent} %`}`
+              ? `${g.cpuPercent === null ? "—" : `${g.cpuPercent} %`} · ${g.memoryPercent === null ? "—" : `${g.memoryPercent} %`}`
               : "arrêtée"}
           </span>
         </li>
@@ -52,6 +52,8 @@ function Guests({ node }: { readonly node: NonNullable<MachineCard["node"]> }) {
 
 function diskTone(d: { readonly healthy: boolean | null; readonly wearLeft: number | null }): Tone {
   if (d.healthy === false) return "mauvais";
+  // A health Proxmox cannot assess is unknown, never healthy.
+  if (d.healthy === null) return "inconnu";
   return d.wearLeft !== null && d.wearLeft < 20 ? "attention" : "bon";
 }
 
@@ -61,7 +63,10 @@ function Disks({ node }: { readonly node: NonNullable<MachineCard["node"]> }) {
     <ul className="parc-lignes">
       {node.disks.map((d) => (
         <li key={d.device} className="parc-ligne">
-          <Dot tone={diskTone(d)} label={d.healthy === false ? "en défaut" : "sain"} />
+          <Dot
+            tone={diskTone(d)}
+            label={d.healthy === false ? "en défaut" : d.healthy === null ? "état inconnu" : "sain"}
+          />
           <span className="parc-nom">{d.model || d.device}</span>
           <span className="parc-valeur">
             {d.wearLeft === null ? d.kind : `usure ${100 - d.wearLeft} %`}
@@ -73,7 +78,9 @@ function Disks({ node }: { readonly node: NonNullable<MachineCard["node"]> }) {
 }
 
 function Card({ m }: { readonly m: MachineCard }) {
-  const tone: Tone = m.legion === null ? "inconnu" : stateTone(m.legion.state, m.legion.stale);
+  const legionTone: Tone | null =
+    m.legion === null ? null : stateTone(m.legion.state, m.legion.stale);
+  const tone = cardTone(m, legionTone);
   return (
     <article className={`bloc parc-carte machine ton-cadre-${tone}`} aria-label={m.name}>
       <h3 className="machine-titre">

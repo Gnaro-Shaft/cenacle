@@ -233,6 +233,11 @@ export function sshArgs(server: Server, key: string, knownHosts: string): string
     "StrictHostKeyChecking=yes",
     "-o",
     `UserKnownHostsFile=${knownHosts}`,
+    // That file alone: never the system's list, never a key learned on the way.
+    "-o",
+    "GlobalKnownHostsFile=/dev/null",
+    "-o",
+    "UpdateHostKeys=no",
     "-o",
     "ConnectTimeout=15",
     "-o",

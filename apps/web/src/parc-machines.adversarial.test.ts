@@ -3,7 +3,7 @@
 // not be read said on the card.
 import { describe, expect, it } from "vitest";
 import type { BulletinView, ParcView, ProxmoxNodeView } from "./api.ts";
-import { gaugeTone, machinesOf } from "./parc-machines.ts";
+import { cardTone, gaugeTone, machinesOf } from "./parc-machines.ts";
 
 const BULLETIN: BulletinView = {
   host: "alpha",
@@ -65,7 +65,7 @@ describe("one card per machine", () => {
 
   it("a bulletin it could not read is said on the card", () => {
     const beta = machinesOf(view()).find((c) => c.name === "beta");
-    expect(beta?.unread).toEqual(["bulletin injoignable"]);
+    expect(beta?.unread[0]).toMatch(/^bulletin injoignable/);
     expect(beta?.legion).toBeNull();
   });
 
@@ -103,6 +103,31 @@ describe("one card per machine", () => {
   it("numbers out of range are held in 0–100", () => {
     const wild: BulletinView = { ...BULLETIN, load: [9_999, 0, 0], cpus: 1 };
     expect(machinesOf(withBulletin(wild))[0]?.cpu).toBe(100);
+  });
+});
+
+describe("the review's findings (ADR-0039)", () => {
+  it("an online node whose disks could not be read: said, not taken for « no disk »", () => {
+    const [alpha] = machinesOf(view({ proxmox: { read: "ok", nodes: [NODE] } }));
+    expect(alpha?.unread).toContain("disques du nœud non lus");
+  });
+
+  it("the frame is the worst known: a red gauge on a healthy machine is red", () => {
+    const [alpha] = machinesOf(withBulletin(BULLETIN));
+    if (alpha === undefined) throw new Error("no card");
+    expect(cardTone(alpha, "bon")).toBe("mauvais"); // its disk at 93 %
+  });
+
+  it("nothing known at all: unknown, never green", () => {
+    const gamma = machinesOf(view()).find((c) => c.name === "gamma");
+    if (gamma === undefined) throw new Error("no card");
+    expect(cardTone({ ...gamma, legion: null }, null)).toBe("inconnu");
+  });
+
+  it("something unread lifts a healthy card to amber", () => {
+    const beta = machinesOf(view()).find((c) => c.name === "beta");
+    if (beta === undefined) throw new Error("no card");
+    expect(cardTone(beta, "bon")).toBe("attention");
   });
 });
 

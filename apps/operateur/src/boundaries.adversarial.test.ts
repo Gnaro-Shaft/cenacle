@@ -78,10 +78,24 @@ describe("ssh, and the servers' list, belong to the operator alone", () => {
     expect(text).not.toMatch(/serveurs\.local|parseServers|\.keys\b|\bcles\b/);
     expect(text).not.toMatch(/cenacle-(services|redemarrer|maj)/);
     expect(text).not.toMatch(/SSH_AUTH_SOCK|\.\.\.process\.env/);
+    // One child process, and only ssh: nothing else is ever launched from here.
+    expect(text.match(/\bexecFile\(/g) ?? []).toHaveLength(1);
+    expect(text).not.toMatch(/\b(spawn|exec|execSync|execFileSync|fork)\(/);
     // Its keys come from parc.local.toml alone, a file the operator never reads.
     expect(text).toMatch(/parseParkMachines/);
     const operator = sources(join(ROOT, "apps", "operateur")).map((f) => readFileSync(f, "utf8"));
     for (const t of operator) expect(t).not.toMatch(/parc\.local\.toml|parseParkMachines/);
+  });
+
+  it("the bulletins' reader is wired by the page's server alone", () => {
+    for (const file of all) {
+      if (file === BULLETINS || file === join(ROOT, "apps", "server", "src", "main.ts")) continue;
+      const text = readFileSync(file, "utf8");
+      // A type may be shared; the runner never.
+      expect(text, relative(ROOT, file)).not.toMatch(
+        /import \{[^}]*\b(runSsh|SSH|createMachines)\b[^}]*\} from "\.\/machines\.ts"/,
+      );
+    }
   });
 
   it("ssh's path is absolute, and its environment has no agent socket", () => {

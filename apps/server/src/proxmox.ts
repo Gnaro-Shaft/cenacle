@@ -115,6 +115,9 @@ export function getJson(config: ProxmoxConfig, at: ProxmoxEndpoint, path: string
       },
     );
     req.on("timeout", () => req.destroy(new Error("timeout")));
+    // An idle limit is not a deadline: a peer dripping bytes is cut here.
+    const deadline = setTimeout(() => req.destroy(new Error("deadline")), TIMEOUT_MS * 2);
+    req.on("close", () => clearTimeout(deadline));
     // A certificate that does not match lands here too: no answer, never a request sent.
     req.on("error", () => resolve("unreachable"));
     req.end();
