@@ -108,8 +108,10 @@ export function createParc(deps: ParcDeps): () => Promise<ParcView> {
       deps.store.findings(),
       deps.store.lastRound(),
       deps.store.sentinel(),
-      deps.machines?.() ?? Promise.resolve(null),
-      deps.proxmox?.() ?? Promise.resolve(null),
+      // A source that fails says so on its own cards; it never takes the others down.
+      deps.machines?.().catch(() => ({ config: "illisible" as const, machines: [] })) ??
+        Promise.resolve(null),
+      deps.proxmox?.().catch(() => ({ read: "illisible" as const })) ?? Promise.resolve(null),
     ]);
     return {
       at: now.toISOString(),

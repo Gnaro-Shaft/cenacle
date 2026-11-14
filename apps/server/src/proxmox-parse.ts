@@ -18,8 +18,8 @@ export interface ProxmoxGuest {
   readonly name: string;
   readonly kind: "vm" | "ct";
   readonly running: boolean;
-  /** 0 to 100, of its own processors. */
-  readonly cpuPercent: number;
+  /** 0 to 100, of its own processors; null when Proxmox does not say. */
+  readonly cpuPercent: number | null;
   readonly memoryPercent: number | null;
 }
 
@@ -77,7 +77,7 @@ function guestOf(item: Record<string, unknown>, node: string | null): GuestOf {
     name: typeof item.name === "string" && NAME.test(item.name) ? item.name : `${id}`,
     kind: item.type === "qemu" ? "vm" : "ct",
     running: item.status === "running",
-    cpuPercent: ratio(item.cpu) ?? 0,
+    cpuPercent: ratio(item.cpu),
     memoryPercent: percent(num(item.mem, 1e15), num(item.maxmem, 1e15)),
   };
 }

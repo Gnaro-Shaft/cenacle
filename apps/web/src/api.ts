@@ -158,6 +158,58 @@ export interface ParcView {
     readonly network: boolean;
   } | null;
   readonly sentinel: { readonly up: boolean; readonly since: string } | null;
+  /** Each machine's own bulletin (ADR-0039); null when not wired. */
+  readonly machines: {
+    readonly config: "absent" | "illisible" | "ok";
+    readonly machines: readonly (
+      | { readonly name: string; readonly read: "ok"; readonly bulletin: BulletinView }
+      | { readonly name: string; readonly read: "injoignable" | "illisible" | "cle" }
+    )[];
+  } | null;
+  /** The Proxmox cluster (ADR-0039); null when not wired. */
+  readonly proxmox:
+    | { readonly read: "absent" | "config" | "injoignable" | "refuse" | "illisible" }
+    | { readonly read: "ok"; readonly nodes: readonly ProxmoxNodeView[] }
+    | null;
+}
+
+export interface BulletinView {
+  readonly host: string;
+  readonly at: number;
+  readonly uptimeSeconds: number | null;
+  readonly load: readonly [number, number, number] | null;
+  readonly cpus: number | null;
+  readonly memory: { readonly total: number; readonly available: number } | null;
+  readonly disks: readonly {
+    readonly mount: string;
+    readonly percent: number;
+    readonly kilobytes: number;
+  }[];
+}
+
+export interface ProxmoxNodeView {
+  readonly name: string;
+  readonly online: boolean;
+  readonly cpuPercent: number | null;
+  readonly memory: { readonly used: number; readonly total: number } | null;
+  readonly uptimeSeconds: number | null;
+  readonly guests: readonly {
+    readonly id: number;
+    readonly name: string;
+    readonly kind: "vm" | "ct";
+    readonly running: boolean;
+    readonly cpuPercent: number | null;
+    readonly memoryPercent: number | null;
+  }[];
+  readonly disks:
+    | readonly {
+        readonly device: string;
+        readonly model: string;
+        readonly kind: string;
+        readonly wearLeft: number | null;
+        readonly healthy: boolean | null;
+      }[]
+    | null;
 }
 
 export const getParc = (token: string) => call<ParcView>(token, "/api/parc");

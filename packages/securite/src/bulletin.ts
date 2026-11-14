@@ -87,6 +87,7 @@ export function parseBulletin(raw: string): Bulletin {
     if (!MOUNT.test(mount) || mount.split("/").includes("..")) {
       throw new BulletinError("disk mount out of shape");
     }
+    if (disks.some((d) => d.mount === mount)) throw new BulletinError("a mount twice");
     const percent = whole(fields, `disque.${n}.pourcent`, 100);
     const kilobytes = whole(fields, `disque.${n}.kilooctets`, 1e15);
     if (percent === null || kilobytes === null) throw new BulletinError("a disk half said");

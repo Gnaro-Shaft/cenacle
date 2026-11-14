@@ -139,3 +139,53 @@
 .parc-note.perime {
   color: var(--ton-mauvais);
 }
+
+/* One card per machine (ADR-0039): gauges, guests, disks. */
+.machine-titre {
+  display: grid;
+  grid-template-columns: 0.8rem minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin: 0 0 0.6rem;
+}
+.jauge {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr) 3.2rem;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.35rem 0;
+  font-size: 0.9rem;
+}
+.jauge-nom {
+  color: var(--encre-douce);
+  overflow-wrap: anywhere;
+}
+.jauge-barre {
+  display: block;
+  height: 0.6rem;
+  border-radius: 3px;
+  background: var(--panneau);
+  border: 1px solid var(--trait);
+  overflow: hidden;
+}
+.jauge-plein {
+  display: block;
+  height: 100%;
+  background: var(--ton-inconnu);
+}
+.jauge-plein.ton-bon {
+  background: var(--ton-bon);
+}
+.jauge-plein.ton-attention {
+  background: var(--ton-attention);
+}
+.jauge-plein.ton-mauvais {
+  background: var(--ton-mauvais);
+}
+.jauge-valeur {
+  text-align: right;
+  color: var(--encre-douce);
+}
+.machine-invites {
+  margin-top: 0.5rem;
+}

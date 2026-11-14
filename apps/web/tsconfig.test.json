@@ -10,6 +10,7 @@
     "src/board-rules.ts",
     "src/proposal-rules.ts",
     "src/parc-rules.ts",
+    "src/parc-machines.ts",
     "src/api.ts"
   ],
   "exclude": []

@@ -83,6 +83,10 @@ describe("refused whole", () => {
     ],
     ["a host name that is an option", lines().replace("hote=alpha", "hote=-oProxyCommand")],
     ["a line without key", lines(["=x"])],
+    [
+      "the same mount twice (two gauges for one disk)",
+      lines().replace("disque.2.montage=/var/lib/vz", "disque.2.montage=/"),
+    ],
   ])("%s", (_what, raw) => {
     expect(() => parseBulletin(raw)).toThrow(BulletinError);
   });

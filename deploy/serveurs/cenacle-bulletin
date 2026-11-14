@@ -23,7 +23,11 @@ say_if() { [ -n "${2:-}" ] && say "$1" "$2"; }
 
 printf 'bulletin=1\n'
 say version 1
-say hote "$(hostname)"
+# The name only as a plain label (identity comes from the pinned host key):
+# anything but letters, digits, dots and dashes becomes a dash, 63 at most.
+h="$(hostname 2>/dev/null)"
+h="$(printf '%s' "$h" | tr -c 'A-Za-z0-9.-' '-' | sed 's/^[^A-Za-z0-9]*//' | cut -c1-63)"
+say hote "${h:-inconnu}"
 say instant "$(date -u +%s)"
 say_if uptime "$(cut -d' ' -f1 /proc/uptime 2>/dev/null | cut -d. -f1)"
 
@@ -47,6 +51,8 @@ n=0
 while read -r _ blocks _ _ percent mount; do
     case "$mount" in
         /|/var|/home|/srv|/opt|/boot|/var/lib/vz)
+            # A file system without blocks says "-": not a disk to show.
+            case "${percent%\%}${blocks}" in ''|*[!0-9]*) continue ;; esac
             n=$((n + 1))
             say "disque.$n.montage" "$mount"
             say "disque.$n.pourcent" "${percent%\%}"
