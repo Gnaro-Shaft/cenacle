@@ -5,10 +5,12 @@
  * every typed finding (a port, a disk, updates, services, a reboot, the
  * quorum). The other motifs are not compared word for word — Legion quotes
  * ssh's errors and recites fail2ban, Cénacle does neither (ADR-0040) — their
- * weight shows in the state. Pure: two verdicts and the time, in; the
+ * weight shows in the state. Counts are not compared (3 services here, 12
+ * there is one finding on both sides): the finding is. Pure: two verdicts and the time, in; the
  * differences, out. A verdict missing, unreadable or too old for its own
  * source: thrown — the comparison could not run, it never says "no difference".
  */
+import { createHash } from "node:crypto";
 import { legionView, parseLegionVerdict } from "./parse-legion.ts";
 import { CENACLE_STALE_MS } from "./ronde-source.ts";
 import type { Observation } from "./types.ts";
@@ -17,6 +19,16 @@ export const COMPARE_CHECK = "ronde_comparaison";
 export const DIFFERENCE = "ronde_ecart";
 
 type Side = "legion" | "cenacle";
+/** What the findings' table holds (017_securite_constats.sql). */
+const MAX_OCCURRENCE = 60;
+
+/** The difference's occurrence: readable when short, else a short print of the finding's own. */
+function occurrenceOf(type: string, occurrence: string, side: Side): string {
+  const full = `${type}:${occurrence}:${side}`;
+  if (full.length <= MAX_OCCURRENCE) return full;
+  const print = createHash("sha256").update(occurrence).digest("hex").slice(0, 12);
+  return `${type}:#${print}:${side}`;
+}
 const WORDS: Readonly<Record<Side, string>> = { legion: "Legion", cenacle: "Cénacle" };
 
 const difference = (host: string, occurrence: string, title: string): Observation => ({
@@ -28,13 +40,20 @@ const difference = (host: string, occurrence: string, title: string): Observatio
   params: { host },
 });
 
+interface Typed {
+  readonly type: string;
+  readonly occurrence: string;
+  readonly words: string;
+}
+
 /** Each host's typed findings, keyed by kind and occurrence, with their words. */
-function typed(observations: readonly Observation[]): Map<string, Map<string, string>> {
-  const out = new Map<string, Map<string, string>>();
+function typed(observations: readonly Observation[]): Map<string, Map<string, Typed>> {
+  const out = new Map<string, Map<string, Typed>>();
   for (const o of observations) {
     if (o.type === "serveur_autre") continue;
-    const host = out.get(o.target) ?? new Map<string, string>();
-    host.set(`${o.type}:${o.occurrence}`, o.title.slice(o.target.length + 3));
+    const host = out.get(o.target) ?? new Map<string, Typed>();
+    const words = o.title.slice(o.target.length + 3);
+    host.set(`${o.type}:${o.occurrence}`, { type: o.type, occurrence: o.occurrence, words });
     out.set(o.target, host);
   }
   return out;
@@ -69,11 +88,17 @@ export function compareVerdicts(legion: string, cenacle: string, nowMs: number):
       ["legion", "cenacle"],
       ["cenacle", "legion"],
     ] as const) {
-      const mine = found[side].get(host) ?? new Map<string, string>();
-      const theirs = found[other].get(host) ?? new Map<string, string>();
-      for (const [key, words] of mine) {
+      const mine = found[side].get(host) ?? new Map<string, Typed>();
+      const theirs = found[other].get(host) ?? new Map<string, Typed>();
+      for (const [key, t] of mine) {
         if (theirs.has(key)) continue;
-        out.push(difference(host, `${key}:${side}`, `${words} — vu seulement par ${WORDS[side]}`));
+        out.push(
+          difference(
+            host,
+            occurrenceOf(t.type, t.occurrence, side),
+            `${t.words} — vu seulement par ${WORDS[side]}`,
+          ),
+        );
       }
     }
   }

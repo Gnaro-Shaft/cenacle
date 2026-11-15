@@ -61,8 +61,8 @@ export interface ParcView {
 
 export interface ParcDeps {
   readonly store: ParcStore;
-  /** The chosen ronde's raw verdict, or null when there is none. */
-  readonly readVerdict: () => string | null;
+  /** That ronde's raw verdict, or null when there is none. */
+  readonly readVerdict: (source: RondeSource) => string | null;
   /** Which ronde securite.toml names (ADR-0040); absent, Legion's; null, none readable. */
   readonly source?: () => RondeSource | null;
   readonly now: () => Date;
@@ -85,7 +85,7 @@ export function verdictFile(path: string): () => string | null {
 }
 
 function servers(
-  read: () => string | null,
+  read: (source: RondeSource) => string | null,
   chosen: RondeSource | null,
   now: Date,
 ): ParcView["servers"] {
@@ -93,7 +93,7 @@ function servers(
   const { label: source, staleMs } = RONDE_SOURCES[chosen];
   let raw: string | null;
   try {
-    raw = read();
+    raw = read(chosen);
   } catch {
     return { read: "unreadable", source };
   }

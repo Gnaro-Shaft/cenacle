@@ -27,7 +27,12 @@ export type ReadFile = (path: string) => string | null;
 
 const failed = (check: string): CheckResult => ({ check, ran: false });
 
-export function rondeResults(read: ReadFile, securiteToml: string, nowMs: number): CheckResult[] {
+/** `securiteToml`: the file's text, or null when it is missing (then no source at all). */
+export function rondeResults(
+  read: ReadFile,
+  securiteToml: string | null,
+  nowMs: number,
+): CheckResult[] {
   const safe = (path: string): string | null => {
     try {
       return read(path);

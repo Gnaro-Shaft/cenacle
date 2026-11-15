@@ -8,6 +8,7 @@
 import { parse } from "smol-toml";
 import { LEGION_STALE_MS, LEGION_VERDICT_PATH } from "./parse-legion.ts";
 import { RONDE_VERDICT_PATH } from "./ronde-verdict.ts";
+import { verdictInstant } from "./servers.ts";
 
 export type RondeSource = "legion" | "cenacle";
 
@@ -27,8 +28,13 @@ export const RONDE_SOURCES: Readonly<Record<RondeSource, SourceFacts>> = {
   cenacle: { label: "Cénacle", path: RONDE_VERDICT_PATH, staleMs: CENACLE_STALE_MS },
 };
 
-/** The source securite.toml names; null when it names none that exists, or cannot be read. */
-export function parseRondeSource(securiteToml: string): RondeSource | null {
+/**
+ * The source securite.toml names; null when it names none that exists, or
+ * cannot be read — a missing file (null) included: it is versioned, its
+ * absence is a broken checkout, never a choice of Legion.
+ */
+export function parseRondeSource(securiteToml: string | null): RondeSource | null {
+  if (securiteToml === null) return null;
   let data: Record<string, unknown>;
   try {
     data = parse(securiteToml) as Record<string, unknown>;
@@ -42,4 +48,22 @@ export function parseRondeSource(securiteToml: string): RondeSource | null {
   const source = (ronde as { source?: unknown }).source;
   if (source === undefined) return "legion";
   return source === "legion" || source === "cenacle" ? source : null;
+}
+
+/**
+ * The chosen ronde's verdict as the operator may believe it: null with no
+ * source, no file, or older than its own source's limit (Cénacle's 20
+ * minutes are tighter than the operator's 35: the most protective wins). An
+ * undated verdict is left to the reader, which refuses it.
+ */
+export function freshSourceVerdict(
+  read: (path: string) => string | null,
+  source: RondeSource | null,
+  nowMs: number,
+): string | null {
+  if (source === null) return null;
+  const raw = read(RONDE_SOURCES[source].path);
+  if (raw === null) return null;
+  const at = verdictInstant(raw);
+  return at !== null && nowMs - at > RONDE_SOURCES[source].staleMs ? null : raw;
 }

@@ -98,3 +98,12 @@ describe("both rondes compared, whatever the source", () => {
     });
   });
 });
+
+describe("what the review found (R3)", () => {
+  it("securite.toml missing: no source — the servers' check could not run", () => {
+    expect(rondeResults(files(LEGION, CENACLE), null, NOW)[0]).toEqual({
+      check: "legion_ronde",
+      ran: false,
+    });
+  });
+});

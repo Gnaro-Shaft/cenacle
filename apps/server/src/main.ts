@@ -106,10 +106,7 @@ const app = createApp({
     store: createParcStore(sql),
     // The ronde securite.toml names (ADR-0040, R3), read again at each request.
     source: rondeSource,
-    readVerdict: () => {
-      const source = rondeSource();
-      return source === null ? null : verdictFile(RONDE_SOURCES[source].path)();
-    },
+    readVerdict: (source) => verdictFile(RONDE_SOURCES[source].path)(),
     now: () => new Date(),
     // The ronde's file (ADR-0040): the page's server reads no machine itself.
     machines: createMachines({

@@ -13,7 +13,8 @@ const REFUSAL: Readonly<Record<string, string>> = {
   machine_inconnue: "cette machine n'est pas déclarée dans serveurs.local.toml",
   pas_de_cle: "aucune clé n'est déclarée pour cette action sur cette machine",
   cle_mal_protegee: "sa clé est lisible par un autre que toi (chmod 600)",
-  releve_perime: "le relevé de la ronde a plus de 35 minutes (ou il n'y en a pas) : rien n'est sûr",
+  releve_perime:
+    "le relevé de la ronde est absent, ou a plus de 35 minutes (20 pour celle de Cénacle) : rien n'est sûr",
   source_illisible:
     "la source de la ronde ([ronde] source dans securite.toml) n'est ni « legion » ni « cenacle » : aucun relevé n'est cru",
   releve_illisible: "le relevé est illisible",

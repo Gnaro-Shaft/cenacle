@@ -190,6 +190,7 @@ export {
 } from "./ronde-rules.ts";
 export {
   CENACLE_STALE_MS,
+  freshSourceVerdict,
   parseRondeSource,
   RONDE_SOURCES,
   type RondeSource,

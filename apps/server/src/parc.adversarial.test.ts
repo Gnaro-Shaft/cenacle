@@ -166,3 +166,20 @@ describe("the servers' verdict comes from the ronde securite.toml names (ADR-004
     expect(read).toBe(0);
   });
 });
+
+describe("the source read once (R3 review)", () => {
+  it("the verdict is read for the source that names it, never another", async () => {
+    const asked: string[] = [];
+    const view = await createParc({
+      store,
+      source: () => "cenacle",
+      readVerdict: (source) => {
+        asked.push(source);
+        return verdict(1);
+      },
+      now: () => NOW,
+    })();
+    expect(asked).toEqual(["cenacle"]);
+    expect(view.servers).toMatchObject({ source: "Cénacle" });
+  });
+});

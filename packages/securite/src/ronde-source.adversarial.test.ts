@@ -5,7 +5,12 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { LEGION_STALE_MS } from "./parse-legion.ts";
-import { CENACLE_STALE_MS, parseRondeSource, RONDE_SOURCES } from "./ronde-source.ts";
+import {
+  CENACLE_STALE_MS,
+  freshSourceVerdict,
+  parseRondeSource,
+  RONDE_SOURCES,
+} from "./ronde-source.ts";
 
 describe("the source securite.toml names", () => {
   it.each([
@@ -46,5 +51,41 @@ describe("each source's facts", () => {
     expect(RONDE_SOURCES.cenacle.staleMs).toBe(CENACLE_STALE_MS);
     expect(CENACLE_STALE_MS).toBe(20 * 60_000);
     expect(RONDE_SOURCES.legion.path).not.toBe(RONDE_SOURCES.cenacle.path);
+  });
+});
+
+describe("what the review found (R3)", () => {
+  it("a missing securite.toml names no source: never Legion by default", () => {
+    expect(parseRondeSource(null)).toBeNull();
+  });
+
+  const NOW = 1_794_679_266_000;
+  const at = (minutes: number) =>
+    `etat=SAIN\ninstant=${Math.floor((NOW - minutes * 60_000) / 1000)}\nhotes=0\nfin=1`;
+  const only = (path: string, text: string) => (p: string) => (p === path ? text : null);
+
+  it("the operator's verdict: at its own source's limit, the tighter one winning", () => {
+    const cenacle = RONDE_SOURCES.cenacle.path;
+    const legion = RONDE_SOURCES.legion.path;
+    expect(freshSourceVerdict(only(cenacle, at(19)), "cenacle", NOW)).toBe(at(19));
+    expect(freshSourceVerdict(only(cenacle, at(21)), "cenacle", NOW)).toBeNull();
+    // Legion's 45 minutes: 21 is fresh for it (the operator's own 35 still applies after).
+    expect(freshSourceVerdict(only(legion, at(21)), "legion", NOW)).toBe(at(21));
+  });
+
+  it("no source: nothing read at all; no file: nothing", () => {
+    let reads = 0;
+    const read = () => {
+      reads++;
+      return at(1);
+    };
+    expect(freshSourceVerdict(read, null, NOW)).toBeNull();
+    expect(reads).toBe(0);
+    expect(freshSourceVerdict(() => null, "cenacle", NOW)).toBeNull();
+  });
+
+  it("the other source's file is never read in its place", () => {
+    const legionOnly = only(RONDE_SOURCES.legion.path, at(1));
+    expect(freshSourceVerdict(legionOnly, "cenacle", NOW)).toBeNull();
   });
 });

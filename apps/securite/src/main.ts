@@ -113,7 +113,7 @@ async function round(): Promise<void> {
         // The servers (ADR-0040, R3): the source's verdict, and both rondes compared.
         ...rondeResults(
           (path) => (existsSync(path) ? readFileSync(path, "utf8") : null),
-          securiteToml,
+          existsSync(join(ROOT, "securite.toml")) ? securiteToml : null,
           Date.now(),
         ),
       ];

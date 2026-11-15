@@ -143,3 +143,24 @@ describe("proves nothing: thrown, never « no difference »", () => {
     expect(compareVerdicts(verdict(same, 40), verdict(same, 19), NOW)).toEqual([]);
   });
 });
+
+describe("an occurrence the findings' table can hold (60 characters)", () => {
+  const long = (n: number) => `/${"m".repeat(n)}`;
+  it("a disk on a long mount, seen by one side: bounded, stable, and two mounts stay two", () => {
+    const legion = verdict({
+      alpha: ["MALADE", `disque ${long(95)} occupe a 95 %`, `disque ${long(96)} occupe a 95 %`],
+    });
+    const cenacle = verdict({ alpha: ["MALADE"] });
+    const first = compareVerdicts(legion, cenacle, NOW).map((o) => o.occurrence);
+    expect(first).toHaveLength(2);
+    for (const o of first) expect(o.length).toBeLessThanOrEqual(60);
+    expect(new Set(first).size).toBe(2);
+    expect(compareVerdicts(legion, cenacle, NOW).map((o) => o.occurrence)).toEqual(first);
+  });
+
+  it("a short one stays readable", () => {
+    const legion = verdict({ alpha: ["MALADE", "disque /var occupe a 95 %"] });
+    const cenacle = verdict({ alpha: ["MALADE"] });
+    expect(compareVerdicts(legion, cenacle, NOW)[0]?.occurrence).toBe("serveur_disque:/var:legion");
+  });
+});
