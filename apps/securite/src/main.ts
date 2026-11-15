@@ -51,6 +51,7 @@ import {
   runProgram,
   specs,
 } from "./checks.ts";
+import { rondeResults } from "./ronde-checks.ts";
 import { runRound } from "./round.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
@@ -103,11 +104,18 @@ async function round(): Promise<void> {
       const state = existsSync(OPERATOR_STATE_PATH)
         ? readFileSync(OPERATOR_STATE_PATH, "utf8")
         : null;
+      const securiteToml = readIfExists(join(ROOT, "securite.toml"));
       return [
         ...checked,
         ...bulletins,
         projectsResult(projects),
-        operatorResult(state, readIfExists(join(ROOT, "securite.toml")), Date.now()),
+        operatorResult(state, securiteToml, Date.now()),
+        // The servers (ADR-0040, R3): the source's verdict, and both rondes compared.
+        ...rondeResults(
+          (path) => (existsSync(path) ? readFileSync(path, "utf8") : null),
+          securiteToml,
+          Date.now(),
+        ),
       ];
     },
     store,

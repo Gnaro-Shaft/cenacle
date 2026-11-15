@@ -49,8 +49,8 @@ export function parseDelegations(source: string, today: string): Delegation[] {
   const raw = parse(source);
   for (const key of Object.keys(raw)) {
     // [bulletins] is read by bulletins.ts (J6e3), [serveurs] by servers.ts (J6f),
-    // [maintenance] by maintenance.ts (J7c).
-    if (!["delegation", "bulletins", "serveurs", "maintenance"].includes(key)) {
+    // [maintenance] by maintenance.ts (J7c); [ronde] by ronde-source.ts (ADR-0040).
+    if (!["delegation", "bulletins", "serveurs", "maintenance", "ronde"].includes(key)) {
       throw new DelegationConfigError(`unknown key "${key}"`);
     }
   }

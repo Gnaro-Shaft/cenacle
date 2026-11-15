@@ -83,9 +83,8 @@ describe("the operator check", () => {
   it("every round adds the check, with the state file and the switch", () => {
     const main = readFileSync(join(import.meta.dirname, "main.ts"), "utf8");
     expect(main).toContain("readFileSync(OPERATOR_STATE_PATH");
-    expect(main).toContain(
-      'operatorResult(state, readIfExists(join(ROOT, "securite.toml")), Date.now())',
-    );
+    expect(main).toContain('const securiteToml = readIfExists(join(ROOT, "securite.toml"));');
+    expect(main).toContain("operatorResult(state, securiteToml, Date.now())");
   });
 
   it("the security agent's code never names serveurs.local.toml as a file to read", () => {

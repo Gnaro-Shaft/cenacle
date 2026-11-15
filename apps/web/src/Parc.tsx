@@ -24,20 +24,22 @@ function Dot({ tone, label }: { readonly tone: Tone; readonly label: string }) {
   return <span className={`point ton-${tone}`} role="img" aria-label={label} />;
 }
 
-/** Legion's verdict, in one line: its age, or why there is none — never "all is well". */
+/** The chosen ronde's verdict, in one line: its source and age, or why there is none — never "all is well". */
 function LegionNote({ view, now }: { readonly view: ParcView["servers"]; readonly now: number }) {
   if (view.read !== "ok") {
     return (
       <p className="parc-note perime">
-        {view.read === "missing"
-          ? "Aucun verdict de Legion sur ce Mac : l'état des serveurs est inconnu."
-          : "Le verdict de Legion est illisible : l'état des serveurs est inconnu."}
+        {view.read === "source"
+          ? "La source de la ronde ([ronde] source dans securite.toml) est illisible : l'état des serveurs est inconnu."
+          : view.read === "missing"
+            ? `Aucun verdict de la ronde de ${view.source} sur ce Mac : l'état des serveurs est inconnu.`
+            : `Le verdict de la ronde de ${view.source} est illisible : l'état des serveurs est inconnu.`}
       </p>
     );
   }
   return (
     <p className={view.stale ? "parc-note perime" : "parc-note"}>
-      Verdict de Legion {ago(view.at, now)}
+      Verdict de la ronde de {view.source} {ago(view.at, now)}
       {view.stale && " — périmé : rien n'est sûr pour maintenant"}
     </p>
   );

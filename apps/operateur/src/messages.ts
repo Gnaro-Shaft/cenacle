@@ -13,9 +13,11 @@ const REFUSAL: Readonly<Record<string, string>> = {
   machine_inconnue: "cette machine n'est pas déclarée dans serveurs.local.toml",
   pas_de_cle: "aucune clé n'est déclarée pour cette action sur cette machine",
   cle_mal_protegee: "sa clé est lisible par un autre que toi (chmod 600)",
-  releve_perime: "le relevé de Legion a plus de 35 minutes : rien n'est sûr",
-  releve_illisible: "le relevé de Legion est illisible",
-  plus_de_motif: "le dernier relevé de Legion ne montre plus le problème : rien à faire",
+  releve_perime: "le relevé de la ronde a plus de 35 minutes (ou il n'y en a pas) : rien n'est sûr",
+  source_illisible:
+    "la source de la ronde ([ronde] source dans securite.toml) n'est ni « legion » ni « cenacle » : aucun relevé n'est cru",
+  releve_illisible: "le relevé est illisible",
+  plus_de_motif: "le dernier relevé ne montre plus le problème : rien à faire",
   redemarrage_recent: "Cénacle l'a déjà redémarrée il y a moins de 24 heures",
   confirmation_non_signee:
     "cette confirmation n'est pas signée par le bot : je ne l'exécute pas. Si c'est bien toi, redemande l'action",
@@ -56,11 +58,11 @@ function refusal(code: string | null): string {
 function updated(a: StoredServerAction, on: string): string {
   switch (a.verified) {
     case "disparu":
-      return `✅ ${on} : plus aucune mise à jour de sécurité en attente dans le relevé de Legion.`;
+      return `✅ ${on} : plus aucune mise à jour de sécurité en attente dans le relevé.`;
     case "toujours_la":
       return `⚠ ${on} : des mises à jour de sécurité sont encore en attente 2 heures après — à regarder sur la machine (journalctl -u cenacle-maj).`;
     default:
-      return `⬆ ${on} : mises à jour de sécurité lancées sur la machine, sans redémarrage. J'attends les relevés de Legion (jusqu'à 2 heures).`;
+      return `⬆ ${on} : mises à jour de sécurité lancées sur la machine, sans redémarrage. J'attends les relevés (jusqu'à 2 heures).`;
   }
 }
 
@@ -76,12 +78,12 @@ function done(a: StoredServerAction, on: string): string {
   switch (a.verified) {
     case "disparu":
       return reboot
-        ? `✅ ${on} est revenue : le relevé de Legion ne demande plus de redémarrage.`
-        : `✅ ${on} : le relevé de Legion ne montre plus le problème, l'action a pris.`;
+        ? `✅ ${on} est revenue : le relevé ne demande plus de redémarrage.`
+        : `✅ ${on} : le relevé ne montre plus le problème, l'action a pris.`;
     case "toujours_la":
       return reboot
-        ? `⚠ ${on} est revenue, mais le relevé de Legion demande encore un redémarrage — à regarder sur la machine.`
-        : `⚠ ${on} : le relevé de Legion montre encore le problème — à regarder sur la machine (journalctl -t cenacle).`;
+        ? `⚠ ${on} est revenue, mais le relevé demande encore un redémarrage — à regarder sur la machine.`
+        : `⚠ ${on} : le relevé montre encore le problème — à regarder sur la machine (journalctl -t cenacle).`;
     case "pas_revenue":
       return `🚨 ${on} n'est pas revenue 30 minutes après le redémarrage : à vérifier tout de suite.`;
     case "epargnes":
@@ -90,8 +92,8 @@ function done(a: StoredServerAction, on: string): string {
       return `✅ ${on} : ${a.beforeCount ?? "?"} → ${a.afterCount ?? "?"} service(s) sur une bibliothèque remplacée. Les ${a.afterCount ?? ""} restants sont sans doute ceux que le script épargne (dbus, systemd, la grappe…) — à relancer à la main, ou au prochain redémarrage (journalctl -t cenacle pour le détail).`;
     default:
       return reboot
-        ? `🔄 ${on} : redémarrage programmé dans 1 minute. J'attends son retour dans les relevés de Legion (jusqu'à 30 minutes).`
-        : `🔁 ${on} : ${SERVER_CATALOGUE[a.action].label}, fait${sparedNote(a)}. J'attends le prochain relevé de Legion pour le confirmer.`;
+        ? `🔄 ${on} : redémarrage programmé dans 1 minute. J'attends son retour dans les relevés (jusqu'à 30 minutes).`
+        : `🔁 ${on} : ${SERVER_CATALOGUE[a.action].label}, fait${sparedNote(a)}. J'attends le prochain relevé pour le confirmer.`;
   }
 }
 

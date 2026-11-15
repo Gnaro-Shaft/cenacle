@@ -5,6 +5,7 @@
  * and `npm run page` opens it (ADR-0019). Signs my acceptances with the
  * private key of .env.page, loaded by this program only (ADR-0013).
  */
+import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { privateKeyFromEnv, refuseForeignSecrets } from "@cenacle/core";
@@ -32,7 +33,7 @@ import {
   signProposal,
 } from "@cenacle/mail";
 import { loadProspectionConfig } from "@cenacle/prospection";
-import { LEGION_VERDICT_PATH, RONDE_BULLETINS_PATH } from "@cenacle/securite";
+import { parseRondeSource, RONDE_BULLETINS_PATH, RONDE_SOURCES } from "@cenacle/securite";
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
 import { defaultGuardConfig, newToken } from "./guard.ts";
@@ -52,6 +53,15 @@ if (WEB_DEV) {
   console.error("⚠ Mode développement : la page n'est pas servie ici, l'origine 5173 peut agir.");
 }
 const WEB_DIR = join(import.meta.dirname, "..", "..", "web");
+const SECURITE_TOML = join(import.meta.dirname, "..", "..", "..", "securite.toml");
+/** securite.toml's [ronde] source; a file that cannot be read names none. */
+const rondeSource = () => {
+  try {
+    return parseRondeSource(readFileSync(SECURITE_TOML, "utf8"));
+  } catch {
+    return null;
+  }
+};
 const pageProblem = WEB_DEV ? null : builtPageProblem(WEB_DIR);
 if (pageProblem !== null) {
   // Never two versions: a page built from other sources is not served (point 3).
@@ -94,7 +104,12 @@ const app = createApp({
   ...(WEB_DEV ? {} : { page: { dist: join(WEB_DIR, "dist") } }),
   parc: createParc({
     store: createParcStore(sql),
-    readVerdict: verdictFile(LEGION_VERDICT_PATH),
+    // The ronde securite.toml names (ADR-0040, R3), read again at each request.
+    source: rondeSource,
+    readVerdict: () => {
+      const source = rondeSource();
+      return source === null ? null : verdictFile(RONDE_SOURCES[source].path)();
+    },
     now: () => new Date(),
     // The ronde's file (ADR-0040): the page's server reads no machine itself.
     machines: createMachines({
