@@ -24,8 +24,29 @@ export const SSH = "/usr/bin/ssh";
 const SSH_TIMEOUT_MS = 20_000;
 const KEEP_MS = 30_000;
 
+/** What the page is given of a bulletin: its measures, nothing the ronde judges. */
+export type BulletinMeasures = Omit<Bulletin, "version" | "health">;
+
+/**
+ * The measures only (ADR-0040, R1): the facts a version 2 bulletin adds —
+ * ports, updates, quorum — are for the ronde, never sent to the browser.
+ * Picked field by field, so that a field added to Bulletin stays out until
+ * someone decides the page should show it.
+ */
+export function measuresOnly(b: Bulletin): BulletinMeasures {
+  return {
+    host: b.host,
+    at: b.at,
+    uptimeSeconds: b.uptimeSeconds,
+    load: b.load,
+    cpus: b.cpus,
+    memory: b.memory,
+    disks: b.disks,
+  };
+}
+
 export type MachineRead =
-  | { readonly name: string; readonly read: "ok"; readonly bulletin: Bulletin }
+  | { readonly name: string; readonly read: "ok"; readonly bulletin: BulletinMeasures }
   | { readonly name: string; readonly read: "injoignable" | "illisible" | "cle" };
 
 export interface MachinesView {
@@ -96,7 +117,7 @@ async function readOne(config: ParkConfig, i: number, deps: MachinesDeps): Promi
   if (code === 255 || code === -1) return { name, read: "injoignable" };
   if (code !== 0) return { name, read: "illisible" };
   try {
-    return { name, read: "ok", bulletin: parseBulletin(out) };
+    return { name, read: "ok", bulletin: measuresOnly(parseBulletin(out)) };
   } catch {
     return { name, read: "illisible" };
   }

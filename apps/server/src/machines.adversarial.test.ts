@@ -63,6 +63,33 @@ describe("reading the machines", () => {
     expect(view.machines[1]).toEqual({ name: "beta", read: "injoignable" });
   });
 
+  it("a version 2 bulletin: the page is given its measures, nothing the ronde judges", async () => {
+    const v2 = BULLETIN.replace("version=1", "version=2").replace(
+      "\nfin=1",
+      "\nredemarrage=requis\nmaj.total=4\nmaj.securite=1\nservices.a_relancer=2" +
+        "\ngrappe.quorum=non\nports=tailnet/udp/41641,tcp/22\nfin=1",
+    );
+    const { machines } = setup({ "alpha.exemple.test": { code: 0, out: v2 } });
+    const view = await machines();
+    expect(view.machines[0]).toEqual({
+      name: "alpha",
+      read: "ok",
+      bulletin: {
+        host: "alpha",
+        at: 1794679266000,
+        uptimeSeconds: null,
+        load: null,
+        cpus: 2,
+        memory: null,
+        disks: [],
+      },
+    });
+    const sent = JSON.stringify(view);
+    for (const word of ["health", "version", "ports", "tailnet", "quorum", "reboot", "updates"]) {
+      expect(sent).not.toContain(word);
+    }
+  });
+
   it.each([
     ["cut off by the time limit", { code: -1, out: "" }, "injoignable"],
     ["refused by the server (its forced command failed)", { code: 1, out: "" }, "illisible"],
