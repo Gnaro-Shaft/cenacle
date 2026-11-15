@@ -1,6 +1,6 @@
 # ADR-0039 — Les mesures du parc : charge, mémoire, disques et machines virtuelles
 
-**Statut** : acceptée (2026-11-14) — point 1 révisé par l'ADR-0040 (bulletin version 2, deux règles `sudo` en lecture seule)
+**Statut** : acceptée (2026-11-14) — point 1 révisé par l'ADR-0040 (bulletin version 2, deux règles `sudo` en lecture seule ; palier R2 : la ronde lit les bulletins, le serveur de la page lit son fichier)
 
 ## Contexte
 
@@ -40,6 +40,7 @@ L'ADR-0027 fait de l'opérateur le seul programme qui lance `ssh` et détient de
 - `parc.local.toml` est **un fichier à part** de `serveurs.local.toml` : l'opérateur reste seul à lire celui-ci et à connaître une clé d'action ; il ne lit jamais celui-là.
 - Le test de frontière de l'opérateur le vérifie : `ssh` nulle part ailleurs ; ce fichier ne nomme ni `serveurs.local.toml`, ni une clé ou un script d'action ; l'opérateur ne lit pas `parc.local.toml`.
 - L'identité de la machine est prouvée par son empreinte épinglée, pas par le nom qu'elle donne dans son bulletin.
+- *Révision (2026-11-15, ADR-0040, palier R2)* : l'exception passe du serveur de la page à **la ronde**, programme à part lancé toutes les 5 minutes. Elle lance `ssh` depuis un seul fichier (`apps/ronde/src/ssh.ts`), avec les mêmes clés de lecture ; le serveur de la page ne détient plus aucune clé, ne lit plus `parc.local.toml` et ne lance plus `ssh` : il lit le fichier des dernières mesures que la ronde laisse sur le Mac (au plus 5 minutes, dit trop ancien au-delà de 20). Le test de frontière vérifie les deux. Le nom que récite le bulletin est en plus comparé à celui que déclare `parc.local.toml` (`hote`) : un bulletin d'une autre machine la rend MALADE.
 
 ### Révision du 2026-11-14 — le certificat de Proxmox, vérifié contre l'autorité de la grappe
 

@@ -32,11 +32,11 @@ import {
   signProposal,
 } from "@cenacle/mail";
 import { loadProspectionConfig } from "@cenacle/prospection";
-import { LEGION_VERDICT_PATH, PARK_FILE } from "@cenacle/securite";
+import { LEGION_VERDICT_PATH, RONDE_BULLETINS_PATH } from "@cenacle/securite";
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
 import { defaultGuardConfig, newToken } from "./guard.ts";
-import { configFile, createMachines, keyIsPrivate, runSsh } from "./machines.ts";
+import { createMachines } from "./machines.ts";
 import { builtPageProblem } from "./page-files.ts";
 import { pageUrl, pageUrlPath, removePageUrl, writePageUrl } from "./page-url.ts";
 import { createParc, verdictFile } from "./parc.ts";
@@ -96,10 +96,9 @@ const app = createApp({
     store: createParcStore(sql),
     readVerdict: verdictFile(LEGION_VERDICT_PATH),
     now: () => new Date(),
+    // The ronde's file (ADR-0040): the page's server reads no machine itself.
     machines: createMachines({
-      readConfig: configFile(join(import.meta.dirname, "..", "..", "..", PARK_FILE)),
-      run: runSsh,
-      keyOk: (path) => keyIsPrivate(path),
+      readFile: verdictFile(RONDE_BULLETINS_PATH),
       now: () => Date.now(),
     }),
     proxmox: createProxmox({

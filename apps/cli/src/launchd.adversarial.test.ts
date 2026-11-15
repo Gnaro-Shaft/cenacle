@@ -108,7 +108,7 @@ describe("the LaunchAgent", () => {
     expect(plist).toContain("<key>RunAtLoad</key><false/>");
     expect(plist).not.toContain("KeepAlive");
     expect(plist).not.toContain("StartCalendarInterval");
-    expect(Object.keys(INTERVALS)).toEqual(["securite", "operateur", "prospection"]);
+    expect(Object.keys(INTERVALS)).toEqual(["securite", "operateur", "prospection", "ronde"]);
   });
 
   it("the operator every minute (ADR-0027): never at load, never kept alive", () => {

@@ -16,6 +16,14 @@ Avant d'installer, arrête ce que tu as lancé à la main (Ctrl+C). Si tu l'oubl
 
 Les agents sont écrits dans `~/Library/LaunchAgents/`, à partir des chemins de ce Mac : ils ne sont jamais versionnés. Ils ne contiennent aucun secret : le lanceur (`run.sh`) charge les mêmes fichiers `.env*` que les scripts npm.
 
+## La ronde (ADR-0040)
+
+```bash
+npm run service -- install ronde
+```
+
+Toutes les 5 minutes, elle lit le bulletin de chaque machine de `parc.local.toml` avec sa clé de lecture, le juge avec les règles de Legion, et laisse deux fichiers dans `~/Library/Caches/`, réécrits d'un bloc à chaque passage : le verdict, au format de Legion (`fr.gnaro.cenacle.ronde.verdict`), et les dernières mesures pour la page (`fr.gnaro.cenacle.ronde.bulletins.json`). Aucun secret, aucun message : son journal (`ronde.log`) dit une ligne quand l'état change, et le nom de chaque machine qu'elle n'a pas pu lire. Sans elle, l'onglet Parc dit que la ronde n'a pas encore tourné, ou que ses mesures sont trop anciennes.
+
 ## Ouvrir la page
 
 ```bash

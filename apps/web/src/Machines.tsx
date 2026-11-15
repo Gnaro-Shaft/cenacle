@@ -4,7 +4,7 @@
  * Legion's word and motifs below. Plain text everywhere (React escapes it).
  */
 import type { ParcView } from "./api.ts";
-import { cardTone, gaugeTone, type MachineCard, machinesOf } from "./parc-machines.ts";
+import { cardTone, gaugeTone, type MachineCard, machinesOf, rondeNote } from "./parc-machines.ts";
 import { stateLabel, stateTone, type Tone } from "./parc-rules.ts";
 
 function Dot({ tone, label }: { readonly tone: Tone; readonly label: string }) {
@@ -124,8 +124,10 @@ const PROXMOX_UNREAD: Readonly<Record<string, string>> = {
 export function Machines({ view }: { readonly view: ParcView }) {
   const cards = machinesOf(view);
   const proxmox = view.proxmox?.read;
+  const ronde = rondeNote(view.machines);
   return (
     <>
+      {ronde !== null && <p className="message">{ronde}</p>}
       {proxmox !== undefined && proxmox !== "ok" && proxmox !== "absent" && (
         <p className="message">{PROXMOX_UNREAD[proxmox]}</p>
       )}
