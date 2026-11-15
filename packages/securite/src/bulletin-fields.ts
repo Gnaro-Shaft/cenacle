@@ -10,7 +10,8 @@ export class BulletinError extends Error {
   }
 }
 
-const WHOLE = /^\d{1,15}$/;
+/** Digits, no sign, no leading zero (one zero is zero): one way to write a number. */
+const WHOLE = /^(?:0|[1-9]\d{0,14})$/;
 
 /** A whole number at most `max`; null when the key is absent; else unreadable. */
 export function whole(

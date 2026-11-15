@@ -65,15 +65,18 @@ udp UNCONN 0 0 100.64.0.7:41641 0.0.0.0:*
 udp UNCONN 0 0 0.0.0.0:53817 0.0.0.0:*`;
 /** The second reading: the short-lived UDP socket on 53817 is gone. */
 const SS_SECOND = SS_FIRST.split("\n").slice(0, 6).join("\n");
-const ss = (second: "ok" | "fails") =>
+/** ss read twice; the second reading may fail. Both readings may be given. */
+const ss = (second: "ok" | "fails", lines1 = SS_FIRST, lines2 = SS_SECOND) =>
   sh(`f=/tmp/ss-count; n=$(( $(cat $f 2>/dev/null || echo 0) + 1 )); echo $n > $f
 if [ $n = 1 ]; then cat <<'EOF'
-${SS_FIRST}
+${lines1}
 EOF
 elif [ ${second === "ok" ? 1 : 0} = 1 ]; then cat <<'EOF'
-${SS_SECOND}
+${lines2}
 EOF
 else exit 1; fi`);
+/** The same lines in both readings. */
+const ssSteady = (lines: string) => ss("ok", lines, lines);
 
 let files = 0;
 /** Runs the script in a fresh container, each stand-in mounted at its path. */
@@ -98,6 +101,8 @@ const healthy: Record<string, string> = {
   [SS]: ss("ok"),
   [APT_CHECK]: sh(`echo "12;3" >&2`),
   "/run/reboot-required": "*** System restart required ***\n",
+  // A member of a cluster: its local corosync configuration.
+  "/etc/corosync/corosync.conf": "totem {\n  cluster_name: exemple\n}\n",
 };
 const without = (path: string) =>
   Object.fromEntries(Object.entries(healthy).filter(([p]) => p !== path));
@@ -188,5 +193,66 @@ EOF`);
     expect(b.health?.cluster).toBeNull();
     expect(b.health?.servicesToRestart).toBeNull();
     expect(b.health?.ports).toBeNull();
+  }, 120_000);
+  it("pvecm installed but no cluster (a lone Proxmox host): nothing said, not 'illisible'", () => {
+    const b = parseBulletin(recite(without("/etc/corosync/corosync.conf")));
+    expect(b.health?.cluster).toBeNull();
+  }, 120_000);
+
+  it("a hung pvecm or needrestart costs its own fact, never the whole bulletin", () => {
+    const started = Date.now();
+    const b = parseBulletin(
+      recite({
+        ...healthy,
+        "/usr/bin/pvecm": sh("sleep 60"),
+        "/usr/sbin/needrestart": sh("sleep 60"),
+      }),
+    );
+    expect(Date.now() - started).toBeLessThan(20_000);
+    expect(b.health?.cluster).toEqual({ quorum: "illisible", votes: null, expected: null });
+    expect(b.health?.servicesToRestart).toBeNull();
+    expect(b.health?.updates).toEqual({ total: 12, security: 3 });
+  }, 120_000);
+
+  it.each([
+    ["an address without a port", "tcp LISTEN 0 4096 10.1.2.3 0.0.0.0:*"],
+    ["a port that is not a number", "tcp LISTEN 0 4096 10.1.2.3:ssh 0.0.0.0:*"],
+    ["a protocol of its own", "sctp LISTEN 0 4096 10.1.2.3:22 0.0.0.0:*"],
+    ["a port out of range", "tcp LISTEN 0 4096 10.1.2.3:70000 0.0.0.0:*"],
+  ])(
+    "ss with a line out of form (%s): no ports at all, and the address never said",
+    (_what, line) => {
+      const text = recite({
+        ...healthy,
+        [SS]: ssSteady(`tcp LISTEN 0 128 0.0.0.0:22 0.0.0.0:*\n${line}`),
+      });
+      expect(parseBulletin(text).health?.ports).toBeNull();
+      expect(text).not.toContain("10.1.2.3");
+    },
+    120_000,
+  );
+
+  it("an IPv4 address written as IPv6 is classed as itself", () => {
+    const lines = [
+      "tcp LISTEN 0 128 [::ffff:127.0.0.1]:8080 [::]:*",
+      "tcp LISTEN 0 128 [::ffff:100.64.0.9]:8443 [::]:*",
+      "tcp LISTEN 0 128 [::ffff:192.0.2.1]:8000 [::]:*",
+    ].join("\n");
+    const text = recite({ ...healthy, [SS]: ssSteady(lines) });
+    expect(parseBulletin(text).health?.ports).toEqual([
+      { scope: "local", protocol: "tcp", port: 8080 },
+      { scope: "tailnet", protocol: "tcp", port: 8443 },
+      { scope: "autre", protocol: "tcp", port: 8000 },
+    ]);
+    expect(text).not.toContain("ffff");
+  }, 120_000);
+
+  it("a package whose name says 'security' is not a security update", () => {
+    const simulated = sh(`cat <<'EOF'
+Inst libsecurity-tools [1.0] (1.1 Debian:12/stable [amd64])
+Inst libssl3 [3.0.1] (3.0.2 Debian-Security:12/stable-security [amd64])
+EOF`);
+    const b = parseBulletin(recite({ ...without(APT_CHECK), "/usr/local/bin/apt-get": simulated }));
+    expect(b.health?.updates).toEqual({ total: 2, security: 1 });
   }, 120_000);
 });

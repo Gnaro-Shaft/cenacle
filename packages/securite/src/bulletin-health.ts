@@ -50,7 +50,7 @@ export interface BulletinHealth {
   readonly ports: readonly ListeningPort[] | null;
 }
 
-const PORT = /^(?:(local|tailnet)\/)?(tcp|udp)\/(\d{1,5})$/;
+const PORT = /^(?:(local|tailnet)\/)?(tcp|udp)\/([1-9]\d{0,4})$/;
 const QUORUM = new Set(["oui", "non", "illisible"]);
 
 function parsePorts(value: string): ListeningPort[] {

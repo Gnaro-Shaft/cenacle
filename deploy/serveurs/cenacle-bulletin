@@ -83,21 +83,29 @@ else
     say redemarrage non
 fi
 
+# Every outside command has its own time limit (coreutils' timeout): the Mac
+# gives the whole bulletin 20 s, and a hung pmxcfs or a slow needrestart must
+# cost its own fact, never the whole bulletin — least of all when the cluster
+# is the thing that is broken. A command cut off says nothing.
+
 # Updates waiting. Ubuntu's apt-check says "total;security" on stderr; on
 # Debian and Proxmox, a simulation that locks nothing and writes nothing.
 # Unlike Legion's bulletin, a failed command or an answer out of shape says
 # nothing at all — Legion's counted an apt-get that failed as 0 updates.
+# Known limit (as Legion's): the count is as fresh as the apt lists.
 if [ -x /usr/lib/update-notifier/apt-check ]; then
-    if verdict="$(/usr/lib/update-notifier/apt-check 2>&1 >/dev/null)" &&
+    if verdict="$(timeout 6 /usr/lib/update-notifier/apt-check 2>&1 >/dev/null)" &&
         [[ "$verdict" =~ ^([0-9]{1,9})\;([0-9]{1,9})$ ]]; then
         say maj.total "${BASH_REMATCH[1]}"
         say maj.securite "${BASH_REMATCH[2]}"
     fi
 elif command -v apt-get >/dev/null 2>&1; then
-    if simulated="$(apt-get -s -o Debug::NoLocking=true dist-upgrade 2>/dev/null)"; then
+    if simulated="$(timeout 6 apt-get -s -o Debug::NoLocking=true dist-upgrade 2>/dev/null)"; then
         installs="$(printf '%s\n' "$simulated" | grep '^Inst ')"
         say_count maj.total "$(printf '%s' "$installs" | grep -c .)"
-        say_count maj.securite "$(printf '%s' "$installs" | grep -ci security)"
+        # "security" in the origin, between the parentheses — not in a
+        # package's name: "Inst name [old] (new Origin:Release [arch])".
+        say_count maj.securite "$(printf '%s' "$installs" | grep -Eci '^Inst [^(]*\([^)]*security')"
     fi
 fi
 
@@ -107,23 +115,26 @@ fi
 # the absolute path); the account may run only named commands (hence the real
 # command, not `sudo -n true`); a refused sudo gives an empty output, which a
 # count would take for 0 (hence: a count only from a command that succeeded
-# and answered in needrestart's own batch form).
+# and answered in needrestart's own batch form). timeout goes OUTSIDE sudo:
+# the frozen rule names needrestart itself.
 NEEDRESTART=/usr/sbin/needrestart
 if [ -x "$NEEDRESTART" ] &&
-    waiting="$(sudo -n "$NEEDRESTART" -r l -b 2>/dev/null)" &&
+    waiting="$(timeout 4 sudo -n "$NEEDRESTART" -r l -b 2>/dev/null)" &&
     printf '%s\n' "$waiting" | grep -q '^NEEDRESTART-VER:'; then
     say_count services.a_relancer "$(printf '%s\n' "$waiting" | grep -c '^NEEDRESTART-SVC:')"
 fi
 
-# The cluster's quorum, on a Proxmox node only: off a cluster, nothing is said
-# and nothing is expected. Present but mute, it is said "illisible": a pvecm
-# that does not answer is not a quorum. Directly if the account can, else by
-# sudo (the frozen rule).
+# The cluster's quorum, on a member of a Proxmox cluster only — known by its
+# local corosync configuration (/etc/corosync, not /etc/pve: the latter
+# vanishes exactly when the cluster file system is down). Off a cluster,
+# nothing is said and nothing is expected. A member whose pvecm does not
+# answer is said "illisible": a pvecm that does not answer is not a quorum.
+# Directly if the account can, else by sudo (the frozen rule).
 PVECM=/usr/bin/pvecm
-if [ -x "$PVECM" ]; then
-    cluster="$("$PVECM" status 2>/dev/null)"
+if [ -x "$PVECM" ] && [ -e /etc/corosync/corosync.conf ]; then
+    cluster="$(timeout 2 "$PVECM" status 2>/dev/null)"
     printf '%s\n' "$cluster" | grep -qE '^Quorate:' ||
-        cluster="$(sudo -n "$PVECM" status 2>/dev/null)"
+        cluster="$(timeout 3 sudo -n "$PVECM" status 2>/dev/null)"
     read_cluster() {
         printf '%s\n' "$cluster" |
             awk -F: -v key="$1" '$1 == key { gsub(/[[:space:]]/, "", $2); print $2; exit }'
@@ -141,42 +152,60 @@ fi
 # address is CLASSED — "local/" (loopback), "tailnet/" (Tailscale's ranges,
 # 100.64.0.0/10 and fd7a:115c:a1e0::/48) or nothing — so that a back door on
 # 0.0.0.0:53 is not mistaken for the resolver on 127.0.0.53; the address
-# itself is never said.
+# itself is never said. An IPv4 address written as IPv6 (::ffff:a.b.c.d) is
+# classed as the IPv4 one.
 #
 # A UDP PORT COUNTS ONLY IF IT LASTS: `ss -lu` lists every bound, unconnected
 # UDP socket, and tailscaled opens short-lived ones on random ports every
 # twenty to thirty seconds (Legion, 27/09/2026). So ss is read twice, a second
 # apart, and only the UDP sockets present in both readings are said. TCP is
-# not filtered: a TCP socket listening is always a service. If either reading
-# fails, no port is said at all — "unknown", never a partial list. Both
-# readings are the SAME command: `ss -lnu` alone has no protocol column.
+# not filtered: a TCP socket listening is always a service. Both readings are
+# the SAME command: `ss -lnu` alone has no protocol column.
+#
+# NEVER A PARTIAL LIST, NEVER AN ADDRESS BY MISTAKE: if either reading fails,
+# or a single line is out of the expected form (a protocol other than tcp or
+# udp, no "address:port", a port that is not 1 to 65535), no port is said at
+# all — "unknown". Nothing is printed until every line has been read.
 if command -v ss >/dev/null 2>&1; then
-    if first="$(ss -H -lntu 2>/dev/null)" && sleep 1 &&
-        second="$(ss -H -lntu 2>/dev/null)"; then
-        say_if ports "$(awk '
+    if first="$(timeout 2 ss -H -lntu 2>/dev/null)" && sleep 1 &&
+        second="$(timeout 2 ss -H -lntu 2>/dev/null)" &&
+        listed="$(awk '
             NR == FNR { if ($1 == "udp") lasting[$5] = 1; next }
             $1 != "udp" || ($5 in lasting)
             ' <(printf '%s\n' "$second") <(printf '%s\n' "$first") |
             awk '
-            function tailnet(a,   o) {
+            function plain(a) {
                 sub(/%.*$/, "", a); gsub(/\[|\]/, "", a); a = tolower(a);
+                sub(/^::ffff:/, "", a);
+                return a;
+            }
+            function tailnet(a,   o) {
                 if (a ~ /^fd7a:115c:a1e0:/) return 1;
                 if (split(a, o, ".") != 4 || o[1] != "100" || o[2] !~ /^[0-9]+$/) return 0;
                 return o[2] + 0 >= 64 && o[2] + 0 <= 127;
             }
-            NF >= 5 {
-                n = split($5, a, ":");
-                port = a[n];
-                address = substr($5, 1, length($5) - length(port) - 1);
-                if (address ~ /^127\./ || address == "[::1]" || address ~ /%lo$/)
+            NF == 0 { next }
+            {
+                if (($1 != "tcp" && $1 != "udp") || NF < 5) { bad = 1; next }
+                n = split($5, f, ":");
+                port = f[n];
+                # No {m,n} in the regex: older mawk, the awk of Debian, does not read it.
+                if (n < 2 || port !~ /^[1-9][0-9]*$/ || length(port) > 5 || port + 0 > 65535) { bad = 1; next }
+                bound = $5; raw = substr(bound, 1, length(bound) - length(port) - 1);
+                address = plain(raw);
+                if (address ~ /^127\./ || address == "::1" || raw ~ /%lo$/)
                     scope = "local/";
                 else if (tailnet(address))
                     scope = "tailnet/";
                 else
                     scope = "";
-                print scope $1 "/" port;
-            }' |
-            sort -u | paste -sd, -)"
+                out[++count] = scope $1 "/" port;
+            }
+            END {
+                if (bad) exit 1;
+                for (i = 1; i <= count; i++) print out[i];
+            }')"; then
+        say_if ports "$(printf '%s\n' "$listed" | sort -u | grep . | paste -sd, -)"
     fi
 fi
 

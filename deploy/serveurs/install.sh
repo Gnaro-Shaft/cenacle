@@ -69,8 +69,11 @@ fi
 rule="$(mktemp)"
 printf '%s\n' "${rules[@]}" > "$rule"
 visudo -cf "$rule" >/dev/null
-install -m 0440 -o root -g root "$rule" /etc/sudoers.d/cenacle
+# Swapped in at once: written under a name sudo skips (it contains a dot),
+# then renamed — a sudo call during a re-run never reads half a file.
+install -m 0440 -o root -g root "$rule" /etc/sudoers.d/cenacle.new
 rm -f "$rule"
+mv -f /etc/sudoers.d/cenacle.new /etc/sudoers.d/cenacle
 visudo -c >/dev/null
 
 # The rules hold as frozen: each permitted form passes, any other is refused
@@ -84,13 +87,17 @@ withdraw() {
 }
 allowed /usr/sbin/needrestart -r l -b || withdraw "the needrestart rule does not hold"
 for refused in "/usr/sbin/needrestart" "/usr/sbin/needrestart -r a -b" "/usr/sbin/needrestart -r l" \
-  "/usr/local/sbin/cenacle-services x" "/usr/bin/id"; do
+  "/usr/sbin/needrestart -r l -b x" "/usr/sbin/needrestart -r l -b -r a" \
+  "/usr/local/sbin/cenacle-services x" "/usr/local/sbin/cenacle-redemarrer x" \
+  "/usr/local/sbin/cenacle-maj-securite x" "/usr/local/bin/cenacle-bulletin" \
+  "/usr/bin/id" "/bin/sh" "/usr/bin/apt-get install x" "/usr/bin/systemctl restart x"; do
   # shellcheck disable=SC2086 # split on purpose: a command and its arguments
   if allowed $refused; then withdraw "sudo allows more than it should: $refused"; fi
 done
 if [ "$node" = 1 ]; then
   allowed /usr/bin/pvecm status || withdraw "the pvecm rule does not hold"
-  for refused in "/usr/bin/pvecm" "/usr/bin/pvecm add x" "/usr/bin/pvecm status x"; do
+  for refused in "/usr/bin/pvecm" "/usr/bin/pvecm add x" "/usr/bin/pvecm delnode x" \
+    "/usr/bin/pvecm expected 1" "/usr/bin/pvecm status x" "/usr/bin/pvecm status -x"; do
     # shellcheck disable=SC2086
     if allowed $refused; then withdraw "sudo allows more than it should: $refused"; fi
   done

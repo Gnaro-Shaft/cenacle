@@ -131,6 +131,8 @@ describe("refused whole", () => {
     ["port zero", ports("tcp/0")],
     ["a port beyond 65535", ports("tcp/65536")],
     ["the same port twice", ports("tcp/22,tcp/22")],
+    ["the same port twice, once with a leading zero", ports("tcp/22,tcp/022")],
+    ["a count with a leading zero", swap("maj.total=7", "maj.total=07")],
     ["an empty item between commas", ports("tcp/22,,udp/53")],
     ["a trailing comma", ports("tcp/22,")],
     ["a port with a space", ports("tcp/22, udp/53")],
