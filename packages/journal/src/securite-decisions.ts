@@ -8,6 +8,7 @@
  * deadline. Decisions are written before anything is answered.
  */
 import { randomBytes } from "node:crypto";
+import { ConfirmationFieldError, type MergeConfirmation } from "@cenacle/core";
 import type { Sql } from "postgres";
 
 export type Decision = "take" | "refuse";
@@ -15,7 +16,25 @@ export type DecisionOutcome = "done" | "stale" | "already";
 /** "treated": a CERT-FR bulletin, closed by ✅ — no check can see it applied (J6e3). */
 export type DecideOutcome = DecisionOutcome | "treated";
 export type FixOutcome = DecisionOutcome | "not_fixable";
-export type PrOutcome = "done" | "stale" | "not_ready";
+/**
+ * "moved": the pull request is no longer on the commit my button showed.
+ * "unsigned": the bot could not sign it (a field it cannot pin down).
+ */
+export type PrOutcome = "done" | "stale" | "not_ready" | "moved" | "unsigned";
+
+/**
+ * What a PR button asks. A merge carries the start of the commit the message
+ * showed, and the bot's signer (ADR-0036, second step): without both, nothing.
+ */
+export type PrRequest =
+  | { readonly action: "close" }
+  | {
+      readonly action: "merge";
+      /** 12 hex characters: the commit as my button knew it. */
+      readonly shown: string;
+      /** Throws rather than sign a field it cannot pin down. */
+      readonly sign: (f: MergeConfirmation) => string;
+    };
 export type ReasonOutcome = "done" | "expired" | "unknown" | "already";
 
 export interface SecuriteDecisions {
@@ -33,8 +52,9 @@ export interface SecuriteDecisions {
   /**
    * ✅ Fusionner / ❌ Fermer under an agent's pull request, CI green (J6d): only
    * then, with the finding's token; the next round does it, after checking again.
+   * A merge is signed here, with the very commit my button showed, or not asked.
    */
-  requestPr(id: number, token: string, action: "merge" | "close", now: Date): Promise<PrOutcome>;
+  requestPr(id: number, token: string, request: PrRequest, now: Date): Promise<PrOutcome>;
   /** The bot asked for a reason with this message: only a reply to it counts. */
   askReason(promptMessageId: number, findingId: number, expiresAt: Date): Promise<void>;
   /** The reply that gives the reason: keeps the risk if the question still stands. */
@@ -46,6 +66,8 @@ export interface SecuriteDecisions {
 }
 
 const TOKEN = /^[0-9a-f]{16}$/;
+/** The commit as a merge button carries it. */
+const SHOWN = /^[0-9a-f]{12}$/;
 const TO_FIX = ["ouvert", "pris_en_charge"];
 
 export function createSecuriteDecisions(sql: Sql): SecuriteDecisions {
@@ -118,14 +140,46 @@ export function createSecuriteDecisions(sql: Sql): SecuriteDecisions {
       return row?.type === "npm_advisory" && row.action_state !== null ? "already" : "not_fixable";
     },
 
-    async requestPr(id, token, action, now) {
+    async requestPr(id, token, request, now) {
       if (!TOKEN.test(token)) return "stale";
-      const result = await sql`
-        update securite_constats
-        set action_state = ${action === "merge" ? "fusion_demandee" : "fermeture_demandee"},
-            action_requested_at = ${now}
-        where id = ${id} and button_token = ${token} and action_state = 'ci_verte'`;
-      if (result.count === 1) return "done";
+      const asked = await sql.begin(async (tx) => {
+        const [row] = await tx<{ action_pr_url: string | null; action_head_sha: string | null }[]>`
+          select action_pr_url, action_head_sha from securite_constats
+          where id = ${id} and button_token = ${token} and action_state = 'ci_verte'
+          for update`;
+        if (row === undefined) return null;
+        if (request.action === "close") {
+          await tx`
+            update securite_constats
+            set action_state = 'fermeture_demandee', action_requested_at = ${now},
+                merge_sig = null, merge_confirmed_at = null
+            where id = ${id}`;
+          return "done" as const;
+        }
+        const sha = row.action_head_sha;
+        if (!SHOWN.test(request.shown) || sha === null || !sha.startsWith(request.shown)) {
+          return "moved" as const;
+        }
+        let signature: string;
+        try {
+          signature = request.sign({
+            findingId: id,
+            prUrl: row.action_pr_url ?? "",
+            headSha: sha,
+            confirmedAt: now,
+          });
+        } catch (error) {
+          if (error instanceof ConfirmationFieldError) return "unsigned" as const;
+          throw error;
+        }
+        await tx`
+          update securite_constats
+          set action_state = 'fusion_demandee', action_requested_at = ${now},
+              merge_sig = ${signature}, merge_confirmed_at = ${now}
+          where id = ${id}`;
+        return "done" as const;
+      });
+      if (asked !== null) return asked;
       const [row] = await sql<{ button_token: string | null }[]>`
         select button_token from securite_constats where id = ${id}`;
       return row?.button_token === token ? "not_ready" : "stale";

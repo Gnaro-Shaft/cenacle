@@ -124,6 +124,7 @@ function world(
       },
     },
     signAction: null,
+    signMerge: null,
     signPlan:
       opts.noKey === true
         ? null

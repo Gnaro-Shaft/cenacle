@@ -2,7 +2,8 @@
  * What the security agent's actions need, built for one round (J6c, J6d):
  * the programs (git, npm, gh — fixed paths), securite.toml read strictly, the
  * trust record counted from the journal over its retention (180 days), each
- * delegation's state, and the buttons sent with their single-use tokens.
+ * delegation's state, the buttons sent with their single-use tokens, and the
+ * check that I signed a merge (the bot's public key, the project's repository).
  */
 import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -26,6 +27,7 @@ import type { ActionDeps, DelegationInfo } from "./actions.ts";
 import { firstExisting, runProgram } from "./checks.ts";
 import { prepareFix } from "./fix.ts";
 import { closeOnRequest, mergeOnRequest, viewPr } from "./merge.ts";
+import { mergeKeyOrNull, mergeNotSigned, ownRepository } from "./merge-signed.ts";
 
 const RECORD_DAYS = 180;
 
@@ -74,6 +76,8 @@ export async function actionDeps(options: {
   const { root, sql, store, journal, telegram, chatId } = options;
   const gh = firstExisting("/opt/homebrew/bin/gh", "/usr/local/bin/gh");
   const ops = { run: runProgram(120_000), root, gh };
+  // Read once a round, and only when a merge is asked.
+  let repository: Promise<string | null> | null = null;
   return {
     store,
     prepare: (req) =>
@@ -86,6 +90,14 @@ export async function actionDeps(options: {
         gh,
       }),
     view: (url) => viewPr(url, ops),
+    signed: async (f) => {
+      repository ??= ownRepository(ops);
+      return mergeNotSigned(f, {
+        publicKey: mergeKeyOrNull(),
+        repository: await repository,
+        now: options.now(),
+      });
+    },
     merge: (url, sha) => mergeOnRequest(url, sha, ops),
     close: (url) => closeOnRequest(url, ops),
     tokens: (ids) => createSecuriteDecisions(sql).tokens(ids),

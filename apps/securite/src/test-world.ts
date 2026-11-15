@@ -32,6 +32,8 @@ export function memoryStore(): SecuriteStore & { rows: Row[] } {
           actionPrUrl: null,
           actionHeadSha: null,
           actionDelegated: false,
+          mergeSig: null,
+          mergeConfirmedAt: null,
           so: false,
           sc: false,
         });

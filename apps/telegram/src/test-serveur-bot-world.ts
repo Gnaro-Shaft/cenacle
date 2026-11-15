@@ -119,6 +119,7 @@ export function world(
             return SIG;
           },
     signPlan: null,
+    signMerge: null,
     serversActive: () => opts.active ?? true,
     journal: {
       append: async (e) => {

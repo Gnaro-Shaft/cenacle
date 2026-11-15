@@ -7,9 +7,12 @@
  * reason, taken only as a direct reply to that question, within 10 minutes.
  * No AI decides anything here.
  */
+import type { MergeConfirmation } from "@cenacle/core";
 import type {
   Journal,
   PlanStore,
+  PrOutcome,
+  PrRequest,
   SecuriteDecisions,
   SecuriteStore,
   ServeurActions,
@@ -19,6 +22,7 @@ import type {
 import {
   ANSWER,
   keyboard,
+  type PrAction,
   parseOpPressed,
   parsePlanPressed,
   parsePressed,
@@ -33,6 +37,13 @@ import { pressPlan } from "./plan-bot.ts";
 import { confirmServer, pressServer, type ServerBotDeps } from "./serveur-bot.ts";
 
 const REASON_DEADLINE_MS = 10 * 60_000;
+const PR_ANSWER: Readonly<Record<PrOutcome, (id: number, action: PrAction) => string>> = {
+  done: (id, action) => ANSWER[action](id),
+  not_ready: () => ANSWER.notReady,
+  moved: () => ANSWER.mergeMoved,
+  unsigned: () => ANSWER.mergeUnsignable,
+  stale: () => ANSWER.stale,
+};
 const AGENT = "securite";
 
 export interface SecuriteBotDeps {
@@ -48,6 +59,8 @@ export interface SecuriteBotDeps {
   /** My confirmations, signed (ADR-0036): null without the bot's key — then nothing is confirmed. */
   readonly signAction: ((confirmed: StoredServerAction) => string) | null;
   readonly signPlan: ((confirmed: StoredPlan) => string) | null;
+  /** My ✅ Fusionner, signed (ADR-0036, second step): null without the key — then no merge is asked. */
+  readonly signMerge: ((confirmed: MergeConfirmation) => string) | null;
   /** `[serveurs] actif` of securite.toml, read at each use. */
   readonly serversActive: () => boolean;
   /** The maintenance plans (J7d): proposed by the operator, validated and confirmed here. */
@@ -128,18 +141,20 @@ export async function handleCallback(cb: TelegramCallback, deps: SecuriteBotDeps
   }
   // ✅ Fusionner / ❌ Fermer under an agent's pull request (J6d): recorded here,
   // done by the security agent's next round — the bot never touches GitHub.
+  // A merge is signed with the commit my button showed, or not asked at all.
   const pr = parsePrPressed(cb.data);
   if (pr !== null) {
-    const asked = await deps.decisions.requestPr(pr.id, pr.token, pr.action, deps.now());
+    if (pr.action === "merge" && deps.signMerge === null) {
+      await deps.api.answerCallback(cb.id, ANSWER.serverNoKey);
+      return;
+    }
+    const request: PrRequest =
+      pr.action === "merge" && deps.signMerge !== null
+        ? { action: "merge", shown: pr.shown, sign: deps.signMerge }
+        : { action: "close" };
+    const asked = await deps.decisions.requestPr(pr.id, pr.token, request, deps.now());
     if (asked === "done") await decided(deps, pr.action);
-    await deps.api.answerCallback(
-      cb.id,
-      asked === "done"
-        ? ANSWER[pr.action](pr.id)
-        : asked === "not_ready"
-          ? ANSWER.notReady
-          : ANSWER.stale,
-    );
+    await deps.api.answerCallback(cb.id, PR_ANSWER[asked](pr.id, pr.action));
     return;
   }
   // ✅ Confirmer an action on a server (J6f1b): recorded here, run by the operator.

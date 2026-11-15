@@ -92,14 +92,34 @@ describe("a delegation's state", () => {
 describe("the PR buttons and views", () => {
   const TOKEN = ["01234567", "89abcdef"].join("");
 
+  it("a merge button is made only for a full commit", () => {
+    for (const bad of ["", "abc", "A".repeat(40), "a".repeat(41)]) {
+      expect(() => prKeyboard(7, TOKEN, bad)).toThrow();
+    }
+  });
+
   it("✅ and ❌ read back; anything else ignored", () => {
-    const [[merge, close] = []] = prKeyboard(7, TOKEN);
-    expect(parsePrPressed(merge?.data)).toEqual({ id: 7, action: "merge", token: TOKEN });
+    const SHA = "0123456789abcdef0123456789abcdef01234567";
+    const [[merge, close] = []] = prKeyboard(7, TOKEN, SHA);
+    expect(parsePrPressed(merge?.data)).toEqual({
+      id: 7,
+      action: "merge",
+      token: TOKEN,
+      shown: SHA.slice(0, 12),
+    });
     expect(parsePrPressed(close?.data)).toEqual({ id: 7, action: "close", token: TOKEN });
+    expect(merge?.data.length).toBeLessThanOrEqual(64);
+    expect(prKeyboard(999_999_999_999, TOKEN, SHA)[0]?.[0]?.data.length).toBeLessThanOrEqual(64);
+    // A ✅ from before the signature, with no commit, is stale (ADR-0036, second step).
     for (const bad of [
-      `s:7:m:${TOKEN}`,
+      `p:7:m:${TOKEN}`,
+      `s:7:m:${TOKEN}:${SHA.slice(0, 12)}`,
       `p:7:x:${TOKEN}`,
-      `p:0:m:${TOKEN}`,
+      `p:0:m:${TOKEN}:${SHA.slice(0, 12)}`,
+      `p:7:m:${TOKEN}:${SHA.slice(0, 11)}`,
+      `p:7:m:${TOKEN}:${SHA}`,
+      `p:7:m:${TOKEN}:${SHA.slice(0, 12).toUpperCase()}`,
+      `p:7:c:${TOKEN}:${SHA.slice(0, 12)}`,
       "p:7:m:0123",
       `p:7:m:${TOKEN}!`,
     ]) {

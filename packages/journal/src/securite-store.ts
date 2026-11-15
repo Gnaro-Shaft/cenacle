@@ -64,6 +64,9 @@ export interface StoredFinding {
   readonly actionHeadSha: string | null;
   /** Prepared under a delegation, not on my 🔧 (J6d). */
   readonly actionDelegated: boolean;
+  /** The bot's signature of my ✅ Fusionner, and its instant (ADR-0036, second step). */
+  readonly mergeSig: string | null;
+  readonly mergeConfirmedAt: Date | null;
 }
 
 export type ActionState =
@@ -138,11 +141,13 @@ interface Row {
   action_pr_url: string | null;
   action_head_sha: string | null;
   action_delegated: boolean;
+  merge_sig: string | null;
+  merge_confirmed_at: Date | null;
 }
 
 const COLUMNS = `id, check_name, type, target, occurrence, severity, title, params, status,
   first_seen, last_seen, closed_at, reason, accepted_at, decided_at, action_state, action_pr_url,
-  action_head_sha, action_delegated`;
+  action_head_sha, action_delegated, merge_sig, merge_confirmed_at`;
 
 const finding = (r: Row): StoredFinding => ({
   id: Number(r.id),
@@ -164,6 +169,8 @@ const finding = (r: Row): StoredFinding => ({
   actionPrUrl: r.action_pr_url,
   actionHeadSha: r.action_head_sha,
   actionDelegated: r.action_delegated,
+  mergeSig: r.merge_sig,
+  mergeConfirmedAt: r.merge_confirmed_at,
 });
 
 const DAY_MS = 24 * 3_600_000;
@@ -242,10 +249,13 @@ export function createSecuriteStore(sql: Sql): SecuriteStore {
     prRequests: () => select("action_state in ('fusion_demandee', 'fermeture_demandee')"),
 
     async setAction(id, state, prUrl, headSha) {
+      // A signed merge request lives only as long as the request: once the
+      // round has dealt with it, its signature can never be read again.
       await sql`
         update securite_constats
         set action_state = ${state}, action_pr_url = coalesce(${prUrl ?? null}, action_pr_url),
-            action_head_sha = coalesce(${headSha ?? null}, action_head_sha)
+            action_head_sha = coalesce(${headSha ?? null}, action_head_sha),
+            merge_sig = null, merge_confirmed_at = null
         where id = ${id}`;
     },
 

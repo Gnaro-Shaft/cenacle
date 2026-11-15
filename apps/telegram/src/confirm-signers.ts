@@ -1,6 +1,6 @@
 /**
  * The bot's signature of my confirmations (ADR-0036): an action on a server,
- * or a maintenance plan with its steps. The bot alone holds the private key
+ * a maintenance plan with its steps, or the merge of a pull request. The bot alone holds the private key
  * (.env.bot); the operator verifies with the public one before acting.
  *
  * Without the key the bot still answers and chats: it confirms nothing, and
@@ -10,7 +10,9 @@ import {
   ConfirmationFieldError,
   ConfirmationKeyError,
   confirmPrivateKeyFromEnv,
+  type MergeConfirmation,
   signActionConfirmation,
+  signMergeConfirmation,
   signPlanConfirmation,
 } from "@cenacle/core";
 import {
@@ -25,6 +27,8 @@ export interface ConfirmSigners {
   readonly signAction: ((confirmed: StoredServerAction) => string) | null;
   /** Null without the key: no plan can be confirmed. */
   readonly signPlan: ((confirmed: StoredPlan) => string) | null;
+  /** Null without the key: no merge can be asked (ADR-0036, second step). */
+  readonly signMerge: ((confirmed: MergeConfirmation) => string) | null;
   /** Why there is no key — a variable's name and what to run, never a value; null when there is one. */
   readonly problem: string | null;
 }
@@ -35,7 +39,7 @@ export function confirmSigners(env: NodeJS.ProcessEnv = process.env): ConfirmSig
     key = confirmPrivateKeyFromEnv(env);
   } catch (error) {
     if (!(error instanceof ConfirmationKeyError)) throw error;
-    return { signAction: null, signPlan: null, problem: error.message };
+    return { signAction: null, signPlan: null, signMerge: null, problem: error.message };
   }
   return {
     signAction: (confirmed) => {
@@ -50,6 +54,7 @@ export function confirmSigners(env: NodeJS.ProcessEnv = process.env): ConfirmSig
       if (fields === null) throw new ConfirmationFieldError("this plan is not confirmed");
       return signPlanConfirmation(key, fields);
     },
+    signMerge: (confirmed) => signMergeConfirmation(key, confirmed),
     problem: null,
   };
 }

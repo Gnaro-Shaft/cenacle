@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 import { type DelegationInfo, runActions } from "./actions.ts";
 import type { FixResult } from "./fix.ts";
 import type { MergeOutcome } from "./merge.ts";
+import type { MergeSignRefusal } from "./merge-signed.ts";
 
 const SHA = "a".repeat(40);
 const URL = "https://github.com/o/r/pull/9";
@@ -45,6 +46,7 @@ function world(opts: {
   result?: FixResult;
   view?: PrView;
   merge?: MergeOutcome;
+  signed?: (f: StoredFinding) => MergeSignRefusal | null;
   delegations?: DelegationInfo[];
 }) {
   const states: [number, ActionState, string | undefined, string | undefined][] = [];
@@ -69,6 +71,7 @@ function world(opts: {
     },
     prepare: async () => opts.result ?? OK,
     view: async () => opts.view ?? view(),
+    signed: async (f: StoredFinding) => opts.signed?.(f) ?? null,
     merge: async (url: string, sha: string) => {
       merged.push(`${url}@${sha}`);
       return opts.merge ?? { ok: true as const, clean: true };
@@ -122,7 +125,7 @@ describe("a fix I asked for, then its pull request", () => {
     });
     await runActions(w.deps);
     expect(w.states).toEqual([[3, "ci_verte", undefined, SHA]]);
-    expect(w.buttons[0]).toEqual(["p:3:m:0123456789abcdef", "p:3:c:0123456789abcdef"]);
+    expect(w.buttons[0]).toEqual(["p:3:m:0123456789abcdef:aaaaaaaaaaaa", "p:3:c:0123456789abcdef"]);
     expect(w.sent[0]).toMatch(/aaaaaaa/);
   });
 
@@ -162,6 +165,29 @@ describe("my ✅ and ❌", () => {
     expect(w.states).toEqual([[4, "pr_ouverte", undefined, undefined]]);
     expect(w.sent[0]).toMatch(/Fusion refusée.*un autre commit/);
     expect(outcomes(w.events)).toEqual([]);
+  });
+
+  it("✅ not signed by the bot: never merged, said by name, journaled, followed again", async () => {
+    for (const [refusal, said] of [
+      ["non_signee", /ne porte pas la signature du bot/],
+      ["trop_ancienne", /plus de 30 minutes/],
+      ["autre_depot", /pas dans le dépôt du projet/],
+      ["cle_absente", /clé publique du bot/],
+    ] as const) {
+      const w = world({ requests: [asked("fusion_demandee")], signed: () => refusal });
+      await runActions(w.deps);
+      expect(w.merged).toEqual([]);
+      expect(w.states).toEqual([[4, "pr_ouverte", undefined, undefined]]);
+      expect(w.sent[0]).toMatch(said);
+      expect(w.sent[0]).toMatch(/Rien n'a été fusionné/);
+      expect(outcomes(w.events)).toEqual([`unsigned_${refusal}`]);
+    }
+  });
+
+  it("❌ needs no signature: closing a PR merges nothing", async () => {
+    const w = world({ requests: [asked("fermeture_demandee")], signed: () => "non_signee" });
+    await runActions(w.deps);
+    expect(w.states).toEqual([[4, "fermee", undefined, undefined]]);
   });
 
   it("✅ without a tested commit: never merged", async () => {

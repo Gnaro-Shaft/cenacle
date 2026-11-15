@@ -14,7 +14,7 @@
 | `.env.telegram` | Le jeton du bot | Iris, le bot, la veille du CTO, l'agent sécurité |
 | `.env.obs` | L'administrateur de Grafana | Docker Compose |
 | `.env.page` | La clé privée de la page (ADR-0013) | La page seule |
-| `.env.bot` | La clé privée du bot, qui signe ma confirmation d'une action sur un serveur ou d'un plan (ADR-0036) | Le bot seul |
+| `.env.bot` | La clé privée du bot, qui signe ma confirmation d'une action sur un serveur, d'un plan ou de la fusion d'une PR (ADR-0036) | Le bot seul |
 | `.env.proxmox` | Le jeton **en lecture seule** de la grappe Proxmox (`cenacle@pve`, rôle `PVEAuditor`, ADR-0039) : il voit la grappe, il ne peut rien y changer | Le serveur de la page seul |
 | `.env.executor` | Le mot de passe du rôle de l'exécuteur (ADR-0013) | L'exécuteur, les migrations, les tests |
 | `.env.sentinel` | Le jeton partagé avec la sentinelle (S2), qui authentifie les battements ; le VPS en garde la copie dans `/etc/cenacle-sentinel.env`, lisible par root seul | Iris, l'exécuteur |
@@ -79,7 +79,7 @@ npm run secrets:restore -- --from /Volumes/CLE/cenacle-secrets [--into <dossier>
 Ce que la perte coûterait sans sauvegarde :
 - `CENACLE_MAIL_KEY` : la mémoire des mails devient illisible ; il faut la vider (elle se relit) et la **liste d'opposition** (C3) devient inutilisable : les personnes opposées seraient relues. C'est la perte la plus grave.
 - La clé privée de la page : les acceptations pas encore envoyées échouent ; en tirer une nouvelle (`npm run keys:accept`).
-- La clé privée du bot (ADR-0036) : supprimer `.env.bot`, en tirer une nouvelle (`npm run keys:confirm`), recopier la clé publique affichée dans `.env`, redémarrer le bot. Les confirmations pas encore exécutées sont refusées, et dites.
+- La clé privée du bot (ADR-0036) : supprimer `.env.bot`, en tirer une nouvelle (`npm run keys:confirm`), recopier la clé publique affichée dans `.env` (l'opérateur et l'agent sécurité la lisent), redémarrer le bot. Les confirmations pas encore exécutées, et les fusions demandées pas encore faites, sont refusées, et dites.
 - Les mots de passe de la base : se remettent par une migration ; celui de la boîte, chez l'hébergeur.
 
 ## La base de Cénacle n'est pas sauvegardée (décidé le 04/10), sauf la liste d'opposition
