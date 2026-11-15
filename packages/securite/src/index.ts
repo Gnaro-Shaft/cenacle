@@ -178,6 +178,7 @@ export {
   type RondeBulletins,
   RondeBulletinsError,
 } from "./ronde-bulletins.ts";
+export { COMPARE_CHECK, compareVerdicts, DIFFERENCE } from "./ronde-compare.ts";
 export {
   failureVerdict,
   type HostVerdict,
@@ -187,6 +188,14 @@ export {
   type RondeState,
   worstState,
 } from "./ronde-rules.ts";
+export {
+  CENACLE_STALE_MS,
+  freshSourceVerdict,
+  parseRondeSource,
+  RONDE_SOURCES,
+  type RondeSource,
+  type SourceFacts,
+} from "./ronde-source.ts";
 export { type NamedVerdict, RONDE_VERDICT_PATH, verdictText } from "./ronde-verdict.ts";
 export {
   answerOf,

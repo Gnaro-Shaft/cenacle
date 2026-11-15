@@ -10,7 +10,7 @@
  */
 import { readFileSync } from "node:fs";
 import type { FindingSeverity, ParcStore } from "@cenacle/journal";
-import { type LegionState, legionView } from "@cenacle/securite";
+import { type LegionState, legionView, RONDE_SOURCES, type RondeSource } from "@cenacle/securite";
 import { MACHINES_UNREADABLE, type MachinesView } from "./machines.ts";
 import type { ProxmoxView } from "./proxmox.ts";
 
@@ -19,10 +19,14 @@ const MAX_VERDICT = 64 * 1024;
 
 export interface ParcView {
   readonly at: string;
+  /** The chosen ronde's verdict (ADR-0040): its source named, « Legion » or « Cénacle ». */
   readonly servers:
-    | { readonly read: "missing" | "unreadable" }
+    | { readonly read: "missing" | "unreadable"; readonly source: string }
+    /** securite.toml names no ronde: nothing is shown as known. */
+    | { readonly read: "source"; readonly source: null }
     | {
         readonly read: "ok";
+        readonly source: string;
         readonly state: LegionState;
         readonly at: string;
         readonly stale: boolean;
@@ -57,8 +61,10 @@ export interface ParcView {
 
 export interface ParcDeps {
   readonly store: ParcStore;
-  /** The raw verdict, or null when there is none. */
-  readonly readVerdict: () => string | null;
+  /** That ronde's raw verdict, or null when there is none. */
+  readonly readVerdict: (source: RondeSource) => string | null;
+  /** Which ronde securite.toml names (ADR-0040); absent, Legion's; null, none readable. */
+  readonly source?: () => RondeSource | null;
   readonly now: () => Date;
   /** The machines' bulletins (machines.ts); absent, none are read. */
   readonly machines?: () => Promise<MachinesView>;
@@ -78,26 +84,33 @@ export function verdictFile(path: string): () => string | null {
   };
 }
 
-function servers(read: () => string | null, now: Date): ParcView["servers"] {
+function servers(
+  read: (source: RondeSource) => string | null,
+  chosen: RondeSource | null,
+  now: Date,
+): ParcView["servers"] {
+  if (chosen === null) return { read: "source", source: null };
+  const { label: source, staleMs } = RONDE_SOURCES[chosen];
   let raw: string | null;
   try {
-    raw = read();
+    raw = read(chosen);
   } catch {
-    return { read: "unreadable" };
+    return { read: "unreadable", source };
   }
-  if (raw === null) return { read: "missing" };
-  if (raw.length > MAX_VERDICT) return { read: "unreadable" };
+  if (raw === null) return { read: "missing", source };
+  if (raw.length > MAX_VERDICT) return { read: "unreadable", source };
   try {
-    const view = legionView(raw, now.getTime());
+    const view = legionView(raw, now.getTime(), staleMs);
     return {
       read: "ok",
+      source,
       state: view.state,
       at: new Date(view.at).toISOString(),
       stale: view.stale,
       hosts: view.hosts,
     };
   } catch {
-    return { read: "unreadable" };
+    return { read: "unreadable", source };
   }
 }
 
@@ -114,7 +127,7 @@ export function createParc(deps: ParcDeps): () => Promise<ParcView> {
     ]);
     return {
       at: now.toISOString(),
-      servers: servers(deps.readVerdict, now),
+      servers: servers(deps.readVerdict, deps.source ? deps.source() : "legion", now),
       findings: {
         counts: findings.counts,
         setAside: findings.setAside,

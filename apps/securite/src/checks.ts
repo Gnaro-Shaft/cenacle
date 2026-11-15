@@ -12,7 +12,6 @@ import {
   type HeldBack,
   heldBackRules,
   isHeldBack,
-  LEGION_VERDICT_PATH,
   npmCheck,
   type Observation,
   operatorObservations,
@@ -22,7 +21,6 @@ import {
   parseFirewall,
   parseGatekeeper,
   parseGitleaks,
-  parseLegionVerdict,
   parseNpmAudit,
   parseNpmOutdated,
   parseProjectNpmAudit,
@@ -78,18 +76,9 @@ interface Spec {
 export const firstExisting = (...paths: string[]) =>
   paths.find((p) => existsSync(p)) ?? paths[0] ?? "";
 
-export { LEGION_VERDICT_PATH } from "@cenacle/securite";
-
 export function specs(root: string, nodeDir: string, macMajor: number): Spec[] {
   const npm = `${nodeDir}/npm`;
   return [
-    {
-      check: "legion_ronde",
-      file: "/bin/cat",
-      args: [LEGION_VERDICT_PATH],
-      codes: [0],
-      parse: (out) => parseLegionVerdict(out, Date.now()),
-    },
     {
       check: "filevault",
       file: "/usr/bin/fdesetup",

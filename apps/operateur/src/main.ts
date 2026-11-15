@@ -22,10 +22,11 @@ import {
   waitForDatabase,
 } from "@cenacle/journal";
 import {
-  LEGION_VERDICT_PATH,
+  freshSourceVerdict,
   OPERATOR_STATE_PATH,
   parseLegionVerdict,
   parseMaintenanceSwitch,
+  parseRondeSource,
   parseServerSwitch,
   parseServers,
   type ServersConfig,
@@ -79,7 +80,12 @@ async function pass(sql: ReturnType<typeof connectOrQuit>): Promise<void> {
   const plans = createPlanStore(sql);
   // The public key of the bot (ADR-0036): without it nothing is verified, so nothing runs.
   const confirmKey = confirmKeyOrNull();
-  const securiteToml = read(join(ROOT, "securite.toml")) ?? "";
+  const securiteText = read(join(ROOT, "securite.toml"));
+  const securiteToml = securiteText ?? "";
+  // The ronde whose verdict proves (ADR-0040, R3): unreadable or missing, no verdict at all;
+  // older than its own source's limit, none either.
+  const source = parseRondeSource(securiteText);
+  const verdict = () => freshSourceVerdict(read, source, Date.now());
   const send = (text: string) => telegram.sendMessage(chatId, text);
   // The validated maintenance plan (J7d), before the actions: a step it
   // launches runs in this same pass.
@@ -88,7 +94,7 @@ async function pass(sql: ReturnType<typeof connectOrQuit>): Promise<void> {
     plans,
     actions: store,
     planSigned: (plan) => planSigned(confirmKey, plan),
-    verdict: () => read(LEGION_VERDICT_PATH),
+    verdict,
     parseVerdict: parseLegionVerdict,
     send,
     journal,
@@ -97,8 +103,9 @@ async function pass(sql: ReturnType<typeof connectOrQuit>): Promise<void> {
   const outcome = await runOperator({
     store,
     active: parseServerSwitch(securiteToml),
+    sourceOk: source !== null,
     config,
-    verdict: () => read(LEGION_VERDICT_PATH),
+    verdict,
     parseVerdict: parseLegionVerdict,
     keyIsPrivate: (path) => keyIsPrivate(path),
     notConfirmed: (a) => notConfirmed({ publicKey: confirmKey, plans }, a),

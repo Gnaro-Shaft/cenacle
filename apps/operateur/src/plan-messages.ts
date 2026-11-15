@@ -10,7 +10,7 @@ const ICON = { maj_securite: "⬆", services: "🔁", redemarrer: "🔄" } as co
 
 const WHY: Readonly<Record<string, string>> = {
   interrupteur: "le récapitulatif de maintenance a été coupé ([maintenance] actif)",
-  preuve_toujours_la: "le relevé de Legion montre encore le problème",
+  preuve_toujours_la: "le relevé montre encore le problème",
   preuve_pas_revenue: "la machine n'est pas revenue 30 minutes après le redémarrage",
   preuve_reduit: "il reste plus de services que ceux que le script épargne",
   refus_serveur: "un garde-fou du serveur a refusé",

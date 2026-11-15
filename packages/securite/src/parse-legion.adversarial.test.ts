@@ -154,7 +154,7 @@ describe("followed like any finding", () => {
     const plan = reconcile(active, [{ check: "legion_ronde", ran: false }], new Date());
     expect(plan.resolve).toEqual([]);
     expect(plan.insert[0]).toMatchObject({ type: "check_impossible", severity: "eleve" });
-    expect(plan.insert[0]?.title).toMatch(/La ronde de Legion ne répond plus/);
+    expect(plan.insert[0]?.title).toMatch(/La ronde qui juge les serveurs ne répond plus/);
   });
 });
 

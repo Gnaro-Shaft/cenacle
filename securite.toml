@@ -40,6 +40,15 @@ actif = true
 # the operator (the only reader of serveurs.local.toml); no button yet.
 actif = true
 
+[ronde]
+# Which ronde's verdict Cénacle believes (ADR-0040, R3): "legion" (its
+# verdict copied to the Mac every 15 minutes) or "cenacle" (Cénacle's own
+# ronde, every 5 minutes). The security agent compares both at every round
+# while both run; I switch here, by a pull request, once their differences
+# are explained — and back the same way. Anything else: no verdict is
+# believed, and the operator does not act.
+source = "legion"
+
 [[delegation]]
 # Prepare the pull request of an npm advisory fix without a major version
 # change. The merge stays mine (✅ Fusionner on Telegram, PR by PR).

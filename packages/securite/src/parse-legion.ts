@@ -151,8 +151,8 @@ export interface LegionView {
   }[];
 }
 
-/** The verdict for the page: as strict as the check, except on its age. */
-export function legionView(raw: string, nowMs: number): LegionView {
+/** The verdict for the page: as strict as the check, except on its age (its source's limit). */
+export function legionView(raw: string, nowMs: number, staleMs = LEGION_STALE_MS): LegionView {
   const fields = verdictFields(raw);
   const at = Number(fields.get("instant")) * 1000;
   const age = nowMs - at;
@@ -168,7 +168,7 @@ export function legionView(raw: string, nowMs: number): LegionView {
   return {
     state: fields.get("etat") as LegionState,
     at,
-    stale: age > LEGION_STALE_MS || age < -FUTURE_TOLERANCE_MS,
+    stale: age > staleMs || age < -FUTURE_TOLERANCE_MS,
     hosts,
   };
 }
@@ -211,11 +211,16 @@ function hostsOf(fields: ReadonlyMap<string, string>): string[] {
   return hosts;
 }
 
-export function parseLegionVerdict(raw: string, nowMs: number): Observation[] {
+/** The verdict's findings; too old for its source (`staleMs`) or from the future, "could not run". */
+export function parseLegionVerdict(
+  raw: string,
+  nowMs: number,
+  staleMs = LEGION_STALE_MS,
+): Observation[] {
   const fields = verdictFields(raw);
   const age = nowMs - Number(fields.get("instant")) * 1000;
-  // Too old (three relays missed) or from the future: Legion's watch is not seen.
-  if (age > LEGION_STALE_MS || age < -FUTURE_TOLERANCE_MS) throw fail();
+  // Too old (Legion: three relays missed; Cénacle: four passes) or from the future: no watch is seen.
+  if (age > staleMs || age < -FUTURE_TOLERANCE_MS) throw fail();
   const out: Observation[] = [];
   for (const [key, value] of fields) {
     const m = /^([^.]+)\.motif(\d{1,2})$/.exec(key);

@@ -104,7 +104,7 @@ const CATALOGUE: Readonly<Record<string, Builder>> = {
     advice: `Envisager la montée de version de ${p.package ?? "ce paquet"} (${p.current ?? "?"} → ${p.latest ?? "?"}) : lire ses changements avant.`,
     command: null,
   }),
-  // The servers, through Legion's ronde (the bridge): commands to run on the machine.
+  // The servers, through the ronde (Legion's or Cénacle's, ADR-0040): commands to run on the machine.
   serveur_quorum: (_k, p) => ({
     advice: `${on(p)}grappe Proxmox sans quorum, /etc/pve en lecture seule : vérifier les nœuds et le réseau du cluster.`,
     command: "pvecm status",
@@ -124,7 +124,7 @@ const CATALOGUE: Readonly<Record<string, Builder>> = {
     const port = p.port !== undefined && PORT.test(p.port) ? p.port : null;
     if (port?.startsWith("tailnet/")) {
       return {
-        advice: `${on(p)}port Tailscale tiré au hasard à chaque démarrage : déclarer le joker tailnet/tcp/* dans la ronde de Legion (maison.toml), sans quoi il revient à chaque redémarrage.`,
+        advice: `${on(p)}port Tailscale tiré au hasard à chaque démarrage : déclarer le joker tailnet/tcp/* dans parc.local.toml (la ronde de Cénacle), et dans maison.toml tant que Legion tourne, sans quoi il revient à chaque redémarrage.`,
         command: null,
       };
     }
@@ -135,13 +135,13 @@ const CATALOGUE: Readonly<Record<string, Builder>> = {
       const ephemeral = num !== null && num !== "*" && Number(num) >= 32768;
       return {
         advice: ephemeral
-          ? `${on(p)}port de la boucle locale tiré au hasard (un outil qui en change à chaque lancement, comme llama-server) : s'il est voulu, déclarer le joker local/tcp/* pour cet hôte dans la ronde de Legion (maison.toml) — il ne couvre que la boucle locale, à partir de 32768.`
-          : `${on(p)}service de la boucle locale sur un port fixe : identifier ce qui écoute ; si c'est normal, déclarer ${port} attendu dans la ronde de Legion (maison.toml).`,
+          ? `${on(p)}port de la boucle locale tiré au hasard (un outil qui en change à chaque lancement, comme llama-server) : s'il est voulu, déclarer le joker local/tcp/* pour cet hôte dans parc.local.toml (la ronde de Cénacle), et dans maison.toml tant que Legion tourne — il ne couvre que la boucle locale, à partir de 32768.`
+          : `${on(p)}service de la boucle locale sur un port fixe : identifier ce qui écoute ; si c'est normal, déclarer ${port} attendu dans parc.local.toml (la ronde de Cénacle), et dans maison.toml tant que Legion tourne.`,
         command: num !== null && num !== "*" ? `sudo ss -lntp | grep ':${num} '` : null,
       };
     }
     return {
-      advice: `${on(p)}identifier ce qui écoute sur ${port ?? "ce port"} ; si c'est normal, le déclarer attendu dans la ronde de Legion (maison.toml) ; sinon, arrêter ce service.`,
+      advice: `${on(p)}identifier ce qui écoute sur ${port ?? "ce port"} ; si c'est normal, le déclarer attendu dans parc.local.toml (la ronde de Cénacle), et dans maison.toml tant que Legion tourne ; sinon, arrêter ce service.`,
       command: num !== null && num !== "*" ? `sudo ss -lntup | grep ':${num} '` : null,
     };
   },
@@ -161,7 +161,7 @@ const CATALOGUE: Readonly<Record<string, Builder>> = {
     command: "sudo needrestart -r l",
   }),
   serveur_autre: (_k, p) => ({
-    advice: `${on(p)}motif signalé par la ronde de Legion : à examiner sur la machine.`,
+    advice: `${on(p)}motif signalé par la ronde : à examiner sur la machine.`,
     command: null,
   }),
   // My other projects (J6e2): never a 🔧, the commands are for me to run there.
@@ -206,6 +206,12 @@ const CATALOGUE: Readonly<Record<string, Builder>> = {
     advice:
       "Vérifier que le service de l'opérateur est chargé ; s'il manque : npm run service -- install operateur (dans le dossier de Cénacle). Son journal : ~/Library/Logs/cenacle/operateur.log.",
     command: "launchctl list | grep org.cenacle.operateur",
+  }),
+  // The two rondes side by side (ADR-0040, R3): read, never a command.
+  ronde_ecart: () => ({
+    advice:
+      "Les deux rondes ne disent pas la même chose de cette machine : regarder laquelle a raison (une machine qui vient de redémarrer, un port déclaré d'un seul côté, une ronde en retard). Rien à faire sur la machine tant que ce n'est pas compris.",
+    command: null,
   }),
   check_impossible: (k) => ({
     advice: `Le contrôle « ${k.target} » n'a pas pu tourner : rien n'est prouvé tant qu'il ne repasse pas.`,

@@ -91,6 +91,7 @@ export function world(over: Partial<OperatorDeps> = {}, hosts: string[] = ["vps-
       purge: async () => 0,
     },
     active: true,
+    sourceOk: true,
     config: CONFIG,
     verdict: () =>
       `bulletin=1\ninstant=${Math.floor(verdictAt / 1000)}\nvps-b.etat=${hostEtat}\nfin=1`,

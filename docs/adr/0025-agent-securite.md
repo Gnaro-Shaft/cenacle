@@ -161,3 +161,9 @@ Hors de cette révision : un nom ou un groupe absent de la forme, un chemin apr�
 - **Un agent qui corrige seul** : contraire à la charte, et un agent avec `sudo` est une porte.
 - **Des commandes proposées par le modèle** : un avis ou un flux piégé pourrait lui en souffler une.
 - **Une alerte à chaque passage** : du bruit ; seul ce qui change est dit, le reste attend le bilan du lundi.
+
+## Révision du 2026-11-16 — la source de la ronde, et les deux rondes comparées (ADR-0040, palier R3)
+
+L'agent ne lit plus seulement la copie du verdict de Legion : il lit celui de la ronde que nomme `securite.toml` (`[ronde] source = "legion"` ou `"cenacle"`), chacun à sa propre limite d'âge (45 minutes pour Legion, 20 pour Cénacle — quatre passages manqués). Une source mal écrite n'en est pas une : le contrôle des serveurs « n'a pas pu tourner », il ne retombe jamais en silence sur l'autre ronde. Le contrôle garde son nom, `legion_ronde`, jusqu'au palier R4 : les constats ouverts restent les mêmes, et basculer de source n'en rouvre aucun — les deux verdicts donnent les mêmes constats, machine, sorte et port compris.
+
+Tant que les deux rondes tournent, un second contrôle, `ronde_comparaison`, les compare à chaque passage, machine par machine : être jugée d'un seul côté, l'état, et chaque constat typé (port, disque, mises à jour, services, redémarrage, quorum). Les autres motifs ne sont pas comparés mot à mot — Legion recopie les erreurs de `ssh` et récite fail2ban, Cénacle ni l'un ni l'autre — leur poids se voit dans l'état. Chaque écart est un constat `ronde_ecart`, de gravité « info » : ouvert à sa deuxième observation, dit une fois dans le rapport du matin, fermé quand il disparaît. Un verdict manquant ou périmé : la comparaison n'a pas pu tourner, elle ne dit jamais « aucun écart ».

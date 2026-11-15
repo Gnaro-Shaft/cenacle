@@ -129,11 +129,57 @@ describe("the servers, never healthy by default", () => {
   ];
   it.each(cases)("%s: %s", async (_what, read, expected) => {
     const view = await parcWith(read)();
-    expect(view.servers).toEqual({ read: expected });
+    expect(view.servers).toEqual({ read: expected, source: "Legion" });
   });
 
   it("a stale verdict is shown, marked stale", async () => {
     const view = await parcWith(() => verdict(90))();
     expect(view.servers).toMatchObject({ read: "ok", stale: true });
+  });
+});
+
+describe("the servers' verdict comes from the ronde securite.toml names (ADR-0040, R3)", () => {
+  const withSource = (source: "legion" | "cenacle" | null, readVerdict: () => string | null) =>
+    createParc({ store, readVerdict, source: () => source, now: () => NOW });
+
+  it("Cénacle's: shown, its source named", async () => {
+    const view = await withSource("cenacle", () => verdict(1))();
+    expect(view.servers).toMatchObject({ read: "ok", source: "Cénacle", stale: false });
+  });
+
+  it("Cénacle's at 21 minutes: marked stale (four passes missed), where Legion's would not be", async () => {
+    expect((await withSource("cenacle", () => verdict(21))()).servers).toMatchObject({
+      stale: true,
+    });
+    expect((await withSource("legion", () => verdict(21))()).servers).toMatchObject({
+      stale: false,
+    });
+  });
+
+  it("no source named: nothing read, nothing shown as known", async () => {
+    let read = 0;
+    const view = await withSource(null, () => {
+      read++;
+      return verdict(1);
+    })();
+    expect(view.servers).toEqual({ read: "source", source: null });
+    expect(read).toBe(0);
+  });
+});
+
+describe("the source read once (R3 review)", () => {
+  it("the verdict is read for the source that names it, never another", async () => {
+    const asked: string[] = [];
+    const view = await createParc({
+      store,
+      source: () => "cenacle",
+      readVerdict: (source) => {
+        asked.push(source);
+        return verdict(1);
+      },
+      now: () => NOW,
+    })();
+    expect(asked).toEqual(["cenacle"]);
+    expect(view.servers).toMatchObject({ source: "Cénacle" });
   });
 });

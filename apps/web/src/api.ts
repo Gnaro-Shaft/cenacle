@@ -128,10 +128,13 @@ export const moveCard = (token: string, id: number, colonne: string) =>
 /** The Parc tab (14/11): what Cénacle knows of the machines, read-only. */
 export interface ParcView {
   readonly at: string;
+  /** The chosen ronde's verdict (ADR-0040), its source named. */
   readonly servers:
-    | { readonly read: "missing" | "unreadable" }
+    | { readonly read: "missing" | "unreadable"; readonly source: string }
+    | { readonly read: "source"; readonly source: null }
     | {
         readonly read: "ok";
+        readonly source: string;
         readonly state: "SAIN" | "SOUFFRANT" | "MALADE";
         readonly at: string;
         readonly stale: boolean;

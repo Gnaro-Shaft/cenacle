@@ -55,7 +55,7 @@ Ce que Legion fait, et que cet ADR reprend (étudié le 15/11 dans son code et s
 - **R0** — cet ADR, pour relecture.
 - **R1** — le bulletin version 2 et son lecteur strict ; `install.sh` pose les deux règles `sudo` et le réglage de `needrestart`. À installer par moi sur chaque machine ; la page n'en montre rien de plus.
 - **R2** — le programme `ronde` : lecture, jugement, verdict et bulletins écrits ; la page lit son fichier ; l'exception `ssh` déplacée.
-- **R3** — la source dans `securite.toml`, la comparaison des deux verdicts, les messages de l'opérateur.
+- **R3** — la source dans `securite.toml`, la comparaison des deux verdicts, les messages de l'opérateur. *Fait le 2026-11-16 ; la page nomme aussi la source de son verdict.*
 - **R4** — après sept jours et ma bascule : la machine de Legion dans la ronde, Legion arrêté par moi, `legion_ronde` et son chemin retirés du code.
 
 ## Conséquences

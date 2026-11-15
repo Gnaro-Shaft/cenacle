@@ -32,6 +32,7 @@ function view(over: Partial<ParcView> = {}): ParcView {
     at: "2026-11-14T18:00:00Z",
     servers: {
       read: "ok",
+      source: "Legion",
       state: "SOUFFRANT",
       at: "2026-11-14T17:50:00Z",
       stale: false,

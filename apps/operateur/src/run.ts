@@ -70,9 +70,11 @@ export interface OperatorDeps {
   >;
   /** `[serveurs] actif` of securite.toml. */
   readonly active: boolean;
+  /** `[ronde] source` of securite.toml names a ronde (ADR-0040): else nothing is proved. */
+  readonly sourceOk: boolean;
   /** serveurs.local.toml, or what is wrong with it. */
   readonly config: ServersConfig | ServersConfigProblem;
-  /** Legion's raw verdict, or null when it cannot be read. */
+  /** The chosen ronde's raw verdict, or null when it cannot be read. */
   readonly verdict: () => string | null;
   /** The verdict's findings; throws when it is not a valid, fresh verdict. */
   readonly parseVerdict: (raw: string, nowMs: number) => Observation[];
@@ -126,6 +128,7 @@ async function whyNot(
   ) {
     return "redemarrage_recent";
   }
+  if (!deps.sourceOk) return "source_illisible";
   const raw = deps.verdict();
   const at = raw === null ? null : verdictInstant(raw);
   if (raw === null || at === null || nowMs - at > FRESH_VERDICT_MS || at - nowMs > AHEAD_MS) {

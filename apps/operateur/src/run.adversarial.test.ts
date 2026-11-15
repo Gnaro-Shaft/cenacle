@@ -27,6 +27,13 @@ describe("before acting, everything again", () => {
     ["no configuration", { config: "absent" }, "config_absent", /serveurs\.local\.toml est absent/],
     ["a key others can read", { keyIsPrivate: () => false }, "cle_mal_protegee", /chmod 600/],
     ["no verdict", { verdict: () => null }, "releve_perime", /plus de 35 minutes/],
+    // ADR-0040, R3: securite.toml names no ronde — no verdict is believed, whatever is on disk.
+    [
+      "a source securite.toml does not name",
+      { sourceOk: false },
+      "source_illisible",
+      /ni « legion » ni « cenacle »/,
+    ],
     [
       "a verdict that cannot be read",
       {
