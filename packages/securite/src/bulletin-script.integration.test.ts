@@ -35,6 +35,8 @@ function recite(): string {
 describe("cenacle-bulletin, recited on a Linux machine", () => {
   it("is read whole: its measures are there and make sense", () => {
     const b = parseBulletin(recite());
+    expect(b.version).toBe(2);
+    expect(b.health).not.toBeNull();
     expect(b.host).not.toBe("");
     expect(Math.abs(b.at - Date.now())).toBeLessThan(5 * 60_000);
     expect(b.cpus).toBeGreaterThan(0);

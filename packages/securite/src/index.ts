@@ -2,6 +2,7 @@
 // closed catalogue of fixes, the CTO's comment and the messages.
 
 export { type Bulletin, BulletinError, MAX_BULLETIN, parseBulletin } from "./bulletin.ts";
+export type { BulletinHealth, ListeningPort, PortScope } from "./bulletin-health.ts";
 export {
   BULLETIN_DAYS,
   BULLETIN_FEEDS,

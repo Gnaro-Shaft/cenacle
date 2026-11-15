@@ -5,14 +5,23 @@
  * value out of shape — the whole bulletin is unreadable, never half shown.
  * The machine's identity is proved by its pinned host key (StrictHostKeyChecking),
  * not by what it says its name is. Pure: text in, measures out.
+ *
+ * Two versions are read (ADR-0040): version 1 recites the measures only;
+ * version 2 adds what the ronde judges (bulletin-health.ts). The Mac reads
+ * both, so that servers move to version 2 one at a time.
  */
+import { BulletinError, whole } from "./bulletin-fields.ts";
+import { type BulletinHealth, HEALTH_KEYS, parseHealth } from "./bulletin-health.ts";
 import { plainOutput } from "./parse-mac.ts";
+
+export { BulletinError } from "./bulletin-fields.ts";
 
 /** A bulletin is a few hundred bytes; anything larger is not one. */
 export const MAX_BULLETIN = 16 * 1024;
 const MAX_DISKS = 12;
 
 export interface Bulletin {
+  readonly version: 1 | 2;
   readonly host: string;
   /** When the server recited it, in ms. */
   readonly at: number;
@@ -27,27 +36,15 @@ export interface Bulletin {
     readonly percent: number;
     readonly kilobytes: number;
   }[];
+  /** What the ronde judges: version 2 only, null for a version 1 bulletin. */
+  readonly health: BulletinHealth | null;
 }
 
-export class BulletinError extends Error {
-  constructor(message: string) {
-    super(`unreadable bulletin: ${message}`);
-    this.name = "BulletinError";
-  }
-}
-
-const KNOWN =
+const MEASURES =
   /^(?:bulletin|version|hote|instant|uptime|charge1|charge5|charge15|processeurs|memoire\.totale|memoire\.disponible|disque\.\d{1,2}\.(?:montage|pourcent|kilooctets)|fin)$/;
+const HEALTH = new Set(HEALTH_KEYS);
 const HOST = /^[A-Za-z0-9][A-Za-z0-9.-]{0,62}$/;
 const MOUNT = /^\/[A-Za-z0-9._/-]{0,100}$/;
-const WHOLE = /^\d{1,15}$/;
-
-function whole(fields: ReadonlyMap<string, string>, key: string, max: number): number | null {
-  const value = fields.get(key);
-  if (value === undefined) return null;
-  if (!WHOLE.test(value) || Number(value) > max) throw new BulletinError(`${key} out of shape`);
-  return Number(value);
-}
 
 export function parseBulletin(raw: string): Bulletin {
   if (raw.length > MAX_BULLETIN) throw new BulletinError("too large");
@@ -61,11 +58,18 @@ export function parseBulletin(raw: string): Bulletin {
     const at = line.indexOf("=");
     if (at <= 0) throw new BulletinError("a line without key");
     const key = line.slice(0, at);
-    if (!KNOWN.test(key)) throw new BulletinError(`unknown key ${key.slice(0, 40)}`);
+    if (!MEASURES.test(key) && !HEALTH.has(key)) {
+      throw new BulletinError(`unknown key ${key.slice(0, 40)}`);
+    }
     if (fields.has(key)) throw new BulletinError(`${key} twice`);
     fields.set(key, line.slice(at + 1));
   }
-  if (fields.get("version") !== "1") throw new BulletinError("unknown version");
+  const version = fields.get("version");
+  if (version !== "1" && version !== "2") throw new BulletinError("unknown version");
+  // A version 1 bulletin never says what only version 2 knows.
+  if (version === "1" && [...fields.keys()].some((k) => HEALTH.has(k))) {
+    throw new BulletinError("a version 2 key in a version 1 bulletin");
+  }
   const host = fields.get("hote") ?? "";
   if (!HOST.test(host)) throw new BulletinError("hote out of shape");
   const instant = whole(fields, "instant", 99_999_999_999);
@@ -98,6 +102,7 @@ export function parseBulletin(raw: string): Bulletin {
   if (diskKeys !== disks.length * 3) throw new BulletinError("disks out of order");
 
   return {
+    version: version === "2" ? 2 : 1,
     host,
     at: instant * 1000,
     uptimeSeconds: whole(fields, "uptime", 10 * 365 * 86_400),
@@ -105,5 +110,6 @@ export function parseBulletin(raw: string): Bulletin {
     cpus: whole(fields, "processeurs", 4096),
     memory: total !== null && available !== null ? { total, available } : null,
     disks,
+    health: version === "2" ? parseHealth(fields) : null,
   };
 }

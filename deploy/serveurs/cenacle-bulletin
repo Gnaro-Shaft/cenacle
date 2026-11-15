@@ -1,14 +1,24 @@
 #!/bin/bash
-# What a server says of itself, for the Parc tab (ADR-0039). Ported from
+# What a server says of itself (ADR-0039, version 2 by ADR-0040). Ported from
 # Legion's legion-bulletin-hote (its ADR-029): the same idea, the same form —
-# key=value lines between bulletin=1 and fin=1 — only the measures the page
-# shows, nothing else: no ports, no logs, no user, no address.
+# key=value lines between bulletin=1 and fin=1. Version 1 recited the measures
+# the Parc tab shows; version 2 adds what the ronde judges: a reboot required,
+# updates waiting, services on a replaced library, the cluster's quorum, the
+# ports listening. Nothing else: no logs, no user, no address, no service name,
+# no fail2ban or SSH counters (they are about third parties).
 #
-# STRICTLY READ-ONLY: it writes nothing, installs nothing, changes nothing,
-# and needs no sudo. That is what makes a standing key acceptable. The key
-# that calls it is locked on the server side:
+# STRICTLY READ-ONLY: it writes nothing, installs nothing, changes nothing.
+# Two commands go through sudo, both list-only and frozen in
+# /etc/sudoers.d/cenacle, without any free argument (install.sh):
+#   /usr/sbin/needrestart -r l -b     (list, never restart)
+#   /usr/bin/pvecm status             (a cluster node only)
+# The key that calls it is locked on the server side:
 #   command="/usr/local/bin/cenacle-bulletin",restrict,from="<the Mac>"
 # Its own key: never one of the operator's action keys (ADR-0027).
+#
+# A FACT THAT COULD NOT BE READ IS NOT SAID — never said as 0. A failed
+# command, a refused sudo, an output out of shape: the key is left out, and
+# the reader on the Mac takes it as unknown.
 #
 # The original lives in Cénacle's repository, deploy/serveurs/; a change made
 # on the server is lost at the next install.
@@ -20,9 +30,11 @@ export LC_ALL=C
 say() { printf '%s=%s\n' "$1" "$2"; }
 # An empty value is a fact that could not be read: not said at all.
 say_if() { [ -n "${2:-}" ] && say "$1" "$2"; }
+# A count: said only when it is one (digits only), else not said at all.
+say_count() { [[ "${2:-}" =~ ^[0-9]{1,9}$ ]] && say "$1" "$2"; }
 
 printf 'bulletin=1\n'
-say version 1
+say version 2
 # The name only as a plain label (identity comes from the pinned host key):
 # anything but letters, digits, dots and dashes becomes a dash, 63 at most.
 h="$(hostname 2>/dev/null)"
@@ -60,5 +72,112 @@ while read -r _ blocks _ _ percent mount; do
             ;;
     esac
 done < <(df -P -l -x tmpfs -x devtmpfs -x squashfs -x overlay 2>/dev/null | tail -n +2)
+
+# ── Version 2: what the ronde judges ─────────────────────────────────────────
+
+# A patched kernel that is not loaded patches nothing. Always said: a file
+# present or absent cannot fail to be read.
+if [ -f /var/run/reboot-required ] || [ -f /run/reboot-required ]; then
+    say redemarrage requis
+else
+    say redemarrage non
+fi
+
+# Updates waiting. Ubuntu's apt-check says "total;security" on stderr; on
+# Debian and Proxmox, a simulation that locks nothing and writes nothing.
+# Unlike Legion's bulletin, a failed command or an answer out of shape says
+# nothing at all — Legion's counted an apt-get that failed as 0 updates.
+if [ -x /usr/lib/update-notifier/apt-check ]; then
+    if verdict="$(/usr/lib/update-notifier/apt-check 2>&1 >/dev/null)" &&
+        [[ "$verdict" =~ ^([0-9]{1,9})\;([0-9]{1,9})$ ]]; then
+        say maj.total "${BASH_REMATCH[1]}"
+        say maj.securite "${BASH_REMATCH[2]}"
+    fi
+elif command -v apt-get >/dev/null 2>&1; then
+    if simulated="$(apt-get -s -o Debug::NoLocking=true dist-upgrade 2>/dev/null)"; then
+        installs="$(printf '%s\n' "$simulated" | grep '^Inst ')"
+        say_count maj.total "$(printf '%s' "$installs" | grep -c .)"
+        say_count maj.securite "$(printf '%s' "$installs" | grep -ci security)"
+    fi
+fi
+
+# Services still running on a replaced library: their number only — a list
+# of services is a map of the machine. Legion's three traps (25/09/2026):
+# needrestart lives in /usr/sbin, out of an ordinary account's PATH (hence
+# the absolute path); the account may run only named commands (hence the real
+# command, not `sudo -n true`); a refused sudo gives an empty output, which a
+# count would take for 0 (hence: a count only from a command that succeeded
+# and answered in needrestart's own batch form).
+NEEDRESTART=/usr/sbin/needrestart
+if [ -x "$NEEDRESTART" ] &&
+    waiting="$(sudo -n "$NEEDRESTART" -r l -b 2>/dev/null)" &&
+    printf '%s\n' "$waiting" | grep -q '^NEEDRESTART-VER:'; then
+    say_count services.a_relancer "$(printf '%s\n' "$waiting" | grep -c '^NEEDRESTART-SVC:')"
+fi
+
+# The cluster's quorum, on a Proxmox node only: off a cluster, nothing is said
+# and nothing is expected. Present but mute, it is said "illisible": a pvecm
+# that does not answer is not a quorum. Directly if the account can, else by
+# sudo (the frozen rule).
+PVECM=/usr/bin/pvecm
+if [ -x "$PVECM" ]; then
+    cluster="$("$PVECM" status 2>/dev/null)"
+    printf '%s\n' "$cluster" | grep -qE '^Quorate:' ||
+        cluster="$(sudo -n "$PVECM" status 2>/dev/null)"
+    read_cluster() {
+        printf '%s\n' "$cluster" |
+            awk -F: -v key="$1" '$1 == key { gsub(/[[:space:]]/, "", $2); print $2; exit }'
+    }
+    case "$(read_cluster Quorate)" in
+        Yes) say grappe.quorum oui ;;
+        No) say grappe.quorum non ;;
+        *) say grappe.quorum illisible ;;
+    esac
+    say_count grappe.votes "$(read_cluster 'Total votes')"
+    say_count grappe.attendus "$(read_cluster 'Expected votes')"
+fi
+
+# What listens: the protocol and the port, never an address. The bound
+# address is CLASSED — "local/" (loopback), "tailnet/" (Tailscale's ranges,
+# 100.64.0.0/10 and fd7a:115c:a1e0::/48) or nothing — so that a back door on
+# 0.0.0.0:53 is not mistaken for the resolver on 127.0.0.53; the address
+# itself is never said.
+#
+# A UDP PORT COUNTS ONLY IF IT LASTS: `ss -lu` lists every bound, unconnected
+# UDP socket, and tailscaled opens short-lived ones on random ports every
+# twenty to thirty seconds (Legion, 27/09/2026). So ss is read twice, a second
+# apart, and only the UDP sockets present in both readings are said. TCP is
+# not filtered: a TCP socket listening is always a service. If either reading
+# fails, no port is said at all — "unknown", never a partial list. Both
+# readings are the SAME command: `ss -lnu` alone has no protocol column.
+if command -v ss >/dev/null 2>&1; then
+    if first="$(ss -H -lntu 2>/dev/null)" && sleep 1 &&
+        second="$(ss -H -lntu 2>/dev/null)"; then
+        say_if ports "$(awk '
+            NR == FNR { if ($1 == "udp") lasting[$5] = 1; next }
+            $1 != "udp" || ($5 in lasting)
+            ' <(printf '%s\n' "$second") <(printf '%s\n' "$first") |
+            awk '
+            function tailnet(a,   o) {
+                sub(/%.*$/, "", a); gsub(/\[|\]/, "", a); a = tolower(a);
+                if (a ~ /^fd7a:115c:a1e0:/) return 1;
+                if (split(a, o, ".") != 4 || o[1] != "100" || o[2] !~ /^[0-9]+$/) return 0;
+                return o[2] + 0 >= 64 && o[2] + 0 <= 127;
+            }
+            NF >= 5 {
+                n = split($5, a, ":");
+                port = a[n];
+                address = substr($5, 1, length($5) - length(port) - 1);
+                if (address ~ /^127\./ || address == "[::1]" || address ~ /%lo$/)
+                    scope = "local/";
+                else if (tailnet(address))
+                    scope = "tailnet/";
+                else
+                    scope = "";
+                print scope $1 "/" port;
+            }' |
+            sort -u | paste -sd, -)"
+    fi
+fi
 
 printf 'fin=1\n'

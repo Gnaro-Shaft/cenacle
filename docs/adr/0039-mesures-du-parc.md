@@ -1,6 +1,6 @@
 # ADR-0039 — Les mesures du parc : charge, mémoire, disques et machines virtuelles
 
-**Statut** : acceptée (2026-11-14)
+**Statut** : acceptée (2026-11-14) — point 1 révisé par l'ADR-0040 (bulletin version 2, deux règles `sudo` en lecture seule)
 
 ## Contexte
 
@@ -20,6 +20,7 @@ Ce qui existe déjà :
    - Sa **propre clé**, verrouillée côté serveur sur ce seul script (`command="/usr/local/bin/cenacle-bulletin",restrict`), posée avec les autres par `deploy/serveurs/install.sh` ; **jamais** une clé d'action de l'opérateur (ADR-0027), qui peut, elle, changer la machine.
    - La clé privée, détenue par le **seul serveur de la page**, dans un fichier lisible par moi seul ; les machines reconnues par leur empreinte (`known_hosts` dédié, `StrictHostKeyChecking=yes`) : un hôte inconnu est refusé, jamais accepté au premier contact.
    - Une lecture stricte : un bulletin tronqué (sans `fin=1`), d'un autre hôte que celui demandé, ou hors forme est « illisible », jamais affiché à moitié.
+   - *Révision (2026-11-15, ADR-0040, palier R1)* : le bulletin passe en version 2 et récite aussi ce que la ronde juge — redémarrage requis, mises à jour en attente, services à relancer, quorum de la grappe, ports en écoute (leur portée, jamais l'adresse). Il n'est plus « sans `sudo` » : deux commandes en lecture seule, figées avec leurs arguments (`needrestart -r l -b`, et `pvecm status` sur un nœud). La page n'en reçoit que les mesures.
 2. **La grappe Proxmox : son API, en lecture seule.**
    - un utilisateur dédié, `cenacle@pve`, et un jeton à **séparation de privilèges**, avec le seul rôle `PVEAuditor` sur `/` : il voit, il ne peut rien changer ;
    - le jeton dans une famille de secrets à lui, `.env.proxmox`, chargée par le **seul serveur de la page** (ADR-0013) ;

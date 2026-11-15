@@ -32,6 +32,7 @@ const lines = (extra: string[] = [], drop: string[] = []) =>
 describe("a bulletin as the script recites it", () => {
   it("every measure, in whole numbers", () => {
     expect(parseBulletin(lines())).toEqual({
+      version: 1,
       host: "alpha",
       at: 1794679266000,
       uptimeSeconds: 594880,
@@ -42,6 +43,7 @@ describe("a bulletin as the script recites it", () => {
         { mount: "/", percent: 41, kilobytes: 30832548 },
         { mount: "/var/lib/vz", percent: 87, kilobytes: 954925484 },
       ],
+      health: null,
     });
   });
 
@@ -59,7 +61,7 @@ describe("refused whole", () => {
     ["no opening line", lines().replace("bulletin=1\n", "")],
     ["a key twice", lines(["charge1=12"])],
     ["a key it does not know", lines(["ssh.refus=3"])],
-    ["an unknown version", lines().replace("version=1", "version=2")],
+    ["an unknown version", lines().replace("version=1", "version=3")],
     ["undated", lines([], ["instant"])],
     ["a decimal where a whole number goes", lines().replace("charge1=34", "charge1=0.34")],
     ["a negative number", lines().replace("processeurs=4", "processeurs=-4")],

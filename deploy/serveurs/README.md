@@ -33,11 +33,12 @@ rsync -a deploy/serveurs ubuntu@<vps>:cenacle-serveurs/
 Puis sur le serveur :
 
 ```
-sudo apt install needrestart
 sudo ~/cenacle-serveurs/serveurs/install.sh
 ```
 
-Il crée le compte `cenacle` (sans mot de passe), pose le script dans `/usr/local/sbin`, la liste d'exclusions dans `/etc/cenacle/`, et la règle `sudo` dans `/etc/sudoers.d/cenacle` — vérifiée par `visudo` avant de prendre effet. Le relancer est sans danger.
+**Il pose d'abord le garde-fou de `needrestart`** (`/etc/needrestart/conf.d/zz-cenacle.conf`, `restart = 'l'`) : sans lui, le crochet apt de `needrestart` relance de lui-même tout service lié à une bibliothèque mise à jour (ADR-0040, d'après Legion). Si `needrestart` manque, il s'arrête là, garde-fou posé : installe-le (`sudo apt install needrestart`), puis relance `install.sh`.
+
+Il crée ensuite le compte `cenacle` (sans mot de passe), pose les scripts dans `/usr/local/sbin`, le bulletin dans `/usr/local/bin`, la liste d'exclusions dans `/etc/cenacle/`, et les règles `sudo` dans `/etc/sudoers.d/cenacle` — vérifiées par `visudo` avant de prendre effet, **puis une à une** : chaque forme permise doit passer, toute autre (`needrestart -r a -b`, `pvecm add`, un argument de plus…) doit être refusée ; au moindre doute, il retire `/etc/sudoers.d/cenacle` et le dit. Le relancer est sans danger.
 
 ## Sur le Mac, une clé par action et par machine
 
@@ -73,7 +74,11 @@ command="sudo -n /usr/local/sbin/cenacle-redemarrer",restrict,from="<adresse Tai
 
 ## Le bulletin, pour l'onglet « Parc » (ADR-0039)
 
-`cenacle-bulletin` **récite** les mesures de la machine — charge, processeurs, mémoire, disques — entre `bulletin=1` et `fin=1`, porté du bulletin de Legion. Il est **en lecture seule** : il n'écrit rien, ne change rien, et n'a pas besoin de `sudo`. `install.sh` le pose dans `/usr/local/bin`.
+`cenacle-bulletin` **récite** l'état de la machine entre `bulletin=1` et `fin=1`, porté du bulletin de Legion. Version 2 (ADR-0040) : les mesures que montre la page — charge, processeurs, mémoire, disques — et ce que la ronde jugera : redémarrage requis (`redemarrage`), mises à jour en attente (`maj.total`, `maj.securite`), services sur une bibliothèque remplacée (`services.a_relancer`, leur nombre seulement), quorum de la grappe sur un nœud (`grappe.quorum`, `grappe.votes`, `grappe.attendus`), ports en écoute (`ports`, la portée — `local/`, `tailnet/` ou rien — jamais l'adresse). **Ce qui n'a pas pu être lu n'est pas récité**, jamais mis à 0.
+
+Il est **en lecture seule** : il n'écrit rien, ne change rien. Il passe par `sudo` pour deux commandes seulement, figées avec leurs arguments dans `/etc/sudoers.d/cenacle` : `/usr/sbin/needrestart -r l -b` (lister, jamais relancer) et, sur un nœud, `/usr/bin/pvecm status`. `install.sh` le pose dans `/usr/local/bin`.
+
+**Passer une machine à la version 2** : le Mac lit déjà les deux versions. Depuis le Mac, `rsync` comme plus haut, puis `install.sh` sur la machine ; l'essai ci-dessous doit montrer `version=2` et la ligne `redemarrage=` (sur un nœud, aussi `grappe.quorum=oui`). Une machine à la fois : l'onglet « Parc » doit la montrer lisible avant de passer à la suivante.
 
 Sa **propre clé**, jamais une clé d'action (une clé qui met à jour ou redémarre ne sert pas à regarder) :
 
