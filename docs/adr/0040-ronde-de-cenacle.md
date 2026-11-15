@@ -1,6 +1,6 @@
 # ADR-0040 — La ronde de Cénacle : ses propres bulletins, sans Legion
 
-**Statut** : proposée (2026-11-15) — remplace, à terme, le pont avec la ronde de Legion (ADR-0025) ; révise l'ADR-0027 (la preuve par « le relevé de Legion ») et l'ADR-0039 (qui lit les bulletins, et quand)
+**Statut** : acceptée (2026-11-15) — remplace, à terme, le pont avec la ronde de Legion (ADR-0025) ; révise l'ADR-0027 (la preuve par « le relevé de Legion ») et l'ADR-0039 (qui lit les bulletins, et quand)
 
 ## Contexte
 
