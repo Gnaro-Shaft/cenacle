@@ -50,6 +50,8 @@ export interface ActionDeps {
   /** Whether I signed this merge request (ADR-0036, second step): the refusal's name, or null. */
   readonly signed: (f: StoredFinding) => Promise<MergeSignRefusal | null>;
   readonly merge: (url: string, sha: string) => Promise<MergeOutcome>;
+  /** Whether a pull request is of the project's own repository: nothing is closed elsewhere. */
+  readonly ownPr: (url: string) => Promise<boolean>;
   readonly close: (url: string) => Promise<boolean>;
   readonly tokens: (ids: readonly number[]) => Promise<Map<number, string>>;
   readonly send: (text: string) => Promise<void>;
@@ -131,6 +133,17 @@ async function requests(deps: ActionDeps): Promise<void> {
     const url = f.actionPrUrl;
     if (url === null) continue;
     if (f.actionState === "fermeture_demandee") {
+      // Closing needs no signature (it starts nothing), but never a pull
+      // request of another repository: a forged address would close it and
+      // delete its branch. Left aside, never followed again.
+      if (!(await deps.ownPr(url))) {
+        await deps.store.setAction(f.id, "echouee");
+        await record(deps, f, "close_refused_autre_depot");
+        await deps.send(
+          `❌ Fermeture refusée (constat n°${f.id}) : la PR n'est pas dans le dépôt du projet. Rien n'a été fermé.`,
+        );
+        continue;
+      }
       const closed = await deps.close(url);
       await deps.store.setAction(f.id, closed ? "fermee" : "ci_verte");
       if (closed) await record(deps, f, "closed");

@@ -48,6 +48,11 @@ export async function ownRepository(ops: PrOps): Promise<string | null> {
   return out.code === 0 && NAME_WITH_OWNER.test(name) ? name.toLowerCase() : null;
 }
 
+/** Whether a pull request's address is of the project's own repository; never when it is unknown. */
+export function inRepository(url: string, own: string | null): boolean {
+  return own !== null && prRepository(url) === own;
+}
+
 export interface MergeCheck {
   readonly publicKey: KeyObject | null;
   /** The project's own repository; null when it could not be read — then nothing merges. */
@@ -71,7 +76,6 @@ export function mergeNotSigned(
   if (!signed) return "non_signee";
   const age = check.now.getTime() - confirmedAt.getTime();
   if (age > MERGE_CONFIRM_MAX_MS || age < -AHEAD_MS) return "trop_ancienne";
-  const repository = prRepository(prUrl);
-  if (check.repository === null || repository !== check.repository) return "autre_depot";
+  if (!inRepository(prUrl, check.repository)) return "autre_depot";
   return null;
 }

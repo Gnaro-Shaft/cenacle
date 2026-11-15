@@ -47,6 +47,7 @@ function world(opts: {
   view?: PrView;
   merge?: MergeOutcome;
   signed?: (f: StoredFinding) => MergeSignRefusal | null;
+  ownPr?: boolean;
   delegations?: DelegationInfo[];
 }) {
   const states: [number, ActionState, string | undefined, string | undefined][] = [];
@@ -55,6 +56,7 @@ function world(opts: {
   const events: NewEvent[] = [];
   const delegated: number[] = [];
   const merged: string[] = [];
+  const closed: string[] = [];
   const deps = {
     store: {
       open: async () => opts.open ?? [],
@@ -76,7 +78,11 @@ function world(opts: {
       merged.push(`${url}@${sha}`);
       return opts.merge ?? { ok: true as const, clean: true };
     },
-    close: async () => true,
+    ownPr: async () => opts.ownPr ?? true,
+    close: async (url: string) => {
+      closed.push(url);
+      return true;
+    },
     tokens: async (ids: readonly number[]) => new Map(ids.map((i) => [i, "0123456789abcdef"])),
     send: async (t: string) => {
       sent.push(t);
@@ -100,7 +106,7 @@ function world(opts: {
     delegations: opts.delegations ?? [],
     now: () => new Date("2026-10-11T10:00:00Z"),
   };
-  return { deps, states, sent, buttons, events, delegated, merged };
+  return { deps, states, sent, buttons, events, delegated, merged, closed };
 }
 const outcomes = (events: NewEvent[]) =>
   events.filter((e) => e.type === "securite.action").map((e) => e.payload?.outcome);
@@ -188,6 +194,15 @@ describe("my ✅ and ❌", () => {
     const w = world({ requests: [asked("fermeture_demandee")], signed: () => "non_signee" });
     await runActions(w.deps);
     expect(w.states).toEqual([[4, "fermee", undefined, undefined]]);
+  });
+
+  it("❌ on a pull request of another repository: nothing closed, said, set aside", async () => {
+    const w = world({ requests: [asked("fermeture_demandee")], ownPr: false });
+    await runActions(w.deps);
+    expect(w.closed).toEqual([]);
+    expect(w.states).toEqual([[4, "echouee", undefined, undefined]]);
+    expect(w.sent[0]).toMatch(/Fermeture refusée.*pas dans le dépôt du projet/);
+    expect(outcomes(w.events)).toEqual(["close_refused_autre_depot"]);
   });
 
   it("✅ without a tested commit: never merged", async () => {

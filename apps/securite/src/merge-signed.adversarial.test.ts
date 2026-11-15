@@ -18,6 +18,7 @@ import {
 } from "@cenacle/core";
 import { describe, expect, it } from "vitest";
 import {
+  inRepository,
   MERGE_CONFIRM_MAX_MS,
   mergeKeyOrNull,
   mergeNotSigned,
@@ -156,6 +157,23 @@ describe("the project's own repository", () => {
     expect(await ownRepository(ops(0, ""))).toBeNull();
     expect(await ownRepository(ops(0, "exemple/cenacle\nautre/depot"))).toBeNull();
     expect(await ownRepository(ops(0, "exemple"))).toBeNull();
+  });
+});
+
+describe("a pull request to close (❌ Fermer)", () => {
+  it("only of the project's own repository, never when it is unknown", () => {
+    expect(inRepository(URL, REPO)).toBe(true);
+    expect(inRepository("https://github.com/Exemple/Cenacle/pull/3", REPO)).toBe(true);
+    for (const url of [
+      "https://github.com/exemple/autre/pull/3",
+      "https://github.com/autre/cenacle/pull/3",
+      "https://github.com/exemple/cenacle-bis/pull/3",
+      "https://github.com/exemple/cenacle/pull/3/files",
+      "",
+    ]) {
+      expect(inRepository(url, REPO)).toBe(false);
+    }
+    expect(inRepository(URL, null)).toBe(false);
   });
 });
 

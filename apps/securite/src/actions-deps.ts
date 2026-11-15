@@ -27,7 +27,7 @@ import type { ActionDeps, DelegationInfo } from "./actions.ts";
 import { firstExisting, runProgram } from "./checks.ts";
 import { prepareFix } from "./fix.ts";
 import { closeOnRequest, mergeOnRequest, viewPr } from "./merge.ts";
-import { mergeKeyOrNull, mergeNotSigned, ownRepository } from "./merge-signed.ts";
+import { inRepository, mergeKeyOrNull, mergeNotSigned, ownRepository } from "./merge-signed.ts";
 
 const RECORD_DAYS = 180;
 
@@ -99,6 +99,10 @@ export async function actionDeps(options: {
       });
     },
     merge: (url, sha) => mergeOnRequest(url, sha, ops),
+    ownPr: async (url) => {
+      repository ??= ownRepository(ops);
+      return inRepository(url, await repository);
+    },
     close: (url) => closeOnRequest(url, ops),
     tokens: (ids) => createSecuriteDecisions(sql).tokens(ids),
     send: (text) => telegram.sendMessage(chatId, text),
