@@ -117,6 +117,7 @@ export {
   type DecisionOutcome,
   type FixOutcome,
   type PrOutcome,
+  type PrRequest,
   type ReasonOutcome,
   type SecuriteDecisions,
 } from "./securite-decisions.ts";

@@ -3,7 +3,8 @@
  * (J6c, J6d — ADR-0025, ADR-0026):
  *  - a delegation that reached its threshold is proposed by the CTO, once;
  *  - a granted delegation prepares a fixable advisory (no major change) by itself;
- *  - my ✅ Fusionner / ❌ Fermer are done (merge.ts checks everything again);
+ *  - my ✅ Fusionner / ❌ Fermer are done: a merge only if the bot signed it
+ *    (merge-signed.ts), then merge.ts checks everything again;
  *  - the fixes I asked for (🔧), or a delegation did, are prepared (fix.ts);
  *  - each pull request is followed: CI green → the merge buttons; red, or
  *    closed, or merged by me on GitHub → said once.
@@ -25,6 +26,7 @@ import {
 } from "@cenacle/securite";
 import type { FixRequest, FixResult } from "./fix.ts";
 import type { MergeOutcome } from "./merge.ts";
+import type { MergeSignRefusal } from "./merge-signed.ts";
 
 const AGENT = "securite";
 const DELEGABLE: Delegable = "preparer_pr_npm";
@@ -45,7 +47,11 @@ export interface ActionDeps {
   >;
   readonly prepare: (req: FixRequest) => Promise<FixResult>;
   readonly view: (url: string) => Promise<PrView>;
+  /** Whether I signed this merge request (ADR-0036, second step): the refusal's name, or null. */
+  readonly signed: (f: StoredFinding) => Promise<MergeSignRefusal | null>;
   readonly merge: (url: string, sha: string) => Promise<MergeOutcome>;
+  /** Whether a pull request is of the project's own repository: nothing is closed elsewhere. */
+  readonly ownPr: (url: string) => Promise<boolean>;
   readonly close: (url: string) => Promise<boolean>;
   readonly tokens: (ids: readonly number[]) => Promise<Map<number, string>>;
   readonly send: (text: string) => Promise<void>;
@@ -73,6 +79,13 @@ const REFUSAL: Readonly<Record<string, string>> = {
   base: "elle ne vise plus main",
   files: "elle touche autre chose que des fichiers de paquets",
   gh: "GitHub a refusé la fusion",
+};
+
+const UNSIGNED: Readonly<Record<MergeSignRefusal, string>> = {
+  cle_absente: "je n'ai pas la clé publique du bot (CENACLE_CONFIRM_PUBLIC_KEY dans .env)",
+  non_signee: "la demande ne porte pas la signature du bot pour cette PR et ce commit",
+  trop_ancienne: "ta confirmation a plus de 30 minutes",
+  autre_depot: "la PR n'est pas dans le dépôt du projet",
 };
 
 const FAILURES = new Set(["closed", "ci_failed", "merged_edited"]);
@@ -120,6 +133,17 @@ async function requests(deps: ActionDeps): Promise<void> {
     const url = f.actionPrUrl;
     if (url === null) continue;
     if (f.actionState === "fermeture_demandee") {
+      // Closing needs no signature (it starts nothing), but never a pull
+      // request of another repository: a forged address would close it and
+      // delete its branch. Left aside, never followed again.
+      if (!(await deps.ownPr(url))) {
+        await deps.store.setAction(f.id, "echouee");
+        await record(deps, f, "close_refused_autre_depot");
+        await deps.send(
+          `❌ Fermeture refusée (constat n°${f.id}) : la PR n'est pas dans le dépôt du projet. Rien n'a été fermé.`,
+        );
+        continue;
+      }
       const closed = await deps.close(url);
       await deps.store.setAction(f.id, closed ? "fermee" : "ci_verte");
       if (closed) await record(deps, f, "closed");
@@ -127,6 +151,16 @@ async function requests(deps: ActionDeps): Promise<void> {
         closed
           ? `❌ PR fermée (constat n°${f.id}).`
           : `❌ La PR du constat n°${f.id} n'a pas pu être fermée : réessaie.`,
+      );
+      continue;
+    }
+    // Never a merge I did not sign: whatever the row says, it is refused by name.
+    const unsigned = await deps.signed(f);
+    if (unsigned !== null) {
+      await deps.store.setAction(f.id, "pr_ouverte");
+      await record(deps, f, `unsigned_${unsigned}`);
+      await deps.send(
+        `🛑 Fusion refusée (constat n°${f.id}) : ${UNSIGNED[unsigned]}. Rien n'a été fusionné ; de nouveaux boutons viendront si la CI est verte.`,
       );
       continue;
     }
@@ -205,7 +239,7 @@ async function follow(deps: ActionDeps): Promise<void> {
       await deps.store.setAction(f.id, "ci_verte", undefined, v.headSha);
       await deps.sendButtons(
         `🔧 La CI de la PR du constat n°${f.id} est verte : ${url}\nOn la fusionne ? Seuls des fichiers de paquets changent ; la fusion se fera sur ce commit-là (${v.headSha.slice(0, 7)}), sinon rien.`,
-        prKeyboard(f.id, token),
+        prKeyboard(f.id, token, v.headSha),
       );
     } else if (f.actionState === "ci_verte" && v.headSha !== f.actionHeadSha) {
       // Something was pushed after the buttons: they no longer apply.

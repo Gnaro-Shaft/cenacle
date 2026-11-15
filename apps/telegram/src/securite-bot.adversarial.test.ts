@@ -17,6 +17,8 @@ const OWNER = 4242;
 // A fake button token, built by pieces (not a secret: a test value).
 const TOKEN = ["01234567", "89abcdef"].join("");
 const NOW = new Date("2026-10-11T08:00:00Z");
+const SHOWN = "abcdef012345";
+const SIGN_MERGE = () => "s".repeat(86);
 
 function world(over: Partial<SecuriteDecisions> = {}) {
   const calls: string[] = [];
@@ -38,10 +40,13 @@ function world(over: Partial<SecuriteDecisions> = {}) {
       return prompt === 77 ? "done" : "unknown";
     },
     isAsking: async (prompt) => prompt === 77 || prompt === 78,
-    requestPr: async (id, token, action) => {
-      calls.push(`pr ${id} ${action}`);
+    requestPr: async (id, token, request) => {
+      calls.push(
+        `pr ${id} ${request.action}${request.action === "merge" ? ` ${request.shown}` : ""}`,
+      );
+      if (request.action === "merge" && request.sign !== SIGN_MERGE) return "unsigned";
       if (token !== TOKEN) return "stale";
-      return id === 1 ? "done" : "not_ready";
+      return id === 1 ? "done" : id === 3 ? "moved" : id === 4 ? "unsigned" : "not_ready";
     },
     requestFix: async (id, token) => {
       calls.push(`fix ${id}`);
@@ -80,6 +85,7 @@ function world(over: Partial<SecuriteDecisions> = {}) {
     serverActions: { request: async () => null, confirm: async () => "stale" },
     signAction: null,
     signPlan: null,
+    signMerge: SIGN_MERGE,
     serversActive: () => false,
     journal: {
       append: async (e) => {
@@ -126,17 +132,47 @@ describe("✅ on a CERT-FR bulletin (J6e3)", () => {
 });
 
 describe("✅ Fusionner / ❌ Fermer (J6d)", () => {
-  it("recorded for the next round; the bot itself never touches GitHub", async () => {
+  it("recorded for the next round, signed with the commit shown; the bot never touches GitHub", async () => {
+    const w = world();
+    await handleCallback(tap(`p:1:m:${TOKEN}:${SHOWN}`), w.deps);
+    expect(w.calls).toEqual([
+      `pr 1 merge ${SHOWN}`,
+      expect.stringMatching(/^answer ✅ Fusion demandée et signée/),
+    ]);
+    expect(w.events.map((e) => e.payload)).toEqual([{ action: "merge" }]);
+  });
+
+  it("a ✅ from before the signature, with no commit: stale, nothing asked", async () => {
     const w = world();
     await handleCallback(tap(`p:1:m:${TOKEN}`), w.deps);
-    expect(w.calls).toEqual(["pr 1 merge", expect.stringMatching(/^answer ✅ Fusion demandée/)]);
-    expect(w.events.map((e) => e.payload)).toEqual([{ action: "merge" }]);
+    expect(w.calls).toEqual([expect.stringMatching(/^answer .*plus valable/)]);
+    expect(w.events).toEqual([]);
+  });
+
+  it("without the bot's key: no merge asked — closing still works", async () => {
+    const w = world();
+    const deps = { ...w.deps, signMerge: null };
+    await handleCallback(tap(`p:1:m:${TOKEN}:${SHOWN}`), deps);
+    expect(w.calls).toEqual([expect.stringMatching(/^answer 🛑 Je n'ai pas ma clé/)]);
+    await handleCallback(tap(`p:1:c:${TOKEN}`), deps);
+    expect(w.calls.at(-1)).toMatch(/^answer ❌ Fermeture demandée/);
+  });
+
+  it("the commit moved since the message, or a field the bot cannot sign: nothing asked", async () => {
+    const w = world();
+    await handleCallback(tap(`p:3:m:${TOKEN}:${SHOWN}`), w.deps);
+    await handleCallback(tap(`p:4:m:${TOKEN}:${SHOWN}`), w.deps);
+    expect(w.calls.filter((c) => c.startsWith("answer"))).toEqual([
+      expect.stringMatching(/n'est plus sur le commit de ce message/),
+      expect.stringMatching(/ne peut pas être signée/),
+    ]);
+    expect(w.events).toEqual([]);
   });
 
   it("not ready (CI not green, already decided), or a forged token: nothing", async () => {
     const w = world();
     await handleCallback(tap(`p:2:c:${TOKEN}`), w.deps);
-    await handleCallback(tap(`p:1:m:${"f".repeat(16)}`), w.deps);
+    await handleCallback(tap(`p:1:m:${"f".repeat(16)}:${SHOWN}`), w.deps);
     expect(w.calls.filter((c) => c.startsWith("answer"))).toEqual([
       expect.stringMatching(/n'attend pas de décision/),
       expect.stringMatching(/plus valable/),
@@ -146,7 +182,7 @@ describe("✅ Fusionner / ❌ Fermer (J6d)", () => {
 
   it("from another account: ignored", async () => {
     const w = world();
-    await handleCallback(tap(`p:1:m:${TOKEN}`, 666), w.deps);
+    await handleCallback(tap(`p:1:m:${TOKEN}:${SHOWN}`, 666), w.deps);
     expect(w.calls).toEqual([]);
   });
 });

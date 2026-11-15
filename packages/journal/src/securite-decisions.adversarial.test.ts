@@ -179,15 +179,17 @@ describe("✅ / ❌ under a pull request, and delegation (J6d)", () => {
   }
 
   it("only once the CI is green, with the right token; then it waits for the round", async () => {
+    const merge = { action: "merge", shown: "a".repeat(12), sign: () => "s".repeat(86) } as const;
+    const close = { action: "close" } as const;
     const [id, token] = await withPr("ci_verte");
-    expect(await decisions.requestPr(id, "f".repeat(16), "merge", T0)).toBe("stale");
-    expect(await decisions.requestPr(id, token, "merge", T0)).toBe("done");
+    expect(await decisions.requestPr(id, "f".repeat(16), merge, T0)).toBe("stale");
+    expect(await decisions.requestPr(id, token, merge, T0)).toBe("done");
     expect((await store.prRequests()).find((f) => f.id === id)?.actionState).toBe(
       "fusion_demandee",
     );
-    expect(await decisions.requestPr(id, token, "close", T0)).toBe("not_ready");
+    expect(await decisions.requestPr(id, token, close, T0)).toBe("not_ready");
     const [other, t2] = await withPr("pr_ouverte");
-    expect(await decisions.requestPr(other, t2, "merge", T0)).toBe("not_ready");
+    expect(await decisions.requestPr(other, t2, merge, T0)).toBe("not_ready");
   });
 
   it("a delegation takes only an open advisory with no action yet", async () => {

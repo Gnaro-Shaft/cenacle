@@ -25,6 +25,7 @@ export {
   opKeyboard,
   type PrAction,
   type Pressed,
+  type PrPressed,
   parseOpPressed,
   parsePressed,
   parsePrPressed,

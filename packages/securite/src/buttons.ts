@@ -89,28 +89,50 @@ export function parsePressed(data: unknown): Pressed | null {
   return { id, action, token: m[3] ?? "" };
 }
 
-/** Under a pull request the agent prepared, CI green (J6d): ✅ merge, ❌ close. */
+/**
+ * Under a pull request the agent prepared, CI green (J6d): ✅ merge, ❌ close.
+ * ✅ carries the start of the commit the message shows (ADR-0036, second
+ * step): the bot signs a merge of that commit only, never of one written in
+ * its place since. A ✅ from before, with no commit, is stale.
+ */
 export type PrAction = "merge" | "close";
-const PR_DATA = /^p:(\d{1,12}):([mc]):([0-9a-f]{16})$/;
+export type PrPressed =
+  | {
+      readonly id: number;
+      readonly action: "merge";
+      readonly token: string;
+      readonly shown: string;
+    }
+  | { readonly id: number; readonly action: "close"; readonly token: string };
+const MERGE_DATA = /^p:(\d{1,12}):m:([0-9a-f]{16}):([0-9a-f]{12})$/;
+const CLOSE_DATA = /^p:(\d{1,12}):c:([0-9a-f]{16})$/;
+const FULL_SHA = /^[0-9a-f]{40}$/;
 
-export function prKeyboard(id: number, token: string): Button[][] {
+export function prKeyboard(id: number, token: string, headSha: string): Button[][] {
+  if (!FULL_SHA.test(headSha)) throw new Error("a merge button needs the full commit it merges");
   return [
     [
-      { text: `✅ Fusionner (constat n°${id})`, data: `p:${id}:m:${token}` },
+      {
+        text: `✅ Fusionner (constat n°${id})`,
+        data: `p:${id}:m:${token}:${headSha.slice(0, 12)}`,
+      },
       { text: "❌ Fermer", data: `p:${id}:c:${token}` },
     ],
   ];
 }
 
-export function parsePrPressed(
-  data: unknown,
-): { id: number; action: PrAction; token: string } | null {
+export function parsePrPressed(data: unknown): PrPressed | null {
   if (typeof data !== "string" || data.length > MAX_BUTTON_DATA) return null;
-  const m = PR_DATA.exec(data);
+  const merge = MERGE_DATA.exec(data);
+  const close = merge === null ? CLOSE_DATA.exec(data) : null;
+  const m = merge ?? close;
   if (m === null) return null;
   const id = Number(m[1]);
   if (!Number.isSafeInteger(id) || id <= 0) return null;
-  return { id, action: m[2] === "m" ? "merge" : "close", token: m[3] ?? "" };
+  const token = m[2] ?? "";
+  return merge === null
+    ? { id, action: "close", token }
+    : { id, action: "merge", token, shown: merge[3] ?? "" };
 }
 
 /** The confirmation of an action on a server (J6f1b): one button, its own token, 2 minutes. */
@@ -146,7 +168,10 @@ export const ANSWER = {
     `🔧 Demande notée pour le constat n°${id} : la prochaine ronde (15 min au plus) prépare la PR. Elle ne sera jamais fusionnée sans toi.`,
   notFixable: "🔧 Ce constat ne se corrige pas par une PR : rien n'a changé.",
   merge: (id: number) =>
-    `✅ Fusion demandée (constat n°${id}) : la prochaine ronde la fait, seulement si rien n'a bougé depuis la CI.`,
+    `✅ Fusion demandée et signée (constat n°${id}) : la prochaine ronde la fait, dans les 30 minutes, seulement si rien n'a bougé depuis la CI.`,
+  mergeMoved:
+    "🛑 La PR n'est plus sur le commit de ce message : rien n'est demandé. De nouveaux boutons viendront quand la CI sera verte sur le nouveau.",
+  mergeUnsignable: "🛑 Cette fusion ne peut pas être signée : rien n'est demandé.",
   close: (id: number) =>
     `❌ Fermeture demandée (constat n°${id}) : la prochaine ronde ferme la PR.`,
   notReady: "Cette PR n'attend pas de décision (CI pas encore verte, ou déjà décidée).",

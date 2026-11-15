@@ -112,6 +112,7 @@ const securite: SecuriteBotDeps = {
   serverActions: createServeurActions(sql),
   signAction: signers.signAction,
   signPlan: signers.signPlan,
+  signMerge: signers.signMerge,
   serversActive: () => {
     try {
       return parseServerSwitch(readFileSync(join(ROOT, "securite.toml"), "utf8"));
