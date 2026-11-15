@@ -13,7 +13,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { readOrNull, writeWhole } from "./files.ts";
+import { leaveFiles, readOrNull, writeWhole } from "./files.ts";
 
 const BASE = mkdtempSync(join(tmpdir(), "cenacle-ronde-test-"));
 afterAll(() => rmSync(BASE, { recursive: true, force: true }));
@@ -50,5 +50,31 @@ describe("read back", () => {
     writeWhole(join(BASE, "present"), "x\n");
     expect(readOrNull(join(BASE, "present"))).toBe("x\n");
     expect(() => readOrNull(BASE)).toThrow();
+  });
+});
+
+describe("what a pass leaves", () => {
+  const paths = {
+    verdict: join(BASE, "pass-verdict"),
+    bulletins: join(BASE, "pass-bulletins.json"),
+  };
+  const bulletins = { at: 1, config: "ok" as const, machines: [] };
+
+  it("machines judged: the verdict and the page's file, the worst state said", () => {
+    const hosts = [
+      { name: "alpha", state: "SAIN" as const, motifs: [] },
+      { name: "beta", state: "SOUFFRANT" as const, motifs: ["mises a jour non recitees"] },
+    ];
+    expect(leaveFiles({ hosts, bulletins, notes: [] }, paths, 1_794_679_266)).toBe("SOUFFRANT");
+    expect(readFileSync(paths.verdict, "utf8")).toMatch(/^etat=SOUFFRANT\n/);
+    expect(JSON.parse(readFileSync(paths.bulletins, "utf8"))).toEqual(bulletins);
+  });
+
+  it("no machine judged any more: the old verdict is removed, never left to look current", () => {
+    writeWhole(paths.verdict, "etat=SAIN\ninstant=1794679266\nhotes=0\nfin=1\n");
+    const none = { at: 2, config: "illisible" as const, machines: [] };
+    expect(leaveFiles({ hosts: [], bulletins: none, notes: [] }, paths, 1_794_679_266)).toBeNull();
+    expect(readOrNull(paths.verdict)).toBeNull();
+    expect(JSON.parse(readFileSync(paths.bulletins, "utf8"))).toEqual(none);
   });
 });

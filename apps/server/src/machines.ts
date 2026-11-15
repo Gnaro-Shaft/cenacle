@@ -25,7 +25,7 @@ export interface MachinesView {
   readonly at: number | null;
   /** Four passes missed, or from the future: shown, marked. */
   readonly stale: boolean;
-  /** parc.local.toml, as the ronde found it. */
+  /** The park's configuration, as the ronde found it. */
   readonly config: RondeBulletins["config"];
   readonly machines: readonly MachineRead[];
 }

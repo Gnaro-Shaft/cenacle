@@ -9,14 +9,8 @@
 import { join } from "node:path";
 import { errorText, refuseForeignSecrets } from "@cenacle/core";
 import { connectOrQuit, holdSingleInstance } from "@cenacle/journal";
-import {
-  PARK_FILE,
-  RONDE_BULLETINS_PATH,
-  RONDE_VERDICT_PATH,
-  verdictText,
-  worstState,
-} from "@cenacle/securite";
-import { readOrNull, writeWhole } from "./files.ts";
+import { PARK_FILE, RONDE_BULLETINS_PATH, RONDE_VERDICT_PATH } from "@cenacle/securite";
+import { leaveFiles, readOrNull } from "./files.ts";
 import { runPass } from "./pass.ts";
 import { keyIsPrivate, runSsh } from "./ssh.ts";
 
@@ -32,14 +26,14 @@ async function pass(): Promise<void> {
     keyOk: (path) => keyIsPrivate(path),
     now: () => Date.now(),
   });
-  // The page's file first: it says, even with no machine, why none is read.
-  writeWhole(RONDE_BULLETINS_PATH, `${JSON.stringify(result.bulletins)}\n`);
   for (const note of result.notes) console.log(`ℹ Ronde : ${note}`);
-  if (result.hosts.length === 0) return;
-  writeWhole(RONDE_VERDICT_PATH, verdictText(result.hosts, Math.floor(Date.now() / 1000)));
+  const state = leaveFiles(
+    result,
+    { verdict: RONDE_VERDICT_PATH, bulletins: RONDE_BULLETINS_PATH },
+    Math.floor(Date.now() / 1000),
+  );
   // One line when the state changes, not one every 5 minutes.
-  const state = worstState(result.hosts.map((h) => h.state));
-  if (state !== before) {
+  if (state !== null && state !== before) {
     console.log(`✔ Ronde : ${state} (${result.hosts.length} machine(s), était ${before ?? "—"})`);
   }
 }

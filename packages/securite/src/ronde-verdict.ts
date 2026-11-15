@@ -5,7 +5,13 @@
  * machines, then each machine's `<nom>.etat=` and `<nom>.motifN=`, `fin=1`.
  * Pure: the file is written whole by the ronde (apps/ronde).
  */
+import { VERDICT_MOTIF } from "./parse-legion.ts";
 import { type HostVerdict, worstState } from "./ronde-rules.ts";
+
+/** The reader takes motif1 to motif99. */
+const MAX_MOTIFS = 99;
+const OUT_OF_SHAPE = "motif hors forme — non recopie";
+const TOO_MANY = "motifs trop nombreux — les suivants non recopies";
 
 /** Where the ronde leaves its verdict, overwritten at every pass. */
 export const RONDE_VERDICT_PATH =
@@ -26,9 +32,15 @@ export function verdictText(hosts: readonly NamedVerdict[], instantSeconds: numb
   ];
   for (const host of hosts) {
     lines.push(`${host.name}.etat=${host.state}`);
-    host.motifs.forEach((motif, i) => {
+    const motifs =
+      host.motifs.length > MAX_MOTIFS
+        ? [...host.motifs.slice(0, MAX_MOTIFS - 1), TOO_MANY]
+        : host.motifs;
+    motifs.forEach((motif, i) => {
       // A line break would end the motif and start a forged line: Legion turns it into a space.
-      lines.push(`${host.name}.motif${i + 1}=${motif.replaceAll("\n", " ")}`);
+      const flat = motif.replaceAll("\n", " ");
+      // A motif the reader would refuse would make the whole verdict unreadable: said in fixed words.
+      lines.push(`${host.name}.motif${i + 1}=${VERDICT_MOTIF.test(flat) ? flat : OUT_OF_SHAPE}`);
     });
   }
   lines.push("fin=1");

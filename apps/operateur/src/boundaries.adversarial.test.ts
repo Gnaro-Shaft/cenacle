@@ -99,10 +99,16 @@ describe("ssh, and the servers' list, belong to the operator alone", () => {
       const text = readFileSync(file, "utf8");
       expect(text, relative(ROOT, file)).not.toMatch(/@cenacle\/ronde|apps\/ronde\/src/);
     }
-    // ADR-0040: the page's server holds no read key and never opens parc.local.toml.
+    // ADR-0040: the page's server holds no read key, never opens the park's file, starts no process.
     for (const file of sources(join(ROOT, "apps", "server"))) {
       const text = readFileSync(file, "utf8");
-      expect(text, relative(ROOT, file)).not.toMatch(/parseParkMachines|PARK_FILE|execFile\(/);
+      expect(text, relative(ROOT, file)).not.toMatch(
+        /parseParkMachines|PARK_FILE|parc\.local|child_process/,
+      );
+    }
+    // In the ronde, ssh.ts alone may start a process.
+    for (const file of RONDE.filter((f) => f !== BULLETINS)) {
+      expect(readFileSync(file, "utf8"), relative(ROOT, file)).not.toMatch(/child_process/);
     }
   });
 

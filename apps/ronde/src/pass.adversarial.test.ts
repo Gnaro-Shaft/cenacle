@@ -175,3 +175,21 @@ describe("no machine to judge: the page told why, no verdict", () => {
     expect(calls).toEqual([]);
   });
 });
+
+describe("what the review found (R2)", () => {
+  it("ssh that could not start: said as such, not as a machine out of reach", async () => {
+    const r = await setup({ ...healthy, "alpha.exemple.test": { code: -2, out: "" } }).pass();
+    expect(r.hosts[0]).toEqual({
+      name: "alpha",
+      state: "MALADE",
+      motifs: ["alpha : ssh n'a pas pu etre lance"],
+    });
+  });
+
+  it("what the machine wrote is never copied raw into the log", async () => {
+    const out = bulletin("alpha-host").replace("fin=1", "x<b>é\u001b[31m=1\nfin=1");
+    const r = await setup({ ...healthy, "alpha.exemple.test": { code: 0, out } }).pass();
+    expect(r.hosts[0]?.state).toBe("MALADE");
+    expect(r.notes[0]).toMatch(/^alpha: [\w .:=/?-]+$/);
+  });
+});

@@ -294,10 +294,29 @@ describe("a machine that could not be judged: MALADE, fixed words, never ssh's o
   it.each([
     ["cle", 0, "alpha : cle du bulletin mal protegee — non utilisee"],
     ["delai", 0, "alpha : injoignable (delai depasse)"],
+    ["lancement", 0, "alpha : ssh n'a pas pu etre lance"],
     ["ssh", 255, "alpha : injoignable (ssh a rendu 255)"],
     ["ssh", 1, "alpha : ssh a rendu 1"],
     ["illisible", 0, "alpha : bulletin illisible"],
   ] as const)("%s (%i)", (failure, code, motif) => {
     expect(failureVerdict("alpha", failure, code)).toEqual({ state: "MALADE", motifs: [motif] });
+  });
+});
+
+describe("a long list of ports: several motifs, each one the security agent can read", () => {
+  it("30 unexpected ports: three motifs of 12, 12 and 6, in order, each under 300 characters", () => {
+    const many = Array.from({ length: 30 }, (_, i) => `tailnet/tcp/${65_000 + i}`);
+    const out = portMotifs(many, ["tcp/22"]);
+    const unexpected = out.filter(([s]) => s === "MALADE").map(([, m]) => m);
+    expect(unexpected).toHaveLength(3);
+    expect(unexpected.map((m) => m.split(", ").length)).toEqual([12, 12, 6]);
+    expect(unexpected[0]).toMatch(/^port\(s\) inattendu\(s\) : tailnet\/tcp\/65000, /);
+    for (const m of unexpected) expect(m.length).toBeLessThanOrEqual(300);
+    expect(out.at(-1)).toEqual(["SOUFFRANT", "port(s) attendu(s) absent(s) : tcp/22"]);
+  });
+
+  it("12 ports exactly: still one motif, as Legion writes it", () => {
+    const twelve = Array.from({ length: 12 }, (_, i) => `tcp/${1000 + i}`);
+    expect(portMotifs(twelve, [])).toHaveLength(1);
   });
 });

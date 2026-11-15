@@ -3,8 +3,9 @@
 // that the contract holds: every motif the rules can say is a finding of the
 // right kind there, none refused, none lost.
 import { describe, expect, it } from "vitest";
+import type { Bulletin } from "./bulletin.ts";
 import { legionView, parseLegionVerdict } from "./parse-legion.ts";
-import { failureVerdict } from "./ronde-rules.ts";
+import { failureVerdict, judge } from "./ronde-rules.ts";
 import { type NamedVerdict, verdictText } from "./ronde-verdict.ts";
 
 const INSTANT = 1_794_679_266;
@@ -132,5 +133,64 @@ describe("read back by the security agent (parse-legion.ts)", () => {
     const failures = parseLegionVerdict(text, NOW_MS).filter((o) => o.target.startsWith("d"));
     expect(failures).toHaveLength(6);
     expect(failures.every((o) => o.type === "serveur_autre" && o.severity === "moyen")).toBe(true);
+  });
+});
+
+describe("one machine can never make the whole verdict unreadable", () => {
+  const healthy: NamedVerdict = { name: "beta", state: "SAIN", motifs: [] };
+
+  it("256 unexpected ports and 256 missing ones: read, every port a finding", () => {
+    const recited = Array.from({ length: 256 }, (_, i) => ({
+      scope: "tailnet" as const,
+      protocol: "tcp" as const,
+      port: 60_000 + i,
+    }));
+    const expected = Array.from({ length: 256 }, (_, i) => `tailnet/udp/${50_000 + i}`);
+    const b: Bulletin = {
+      version: 2,
+      host: "alpha-host",
+      at: NOW_MS,
+      uptimeSeconds: null,
+      load: null,
+      cpus: null,
+      memory: null,
+      disks: [{ mount: "/", percent: 10, kilobytes: 1 }],
+      health: {
+        rebootRequired: false,
+        updates: { total: 0, security: 0 },
+        servicesToRestart: 0,
+        cluster: null,
+        ports: recited,
+      },
+    };
+    const expect_ = { hostname: "alpha-host", ports: expected, diskWarn: 80, diskAlert: 90 };
+    const v = judge("alpha", b, expect_, NOW_MS);
+    const text = verdictText([{ name: "alpha", ...v }, healthy], INSTANT);
+    const found = parseLegionVerdict(text, NOW_MS);
+    expect(found.filter((o) => o.type === "serveur_port")).toHaveLength(256);
+    expect(found.filter((o) => o.type === "serveur_port_absent")).toHaveLength(256);
+  });
+
+  it.each([
+    ["too long for the reader", "x".repeat(301)],
+    ["a character it refuses", "port \u0007 cloche"],
+    ["a bracket of its own", "port [x]"],
+  ])("a motif %s: said in fixed words, the rest read", (_what, motif) => {
+    const reboot = "redemarrage requis — un noyau corrige mais non charge";
+    const alpha: NamedVerdict = { name: "alpha", state: "MALADE", motifs: [motif, reboot] };
+    const text = verdictText([alpha, healthy], INSTANT);
+    expect(text).toContain("alpha.motif1=motif hors forme — non recopie\n");
+    expect(parseLegionVerdict(text, NOW_MS).map((o) => o.type)).toEqual([
+      "serveur_autre",
+      "serveur_redemarrage",
+    ]);
+  });
+
+  it("more than 99 motifs: 98 kept, the last says the rest were left out", () => {
+    const motifs = Array.from({ length: 120 }, (_, i) => `disque /d${i} occupe a 95 %`);
+    const text = verdictText([{ name: "alpha", state: "MALADE", motifs }], INSTANT);
+    expect(text).toContain("alpha.motif99=motifs trop nombreux — les suivants non recopies\n");
+    expect(text).not.toContain("alpha.motif100=");
+    expect(parseLegionVerdict(text, NOW_MS)).toHaveLength(99);
   });
 });

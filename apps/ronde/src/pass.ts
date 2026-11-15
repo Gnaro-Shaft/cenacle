@@ -65,6 +65,7 @@ async function readOne(machine: ParkMachine, config: ParkConfig, deps: PassDeps)
   if (!deps.keyOk(machine.key)) return failed(name, "cle", "cle", "key not private (600)");
   const { code, out } = await deps.run(sshArgs(asServer(machine), machine.key, config.knownHosts));
   if (code === -1) return failed(name, "injoignable", "delai", "cut off");
+  if (code === -2) return failed(name, "illisible", "lancement", "ssh could not start");
   if (code === 255) return failed(name, "injoignable", "ssh", "ssh 255", code);
   if (code !== 0) return failed(name, "illisible", "ssh", `exit ${code}`, code);
   let bulletin: ReturnType<typeof parseBulletin>;
@@ -72,7 +73,9 @@ async function readOne(machine: ParkMachine, config: ParkConfig, deps: PassDeps)
     bulletin = parseBulletin(out);
   } catch (error) {
     if (!(error instanceof BulletinError)) throw error;
-    return failed(name, "illisible", "illisible", error.message);
+    // The reason may quote 40 characters of the machine's own: kept to plain ones.
+    const reason = error.message.replace(/[^\w .:=/-]/g, "?").slice(0, 120);
+    return failed(name, "illisible", "illisible", reason);
   }
   const verdict = { name, ...judge(name, bulletin, machine.expect, deps.now()) };
   // Another machine's bulletin: judged MALADE, and its measures are not this machine's.

@@ -21,8 +21,8 @@ const FUTURE_TOLERANCE_MS = 5 * 60_000;
 const HOST = /^[a-z0-9][a-z0-9-]{0,39}$/;
 const MOUNT = /^\/[A-Za-z0-9._/-]{0,100}$/;
 const PORT = /^(?:[a-z]{2,10}\/)?(?:tcp|udp)\/(?:\d{1,5}|\*)$/;
-/** What a motif may hold: Legion writes plain French, ports and paths. */
-const MOTIF = /^[\p{L}\p{N} .,:;'’()%/_+*<>=—-]{1,300}$/u;
+/** What a motif may hold: Legion writes plain French, ports and paths. The ronde writes nothing else. */
+export const VERDICT_MOTIF = /^[\p{L}\p{N} .,:;'’()%/_+*<>=—-]{1,300}$/u;
 
 const fail = () => new CheckOutputError("legion_ronde");
 
@@ -195,7 +195,7 @@ function verdictFields(raw: string): Map<string, string> {
   for (const [key, value] of fields) {
     const m = /^([^.]+)\.motif(\d{1,2})$/.exec(key);
     if (m === null) continue;
-    if (!hosts.includes(m[1] ?? "") || !MOTIF.test(value)) throw fail();
+    if (!hosts.includes(m[1] ?? "") || !VERDICT_MOTIF.test(value)) throw fail();
   }
   return fields;
 }

@@ -13,7 +13,7 @@ export const SSH = "/usr/bin/ssh";
 /** The whole call: connection (ssh's own limit), the bulletin, and its two port readings. */
 export const SSH_TIMEOUT_MS = 60_000;
 
-/** One call: its exit code (-1 when cut off) and its output, capped. */
+/** One call: its exit code (-1 when cut off, -2 when ssh could not start) and its output, capped. */
 export type Run = (args: readonly string[]) => Promise<{ code: number; out: string }>;
 
 export const runSsh: Run = (args) =>
@@ -30,6 +30,8 @@ export const runSsh: Run = (args) =>
       (error, stdout) => {
         const out = typeof stdout === "string" ? stdout : "";
         if (error === null) resolve({ code: 0, out });
+        // ssh itself could not start (ENOENT, EACCES): not the machine's fault.
+        else if (typeof error.code === "string") resolve({ code: -2, out: "" });
         // Cut off by the limit, or by maxBuffer: no answer worth reading.
         else if (error.killed === true || error.signal !== null) resolve({ code: -1, out: "" });
         else resolve({ code: typeof error.code === "number" ? error.code : -1, out: "" });

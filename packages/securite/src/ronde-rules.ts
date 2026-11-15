@@ -38,6 +38,12 @@ export const DISK_ALERT = 90;
 /** Older than this, or this far in the future, the bulletin is said so. */
 export const BULLETIN_AGE_MAX_S = 900;
 const MEMORY_ALERT = 5;
+/**
+ * Ports per motif: 12 of the longest (`tailnet/tcp/65535`) stay under the 300
+ * characters the security agent reads — a longer list would make the whole
+ * verdict unreadable, every machine with it. Legion writes one motif.
+ */
+export const PORTS_PER_MOTIF = 12;
 
 const RANK: Readonly<Record<RondeState, number>> = { SAIN: 0, SOUFFRANT: 1, MALADE: 2 };
 
@@ -47,7 +53,7 @@ export function worstState(states: readonly RondeState[]): RondeState {
 }
 
 /** Why a machine could not be judged: MALADE, one motif, never SAIN. */
-export type RondeFailure = "cle" | "delai" | "ssh" | "illisible";
+export type RondeFailure = "cle" | "delai" | "lancement" | "ssh" | "illisible";
 
 export function failureVerdict(name: string, failure: RondeFailure, code = 0): HostVerdict {
   const motif =
@@ -55,11 +61,13 @@ export function failureVerdict(name: string, failure: RondeFailure, code = 0): H
       ? `${name} : cle du bulletin mal protegee — non utilisee`
       : failure === "delai"
         ? `${name} : injoignable (delai depasse)`
-        : failure === "ssh"
-          ? code === 255
-            ? `${name} : injoignable (ssh a rendu 255)`
-            : `${name} : ssh a rendu ${code}`
-          : `${name} : bulletin illisible`;
+        : failure === "lancement"
+          ? `${name} : ssh n'a pas pu etre lance`
+          : failure === "ssh"
+            ? code === 255
+              ? `${name} : injoignable (ssh a rendu 255)`
+              : `${name} : ssh a rendu ${code}`
+            : `${name} : bulletin illisible`;
   return { state: "MALADE", motifs: [motif] };
 }
 
@@ -95,11 +103,13 @@ export function portMotifs(
     .filter((p) => !jokers.includes(p) && !open.has(p))
     .sort(byCodePoint);
   const out: [RondeState, string][] = [];
-  if (unexpected.length > 0) {
-    out.push(["MALADE", `port(s) inattendu(s) : ${unexpected.join(", ")}`]);
+  for (let i = 0; i < unexpected.length; i += PORTS_PER_MOTIF) {
+    const some = unexpected.slice(i, i + PORTS_PER_MOTIF).join(", ");
+    out.push(["MALADE", `port(s) inattendu(s) : ${some}`]);
   }
-  if (missing.length > 0) {
-    out.push(["SOUFFRANT", `port(s) attendu(s) absent(s) : ${missing.join(", ")}`]);
+  for (let i = 0; i < missing.length; i += PORTS_PER_MOTIF) {
+    const some = missing.slice(i, i + PORTS_PER_MOTIF).join(", ");
+    out.push(["SOUFFRANT", `port(s) attendu(s) absent(s) : ${some}`]);
   }
   return out;
 }
