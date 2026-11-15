@@ -168,6 +168,27 @@ export {
   type TrustLine,
 } from "./report.ts";
 export {
+  type BulletinMeasures,
+  MAX_BULLETINS_FILE,
+  type MachineRead,
+  type MachineUnread,
+  measuresOnly,
+  parseRondeBulletins,
+  RONDE_BULLETINS_PATH,
+  type RondeBulletins,
+  RondeBulletinsError,
+} from "./ronde-bulletins.ts";
+export {
+  failureVerdict,
+  type HostVerdict,
+  judge,
+  type MachineExpectation,
+  type RondeFailure,
+  type RondeState,
+  worstState,
+} from "./ronde-rules.ts";
+export { type NamedVerdict, RONDE_VERDICT_PATH, verdictText } from "./ronde-verdict.ts";
+export {
   answerOf,
   EXIT,
   hostAnswered,

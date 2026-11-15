@@ -96,7 +96,9 @@ L'essai, depuis le Mac — attendu : des lignes `clé=valeur`, de `bulletin=1` �
 ssh -T -F /dev/null -i ~/.ssh/cenacle/vps-b-bulletin -o IdentitiesOnly=yes -o UserKnownHostsFile=~/.ssh/cenacle/known_hosts -l cenacle <vps>
 ```
 
-Puis copie `parc.local.example.toml` en `parc.local.toml` (ignoré par git), une ligne `[[machine]]` par machine, et redémarre le serveur de la page. Un fichier **à part** de `serveurs.local.toml` : le serveur de la page ne voit jamais une clé d'action, l'opérateur reste seul à les connaître.
+Puis copie `parc.local.example.toml` en `parc.local.toml` (ignoré par git), une ligne `[[machine]]` par machine : la ronde le relit à chaque passage, sans redémarrage (ADR-0040). Un fichier **à part** de `serveurs.local.toml` : la ronde ne voit jamais une clé d'action, l'opérateur reste seul à les connaître.
+
+Pour chaque machine, déclare aussi ce que la ronde doit trouver : `hote`, le nom qu'elle récite (la ligne `hote=` de l'essai ci-dessus), et `ports`, les ports qu'elle doit écouter, écrits comme le bulletin les récite (`tcp/22`, `local/tcp/25`, `tailnet/udp/41641`, et les trois jokers de Legion). Tant qu'ils manquent, la machine est SOUFFRANTE — « rien n'est contrôlé » —, jamais SAINE par défaut. Un port qui écoute sans être déclaré la rend MALADE ; un port déclaré absent, SOUFFRANTE.
 
 ## L'essai à la main, avant tout bouton
 

@@ -1,16 +1,22 @@
 /**
- * The machines whose bulletin the Parc tab reads (ADR-0039): parc.local.toml,
+ * The machines the ronde reads and judges (ADR-0039, ADR-0040): parc.local.toml,
  * git-ignored. A file of its own, apart from serveurs.local.toml: the operator
- * stays the only reader of the action keys (ADR-0027), the page's server
- * only ever sees the read-only keys. As strict as the operator's file: an
- * unknown key, a doubtful path or a duplicate refuses the whole file.
+ * stays the only reader of the action keys (ADR-0027), the ronde only ever
+ * sees the read-only keys. As strict as the operator's file: an unknown key,
+ * a doubtful path, a joker of its own or a duplicate refuses the whole file.
  */
 import { isAbsolute, normalize } from "node:path";
 import { parse } from "smol-toml";
+import { DISK_ALERT, DISK_WARN, type MachineExpectation, PORT_JOKERS } from "./ronde-rules.ts";
 import { ACCOUNT, ADDRESS, NAME, type Server } from "./servers.ts";
 
 export const PARK_FILE = "parc.local.toml";
 const MAX_MACHINES = 20;
+const MAX_PORTS = 256;
+/** As the bulletin recites it (`hote=`). */
+const HOSTNAME = /^[A-Za-z0-9][A-Za-z0-9.-]{0,62}$/;
+/** A port as the bulletin recites it: `local/`, `tailnet/` or nothing, then protocol/port. */
+const PORT = /^(?:(?:local|tailnet)\/)?(?:tcp|udp)\/([1-9]\d{0,4})$/;
 
 export interface ParkMachine {
   /** As the page shows it (Legion's name, while Legion runs). */
@@ -19,6 +25,8 @@ export interface ParkMachine {
   readonly account: string;
   /** The read-only key, locked on cenacle-bulletin on the server. */
   readonly key: string;
+  /** What the ronde expects of it (ADR-0040): host name, ports, disk thresholds. */
+  readonly expect: MachineExpectation;
 }
 
 export interface ParkConfig {
@@ -51,6 +59,60 @@ function plainPath(p: unknown, what: string): string {
 const table = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
 
+const KEYS = [
+  "nom",
+  "adresse",
+  "compte",
+  "cle",
+  "hote",
+  "ports",
+  "disque_avertir",
+  "disque_alerter",
+];
+
+/** The declared ports: a port as recited, or one of Legion's three jokers; none twice. */
+function portsOf(v: unknown, at: string): string[] {
+  if (v === undefined) return [];
+  if (!Array.isArray(v) || v.length > MAX_PORTS) {
+    throw new ParkConfigError(`${at}: ports must be a list of ${MAX_PORTS} ports at most`);
+  }
+  const seen = new Set<string>();
+  for (const p of v) {
+    if (typeof p !== "string") throw new ParkConfigError(`${at}: ports must be text`);
+    const m = PORT.exec(p);
+    if (!PORT_JOKERS.includes(p) && (m === null || Number(m[1]) > 65_535)) {
+      // The text is not echoed: it could be anything.
+      throw new ParkConfigError(
+        `${at}: a port out of shape (tcp/22, local/tcp/25, tailnet/udp/41641, or ${PORT_JOKERS.join(", ")})`,
+      );
+    }
+    if (seen.has(p)) throw new ParkConfigError(`${at}: port ${p} twice`);
+    seen.add(p);
+  }
+  return [...seen];
+}
+
+const threshold = (v: unknown, fallback: number, what: string): number => {
+  if (v === undefined) return fallback;
+  if (typeof v !== "number" || !Number.isInteger(v) || v < 1 || v > 100) {
+    throw new ParkConfigError(`${what} must be a whole number from 1 to 100`);
+  }
+  return v;
+};
+
+function expectationOf(raw: Record<string, unknown>, at: string): MachineExpectation {
+  const { hote } = raw;
+  if (hote !== undefined && (typeof hote !== "string" || !HOSTNAME.test(hote))) {
+    throw new ParkConfigError(`${at}: hote must be the host name its bulletin recites`);
+  }
+  const diskWarn = threshold(raw.disque_avertir, DISK_WARN, `${at}: disque_avertir`);
+  const diskAlert = threshold(raw.disque_alerter, DISK_ALERT, `${at}: disque_alerter`);
+  if (diskWarn > diskAlert) {
+    throw new ParkConfigError(`${at}: disque_avertir above disque_alerter`);
+  }
+  return { hostname: hote ?? null, ports: portsOf(raw.ports, at), diskWarn, diskAlert };
+}
+
 export function parseParkMachines(text: string): ParkConfig {
   let data: Record<string, unknown>;
   try {
@@ -70,7 +132,7 @@ export function parseParkMachines(text: string): ParkConfig {
   const machines = list.map((raw, i): ParkMachine => {
     const at = `machine n°${i + 1}`;
     if (!table(raw)) throw new ParkConfigError(`${at} is not a table`);
-    if (Object.keys(raw).some((k) => !["nom", "adresse", "compte", "cle"].includes(k))) {
+    if (Object.keys(raw).some((k) => !KEYS.includes(k))) {
       throw new ParkConfigError(`${at}: unknown key`);
     }
     const { nom, adresse, compte, cle } = raw;
@@ -86,7 +148,7 @@ export function parseParkMachines(text: string): ParkConfig {
     const key = plainPath(cle, `${at}: cle`);
     if (keys.has(key)) throw new ParkConfigError(`${at}: one key per machine, never shared`);
     keys.add(key);
-    return { name: nom, address: adresse, account: compte, key };
+    return { name: nom, address: adresse, account: compte, key, expect: expectationOf(raw, at) };
   });
   return { knownHosts, machines };
 }

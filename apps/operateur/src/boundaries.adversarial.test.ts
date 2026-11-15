@@ -57,9 +57,10 @@ function sources(dir: string): string[] {
 describe("ssh, and the servers' list, belong to the operator alone", () => {
   const all = [...sources(join(ROOT, "apps")), ...sources(join(ROOT, "packages"))];
 
-  // The one exception (ADR-0039): the page's server reads the machines'
-  // bulletins, in this file alone, with read-only keys only.
-  const BULLETINS = join(ROOT, "apps", "server", "src", "machines.ts");
+  // The one exception (ADR-0039, moved by ADR-0040): the ronde reads the
+  // machines' bulletins, launching ssh in this file alone, with read-only keys only.
+  const BULLETINS = join(ROOT, "apps", "ronde", "src", "ssh.ts");
+  const RONDE = sources(join(ROOT, "apps", "ronde"));
 
   it("no other program launches ssh or reads serveurs.local.toml", () => {
     const outside = all.filter((p) => !p.startsWith(join(ROOT, "apps", "operateur")));
@@ -73,28 +74,35 @@ describe("ssh, and the servers' list, belong to the operator alone", () => {
     }
   });
 
-  it("the bulletins' reader never touches an action key, nor the operator's list", () => {
+  it("the ronde never touches an action key, nor the operator's list", () => {
+    expect(RONDE.length).toBeGreaterThan(0);
+    for (const file of RONDE) {
+      const t = readFileSync(file, "utf8");
+      expect(t, relative(ROOT, file)).not.toMatch(/serveurs\.local|parseServers|\.keys\b|\bcles\b/);
+      expect(t, relative(ROOT, file)).not.toMatch(/cenacle-(services|redemarrer|maj)/);
+    }
     const text = readFileSync(BULLETINS, "utf8");
-    expect(text).not.toMatch(/serveurs\.local|parseServers|\.keys\b|\bcles\b/);
-    expect(text).not.toMatch(/cenacle-(services|redemarrer|maj)/);
     expect(text).not.toMatch(/SSH_AUTH_SOCK|\.\.\.process\.env/);
     // One child process, and only ssh: nothing else is ever launched from here.
     expect(text.match(/\bexecFile\(/g) ?? []).toHaveLength(1);
     expect(text).not.toMatch(/\b(spawn|exec|execSync|execFileSync|fork)\(/);
     // Its keys come from parc.local.toml alone, a file the operator never reads.
-    expect(text).toMatch(/parseParkMachines/);
+    const pass = readFileSync(join(ROOT, "apps", "ronde", "src", "pass.ts"), "utf8");
+    expect(pass).toMatch(/parseParkMachines/);
     const operator = sources(join(ROOT, "apps", "operateur")).map((f) => readFileSync(f, "utf8"));
     for (const t of operator) expect(t).not.toMatch(/parc\.local\.toml|parseParkMachines/);
   });
 
-  it("the bulletins' reader is wired by the page's server alone", () => {
+  it("the ronde's runner is the ronde's alone; the page's server reads no machine", () => {
     for (const file of all) {
-      if (file === BULLETINS || file === join(ROOT, "apps", "server", "src", "main.ts")) continue;
+      if (RONDE.includes(file)) continue;
       const text = readFileSync(file, "utf8");
-      // A type may be shared; the runner never.
-      expect(text, relative(ROOT, file)).not.toMatch(
-        /import \{[^}]*\b(runSsh|SSH|createMachines)\b[^}]*\} from "\.\/machines\.ts"/,
-      );
+      expect(text, relative(ROOT, file)).not.toMatch(/@cenacle\/ronde|apps\/ronde\/src/);
+    }
+    // ADR-0040: the page's server holds no read key and never opens parc.local.toml.
+    for (const file of sources(join(ROOT, "apps", "server"))) {
+      const text = readFileSync(file, "utf8");
+      expect(text, relative(ROOT, file)).not.toMatch(/parseParkMachines|PARK_FILE|execFile\(/);
     }
   });
 

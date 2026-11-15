@@ -56,6 +56,9 @@
       "path": "apps/operateur"
     },
     {
+      "path": "apps/ronde"
+    },
+    {
       "path": "apps/cto"
     },
     {

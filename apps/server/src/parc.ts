@@ -2,8 +2,8 @@
  * The Parc tab (14/11): what Cénacle already knows of the machines, in one
  * answer — Legion's verdict on the servers (the bridge, ADR-0025), the
  * security findings still open, the security agent's last round, the
- * sentinel's last word. Nothing is asked of a machine, no new secret: the
- * measures (Proxmox, the firewall, CPU and disks) will need an ADR first.
+ * sentinel's last word; the machines' measures, from the file the ronde
+ * leaves (ADR-0040), and Proxmox's view of its nodes (ADR-0039).
  *
  * Read-only, behind the page's token. A verdict missing, cut short or too
  * old is said as such — never shown as healthy.
@@ -11,7 +11,7 @@
 import { readFileSync } from "node:fs";
 import type { FindingSeverity, ParcStore } from "@cenacle/journal";
 import { type LegionState, legionView } from "@cenacle/securite";
-import type { MachinesView } from "./machines.ts";
+import { MACHINES_UNREADABLE, type MachinesView } from "./machines.ts";
 import type { ProxmoxView } from "./proxmox.ts";
 
 /** A verdict is a few lines: anything larger is not one. */
@@ -49,7 +49,7 @@ export interface ParcView {
     readonly network: boolean;
   } | null;
   readonly sentinel: { readonly up: boolean; readonly since: string } | null;
-  /** Each machine's own bulletin (ADR-0039); null when not wired. */
+  /** Each machine's measures, as the ronde last read them (ADR-0040); null when not wired. */
   readonly machines: MachinesView | null;
   /** The Proxmox cluster (ADR-0039); null when not wired. */
   readonly proxmox: ProxmoxView | null;
@@ -109,8 +109,7 @@ export function createParc(deps: ParcDeps): () => Promise<ParcView> {
       deps.store.lastRound(),
       deps.store.sentinel(),
       // A source that fails says so on its own cards; it never takes the others down.
-      deps.machines?.().catch(() => ({ config: "illisible" as const, machines: [] })) ??
-        Promise.resolve(null),
+      deps.machines?.().catch(() => MACHINES_UNREADABLE) ?? Promise.resolve(null),
       deps.proxmox?.().catch(() => ({ read: "illisible" as const })) ?? Promise.resolve(null),
     ]);
     return {

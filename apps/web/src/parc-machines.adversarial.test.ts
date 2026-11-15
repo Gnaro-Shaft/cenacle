@@ -3,7 +3,10 @@
 // not be read said on the card.
 import { describe, expect, it } from "vitest";
 import type { BulletinView, ParcView, ProxmoxNodeView } from "./api.ts";
-import { cardTone, gaugeTone, machinesOf } from "./parc-machines.ts";
+import { cardTone, gaugeTone, machinesOf, rondeNote } from "./parc-machines.ts";
+
+/** The ronde passed a minute ago (ADR-0040): its file read, fresh. */
+const RONDE_OK = { ronde: "ok", at: 0, stale: false, config: "ok" } as const;
 
 const BULLETIN: BulletinView = {
   host: "alpha",
@@ -44,13 +47,13 @@ function view(over: Partial<ParcView> = {}): ParcView {
     },
     lastRound: null,
     sentinel: null,
-    machines: { config: "ok", machines: [{ name: "beta", read: "injoignable" }] },
+    machines: { ...RONDE_OK, machines: [{ name: "beta", read: "injoignable" }] },
     proxmox: null,
     ...over,
   };
 }
 const withBulletin = (b: BulletinView) =>
-  view({ machines: { config: "ok", machines: [{ name: "alpha", read: "ok", bulletin: b }] } });
+  view({ machines: { ...RONDE_OK, machines: [{ name: "alpha", read: "ok", bulletin: b }] } });
 
 describe("one card per machine", () => {
   it("every name any source gives, once, sorted", () => {
@@ -135,7 +138,7 @@ describe("one machine, whatever case its name is written in (14/11)", () => {
   it("Legion's « alpha » and Proxmox's « Alpha »: one card, Legion's name, both sources on it", () => {
     const cards = machinesOf(
       view({
-        machines: { config: "ok", machines: [{ name: "alpha", read: "ok", bulletin: BULLETIN }] },
+        machines: { ...RONDE_OK, machines: [{ name: "alpha", read: "ok", bulletin: BULLETIN }] },
         proxmox: { read: "ok", nodes: [{ ...NODE, name: "Alpha" }] },
       }),
     );
@@ -157,5 +160,34 @@ describe("the gauges' colours", () => {
     [100, "mauvais"],
   ])("%d %% → %s", (p, tone) => {
     expect(gaugeTone(p)).toBe(tone);
+  });
+});
+
+describe("the ronde's file, said when anything is off (ADR-0040)", () => {
+  const machines = (over: Partial<NonNullable<ParcView["machines"]>>) => ({
+    ...RONDE_OK,
+    machines: [],
+    ...over,
+  });
+  it.each([
+    ["not written yet", machines({ ronde: "absente", at: null }), /pas encore tourné/],
+    ["unreadable", machines({ ronde: "illisible", at: null }), /illisible/],
+    ["too old", machines({ stale: true }), /ne passe plus/],
+  ])("%s: said, never fresh by default", (_what, m, words) => {
+    expect(rondeNote(m)).toMatch(words);
+  });
+
+  it("read and fresh: nothing to say; not wired: nothing either", () => {
+    expect(rondeNote(machines({}))).toBeNull();
+    expect(rondeNote(null)).toBeNull();
+  });
+
+  it("a bulletin from another machine: said on the card, no gauge from it", () => {
+    const [alpha] = machinesOf(
+      view({ machines: { ...RONDE_OK, machines: [{ name: "alpha", read: "autre-hote" }] } }),
+    );
+    expect(alpha?.unread).toEqual(["le bulletin vient d'une autre machine que celle déclarée"]);
+    expect(alpha?.cpu).toBeNull();
+    expect(alpha?.disks).toEqual([]);
   });
 });

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Starts a Cénacle program under launchd (ADR-0018, ADR-0019). Usage: run.sh iris|server|bot|cto|veille|securite|operateur|prospection
+# Starts a Cénacle program under launchd (ADR-0018, ADR-0019). Usage: run.sh iris|server|bot|cto|veille|securite|operateur|prospection|ronde
 # The repository is found from this file's place: no personal path is written
 # anywhere in the repository. CENACLE_LOG (set by the installer) is the console
 # log: emptied at start beyond 1 MB, so it never grows without bound.
@@ -48,6 +48,10 @@ operateur)
 securite)
   # Same files as `npm run securite`: the Telegram token only (ADR-0025).
   exec node --env-file=.env --env-file-if-exists=.env.telegram --env-file-if-exists=.env.sentinel apps/securite/src/main.ts
+  ;;
+ronde)
+  # Same files as `npm run ronde`: no secret at all (ADR-0040); .env for the instance lock.
+  exec node --env-file=.env apps/ronde/src/main.ts
   ;;
 prospection)
   # Same files as `npm run prospection`: the mailbox, read-only, and Telegram (ADR-0032).

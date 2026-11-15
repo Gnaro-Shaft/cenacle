@@ -29,7 +29,26 @@ const BULLETIN_UNREAD: Readonly<Record<string, string>> = {
   injoignable: "bulletin injoignable (machine éteinte, réseau, ou clé d'hôte refusée)",
   illisible: "bulletin illisible",
   cle: "clé du bulletin mal protégée : non utilisée",
+  "autre-hote": "le bulletin vient d'une autre machine que celle déclarée",
 };
+
+/**
+ * What the page says of the ronde's file (ADR-0040), when anything is off:
+ * not written yet, unreadable, or too old — never fresh measures by default.
+ */
+export function rondeNote(machines: ParcView["machines"]): string | null {
+  if (machines === null) return null;
+  if (machines.ronde === "absente") {
+    return "La ronde n'a pas encore tourné : aucune mesure des machines.";
+  }
+  if (machines.ronde === "illisible") {
+    return "Le fichier de la ronde est illisible : aucune mesure des machines.";
+  }
+  if (machines.stale) {
+    return "Les mesures datent d'une ronde trop ancienne (ou datée du futur) : la ronde ne passe plus ?";
+  }
+  return null;
+}
 
 const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
 

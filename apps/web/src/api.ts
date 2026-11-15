@@ -158,12 +158,19 @@ export interface ParcView {
     readonly network: boolean;
   } | null;
   readonly sentinel: { readonly up: boolean; readonly since: string } | null;
-  /** Each machine's own bulletin (ADR-0039); null when not wired. */
+  /** Each machine's measures, as the ronde last read them (ADR-0040); null when not wired. */
   readonly machines: {
+    readonly ronde: "absente" | "illisible" | "ok";
+    /** When the ronde last passed, in ms. */
+    readonly at: number | null;
+    readonly stale: boolean;
     readonly config: "absent" | "illisible" | "ok";
     readonly machines: readonly (
       | { readonly name: string; readonly read: "ok"; readonly bulletin: BulletinView }
-      | { readonly name: string; readonly read: "injoignable" | "illisible" | "cle" }
+      | {
+          readonly name: string;
+          readonly read: "injoignable" | "illisible" | "cle" | "autre-hote";
+        }
     )[];
   } | null;
   /** The Proxmox cluster (ADR-0039); null when not wired. */

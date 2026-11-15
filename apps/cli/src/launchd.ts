@@ -4,7 +4,7 @@
  * after a crash only (SuccessfulExit false): never after /stop. The CTO's
  * veille (ADR-0024) runs once a day at a fixed time instead, and the security
  * agent's round (ADR-0025) every 15 minutes, the operator (ADR-0027) every
- * minute; none is restarted: a failure
+ * minute, the ronde (ADR-0040) every 5 minutes; none is restarted: a failure
  * is said in its message, and it runs again at its next time.
  * Each LaunchAgent is written on this Mac at install time, from the paths
  * found then — none is stored in the repository. It names files, never
@@ -22,6 +22,7 @@ export const PROGRAMS = [
   "securite",
   "operateur",
   "prospection",
+  "ronde",
 ] as const;
 export type Program = (typeof PROGRAMS)[number];
 
@@ -44,6 +45,8 @@ export const INTERVALS: Readonly<Partial<Record<Program, number>>> = {
   operateur: 60,
   // The prospection agent (ADR-0032): alerts read within a quarter of an hour.
   prospection: 900,
+  // The ronde (ADR-0040): every machine read and judged every 5 minutes.
+  ronde: 300,
 };
 
 export interface ServicePaths {
