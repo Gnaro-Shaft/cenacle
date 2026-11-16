@@ -1,6 +1,6 @@
 # ADR-0042 — L'agenda : lu à la demande, jamais retenu, sans Legion
 
-**Statut** : proposée (2026-11-16) — reprend l'ADR-020 de Legion (« L'agenda : lu à la demande, et jamais retenu ») ; ouvrirait le traitement T-11
+**Statut** : acceptée (2026-11-16) — reprend l'ADR-020 de Legion (« L'agenda : lu à la demande, et jamais retenu ») ; ouvrira le traitement T-11
 
 ## Contexte
 
