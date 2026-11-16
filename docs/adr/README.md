@@ -46,5 +46,6 @@ Elles sont rédigées en français (le code et le README sont en anglais).
 | [0039](0039-mesures-du-parc.md) | Les mesures du parc : charge, mémoire, disques et machines virtuelles | Acceptée |
 | [0040](0040-ronde-de-cenacle.md) | La ronde de Cénacle : ses propres bulletins, sans Legion | Acceptée |
 | [0041](0041-rappels.md) | Les rappels : poser, garder l'heure, faire sonner, sans Legion | Acceptée |
+| [0042](0042-agenda.md) | L'agenda : lu à la demande, jamais retenu, sans Legion | Proposée |
 
 Les règles dures qui s'appliquent à tout le code sont dans [`../charte.md`](../charte.md).
