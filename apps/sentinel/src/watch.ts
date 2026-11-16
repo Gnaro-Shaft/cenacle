@@ -8,6 +8,8 @@
  *   so. An outage is told once, not every minute.
  * - A heartbeat dated in the future or too old is refused: a replayed or
  *   forged beat must not hide a dead Mac.
+ * - The bot beats once a minute, after each pass of the reminders' bell that
+ *   went to its end (ADR-0041): its silence means reminders that do not ring.
  * - Only the programs that should run are expected (SENTINEL_PROGRAMS): in M2
  *   the executor does not run on the real box, and its silence is no outage.
  * - Each program has its own silence: the security agent beats once per
@@ -15,13 +17,15 @@
  *   (J6e1). Silent while others beat: the Mac is up, that program is not.
  */
 
-export const PROGRAMS = ["iris", "executor", "securite"] as const;
+export const PROGRAMS = ["iris", "executor", "securite", "bot"] as const;
 export type Program = (typeof PROGRAMS)[number];
 
 const LABEL: Readonly<Record<Program, string>> = {
   iris: "Iris",
   executor: "l'exécuteur",
   securite: "l'agent sécurité",
+  // It beats after each pass of the reminders' bell (ADR-0041): silent, no reminder rings.
+  bot: "la cloche des rappels",
 };
 
 /** The least silence before a program is late, whatever SENTINEL_SILENCE_MINUTES says. */

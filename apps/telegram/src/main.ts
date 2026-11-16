@@ -5,7 +5,7 @@
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { projectStatus, refuseForeignSecrets } from "@cenacle/core";
+import { heartbeatFromEnv, projectStatus, refuseForeignSecrets } from "@cenacle/core";
 import { askCtoService, ctoSocketPath } from "@cenacle/cto/client";
 import {
   connectOrQuit,
@@ -26,6 +26,7 @@ import { parseMaintenanceSwitch, parseServerSwitch } from "@cenacle/securite";
 import { perform } from "./actions.ts";
 import { createTelegramApi, TelegramError, type TelegramFailure } from "./api.ts";
 import { sleepUnless } from "./backoff.ts";
+import { bellMinute, createBellBeat } from "./bell.ts";
 import { confirmSigners } from "./confirm-signers.ts";
 import { relayToCto } from "./cto-relay.ts";
 import { handleUpdate } from "./handler.ts";
@@ -43,9 +44,16 @@ if (!Number.isSafeInteger(allowedChatId) || allowedChatId === 0) {
   throw new Error("TELEGRAM_ALLOWED_CHAT_ID is missing or not a number (see .env.example)");
 }
 const api = createTelegramApi(process.env.TELEGRAM_BOT_TOKEN ?? "");
-// The bot holds its token and its own signing key (ADR-0036), and nothing of the
-// mailbox, the page or the database owner (S1).
-refuseForeignSecrets("The Telegram bot", ["telegram", "bot"]);
+// The bot holds its token, its own signing key (ADR-0036) and the sentinel's
+// token (ADR-0041), and nothing of the mailbox, the page or the database owner (S1).
+refuseForeignSecrets("The Telegram bot", ["telegram", "bot", "sentinel"]);
+// The bell beats to the sentinel: a reminder that does not ring is never silent.
+const sentinel = heartbeatFromEnv("bot");
+if (sentinel === null) {
+  console.log(
+    "ℹ Sentinelle non configurée (CENACLE_SENTINEL_URL absent) : aucun battement envoyé.",
+  );
+}
 // My confirmations are signed here. Without the key the bot still answers: it
 // confirms nothing, and each tap says so.
 const signers = confirmSigners();
@@ -182,43 +190,46 @@ async function guarded<T>(work: () => Promise<T>, fallback: T, callbackId?: stri
 
 console.log("Iris is listening on Telegram (Ctrl+C to stop).");
 // The bell (ADR-0041): every minute, beside the polling; the purge once an hour.
-// A pass that fails (the database away) is said and retried a minute later.
+// A pass that fails (the database away) is said and retried a minute later;
+// only a pass that went to its end beats to the sentinel (bell.ts).
 const bell = (async () => {
-  if (rappels === null || reminderDays === null) return;
+  const beat =
+    sentinel === null
+      ? null
+      : createBellBeat({ beat: () => sentinel.beat(), log: (line) => console.error(line) });
+  if (beat === null && (rappels === null || reminderDays === null)) return;
   let lastPurge = 0;
+  const pass =
+    rappels === null || reminderDays === null
+      ? null
+      : async () => {
+          await ringDue({
+            store: rappels,
+            send: (text) => api.sendMessage(allowedChatId, text),
+            now: () => new Date(),
+            log: (line) => console.error(line),
+          });
+          if (Date.now() - lastPurge < 3_600_000) return;
+          await purgeRang({
+            store: rappels,
+            retentionDays: reminderDays,
+            now: () => new Date(),
+            record: async (payload) => {
+              try {
+                await journal.append({ agent: "cenacle", type: "rappels.purges", payload });
+              } catch (error) {
+                if (error instanceof InvalidEventError) throw error;
+                // Erased already: the trace goes to the log, how many and before when.
+                console.error(
+                  `⚠ Rappels : ${payload.count} effacé(s), sonnés avant ${payload.before} ; trace non écrite au journal`,
+                );
+              }
+            },
+          });
+          lastPurge = Date.now();
+        };
   while (!stopping) {
-    try {
-      await ringDue({
-        store: rappels,
-        send: (text) => api.sendMessage(allowedChatId, text),
-        now: () => new Date(),
-        log: (line) => console.error(line),
-      });
-      if (Date.now() - lastPurge >= 3_600_000) {
-        await purgeRang({
-          store: rappels,
-          retentionDays: reminderDays,
-          now: () => new Date(),
-          record: async (payload) => {
-            try {
-              await journal.append({ agent: "cenacle", type: "rappels.purges", payload });
-            } catch (error) {
-              if (error instanceof InvalidEventError) throw error;
-              // Erased already: the trace goes to the log, how many and before when.
-              console.error(
-                `⚠ Rappels : ${payload.count} effacé(s), sonnés avant ${payload.before} ; trace non écrite au journal`,
-              );
-            }
-          },
-        });
-        lastPurge = Date.now();
-      }
-    } catch (error) {
-      if (error instanceof InvalidEventError) throw error;
-      // Its name only: the database's text may quote its address.
-      const name = error instanceof Error ? error.name : "inconnu";
-      console.error(`⚠ Rappels : passage manqué (${name}), nouvel essai dans une minute`);
-    }
+    await bellMinute({ pass, beat, log: (line) => console.error(line) });
     await sleepUnless(60_000, () => stopping);
   }
 })();
