@@ -301,3 +301,46 @@ describe("the purge", () => {
     expect(traces).toEqual([]);
   });
 });
+
+describe("what the review asked (P1)", () => {
+  it("one message Telegram rejects: it stays due, the others still go", async () => {
+    const { TelegramError } = await import("./api.ts");
+    const { store, rows } = memoryStore();
+    await store.add("refusé", new Date("2026-11-16T08:00:00Z"));
+    await store.add("b", new Date("2026-11-16T08:30:00Z"));
+    const sent: string[] = [];
+    const ring = await ringDue({
+      store,
+      send: async (text) => {
+        if (text.includes("refusé")) throw new TelegramError("Bad Request", "rejected");
+        sent.push(text);
+      },
+      now: () => NOW,
+      log: quiet,
+    });
+    expect(ring).toEqual({ rang: 1, failed: 1 });
+    expect(sent).toHaveLength(1);
+    expect(rows.find((r) => r.id === 1)?.rangAt).toBeNull();
+    expect(rows.find((r) => r.id === 2)?.rangAt).not.toBeNull();
+  });
+
+  it("Telegram away (network): the pass stops, nothing else is tried", async () => {
+    const { TelegramError } = await import("./api.ts");
+    const { store } = memoryStore();
+    await store.add("a", new Date("2026-11-16T08:00:00Z"));
+    await store.add("b", new Date("2026-11-16T08:30:00Z"));
+    let tries = 0;
+    const logs: string[] = [];
+    await ringDue({
+      store,
+      send: async () => {
+        tries++;
+        throw new TelegramError("down", "network");
+      },
+      now: () => NOW,
+      log: (l) => logs.push(l),
+    });
+    expect(tries).toBe(1);
+    expect(logs[0]).toMatch(/\(network\)/);
+  });
+});

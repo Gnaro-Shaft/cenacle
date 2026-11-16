@@ -3,9 +3,13 @@
  * Paris time, turned into an instant — never guessed, never read by a model.
  *
  *   2026-11-20 09:00    a date and an hour
- *   20/11 09:00         this year, or next year when already past
+ *   20/11 09:00         this year, or next year when already past (never
+ *                       when it is today's: that is a mistake, said)
+ *   20/11/2026 09:00    a date with its year
  *   demain 09:00        tomorrow, in Paris
- *   dans 2 h            from now: min, h or j
+ *   dans 2 h            from now: min, h or j (a day is 24 hours)
+ *
+ * An hour is 09:00, 9:00, 9h or 9h30.
  *
  * Refused, and said: a form it does not know, a date that does not exist,
  * an hour skipped by the change of time (it does not exist that day) or one
@@ -78,10 +82,10 @@ const PROBLEM: Readonly<Record<WallProblem, string>> = {
   double: "cette heure revient deux fois ce jour-là (changement d'heure) : choisis-en une autre",
 };
 
-const HOUR = String.raw`(\d{1,2})[:h](\d{2})`;
+const HOUR = String.raw`(\d{1,2})(?:[:h](\d{2})|h)`;
 const END = String.raw`(?:\s+|$)`;
 const ISO = new RegExp(String.raw`^(\d{4})-(\d{2})-(\d{2})\s+${HOUR}${END}`, "i");
-const DAY_MONTH = new RegExp(String.raw`^(\d{1,2})\/(\d{1,2})\s+${HOUR}${END}`, "i");
+const DAY_MONTH = new RegExp(String.raw`^(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?\s+${HOUR}${END}`, "i");
 const TOMORROW = new RegExp(String.raw`^demain\s+${HOUR}${END}`, "i");
 const IN = /^dans\s+(\d{1,6})\s*(min|minutes?|h|heures?|j|jours?)(?:\s+|$)/i;
 const UNIT_MS: Readonly<Record<string, number>> = { min: 60_000, h: 3_600_000, j: 86_400_000 };
@@ -98,6 +102,9 @@ function fromWall(w: Wall, now: Date, rest: string): When {
   return typeof at === "string" ? { error: PROBLEM[at] } : bounded(at, now, rest);
 }
 
+/** "9h": no minutes said, so on the hour. */
+const minutes = (group: string | undefined) => (group === undefined ? 0 : Number(group));
+
 const unitOf = (word: string) => {
   const w = word.toLowerCase();
   return w.startsWith("min") ? "min" : w.startsWith("h") ? "h" : "j";
@@ -108,18 +115,22 @@ export function parseWhen(input: string, now: Date): When {
   const text = input.trim();
   let m = ISO.exec(text);
   if (m !== null) {
-    const [y, mo, d, h, mi] = m.slice(1, 6).map(Number) as [number, number, number, number, number];
-    return fromWall({ y, mo, d, h, mi }, now, text.slice(m[0].length));
+    const [y, mo, d, h] = m.slice(1, 5).map(Number) as [number, number, number, number];
+    return fromWall({ y, mo, d, h, mi: minutes(m[5]) }, now, text.slice(m[0].length));
   }
   m = DAY_MONTH.exec(text);
   if (m !== null) {
-    const [d, mo, h, mi] = m.slice(1, 5).map(Number) as [number, number, number, number];
+    const [d, mo] = m.slice(1, 3).map(Number) as [number, number];
+    const h = Number(m[4]);
+    const mi = minutes(m[5]);
     const rest = text.slice(m[0].length);
-    const year = wallOf(now).y;
-    const thisYear = fromWall({ y: year, mo, d, h, mi }, now, rest);
-    // Already past this year: next year's — a date that does not exist stays refused.
-    if ("error" in thisYear && thisYear.error === PAST) {
-      return fromWall({ y: year + 1, mo, d, h, mi }, now, rest);
+    if (m[3] !== undefined) return fromWall({ y: Number(m[3]), mo, d, h, mi }, now, rest);
+    const today = wallOf(now);
+    const thisYear = fromWall({ y: today.y, mo, d, h, mi }, now, rest);
+    // Past this year: next year's — but past earlier today is a mistake, said;
+    // and a date that does not exist stays refused.
+    if ("error" in thisYear && thisYear.error === PAST && !(d === today.d && mo === today.mo)) {
+      return fromWall({ y: today.y + 1, mo, d, h, mi }, now, rest);
     }
     return thisYear;
   }
@@ -127,8 +138,14 @@ export function parseWhen(input: string, now: Date): When {
   if (m !== null) {
     const today = wallOf(now);
     const next = new Date(Date.UTC(today.y, today.mo - 1, today.d + 1));
-    const [h, mi] = m.slice(1, 3).map(Number) as [number, number];
-    const w = { y: next.getUTCFullYear(), mo: next.getUTCMonth() + 1, d: next.getUTCDate(), h, mi };
+    const h = Number(m[1]);
+    const w = {
+      y: next.getUTCFullYear(),
+      mo: next.getUTCMonth() + 1,
+      d: next.getUTCDate(),
+      h,
+      mi: minutes(m[2]),
+    };
     return fromWall(w, now, text.slice(m[0].length));
   }
   m = IN.exec(text);

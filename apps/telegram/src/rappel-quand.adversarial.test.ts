@@ -102,3 +102,27 @@ describe("said back, in Paris time", () => {
     expect(sayWhen(new Date("2027-01-04T07:05:00Z"), NOW)).toBe("lundi 04/01/2027 à 08:05");
   });
 });
+
+describe("what the review asked (P1)", () => {
+  it.each([
+    ["demain 9h x", "2026-11-17T08:00:00.000Z"],
+    ["demain 9h30 x", "2026-11-17T08:30:00.000Z"],
+    ["2026-11-20 9h x", "2026-11-20T08:00:00.000Z"],
+    ["20/11/2026 09:00 x", "2026-11-20T08:00:00.000Z"],
+    ["16/11 11:00 x", "2026-11-16T10:00:00.000Z"],
+  ])("%s", (input, iso) => {
+    expect(at(input)).toEqual({ at: iso, rest: "x" });
+  });
+
+  it("a date past earlier today is a mistake, said — never next year's", () => {
+    expect(at("16/11 09:00 x")).toMatch(/déjà passée/);
+  });
+
+  it("a date with its year, already past: refused, never rolled", () => {
+    expect(at("20/11/2025 09:00 x")).toMatch(/déjà passée/);
+  });
+
+  it("an hour without its minutes but with a colon is not one", () => {
+    expect(at("demain 9: x")).toMatch(/quand \?/);
+  });
+});

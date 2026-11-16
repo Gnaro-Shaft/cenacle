@@ -9,6 +9,7 @@
  * twice, never lost. The database away: said, never "set" when it was not.
  */
 import { RappelError, type RappelStore, validReminderText } from "@cenacle/journal";
+import { TelegramError } from "./api.ts";
 import { parseWhen, sayWhen, WHEN_FORMS } from "./rappel-quand.ts";
 
 export type ReminderAction =
@@ -123,26 +124,39 @@ export interface RingDeps {
   readonly log: (line: string) => void;
 }
 
-/** One pass of the bell: what is due, sent, then marked rung. */
+/**
+ * One pass of the bell: what is due, sent, then marked rung. Telegram away
+ * (network, slowed down, token refused): the pass stops, all stay due. One
+ * message Telegram rejects: it stays due, said, and the others still go.
+ */
 export async function ringDue(deps: RingDeps): Promise<{ rang: number; failed: number }> {
   const due = await deps.store.due(deps.now(), 20);
   let rang = 0;
+  let failed = 0;
   for (const r of due) {
     const now = deps.now();
     const late =
       now.getTime() - r.due.getTime() > LATE_MS ? `\n(prévu ${sayWhen(r.due, now)})` : "";
     try {
       await deps.send(`🔔 Rappel n°${r.id} — ${r.text}${late}`);
-    } catch {
-      // Telegram away: this one and the rest wait for the next pass, still due.
-      deps.log(`⚠ Rappel n°${r.id} non envoyé : il reste dû, nouvel essai à la prochaine minute`);
+    } catch (error) {
+      // Only the failure's kind, never its text.
+      const kind = error instanceof TelegramError ? error.kind : "inconnu";
+      if (kind === "rejected") {
+        deps.log(`⚠ Rappel n°${r.id} refusé par Telegram : il reste dû, les suivants partent`);
+        failed++;
+        continue;
+      }
+      deps.log(
+        `⚠ Rappel n°${r.id} non envoyé (${kind}) : il reste dû, nouvel essai dans une minute`,
+      );
       return { rang, failed: due.length - rang };
     }
     // Sent: marked rung. Should this fail, it rings again next pass — twice, never lost.
     await deps.store.markRang(r.id, deps.now());
     rang++;
   }
-  return { rang, failed: 0 };
+  return { rang, failed };
 }
 
 export interface PurgeDeps {

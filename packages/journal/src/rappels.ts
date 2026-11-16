@@ -18,7 +18,9 @@ export interface Rappel {
 /** 1 to 300 characters, one line, no control character (the table holds the same). */
 export const MAX_REMINDER_TEXT = 300;
 // biome-ignore lint/suspicious/noControlCharactersInRegex: refusing control characters
-const CONTROL = /[\u0000-\u001f\u007f-\u009f]/;
+const CONTROL = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/u;
+/** What shows nothing: format characters (zero widths, directions) and spaces. */
+const INVISIBLE = /[\p{Cf}\p{Z}\s]/gu;
 
 export class RappelError extends Error {
   constructor(message: string) {
@@ -30,8 +32,9 @@ export class RappelError extends Error {
 /** The text as it is kept, or a RappelError saying why not. */
 export function validReminderText(text: string): string {
   const t = text.trim();
-  if (t.length === 0) throw new RappelError("le texte du rappel est vide");
-  if (t.length > MAX_REMINDER_TEXT) {
+  if (t.replace(INVISIBLE, "") === "") throw new RappelError("le texte du rappel est vide");
+  // Characters as the table counts them, an emoji being one.
+  if ([...t].length > MAX_REMINDER_TEXT) {
     throw new RappelError(`le texte dépasse ${MAX_REMINDER_TEXT} caractères`);
   }
   if (CONTROL.test(t))

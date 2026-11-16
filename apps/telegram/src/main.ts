@@ -85,17 +85,21 @@ function relay(chatId: number, question: string): void {
 // The reminders (ADR-0041): none kept without their retention in the cadre.
 const reminderDays = (() => {
   try {
-    return loadCadre().conservation.rappelsJours ?? null;
-  } catch {
+    const days = loadCadre().conservation.rappelsJours;
+    if (days === undefined) {
+      console.error(
+        "🔕 Rappels coupés : [conservation] rappels_jours manque dans le cadre (ADR-0041).",
+      );
+    }
+    return days ?? null;
+  } catch (error) {
+    // Its name only: the cadre's message may quote a path.
+    const name = error instanceof Error ? error.name : "inconnu";
+    console.error(`🔕 Rappels coupés : le cadre est illisible (${name}).`);
     return null;
   }
 })();
 const rappels = reminderDays === null ? null : createRappelStore(sql);
-if (rappels === null) {
-  console.error(
-    "🔕 Rappels coupés : [conservation] rappels_jours manque dans le cadre (ADR-0041).",
-  );
-}
 
 let stopping = false;
 // Ctrl+C, or SIGTERM when macOS logs out or launchd unloads the bot.
@@ -196,17 +200,24 @@ const bell = (async () => {
           retentionDays: reminderDays,
           now: () => new Date(),
           record: async (payload) => {
-            await journal.append({ agent: "cenacle", type: "rappels.purges", payload });
+            try {
+              await journal.append({ agent: "cenacle", type: "rappels.purges", payload });
+            } catch (error) {
+              if (error instanceof InvalidEventError) throw error;
+              // Erased already: the trace goes to the log, how many and before when.
+              console.error(
+                `⚠ Rappels : ${payload.count} effacé(s), sonnés avant ${payload.before} ; trace non écrite au journal`,
+              );
+            }
           },
         });
         lastPurge = Date.now();
       }
     } catch (error) {
       if (error instanceof InvalidEventError) throw error;
-      // Never the database's text: it may quote its address.
-      console.error(
-        "⚠ Rappels : passage manqué (base injoignable ?), nouvel essai dans une minute",
-      );
+      // Its name only: the database's text may quote its address.
+      const name = error instanceof Error ? error.name : "inconnu";
+      console.error(`⚠ Rappels : passage manqué (${name}), nouvel essai dans une minute`);
     }
     await sleepUnless(60_000, () => stopping);
   }

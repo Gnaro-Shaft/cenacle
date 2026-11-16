@@ -93,8 +93,17 @@ describe("refused", () => {
     ["a tab", "a\tb"],
     ["an escape", "a\u001b[31mb"],
     ["a C1 control", "a\u0085b"],
+    ["a line separator", "a\u2028b"],
+    ["nothing but zero widths", "\u200b\u200b"],
+    ["nothing but a direction mark", "\u202e"],
+    ["301 emojis", "🔔".repeat(301)],
   ])("a text %s: refused before the database", async (_what, text) => {
     await expect(store.add(text, at(1))).rejects.toThrow(RappelError);
+  });
+
+  it("300 emojis are 300 characters: kept, as the table counts them", async () => {
+    const r = await store.add("🔔".repeat(300), at(700));
+    expect([...r.text]).toHaveLength(300);
   });
 
   it("the table itself refuses a control character or an empty text", async () => {
