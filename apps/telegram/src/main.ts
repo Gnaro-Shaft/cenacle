@@ -26,7 +26,7 @@ import { parseMaintenanceSwitch, parseServerSwitch } from "@cenacle/securite";
 import { perform } from "./actions.ts";
 import { createTelegramApi, TelegramError, type TelegramFailure } from "./api.ts";
 import { sleepUnless } from "./backoff.ts";
-import { bellMinute, createBellBeat } from "./bell.ts";
+import { bellHeartbeat, bellMinute, createBellBeat } from "./bell.ts";
 import { confirmSigners } from "./confirm-signers.ts";
 import { relayToCto } from "./cto-relay.ts";
 import { handleUpdate } from "./handler.ts";
@@ -48,12 +48,10 @@ const api = createTelegramApi(process.env.TELEGRAM_BOT_TOKEN ?? "");
 // token (ADR-0041), and nothing of the mailbox, the page or the database owner (S1).
 refuseForeignSecrets("The Telegram bot", ["telegram", "bot", "sentinel"]);
 // The bell beats to the sentinel: a reminder that does not ring is never silent.
-const sentinel = heartbeatFromEnv("bot");
-if (sentinel === null) {
-  console.log(
-    "ℹ Sentinelle non configurée (CENACLE_SENTINEL_URL absent) : aucun battement envoyé.",
-  );
-}
+const sentinel = bellHeartbeat(
+  () => heartbeatFromEnv("bot"),
+  (line) => console.error(line),
+);
 // My confirmations are signed here. Without the key the bot still answers: it
 // confirms nothing, and each tap says so.
 const signers = confirmSigners();

@@ -2,9 +2,54 @@
 // that went to its end — a bell failing at every pass falls silent, and the
 // sentinel says so. Reminders switched off, it still beats. A beat not taken
 // is said once, and its return once — never every minute.
+import { heartbeatFromEnv } from "@cenacle/core";
 import { InvalidEventError } from "@cenacle/journal";
 import { describe, expect, it } from "vitest";
-import { type BellBeat, bellMinute, createBellBeat } from "./bell.ts";
+import { type BellBeat, bellHeartbeat, bellMinute, createBellBeat } from "./bell.ts";
+
+describe("the sentinel misconfigured never stops the bell", () => {
+  const URL = "http://sentinelle.test:8790/battement";
+  const SHORT = "secret-but-short";
+  const made = (env: NodeJS.ProcessEnv) => {
+    const logs: string[] = [];
+    const hb = bellHeartbeat(
+      () => heartbeatFromEnv("bot", env),
+      (l) => logs.push(l),
+    );
+    return { hb, logs };
+  };
+
+  it.each([
+    ["a token too short", { CENACLE_SENTINEL_URL: URL, CENACLE_SENTINEL_TOKEN: SHORT }],
+    ["no token", { CENACLE_SENTINEL_URL: URL }],
+    [
+      "an address malformed",
+      { CENACLE_SENTINEL_URL: "file:///etc/passwd", CENACLE_SENTINEL_TOKEN: "t".repeat(40) },
+    ],
+  ])("%s: the bot runs without it, said once, never a value", (_what, env) => {
+    const { hb, logs } = made(env);
+    expect(hb).toBeNull();
+    expect(logs).toHaveLength(1);
+    expect(logs[0]).toMatch(/Sentinelle mal configurée .*CENACLE_SENTINEL_/);
+    expect(logs[0]).not.toContain(SHORT);
+    expect(logs[0]).not.toContain("t".repeat(32));
+  });
+
+  it("not configured: said, no beat", () => {
+    const { hb, logs } = made({});
+    expect(hb).toBeNull();
+    expect(logs[0]).toMatch(/non configurée/);
+  });
+
+  it("configured: a heartbeat, nothing said", () => {
+    const { hb, logs } = made({
+      CENACLE_SENTINEL_URL: URL,
+      CENACLE_SENTINEL_TOKEN: "t".repeat(40),
+    });
+    expect(hb).not.toBeNull();
+    expect(logs).toEqual([]);
+  });
+});
 
 function counting(): BellBeat & { count: number } {
   const b = {

@@ -8,7 +8,33 @@
  * bot still beats — it is alive, and said at its start why nothing rings.
  * A beat says "bot" and the time, nothing else (core/heartbeat.ts).
  */
+import type { Heartbeat } from "@cenacle/core";
 import { InvalidEventError } from "@cenacle/journal";
+
+/**
+ * The sentinel, for the bell. Misconfigured (a token missing or short, an
+ * address malformed): said, and the bot runs without it — the reminders still
+ * ring, and the sentinel, no longer hearing the bell, says so itself.
+ */
+export function bellHeartbeat(
+  make: () => Heartbeat | null,
+  log: (line: string) => void,
+): Heartbeat | null {
+  try {
+    const heartbeat = make();
+    if (heartbeat === null) {
+      log("ℹ Sentinelle non configurée (CENACLE_SENTINEL_URL absent) : aucun battement envoyé.");
+    }
+    return heartbeat;
+  } catch (error) {
+    // Our own message: variable names, never a value (core/heartbeat.ts).
+    const why = error instanceof Error ? error.message : "inconnu";
+    log(
+      `⚠ Sentinelle mal configurée (${why}) : aucun battement, les rappels sonnent ; la sentinelle, qui n'entend plus la cloche, le dira.`,
+    );
+    return null;
+  }
+}
 
 export interface BellBeat {
   /** Sends one beat; says a beat not taken once, and its return once. */
