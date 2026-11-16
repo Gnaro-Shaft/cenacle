@@ -27,6 +27,8 @@ export interface Conservation {
    * Optional here, so that a cadre without it still starts Iris; the agent refuses to run without it.
    */
   readonly prospectionJours?: number;
+  /** The reminders (ADR-0041): days after a reminder rang; absent, no reminder is set. */
+  readonly rappelsJours?: number;
 }
 
 export const LEGAL_BASES = [
@@ -83,6 +85,7 @@ export function parseConservation(raw: unknown): Conservation {
     "journal_jours",
     "opposition_jours",
     "prospection_jours",
+    "rappels_jours",
   ];
   onlyKeys(raw, keys, "[conservation]");
   const c: Conservation = {
@@ -94,6 +97,10 @@ export function parseConservation(raw: unknown): Conservation {
     ...(raw.prospection_jours === undefined
       ? {}
       : { prospectionJours: days(raw, "prospection_jours", 1, 365) }),
+    // The reminders (ADR-0041, T-10): after they rang. Absent, no reminder is set.
+    ...(raw.rappels_jours === undefined
+      ? {}
+      : { rappelsJours: days(raw, "rappels_jours", 1, 365) }),
   };
   // A proposal stays open at most as long as its mail is remembered (then it
   // lapses): the journal must outlive it, or the bubble on the page goes wrong.

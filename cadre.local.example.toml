@@ -38,6 +38,10 @@ propositions_jours = 90
 journal_jours = 180
 opposition_jours = 1095
 prospection_jours = 60
+# The reminders (ADR-0041, T-10): a rung reminder, after it rang. One not yet
+# rung is never purged; a cancelled one is erased at once. Absent: no reminder
+# can be set.
+rappels_jours = 90
 
 # The processing that covers this mailbox (docs/conformite/registre-traitements.md).
 [[traitement]]

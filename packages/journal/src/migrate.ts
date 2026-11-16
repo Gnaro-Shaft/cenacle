@@ -195,6 +195,10 @@ export async function migrate({
       await tx.unsafe(`GRANT SELECT, INSERT, UPDATE, DELETE ON maintenance_plans TO ${APP_ROLE}`);
       await tx.unsafe(`REVOKE ALL ON maintenance_etapes FROM ${APP_ROLE}`);
       await tx.unsafe(`GRANT SELECT, INSERT, UPDATE, DELETE ON maintenance_etapes TO ${APP_ROLE}`);
+      // The reminders (ADR-0041): set, read, erased; only the instant it rang ever changes.
+      await tx.unsafe(`REVOKE ALL ON rappels FROM ${APP_ROLE}`);
+      await tx.unsafe(`GRANT SELECT, INSERT, DELETE ON rappels TO ${APP_ROLE}`);
+      await tx.unsafe(`GRANT UPDATE (sonne_le) ON rappels TO ${APP_ROLE}`);
       // The executor reads what Iris remembers, journals, and moves proposals
       // (claim, sent, failed — refused to every other role by the database).
       await loginRole(tx, EXECUTOR_ROLE, executorPassword, EXECUTOR_PASSWORD_VAR);

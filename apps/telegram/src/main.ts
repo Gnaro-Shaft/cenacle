@@ -11,6 +11,7 @@ import {
   connectOrQuit,
   createJournal,
   createPlanStore,
+  createRappelStore,
   createSecuriteDecisions,
   createSecuriteStore,
   createServeurActions,
@@ -20,6 +21,7 @@ import {
   readAllEvents,
   waitForDatabase,
 } from "@cenacle/journal";
+import { loadCadre } from "@cenacle/mail";
 import { parseMaintenanceSwitch, parseServerSwitch } from "@cenacle/securite";
 import { perform } from "./actions.ts";
 import { createTelegramApi, TelegramError, type TelegramFailure } from "./api.ts";
@@ -28,6 +30,7 @@ import { confirmSigners } from "./confirm-signers.ts";
 import { relayToCto } from "./cto-relay.ts";
 import { handleUpdate } from "./handler.ts";
 import { poll } from "./poll.ts";
+import { performReminder, purgeRang, ringDue } from "./rappels-bot.ts";
 import {
   handleCallback,
   handleReasonReply,
@@ -78,6 +81,25 @@ function relay(chatId: number, question: string): void {
     ask: (q) => askCtoService(ctoSocketPath(homedir()), q),
   }).finally(() => relaying.delete(job));
 }
+
+// The reminders (ADR-0041): none kept without their retention in the cadre.
+const reminderDays = (() => {
+  try {
+    const days = loadCadre().conservation.rappelsJours;
+    if (days === undefined) {
+      console.error(
+        "🔕 Rappels coupés : [conservation] rappels_jours manque dans le cadre (ADR-0041).",
+      );
+    }
+    return days ?? null;
+  } catch (error) {
+    // Its name only: the cadre's message may quote a path.
+    const name = error instanceof Error ? error.name : "inconnu";
+    console.error(`🔕 Rappels coupés : le cadre est illisible (${name}).`);
+    return null;
+  }
+})();
+const rappels = reminderDays === null ? null : createRappelStore(sql);
 
 let stopping = false;
 // Ctrl+C, or SIGTERM when macOS logs out or launchd unloads the bot.
@@ -159,6 +181,47 @@ async function guarded<T>(work: () => Promise<T>, fallback: T, callbackId?: stri
 }
 
 console.log("Iris is listening on Telegram (Ctrl+C to stop).");
+// The bell (ADR-0041): every minute, beside the polling; the purge once an hour.
+// A pass that fails (the database away) is said and retried a minute later.
+const bell = (async () => {
+  if (rappels === null || reminderDays === null) return;
+  let lastPurge = 0;
+  while (!stopping) {
+    try {
+      await ringDue({
+        store: rappels,
+        send: (text) => api.sendMessage(allowedChatId, text),
+        now: () => new Date(),
+        log: (line) => console.error(line),
+      });
+      if (Date.now() - lastPurge >= 3_600_000) {
+        await purgeRang({
+          store: rappels,
+          retentionDays: reminderDays,
+          now: () => new Date(),
+          record: async (payload) => {
+            try {
+              await journal.append({ agent: "cenacle", type: "rappels.purges", payload });
+            } catch (error) {
+              if (error instanceof InvalidEventError) throw error;
+              // Erased already: the trace goes to the log, how many and before when.
+              console.error(
+                `⚠ Rappels : ${payload.count} effacé(s), sonnés avant ${payload.before} ; trace non écrite au journal`,
+              );
+            }
+          },
+        });
+        lastPurge = Date.now();
+      }
+    } catch (error) {
+      if (error instanceof InvalidEventError) throw error;
+      // Its name only: the database's text may quote its address.
+      const name = error instanceof Error ? error.name : "inconnu";
+      console.error(`⚠ Rappels : passage manqué (${name}), nouvel essai dans une minute`);
+    }
+    await sleepUnless(60_000, () => stopping);
+  }
+})();
 // A network cut or a Telegram outage is waited out and retried (poll.ts);
 // anything unexpected still throws, and launchd restarts the bot.
 await poll({
@@ -194,6 +257,13 @@ await poll({
         reply,
         askCto: relay,
         listFindings: (chatId, id) => guarded(() => listFindings(chatId, securite, id), undefined),
+        reminder: (action) =>
+          performReminder(action, {
+            store: rappels,
+            reply,
+            now: () => new Date(),
+            log: (line) => console.error(line),
+          }),
         record: async (type, payload) => {
           await journal.append({ agent: "cenacle", type, payload });
         },
@@ -214,6 +284,7 @@ for (const job of relaying) {
     )
     .catch(() => {});
 }
+await bell;
 await instance.release();
 await Promise.all([lockSql.end(), sql.end()]);
 process.exit(0);
