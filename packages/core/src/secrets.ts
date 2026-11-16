@@ -35,7 +35,10 @@ export const SECRET_FAMILIES = {
   proxmox: { file: ".env.proxmox", vars: ["CENACLE_PROXMOX_TOKEN"] },
   /** The executor's database role (B7). */
   executor: { file: ".env.executor", vars: ["CENACLE_DB_EXECUTOR_PASSWORD"] },
-  /** Shared with the sentinel (S2): Iris, the executor and the security agent (J6e1) beat with it. */
+  /**
+   * Shared with the sentinel (S2): Iris, the executor, the security agent (J6e1)
+   * and the bot, for the reminders' bell (ADR-0041), beat with it.
+   */
   sentinel: { file: ".env.sentinel", vars: ["CENACLE_SENTINEL_TOKEN"] },
 } as const;
 

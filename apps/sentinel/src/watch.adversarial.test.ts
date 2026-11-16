@@ -103,21 +103,27 @@ describe("the watch tells each change once", () => {
 // and must not leave the sentinel stuck without a "back" message.
 describe("only the programs that should run (SENTINEL_PROGRAMS)", () => {
   it.each([
-    [undefined, ["iris", "executor", "securite"]],
-    ["", ["iris", "executor", "securite"]],
+    [undefined, ["iris", "executor", "securite", "bot"]],
+    ["", ["iris", "executor", "securite", "bot"]],
     ["iris,securite", ["iris", "securite"]],
+    ["iris,securite,bot", ["iris", "securite", "bot"]],
     ["iris", ["iris"]],
     [" iris , executor ", ["iris", "executor"]],
   ])("%j expects %j", (raw, programs) => {
     expect(parsePrograms(raw)).toEqual(programs);
   });
 
-  it.each([["iris,iris"], ["page"], ["iris,"], ["IRIS"], ["iris;executor"]])(
-    "refuses %j",
-    (raw) => {
-      expect(() => parsePrograms(raw)).toThrow(BeatError);
-    },
-  );
+  it.each([
+    ["iris,iris"],
+    ["page"],
+    ["iris,"],
+    ["IRIS"],
+    ["iris;executor"],
+    ["telegram"],
+    ["bot,bot"],
+  ])("refuses %j", (raw) => {
+    expect(() => parsePrograms(raw)).toThrow(BeatError);
+  });
 
   it("an empty list of programs is refused", () => {
     expect(() => createWatch({ silenceMs: 10 * MIN, startedAt: NOW, programs: [] })).toThrow(
@@ -199,5 +205,58 @@ describe("the security agent (J6e1): one beat per round, every 15 minutes", () =
     expect(w.check(at(12 * MIN))).toMatch(
       /de Iris .*, alors que l'agent sécurité bat : le Mac tourne/,
     );
+  });
+});
+
+// ADR-0041: the bot beats after each pass of the reminders' bell, once a minute.
+describe("the bot (the reminders' bell)", () => {
+  const withBot = () =>
+    createWatch({ silenceMs: 10 * MIN, startedAt: NOW, programs: ["iris", "securite", "bot"] });
+  const everyMinute = (w: ReturnType<typeof withBot>, p: "iris" | "bot", until: number) => {
+    for (let m = 1; m <= until; m++) w.beat({ program: p, at: at(m * MIN) });
+  };
+
+  it("its beat is accepted, and holds nothing more than any other", () => {
+    expect(parseBeat({ program: "bot", at: NOW.toISOString() }, NOW).program).toBe("bot");
+    expect(() =>
+      parseBeat({ program: "bot", at: NOW.toISOString(), rappel: "garage" }, NOW),
+    ).toThrow(BeatError);
+  });
+
+  it("the bot silent while Iris beats: told as the bot down — the reminders do not ring", () => {
+    const w = withBot();
+    w.beat({ program: "securite", at: at(1 * MIN) });
+    w.beat({ program: "bot", at: at(1 * MIN) });
+    everyMinute(w, "iris", 12);
+    expect(w.check(at(10 * MIN))).toBeNull();
+    expect(w.check(at(12 * MIN))).toBe(
+      "🚨 Plus de nouvelles de la cloche des rappels (plus de 10 min), alors que Iris bat : le Mac tourne, mais ce programme est arrêté ou échoue à chaque passage.",
+    );
+    w.told();
+    w.beat({ program: "bot", at: at(13 * MIN) });
+    expect(w.check(at(13 * MIN))).toMatch(/✅ Le Mac répond de nouveau/);
+  });
+
+  it("the bot beating alone: it proves the Mac is up, Iris is the one down", () => {
+    const w = withBot();
+    w.beat({ program: "securite", at: at(1 * MIN) });
+    everyMinute(w, "bot", 12);
+    expect(w.check(at(12 * MIN))).toMatch(/de Iris .*, alors que la cloche des rappels bat/);
+  });
+
+  it("all back: the message names the bell with the others", () => {
+    const w = withBot();
+    expect(w.check(at(11 * MIN))).toMatch(/🚨/);
+    w.told();
+    for (const p of ["iris", "securite", "bot"] as const) w.beat({ program: p, at: at(12 * MIN) });
+    expect(w.check(at(12 * MIN))).toBe(
+      "✅ Le Mac répond de nouveau : Iris et l'agent sécurité et la cloche des rappels battent.",
+    );
+  });
+
+  it("not expected (an old SENTINEL_PROGRAMS): its beat is heard, and changes nothing", () => {
+    const w = createWatch({ silenceMs: 10 * MIN, startedAt: NOW, programs: ["iris", "securite"] });
+    w.beat({ program: "bot", at: at(15 * MIN) });
+    expect(w.check(at(15 * MIN))).toMatch(/Plus de nouvelles de Iris/);
   });
 });

@@ -30,8 +30,9 @@ server)
   exec node --env-file=.env --env-file-if-exists=.env.mail --env-file-if-exists=.env.page --env-file-if-exists=.env.proxmox apps/server/src/main.ts
   ;;
 bot)
-  # Same files as `npm run bot`: its token, and its own signing key (ADR-0036).
-  exec node --env-file=.env --env-file-if-exists=.env.telegram --env-file-if-exists=.env.bot apps/telegram/src/main.ts
+  # Same files as `npm run bot`: its token, its own signing key (ADR-0036), and
+  # the sentinel's token, for the reminders' bell to beat (ADR-0041).
+  exec node --env-file=.env --env-file-if-exists=.env.telegram --env-file-if-exists=.env.bot --env-file-if-exists=.env.sentinel apps/telegram/src/main.ts
   ;;
 cto)
   # Same files as `npm run cto:serve`: no secret (ADR-0017).

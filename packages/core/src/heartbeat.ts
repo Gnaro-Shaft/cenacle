@@ -10,7 +10,7 @@ export const SENTINEL_URL_VAR = "CENACLE_SENTINEL_URL";
 export const SENTINEL_TOKEN_VAR = "CENACLE_SENTINEL_TOKEN";
 
 /** The programs that beat: the sentinel knows the same list (apps/sentinel). */
-export type HeartbeatProgram = "iris" | "executor" | "securite";
+export type HeartbeatProgram = "iris" | "executor" | "securite" | "bot";
 
 export interface Heartbeat {
   /** Sends one beat. True when the sentinel took it. Never throws. */
