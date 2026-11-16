@@ -10,6 +10,7 @@
  */
 import { InvalidEventError } from "@cenacle/journal";
 import type { Action } from "./handler.ts";
+import type { ReminderAction } from "./rappels-bot.ts";
 
 export const STOP_NOT_RECORDED =
   "⚠ Arrêt NON enregistré : la base est injoignable, Iris continue. " +
@@ -22,6 +23,8 @@ export interface ActionDeps {
   readonly reply: (chatId: number, text: string) => Promise<void>;
   readonly askCto: (chatId: number, question: string) => void;
   readonly listFindings?: (chatId: number, id?: number) => Promise<void>;
+  /** A reminder set, listed or cancelled (ADR-0041): its own answer, never a false "set". */
+  readonly reminder?: (action: ReminderAction) => Promise<void>;
   readonly record: (type: string, payload: Record<string, unknown>) => Promise<void>;
   readonly log: (line: string) => void;
 }
@@ -37,6 +40,12 @@ export async function perform(actions: readonly Action[], deps: ActionDeps): Pro
       deps.askCto(action.chatId, action.question);
     } else if (action.kind === "securite_list") {
       await deps.listFindings?.(action.chatId, action.id);
+    } else if (
+      action.kind === "rappel_poser" ||
+      action.kind === "rappels_lister" ||
+      action.kind === "rappel_annuler"
+    ) {
+      await deps.reminder?.(action);
     } else {
       try {
         await deps.record(

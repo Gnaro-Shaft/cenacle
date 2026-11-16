@@ -11,6 +11,7 @@ import {
   connectOrQuit,
   createJournal,
   createPlanStore,
+  createRappelStore,
   createSecuriteDecisions,
   createSecuriteStore,
   createServeurActions,
@@ -20,6 +21,7 @@ import {
   readAllEvents,
   waitForDatabase,
 } from "@cenacle/journal";
+import { loadCadre } from "@cenacle/mail";
 import { parseMaintenanceSwitch, parseServerSwitch } from "@cenacle/securite";
 import { perform } from "./actions.ts";
 import { createTelegramApi, TelegramError, type TelegramFailure } from "./api.ts";
@@ -28,6 +30,7 @@ import { confirmSigners } from "./confirm-signers.ts";
 import { relayToCto } from "./cto-relay.ts";
 import { handleUpdate } from "./handler.ts";
 import { poll } from "./poll.ts";
+import { performReminder, purgeRang, ringDue } from "./rappels-bot.ts";
 import {
   handleCallback,
   handleReasonReply,
@@ -77,6 +80,21 @@ function relay(chatId: number, question: string): void {
     send: (text) => api.sendMessage(chatId, text),
     ask: (q) => askCtoService(ctoSocketPath(homedir()), q),
   }).finally(() => relaying.delete(job));
+}
+
+// The reminders (ADR-0041): none kept without their retention in the cadre.
+const reminderDays = (() => {
+  try {
+    return loadCadre().conservation.rappelsJours ?? null;
+  } catch {
+    return null;
+  }
+})();
+const rappels = reminderDays === null ? null : createRappelStore(sql);
+if (rappels === null) {
+  console.error(
+    "🔕 Rappels coupés : [conservation] rappels_jours manque dans le cadre (ADR-0041).",
+  );
 }
 
 let stopping = false;
@@ -159,6 +177,40 @@ async function guarded<T>(work: () => Promise<T>, fallback: T, callbackId?: stri
 }
 
 console.log("Iris is listening on Telegram (Ctrl+C to stop).");
+// The bell (ADR-0041): every minute, beside the polling; the purge once an hour.
+// A pass that fails (the database away) is said and retried a minute later.
+const bell = (async () => {
+  if (rappels === null || reminderDays === null) return;
+  let lastPurge = 0;
+  while (!stopping) {
+    try {
+      await ringDue({
+        store: rappels,
+        send: (text) => api.sendMessage(allowedChatId, text),
+        now: () => new Date(),
+        log: (line) => console.error(line),
+      });
+      if (Date.now() - lastPurge >= 3_600_000) {
+        await purgeRang({
+          store: rappels,
+          retentionDays: reminderDays,
+          now: () => new Date(),
+          record: async (payload) => {
+            await journal.append({ agent: "cenacle", type: "rappels.purges", payload });
+          },
+        });
+        lastPurge = Date.now();
+      }
+    } catch (error) {
+      if (error instanceof InvalidEventError) throw error;
+      // Never the database's text: it may quote its address.
+      console.error(
+        "⚠ Rappels : passage manqué (base injoignable ?), nouvel essai dans une minute",
+      );
+    }
+    await sleepUnless(60_000, () => stopping);
+  }
+})();
 // A network cut or a Telegram outage is waited out and retried (poll.ts);
 // anything unexpected still throws, and launchd restarts the bot.
 await poll({
@@ -194,6 +246,13 @@ await poll({
         reply,
         askCto: relay,
         listFindings: (chatId, id) => guarded(() => listFindings(chatId, securite, id), undefined),
+        reminder: (action) =>
+          performReminder(action, {
+            store: rappels,
+            reply,
+            now: () => new Date(),
+            log: (line) => console.error(line),
+          }),
         record: async (type, payload) => {
           await journal.append({ agent: "cenacle", type, payload });
         },
@@ -214,6 +273,7 @@ for (const job of relaying) {
     )
     .catch(() => {});
 }
+await bell;
 await instance.release();
 await Promise.all([lockSql.end(), sql.end()]);
 process.exit(0);

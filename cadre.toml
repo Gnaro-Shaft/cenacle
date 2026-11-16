@@ -51,6 +51,10 @@ opposition_jours = 1095
 # The prospection agent's cards (T-09, ADR-0032): mission fields, never a
 # person's name or address — after their creation or my last move of them.
 prospection_jours = 60
+# The reminders (ADR-0041, T-10): a rung reminder, after it rang. One not yet
+# rung is never purged; a cancelled one is erased at once. Absent: no reminder
+# can be set.
+rappels_jours = 90
 
 # The OPEN processings, and only them (ADR-0009). None today: only the
 # fictional mailbox is read. A processing opens once its information notice is

@@ -111,6 +111,14 @@ export {
 export { type PurgeFloors, setPurgeFloors } from "./purge-floors.ts";
 export { createPurges, PurgeFloorError, type Purges } from "./purges.ts";
 export {
+  createRappelStore,
+  MAX_REMINDER_TEXT,
+  type Rappel,
+  RappelError,
+  type RappelStore,
+  validReminderText,
+} from "./rappels.ts";
+export {
   createSecuriteDecisions,
   type DecideOutcome,
   type Decision,

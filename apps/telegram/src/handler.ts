@@ -9,6 +9,7 @@
 import { type AgentStatus, errorText, ProjectionError, type VisualState } from "@cenacle/core";
 import { QuestionError, validQuestion } from "@cenacle/cto/question";
 import type { TelegramUpdate } from "./api.ts";
+import { type ReminderAction, reminderActions } from "./rappels-bot.ts";
 
 export type Action =
   | { readonly kind: "reply"; readonly chatId: number; readonly text: string }
@@ -19,7 +20,9 @@ export type Action =
   /** A question for the CTO (ADR-0020): relayed without blocking the bot. */
   | { readonly kind: "ask_cto"; readonly chatId: number; readonly question: string }
   /** The security findings still to fix, with their buttons (J6b) — or one of them, by number. */
-  | { readonly kind: "securite_list"; readonly chatId: number; readonly id?: number };
+  | { readonly kind: "securite_list"; readonly chatId: number; readonly id?: number }
+  /** A reminder set, listed or cancelled (ADR-0041). */
+  | ReminderAction;
 
 export interface HandlerDeps {
   readonly allowedChatId: number;
@@ -62,6 +65,8 @@ const HELP = [
   "/cto ta question — une question technique au CTO (réponse en 1 à 3 min).",
   "/constats — les constats de sécurité à traiter, avec leurs boutons ; /constats 61 : celui-là seul",
   "/maintenance — ce qu'il reste à faire sur les serveurs, machine par machine",
+  "/rappel <quand> <texte> — un rappel ; quand : 2026-11-20 09:00, 20/11 09:00, demain 09:00 ou dans 2 h",
+  "/rappels — les prochains rappels ; /annuler 12 : retire le n°12",
   "   ⚠ Jamais de nom de client ni de contenu de mail : le texte passe par Telegram.",
   "/aide — cette aide",
 ].join("\n");
@@ -163,11 +168,22 @@ export async function handleUpdate(update: TelegramUpdate, deps: HandlerDeps): P
         { kind: "journal", type: "stop.requested" },
         reply("🛑 Arrêt demandé — c'est noté dans le journal."),
       ];
+    case "/rappel":
+    case "/rappels":
+    case "/annuler": {
+      const command = commandOf(message.text ?? "") as "/rappel" | "/rappels" | "/annuler";
+      const rest = (message.text ?? "").trim().replace(/^\S+\s*/, "");
+      return reminderActions(command, rest, message.chat.id, deps.now?.() ?? new Date());
+    }
     case "/start":
     case "/aide":
     case "/help":
       return [reply(HELP)];
     default:
-      return [reply("Je ne comprends que /etat, /cto, /constats, /maintenance, /stop et /aide.")];
+      return [
+        reply(
+          "Je ne comprends que /etat, /cto, /constats, /maintenance, /rappel, /rappels, /annuler, /stop et /aide.",
+        ),
+      ];
   }
 }

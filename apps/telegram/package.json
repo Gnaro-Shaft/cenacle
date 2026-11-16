@@ -8,6 +8,7 @@
     "@cenacle/core": "0.0.0",
     "@cenacle/cto": "0.0.0",
     "@cenacle/journal": "0.0.0",
+    "@cenacle/mail": "0.0.0",
     "@cenacle/securite": "0.0.0"
   },
   "exports": {
