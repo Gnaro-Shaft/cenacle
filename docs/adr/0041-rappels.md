@@ -1,6 +1,6 @@
 # ADR-0041 — Les rappels : poser, garder l'heure, faire sonner, sans Legion
 
-**Statut** : proposée (2026-11-16) — reprend l'ADR-017 de Legion (« Les rappels ») ; ouvre le traitement T-10
+**Statut** : acceptée (2026-11-16) — reprend l'ADR-017 de Legion (« Les rappels ») ; ouvre le traitement T-10
 
 ## Contexte
 
