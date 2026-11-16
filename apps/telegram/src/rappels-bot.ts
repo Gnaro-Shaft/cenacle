@@ -74,7 +74,7 @@ const short = (text: string) =>
 async function answer(action: ReminderAction, store: RappelStore, now: Date): Promise<string> {
   if (action.kind === "rappel_poser") {
     const r = await store.add(action.text, action.due);
-    return `🔔 Rappel n°${r.id} : ${sayWhen(r.due, now)}.\n« ${r.text} »\n${RULE}`;
+    return `✅ Rappel n°${r.id} posé pour ${sayWhen(r.due, now)}.\n« ${r.text} »\n${RULE}`;
   }
   if (action.kind === "rappel_annuler") {
     return (await store.cancel(action.id))
@@ -113,6 +113,9 @@ export async function performReminder(action: ReminderAction, deps: ReminderDeps
   await deps.reply(action.chatId, text);
 }
 
+/** What only a reminder that rings begins with: no other message of the bot does. */
+export const RING_MARK = "⏰";
+
 /** A reminder sent late (the Mac asleep) says when it was due. */
 const LATE_MS = 2 * 60_000;
 
@@ -138,7 +141,9 @@ export async function ringDue(deps: RingDeps): Promise<{ rang: number; failed: n
     const late =
       now.getTime() - r.due.getTime() > LATE_MS ? `\n(prévu ${sayWhen(r.due, now)})` : "";
     try {
-      await deps.send(`🔔 Rappel n°${r.id} — ${r.text}${late}`);
+      // Its own mark and the text first, as a notification shows it: never
+      // to be taken for the « posé » that came before (16/11, mistaken once).
+      await deps.send(`${RING_MARK} ${r.text}\n— rappel n°${r.id}${late}`);
     } catch (error) {
       // Only the failure's kind, never its text.
       const kind = error instanceof TelegramError ? error.kind : "inconnu";
