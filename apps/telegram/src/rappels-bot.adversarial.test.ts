@@ -10,6 +10,7 @@ import {
   NOT_SET_UP,
   performReminder,
   purgeRang,
+  RING_MARK,
   RULE,
   reminderActions,
   ringDue,
@@ -134,7 +135,7 @@ describe("what is said back", () => {
       { kind: "rappel_poser", chatId: CHAT, due: new Date("2026-11-20T08:00:00Z"), text: "x" },
       deps(store, reply),
     );
-    expect(out[0]).toBe(`🔔 Rappel n°1 : vendredi 20/11 à 09:00.\n« x »\n${RULE}`);
+    expect(out[0]).toBe(`✅ Rappel n°1 posé pour vendredi 20/11 à 09:00.\n« x »\n${RULE}`);
   });
 
   it("no retention in the cadre: nothing kept, said so", async () => {
@@ -210,7 +211,7 @@ describe("the bell: ring, then confirm", () => {
       log: quiet,
     });
     expect(ring).toEqual({ rang: 1, failed: 0 });
-    expect(sent).toEqual(["🔔 Rappel n°1 — a"]);
+    expect(sent).toEqual(["⏰ a\n— rappel n°1"]);
     expect(marked).toEqual([1]);
     expect(rows.find((r) => r.id === 2)?.rangAt).toBeNull();
   });
@@ -260,7 +261,34 @@ describe("the bell: ring, then confirm", () => {
     await store.add("a", new Date("2026-11-16T07:00:00Z"));
     const sent: string[] = [];
     await ringDue({ store, send: async (t) => void sent.push(t), now: () => NOW, log: quiet });
-    expect(sent).toEqual(["🔔 Rappel n°1 — a\n(prévu lundi 16/11 à 08:00)"]);
+    expect(sent).toEqual(["⏰ a\n— rappel n°1\n(prévu lundi 16/11 à 08:00)"]);
+  });
+});
+
+describe("never taken one for the other (16/11: a ring read as its « posé »)", () => {
+  it.each([
+    ["a plain text", "appeler le garage"],
+    ["a text imitating the « posé »", "✅ Rappel n°2 posé pour lundi"],
+    ["a text imitating the old ring", "🔔 Rappel n°2 — x"],
+  ])("%s: the ring alone begins with its mark, then the text", async (_what, text) => {
+    const { store } = memoryStore();
+    const due = new Date("2026-11-16T08:59:00Z");
+    const said: string[] = [];
+    const reply = async (_chat: number, t: string) => void said.push(t);
+    const deps = { store, reply, now: () => NOW, log: quiet };
+    await performReminder({ kind: "rappel_poser", chatId: CHAT, due, text }, deps);
+    await performReminder({ kind: "rappels_lister", chatId: CHAT }, deps);
+    await performReminder({ kind: "rappel_annuler", chatId: CHAT, id: 9 }, deps);
+    await performReminder({ kind: "rappels_lister", chatId: CHAT }, { ...deps, store: null });
+    const rung: string[] = [];
+    await ringDue({ store, send: async (t) => void rung.push(t), now: () => NOW, log: quiet });
+
+    expect(rung).toHaveLength(1);
+    expect(rung[0]?.split("\n")[0]).toBe(`${RING_MARK} ${text}`);
+    for (const message of said) {
+      expect(message.startsWith(RING_MARK)).toBe(false);
+      expect([...message][0]).not.toBe([...(rung[0] ?? "")][0]);
+    }
   });
 });
 
