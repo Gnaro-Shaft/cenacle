@@ -144,13 +144,13 @@ describe("what it never does", () => {
 
   it("changes no structure, makes no table", async () => {
     expect(await asCopie("create table copie_probe (x int)")).toBe(DENIED);
-    expect(await asCopie(`alter table rappels add column x int`)).not.toBe("ok");
-    expect(await asCopie(`grant select on events to ${COPIE_ROLE}`)).not.toBe("ok");
+    expect(await asCopie(`alter table rappels add column x int`)).toBe(DENIED);
+    expect(await asCopie(`grant select on events to ${COPIE_ROLE}`)).toBe(DENIED);
   });
 
   it("borrows no other role's rights", async () => {
     for (const role of [APP_ROLE, EXECUTOR_ROLE, "cenacle_owner"]) {
-      expect(await asCopie(`set role ${role}`), role).not.toBe("ok");
+      expect(await asCopie(`set role ${role}`), role).toBe(DENIED);
     }
   });
 });
@@ -159,10 +159,12 @@ describe("a right given by hand does not last", () => {
   it("the next migration takes it back, and keeps the four", async () => {
     await owner.unsafe(`GRANT SELECT, INSERT ON events TO ${COPIE_ROLE}`);
     await owner.unsafe(`GRANT INSERT ON rappels TO ${COPIE_ROLE}`);
+    await owner.unsafe(`GRANT SELECT (uid) ON mail_items TO ${COPIE_ROLE}`);
     const seq = sequences.find((s) => s.table === "events")?.seq ?? "missing";
     await owner.unsafe(`GRANT USAGE ON SEQUENCE ${seq} TO ${COPIE_ROLE}`);
     expect(await asCopie("select * from events limit 1")).toBe("ok");
     expect(await asCopie(`select nextval('${seq}')`)).toBe("ok");
+    expect(await asCopie("select uid from mail_items limit 1")).toBe("ok");
 
     await migrate({
       ownerUrl: ownerUrlFromEnv(TEST_DB),
@@ -172,6 +174,7 @@ describe("a right given by hand does not last", () => {
     });
     expect(await asCopie("select * from events limit 1")).toBe(DENIED);
     expect(await asCopie("insert into rappels default values")).toBe(DENIED);
+    expect(await asCopie("select uid from mail_items limit 1")).toBe(DENIED);
     expect(await asCopie(`select nextval('${seq}')`)).toBe(DENIED);
     expect(await asCopie("select * from rappels limit 1")).toBe("ok");
   });
