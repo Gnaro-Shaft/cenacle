@@ -17,7 +17,7 @@ export const MAX_BULLETINS_FILE = 256 * 1024;
 const MAX_MACHINES = 20;
 const MAX_DISKS = 12;
 
-export type BulletinMeasures = Omit<Bulletin, "version" | "health">;
+export type BulletinMeasures = Omit<Bulletin, "version" | "health" | "backups">;
 
 /**
  * The measures only (ADR-0040, R1): picked field by field, so that a field

@@ -162,6 +162,7 @@ describe("one machine can never make the whole verdict unreadable", () => {
         cluster: null,
         ports: recited,
       },
+      backups: null,
     };
     const expect_ = { hostname: "alpha-host", ports: expected, diskWarn: 80, diskAlert: 90 };
     const v = judge("alpha", b, expect_, NOW_MS);

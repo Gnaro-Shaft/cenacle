@@ -22,6 +22,7 @@ const BASE: Bulletin = {
     cluster: null,
     ports: [{ scope: "autre", protocol: "tcp", port: 22 }],
   },
+  backups: null,
 };
 const EXPECT: MachineExpectation = {
   hostname: "alpha-host",

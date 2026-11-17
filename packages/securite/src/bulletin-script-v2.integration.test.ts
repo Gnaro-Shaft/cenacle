@@ -188,7 +188,7 @@ EOF`);
 
   it("a plain Debian machine: no reboot asked, nothing off a cluster, nothing it cannot read", () => {
     const b = parseBulletin(recite({}));
-    expect(b.version).toBe(2);
+    expect(b.version).toBe(3);
     expect(b.health?.rebootRequired).toBe(false);
     expect(b.health?.cluster).toBeNull();
     expect(b.health?.servicesToRestart).toBeNull();
