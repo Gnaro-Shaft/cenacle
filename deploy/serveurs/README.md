@@ -80,6 +80,16 @@ Il est **en lecture seule** : il n'écrit rien, ne change rien. Il passe par `su
 
 **Passer une machine à la version 2** : le Mac lit déjà les deux versions. Depuis le Mac, `rsync` comme plus haut, puis `install.sh` sur la machine ; l'essai ci-dessous doit montrer `version=2` et la ligne `redemarrage=` (sur un nœud, aussi `grappe.quorum=oui`). Une machine à la fois : l'onglet « Parc » doit la montrer lisible avant de passer à la suivante.
 
+**Version 3 (ADR-0043) : les sauvegardes.** Le bulletin récite aussi, pour chaque verdict de sauvegarde présent sur la machine — `copie-dumps`, `veiller-sauvegardes`, `copie-bases`, `myriade-base`, sous `/var/lib/<source>/verdict` —, son état (`sauvegarde.<source>.verdict=SAIN|MALADE`), son heure (`.instant`), depuis quand il est malade (`.depuis`, absent quand il est sain) et **le nombre** de ses motifs (`.motifs`) : **jamais le texte d'un motif**, qui porte des adresses et des noms d'hôtes. Le détail se lit sur la machine : `sudo cat /var/lib/<source>/verdict`. Un verdict hors de la forme de sa source, un lien symbolique, un fichier que le compte `cenacle` ne peut pas lire se récitent `sauvegarde.<source>.lecture=illisible`, jamais comme un verdict. **Sans `sudo`** : le compte lit ces fichiers comme n'importe quel compte.
+
+**Avant de passer une machine à la version 3**, vérifier que le compte les lit (un « No such file » est normal pour une source qui n'est pas sur cette machine) :
+
+```
+for s in copie-dumps veiller-sauvegardes copie-bases myriade-base; do printf '%s : ' "$s"; sudo -u cenacle head -1 /var/lib/$s/verdict 2>&1; done
+```
+
+Un « Permission denied » se corrige **chez l'écrivain**, pas sur le fichier, que le passage suivant remplace : une surcharge `UMask=0022` de son unité systemd, ou le droit de lecture sur son dossier. Refaire la vérification après une nuit. Puis `rsync` et `install.sh` comme pour la version 2 ; l'essai doit montrer `version=3` et, sur une machine qui en porte, des lignes `sauvegarde.`. Le Mac lit les trois versions.
+
 Sa **propre clé**, jamais une clé d'action (une clé qui met à jour ou redémarre ne sert pas à regarder) :
 
 ```

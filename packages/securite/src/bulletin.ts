@@ -6,10 +6,12 @@
  * The machine's identity is proved by its pinned host key (StrictHostKeyChecking),
  * not by what it says its name is. Pure: text in, measures out.
  *
- * Two versions are read (ADR-0040): version 1 recites the measures only;
- * version 2 adds what the ronde judges (bulletin-health.ts). The Mac reads
- * both, so that servers move to version 2 one at a time.
+ * Three versions are read: version 1 recites the measures only; version 2
+ * adds what the ronde judges (ADR-0040, bulletin-health.ts); version 3 adds
+ * the state of the backups on the machine (ADR-0043, bulletin-backups.ts).
+ * The Mac reads all three, so that servers move up one at a time.
  */
+import { BACKUP_KEY, type BackupState, parseBackups } from "./bulletin-backups.ts";
 import { BulletinError, whole } from "./bulletin-fields.ts";
 import { type BulletinHealth, HEALTH_KEYS, parseHealth } from "./bulletin-health.ts";
 import { plainOutput } from "./parse-mac.ts";
@@ -21,7 +23,7 @@ export const MAX_BULLETIN = 16 * 1024;
 const MAX_DISKS = 12;
 
 export interface Bulletin {
-  readonly version: 1 | 2;
+  readonly version: 1 | 2 | 3;
   readonly host: string;
   /** When the server recited it, in ms. */
   readonly at: number;
@@ -36,8 +38,10 @@ export interface Bulletin {
     readonly percent: number;
     readonly kilobytes: number;
   }[];
-  /** What the ronde judges: version 2 only, null for a version 1 bulletin. */
+  /** What the ronde judges: versions 2 and 3, null for a version 1 bulletin. */
   readonly health: BulletinHealth | null;
+  /** The backups on the machine: version 3 only, null before. */
+  readonly backups: readonly BackupState[] | null;
 }
 
 const MEASURES =
@@ -58,17 +62,22 @@ export function parseBulletin(raw: string): Bulletin {
     const at = line.indexOf("=");
     if (at <= 0) throw new BulletinError("a line without key");
     const key = line.slice(0, at);
-    if (!MEASURES.test(key) && !HEALTH.has(key)) {
+    if (!MEASURES.test(key) && !HEALTH.has(key) && !BACKUP_KEY.test(key)) {
       throw new BulletinError(`unknown key ${key.slice(0, 40)}`);
     }
     if (fields.has(key)) throw new BulletinError(`${key} twice`);
     fields.set(key, line.slice(at + 1));
   }
   const version = fields.get("version");
-  if (version !== "1" && version !== "2") throw new BulletinError("unknown version");
-  // A version 1 bulletin never says what only version 2 knows.
+  if (version !== "1" && version !== "2" && version !== "3") {
+    throw new BulletinError("unknown version");
+  }
+  // A bulletin never says what only a later version knows.
   if (version === "1" && [...fields.keys()].some((k) => HEALTH.has(k))) {
     throw new BulletinError("a version 2 key in a version 1 bulletin");
+  }
+  if (version !== "3" && [...fields.keys()].some((k) => BACKUP_KEY.test(k))) {
+    throw new BulletinError(`a version 3 key in a version ${version} bulletin`);
   }
   const host = fields.get("hote") ?? "";
   if (!HOST.test(host)) throw new BulletinError("hote out of shape");
@@ -102,7 +111,7 @@ export function parseBulletin(raw: string): Bulletin {
   if (diskKeys !== disks.length * 3) throw new BulletinError("disks out of order");
 
   return {
-    version: version === "2" ? 2 : 1,
+    version: version === "3" ? 3 : version === "2" ? 2 : 1,
     host,
     at: instant * 1000,
     uptimeSeconds: whole(fields, "uptime", 10 * 365 * 86_400),
@@ -110,6 +119,7 @@ export function parseBulletin(raw: string): Bulletin {
     cpus: whole(fields, "processeurs", 4096),
     memory: total !== null && available !== null ? { total, available } : null,
     disks,
-    health: version === "2" ? parseHealth(fields) : null,
+    health: version === "1" ? null : parseHealth(fields),
+    backups: version === "3" ? parseBackups(fields) : null,
   };
 }

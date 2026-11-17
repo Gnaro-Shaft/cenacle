@@ -1,13 +1,17 @@
 #!/bin/bash
-# What a server says of itself (ADR-0039, version 2 by ADR-0040). Ported from
+# What a server says of itself (ADR-0039; version 2 by ADR-0040, version 3 by
+# ADR-0043). Ported from
 # Legion's legion-bulletin-hote (its ADR-029): the same idea, the same form —
 # key=value lines between bulletin=1 and fin=1. Version 1 recited the measures
 # the Parc tab shows; version 2 adds what the ronde judges: a reboot required,
 # updates waiting, services on a replaced library, the cluster's quorum, the
-# ports listening. Nothing else: no logs, no user, no address, no service name,
-# no fail2ban or SSH counters (they are about third parties).
+# ports listening; version 3 adds the state of the backup verdicts present on
+# the machine — never their motifs, which carry addresses and host names.
+# Nothing else: no logs, no user, no address, no service name, no fail2ban or
+# SSH counters (they are about third parties).
 #
 # STRICTLY READ-ONLY: it writes nothing, installs nothing, changes nothing.
+# The backup verdicts are read as the account itself, never through sudo.
 # Two commands go through sudo, both list-only and frozen in
 # /etc/sudoers.d/cenacle, without any free argument (install.sh):
 #   /usr/sbin/needrestart -r l -b     (list, never restart)
@@ -34,7 +38,7 @@ say_if() { [ -n "${2:-}" ] && say "$1" "$2"; }
 say_count() { [[ "${2:-}" =~ ^[0-9]{1,9}$ ]] && say "$1" "$2"; }
 
 printf 'bulletin=1\n'
-say version 2
+say version 3
 # The name only as a plain label (identity comes from the pinned host key):
 # anything but letters, digits, dots and dashes becomes a dash, 63 at most.
 h="$(hostname 2>/dev/null)"
@@ -208,5 +212,87 @@ if command -v ss >/dev/null 2>&1; then
         say_if ports "$(printf '%s\n' "$listed" | sort -u | grep . | paste -sd, -)"
     fi
 fi
+
+# ── Version 3: the backups on this machine (ADR-0043) ───────────────────────
+#
+# Each writer of Legion's backup chain (and Myriade's) leaves a verdict under
+# /var/lib/<source>/verdict: verdict=SAIN|MALADE, instant=, depuis= (a number,
+# or "-" when healthy), its own keys, motif= lines, then fin=1. Only the four
+# sources below are read, each at its fixed path, as this account — never by
+# sudo: a verdict this account cannot read is said "illisible", and the fix
+# belongs to its writer (its unit's UMask), not to a rule here.
+#
+# Said: the verdict, its instant, since when it is ill, and HOW MANY motifs —
+# never their text (rsync, ssh and pvesh messages: addresses, host names).
+# Checked against the keys of ITS source: a key of another source, a key said
+# twice that may not be, a line after fin=1, no fin=1, an instant or a depuis
+# out of shape — "illisible", never a verdict half read. A link, for the file
+# or its folder, is not followed. An absent folder is an absent source.
+backup() {
+    local source="$1" keys="$2" repeat="$3" text out
+    local dir="/var/lib/$1" file="/var/lib/$1/verdict"
+    [ -e "$dir" ] || [ -L "$dir" ] || return 0
+    if [ -L "$dir" ] || [ ! -d "$dir" ] || [ ! -x "$dir" ]; then
+        say "sauvegarde.$source.lecture" illisible
+        return 0
+    fi
+    [ -e "$file" ] || [ -L "$file" ] || return 0
+    if [ -L "$file" ] || [ ! -f "$file" ] || [ ! -r "$file" ] ||
+        ! text="$(timeout 2 head -c 65536 -- "$file" 2>/dev/null)"; then
+        say "sauvegarde.$source.lecture" illisible
+        return 0
+    fi
+    if out="$(printf '%s\n' "$text" | awk -v keys="$keys" -v repeat="$repeat" '
+        BEGIN {
+            allowed["verdict"] = allowed["instant"] = allowed["depuis"] = 1
+            n = split(keys, k, ","); for (i = 1; i <= n; i++) allowed[k[i]] = 1
+            n = split("motif," repeat, r, ","); for (i = 1; i <= n; i++) if (r[i] != "") many[r[i]] = 1
+        }
+        done { bad = 1; next }
+        $0 == "fin=1" { done = 1; next }
+        {
+            at = index($0, "=")
+            key = at < 2 ? "" : substr($0, 1, at - 1); value = substr($0, at + 1)
+            known = (key in allowed) || (key in many)
+            # A motif may run over several lines (an error quoted whole):
+            # what follows it and is no key of its source is part of it,
+            # never read as a key — and never said.
+            if (!known && inmotif) next
+            inmotif = 0
+            if (!known) { bad = 1; next }
+            if (!(key in many) && (key in seen)) { bad = 1; next }
+            seen[key] = 1
+            if (key == "motif") { motifs++; inmotif = 1 }
+            else if (key == "verdict") verdict = value
+            else if (key == "instant") instant = value
+            else if (key == "depuis") since = value
+        }
+        END {
+            if (bad || !done || !("depuis" in seen)) exit 1
+            if (verdict != "SAIN" && verdict != "MALADE") exit 1
+            # No {m,n} in a regex: mawk, the awk of Debian, does not read it.
+            if (instant !~ /^[1-9][0-9]*$/ || length(instant) > 11) exit 1
+            if (since != "-" && (since !~ /^[1-9][0-9]*$/ || length(since) > 11)) exit 1
+            if (since != "-" && since + 0 > instant + 0) exit 1
+            # The reader takes at most 1000: more is said as 1000, at least that.
+            if (motifs + 0 > 1000) motifs = 1000
+            print "verdict=" verdict
+            print "instant=" instant
+            if (since != "-") print "depuis=" since
+            print "motifs=" motifs + 0
+        }')"; then
+        while IFS= read -r line; do
+            say "sauvegarde.$source.${line%%=*}" "${line#*=}"
+        done <<<"$out"
+    else
+        say "sauvegarde.$source.lecture" illisible
+    fi
+}
+# Each source with its own keys, then those it may say more than once
+# (motif= always may): as the writers write them, read on 17/11/2026.
+backup copie-dumps "libre_go,pool_pct,gardees,controles,corrompus" "invite"
+backup veiller-sauvegardes "invites" "noeud"
+backup copie-bases "libre_go,gardes,controles,fautifs,ecrit_le" "jeu"
+backup myriade-base "chiffre,dernier,taille_octets,gardes,elagues" ""
 
 printf 'fin=1\n'

@@ -44,6 +44,7 @@ describe("a bulletin as the script recites it", () => {
         { mount: "/var/lib/vz", percent: 87, kilobytes: 954925484 },
       ],
       health: null,
+      backups: null,
     });
   });
 
