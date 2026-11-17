@@ -81,6 +81,7 @@ describe("every word the server may say has its words on the page", () => {
       "heure-flottante",
       "serie-non-etendue",
       "illisible",
+      "trop-nombreux",
     ] as const) {
       expect(REASON_LABEL[r].length).toBeGreaterThan(3);
     }

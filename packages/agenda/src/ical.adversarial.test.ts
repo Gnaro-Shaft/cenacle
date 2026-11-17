@@ -5,7 +5,7 @@
 // time missing or doubled by one follows RFC 5545.
 import { describe, expect, it } from "vitest";
 import { cleanTitle, MAX_TITLE, meetsWindow, readCalendarData } from "./ical.ts";
-import { caldavUtc, knownZone, localToInstant, windowOf } from "./times.ts";
+import { caldavUtc, canonicalZone, localToInstant, windowOf } from "./times.ts";
 
 const cal = (...event: string[]) =>
   ["BEGIN:VCALENDAR", "VERSION:2.0", "BEGIN:VEVENT", ...event, "END:VEVENT", "END:VCALENDAR"].join(
@@ -229,10 +229,14 @@ describe("the changes of hour (Paris: 28 March 2027 forward, 25 October 2026 bac
   });
 
   it("zones: IANA names known, others not", () => {
-    expect(knownZone("Europe/Paris")).toBe(true);
-    expect(knownZone("Romance Standard Time")).toBe(false);
-    expect(knownZone("/mozilla.org/20050126_1/Europe/Paris")).toBe(false);
-    expect(knownZone("")).toBe(false);
+    expect(canonicalZone("Europe/Paris")).toBe("Europe/Paris");
+    // Case variants are one zone: what is used next is the canonical name, never the text received.
+    expect(canonicalZone("europe/PARIS")).toBe("Europe/Paris");
+    expect(canonicalZone("Romance Standard Time")).toBeNull();
+    expect(canonicalZone("/mozilla.org/20050126_1/Europe/Paris")).toBeNull();
+    expect(canonicalZone("+01")).toBeNull(); // an offset is not an IANA name
+    expect(canonicalZone("-05:00")).toBeNull();
+    expect(canonicalZone("")).toBeNull();
     expect(caldavUtc(utc("2026-11-17T08:05:09.123Z"))).toBe("20261117T080509Z");
   });
 });

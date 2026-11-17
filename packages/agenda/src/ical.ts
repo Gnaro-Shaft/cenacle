@@ -13,9 +13,9 @@
 import {
   addDays,
   type CivilDate,
+  canonicalZone,
   daysBetween,
   isoDate,
-  knownZone,
   type LocalTime,
   localToInstant,
   validDate,
@@ -27,7 +27,9 @@ export type SetAsideReason =
   | "fuseau-inconnu"
   | "heure-flottante"
   | "serie-non-etendue"
-  | "illisible";
+  | "illisible"
+  // Never said of one event: more than an account may show at once (lecture.ts).
+  | "trop-nombreux";
 
 export type CalendarEvent =
   | { readonly kind: "heure"; readonly title: string; readonly start: number; readonly end: number }
@@ -122,8 +124,9 @@ function instantOf(when: When & { kind: "time" }): number | SetAsideReason {
   const { local } = when;
   if (when.utc) return Date.UTC(local.y, local.m - 1, local.d, local.h, local.min, local.s);
   if (when.zone === null) return "heure-flottante";
-  if (!knownZone(when.zone)) return "fuseau-inconnu";
-  return localToInstant(local, when.zone);
+  const zone = canonicalZone(when.zone);
+  if (zone === null) return "fuseau-inconnu";
+  return localToInstant(local, zone);
 }
 
 const DURATION =
@@ -198,7 +201,10 @@ function toEvent(props: readonly Prop[]): EventRead {
     // Days are calendar days in the event's zone (RFC 5545, § 3.3.6); seconds are exact.
     const zoned = !start.utc && start.zone !== null;
     const shifted = zoned
-      ? localToInstant({ ...start.local, ...addDays(start.local, span.days) }, start.zone ?? "")
+      ? localToInstant(
+          { ...start.local, ...addDays(start.local, span.days) },
+          canonicalZone(start.zone ?? "") ?? "UTC",
+        )
       : from + span.days * 86_400_000;
     to = shifted + span.seconds * 1000;
   }

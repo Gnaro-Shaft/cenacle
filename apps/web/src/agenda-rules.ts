@@ -23,6 +23,7 @@ export const REASON_LABEL: Readonly<Record<AgendaReason, string>> = {
   "heure-flottante": "heure sans fuseau",
   "serie-non-etendue": "série que le serveur n'a pas étendue",
   illisible: "illisible",
+  "trop-nombreux": "au-delà de 5000 rendez-vous pour ce compte, non montré",
 };
 
 const dayParts = new Intl.DateTimeFormat("en-CA", {

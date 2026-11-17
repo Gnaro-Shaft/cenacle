@@ -226,7 +226,12 @@ export const getParc = (token: string) => call<ParcView>(token, "/api/parc");
 
 /** The agenda (ADR-0042): read at each call, nothing kept; titles and times only. */
 export type AgendaFailure = "refus" | "injoignable" | "delai" | "illisible" | "hote" | "config";
-export type AgendaReason = "fuseau-inconnu" | "heure-flottante" | "serie-non-etendue" | "illisible";
+export type AgendaReason =
+  | "fuseau-inconnu"
+  | "heure-flottante"
+  | "serie-non-etendue"
+  | "illisible"
+  | "trop-nombreux";
 export type AgendaEvent =
   | {
       readonly kind: "heure";

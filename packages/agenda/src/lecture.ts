@@ -14,7 +14,7 @@ import { discover, type Failure, readCalendar, type Send } from "./releve.ts";
 import { addDays, isoDate, localToInstant, MAX_DAYS, PARIS, windowOf } from "./times.ts";
 
 export const ACCOUNT_DEADLINE_MS = 90_000;
-const MAX_EVENTS_PER_ACCOUNT = 5000;
+export const MAX_EVENTS_PER_ACCOUNT = 5000;
 
 /** An account's state: read, or the word for its failure ("config": no password). */
 export type AccountState = "ok" | Failure | "config";
@@ -84,10 +84,14 @@ async function readAccount(
       const reads = await readCalendar(send, calendar, window.start, window.end);
       if (typeof reads === "string") return failed(reads);
       for (const r of reads) {
-        if (!r.ok) setAside.set(r.reason, (setAside.get(r.reason) ?? 0) + 1);
-        else if (meetsWindow(r.event, window) && events.length < MAX_EVENTS_PER_ACCOUNT) {
+        if (r.ok && !meetsWindow(r.event, window)) continue;
+        if (r.ok && events.length < MAX_EVENTS_PER_ACCOUNT) {
           events.push(r.event);
+          continue;
         }
+        // Set aside, or beyond what an account may show: counted, never dropped in silence.
+        const reason = r.ok ? "trop-nombreux" : r.reason;
+        setAside.set(reason, (setAside.get(reason) ?? 0) + 1);
       }
     }
     return { state: "ok", events, setAside };

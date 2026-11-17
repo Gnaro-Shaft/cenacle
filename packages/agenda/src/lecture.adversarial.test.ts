@@ -8,7 +8,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { type AgendaAccount, parseAgendaConfig } from "./config.ts";
-import { createAgenda } from "./lecture.ts";
+import { createAgenda, MAX_EVENTS_PER_ACCOUNT } from "./lecture.ts";
 import { reportBody, type Send } from "./releve.ts";
 import { type Answer, admits, type DavRequest } from "./transport.ts";
 
@@ -221,6 +221,17 @@ describe("what is asked, what comes out", () => {
     expect(text).not.toContain("untel@");
     expect(text).not.toContain("Chez Untel");
     expect(text).not.toContain("Flottant");
+  });
+
+  it("beyond what an account may show, the rest is counted, never dropped in silence", async () => {
+    const many = Array.from({ length: MAX_EVENTS_PER_ACCOUNT + 3 }, () => [
+      "SUMMARY:x",
+      "DTSTART:20261117T130000Z",
+    ]);
+    const view = await reader({ pro: server(many) }).read(7);
+    if (view.read !== "ok") throw new Error(view.read);
+    expect(view.events).toHaveLength(MAX_EVENTS_PER_ACCOUNT);
+    expect(view.setAside).toEqual([{ account: "pro", reason: "trop-nombreux", count: 3 }]);
   });
 
   it("the log never says a title, a login, an address", async () => {

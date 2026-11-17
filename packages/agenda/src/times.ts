@@ -52,14 +52,18 @@ export function daysBetween(a: CivilDate, b: CivilDate): number {
   return Math.round((Date.UTC(b.y, b.m - 1, b.d) - Date.UTC(a.y, a.m - 1, a.d)) / DAY_MS);
 }
 
-/** True when the zone is one the clock knows (an IANA name); a Windows name is not. */
-export function knownZone(zone: string): boolean {
-  if (zone.length === 0 || zone.length > 64 || !/^[A-Za-z0-9_+\-/]+$/.test(zone)) return false;
+/**
+ * The zone's canonical name when the clock knows it as an IANA name, else
+ * null: a Windows name, an offset ("+01") are not. The canonical name, not the
+ * text received, is what is used next — "europe/PARIS" and "Europe/Paris" are
+ * one zone, so a calendar cannot multiply the formatters kept for each zone.
+ */
+export function canonicalZone(zone: string): string | null {
+  if (zone.length > 64 || !/^[A-Za-z][A-Za-z0-9_+\-/]*$/.test(zone)) return null;
   try {
-    new Intl.DateTimeFormat("en-US", { timeZone: zone });
-    return true;
+    return new Intl.DateTimeFormat("en-US", { timeZone: zone }).resolvedOptions().timeZone;
   } catch {
-    return false;
+    return null;
   }
 }
 
