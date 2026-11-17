@@ -49,6 +49,11 @@ export const SECRET_FAMILIES = {
   /** The executor's database role (B7). */
   executor: { file: ".env.executor", vars: ["CENACLE_DB_EXECUTOR_PASSWORD"] },
   /**
+   * The nightly copy's database role (ADR-0044): read by the copy program and
+   * the migrations that make the role (and the tests), by no other program.
+   */
+  copie: { file: ".env.copie", vars: ["CENACLE_DB_COPIE_PASSWORD"] },
+  /**
    * Shared with the sentinel (S2): Iris, the executor, the security agent (J6e1)
    * and the bot, for the reminders' bell (ADR-0041), beat with it.
    */

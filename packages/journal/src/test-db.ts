@@ -7,6 +7,8 @@ import { join } from "node:path";
 import postgres from "postgres";
 import {
   appUrlFromEnv,
+  COPIE_PASSWORD_VAR,
+  COPIE_ROLE,
   EXECUTOR_PASSWORD_VAR,
   executorUrlFromEnv,
   migrate,
@@ -40,11 +42,13 @@ function explainConnectionError(error: unknown): string {
 }
 
 /**
- * .env, the owner's password (.env.owner) and the executor's (.env.executor):
- * the tests create the test database, and roles are shared by the whole cluster.
+ * .env, the owner's password (.env.owner), the executor's (.env.executor) and
+ * the copy's (.env.copie): the tests create the test database, and roles are
+ * shared by the whole cluster — a password made up here would reset the real
+ * role's, so the tests take the real ones and invent none.
  */
 export function loadEnv(): void {
-  for (const name of [".env", ".env.owner", ".env.executor"]) {
+  for (const name of [".env", ".env.owner", ".env.executor", ".env.copie"]) {
     const file = join(import.meta.dirname, "..", "..", "..", name);
     if (existsSync(file)) process.loadEnvFile(file);
   }
@@ -68,6 +72,7 @@ export async function resetTestDatabase(): Promise<void> {
     ownerUrl: ownerUrlFromEnv(TEST_DB),
     appPassword: requireEnv("CENACLE_DB_APP_PASSWORD"),
     executorPassword: requireEnv(EXECUTOR_PASSWORD_VAR),
+    copiePassword: requireEnv(COPIE_PASSWORD_VAR),
   });
   await setPurgeFloors(TEST_FLOORS, TEST_DB);
 }
@@ -81,4 +86,14 @@ export function appConnection() {
 export function executorConnection() {
   loadEnv();
   return postgres(executorUrlFromEnv(TEST_DB), { infer: true, max: 2, onnotice: () => {} });
+}
+
+/** The nightly copy's connection to the test database (ADR-0044). */
+export function copieConnection() {
+  loadEnv();
+  const host = process.env.CENACLE_DB_HOST ?? "127.0.0.1";
+  const port = process.env.CENACLE_DB_PORT ?? "55432";
+  const credential = `${COPIE_ROLE}:${encodeURIComponent(requireEnv(COPIE_PASSWORD_VAR))}`;
+  const url = `postgres://${credential}@${host}:${port}/${TEST_DB}`;
+  return postgres(url, { infer: true, max: 1, onnotice: () => {} });
 }

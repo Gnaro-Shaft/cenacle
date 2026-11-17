@@ -6,6 +6,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { createMailStore } from "./mail-store.ts";
 import {
   appUrlFromEnv,
+  COPIE_PASSWORD_VAR,
   EXECUTOR_PASSWORD_VAR,
   migrate,
   ownerUrlFromEnv,
@@ -66,6 +67,7 @@ describe("migrations run again on a populated database", () => {
         ownerUrl: ownerUrlFromEnv(TEST_DB),
         appPassword: requireEnv("CENACLE_DB_APP_PASSWORD"),
         executorPassword: requireEnv(EXECUTOR_PASSWORD_VAR),
+        copiePassword: requireEnv(COPIE_PASSWORD_VAR),
       }),
     ).resolves.toContain("010_purges.sql");
     expect((await store.get(unsigned.id))?.status).toBe("failed");
@@ -106,6 +108,7 @@ describe("mail rows decided by every decider survive a replay (ADR-0029)", () =>
         ownerUrl: ownerUrlFromEnv(TEST_DB),
         appPassword: requireEnv("CENACLE_DB_APP_PASSWORD"),
         executorPassword: requireEnv(EXECUTOR_PASSWORD_VAR),
+        copiePassword: requireEnv(COPIE_PASSWORD_VAR),
       }),
     ).resolves.toContain("025_mail_items_masse.sql");
   });
@@ -142,6 +145,7 @@ describe("the missions box (ADR-0031): only a rule puts a mail there", () => {
         ownerUrl: ownerUrlFromEnv(TEST_DB),
         appPassword: requireEnv("CENACLE_DB_APP_PASSWORD"),
         executorPassword: requireEnv(EXECUTOR_PASSWORD_VAR),
+        copiePassword: requireEnv(COPIE_PASSWORD_VAR),
       }),
     ).resolves.toContain("026_mail_items_missions.sql");
     expect((await mails.totals()).missions).toBeGreaterThanOrEqual(1);

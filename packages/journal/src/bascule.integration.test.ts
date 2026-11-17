@@ -25,6 +25,7 @@ const P0 = draw(); // the bootstrap role's password: today's .env.owner
 const P1 = draw(); // the new owner's
 const APP = draw();
 const EXECUTOR = draw();
+const COPIE = draw();
 let cluster: Cluster;
 
 const url = (role: string, password: string, db = "cenacle") =>
@@ -93,7 +94,12 @@ beforeAll(async () => {
       await new Promise((r) => setTimeout(r, 500));
     }
   }
-  await migrate({ ownerUrl: url(OWNER_ROLE, P0), appPassword: APP, executorPassword: EXECUTOR });
+  await migrate({
+    ownerUrl: url(OWNER_ROLE, P0),
+    appPassword: APP,
+    executorPassword: EXECUTOR,
+    copiePassword: COPIE,
+  });
   await withSql(OWNER_ROLE, P0, async (sql) => {
     await sql`insert into purge_planchers (cle, jours) values ('journal_jours', 180), ('propositions_jours', 90)`;
     await sql.unsafe("CREATE DATABASE cenacle_test");
@@ -239,6 +245,7 @@ describe("the switch, then back", () => {
         ownerUrl: url(OWNER_ROLE, P1),
         appPassword: APP,
         executorPassword: EXECUTOR,
+        copiePassword: COPIE,
       });
     }
     await withSql(OWNER_ROLE, P1, async (sql) => {
@@ -270,7 +277,12 @@ describe("the switch, then back", () => {
     await expect(withSql(OWNER_ROLE, P1, (sql) => sql`select 1`)).rejects.toMatchObject({
       code: "28P01",
     });
-    await migrate({ ownerUrl: url(OWNER_ROLE, P0), appPassword: APP, executorPassword: EXECUTOR });
+    await migrate({
+      ownerUrl: url(OWNER_ROLE, P0),
+      appPassword: APP,
+      executorPassword: EXECUTOR,
+      copiePassword: COPIE,
+    });
     await withSql("cenacle_app", APP, async (sql) => {
       expect(await sql`select count(*)::int as n from events where agent = 'bascule'`).toEqual([
         { n: 2 },

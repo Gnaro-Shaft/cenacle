@@ -20,6 +20,7 @@ const ALL = {
   GRAFANA_ADMIN_PASSWORD: "grafana-secret",
   CENACLE_ACCEPT_PRIVATE_KEY: "private-key-value",
   CENACLE_DB_EXECUTOR_PASSWORD: "executor-secret",
+  CENACLE_DB_COPIE_PASSWORD: "copie-value",
 };
 
 describe("each program holds its own secrets, and only them", () => {
@@ -185,5 +186,55 @@ describe("the agenda's passwords, a family known by its prefix (ADR-0042)", () =
       }
     }
     expect(holders).toEqual(["apps/server/src/main.ts"]);
+  });
+});
+
+describe("the copy's database password, a family of its own (ADR-0044)", () => {
+  const env = { CENACLE_DB_COPIE_PASSWORD: "copie-held" };
+
+  it.each([
+    ["Iris", ["mail", "telegram", "sentinel"]],
+    ["the page's server", ["mail", "page", "proxmox", "agenda"]],
+    ["the executor", ["mail", "executor", "sentinel"]],
+    ["the Telegram bot", ["telegram", "bot", "sentinel"]],
+    ["the CTO", []],
+  ] as const)("%s refuses to start with it, naming it, never its value", (program, allowed) => {
+    expect(familyOf("CENACLE_DB_COPIE_PASSWORD")).toBe("copie");
+    expect(() => refuseForeignSecrets(program, allowed, env)).toThrow(/CENACLE_DB_COPIE_PASSWORD/);
+    expect(() => refuseForeignSecrets(program, allowed, env)).not.toThrow(/copie-held/);
+  });
+
+  it("splitting .env moves it to .env.copie", () => {
+    const plan = splitEnv("CENACLE_DB_COPIE_PASSWORD=x\n");
+    expect(plan.moved.copie).toEqual(["CENACLE_DB_COPIE_PASSWORD=x"]);
+    expect(plan.summary[".env.copie"]).toEqual(["CENACLE_DB_COPIE_PASSWORD"]);
+  });
+
+  it("no program lists the family yet: the copy program comes with B1b", () => {
+    const root = join(import.meta.dirname, "..", "..", "..");
+    const holders: string[] = [];
+    for (const top of ["apps", "packages"]) {
+      for (const file of readdirSync(join(root, top), { recursive: true, encoding: "utf8" })) {
+        if (!file.endsWith(".ts") || file.includes("node_modules") || file.includes(".test.")) {
+          continue;
+        }
+        const text = readFileSync(join(root, top, file), "utf8");
+        for (const m of text.matchAll(/refuseForeignSecrets\(\s*[^,]+,\s*\[([^\]]*)\]/g)) {
+          if (/["']copie["']/.test(m[1] ?? "")) holders.push(`${top}/${file}`);
+        }
+      }
+    }
+    expect(holders).toEqual([]);
+  });
+
+  it("only the migrations load .env.copie among the npm scripts", () => {
+    const root = join(import.meta.dirname, "..", "..", "..");
+    const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as {
+      scripts: Record<string, string>;
+    };
+    const loaders = Object.entries(pkg.scripts)
+      .filter(([, command]) => command.includes(".env.copie"))
+      .map(([name]) => name);
+    expect(loaders).toEqual(["db:migrate"]);
   });
 });
