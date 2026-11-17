@@ -1,6 +1,6 @@
 # ADR-0043 — La veille des sauvegardes : lue par la ronde, sans root, sans Legion
 
-**Statut** : proposée (2026-11-17) — reprend la veille des ADR-024, 025 et 027 de Legion (« la copie des sauvegardes », « le canal d'alerte des sauvegardes », « la copie des bases de Legion ») ; étend l'ADR-0040 (le bulletin, version 3)
+**Statut** : acceptée (2026-11-17) — reprend la veille des ADR-024, 025 et 027 de Legion (« la copie des sauvegardes », « le canal d'alerte des sauvegardes », « la copie des bases de Legion ») ; étend l'ADR-0040 (le bulletin, version 3)
 
 ## Contexte
 
