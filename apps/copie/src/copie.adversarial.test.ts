@@ -7,7 +7,7 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { type CopieDeps, copyName, runCopie } from "./copie.ts";
+import { type CopieDeps, copyName, runCopie, WORK_PREFIX } from "./copie.ts";
 import { CopieError, type DumpOptions, dumpArgs } from "./export.ts";
 import { COPY_NAME, rsyncArgs, sshCommand } from "./pousser.ts";
 
@@ -117,6 +117,16 @@ describe("a copy that leaves", () => {
     expect(args.at(-2)).toBe(w.calls.dump[0]?.out);
     expect(args.join(" ")).not.toMatch(/--delete|--remove|PASSWORD|synthetic one/);
     expect(w.left()).toEqual([]);
+  });
+
+  it("sweeps a copy cut short the night before, and nothing that is not its own", async () => {
+    const w = world();
+    mkdirSync(join(w.deps.tmp, `${WORK_PREFIX}ancien`));
+    writeFileSync(join(w.deps.tmp, `${WORK_PREFIX}ancien`, "cenacle-x.age"), "chiffrée");
+    mkdirSync(join(w.deps.tmp, "cenacle-copie-test-autre"));
+    mkdirSync(join(w.deps.tmp, "autre-programme"));
+    await runCopie(w.deps);
+    expect(w.left().sort()).toEqual(["autre-programme", "cenacle-copie-test-autre"]);
   });
 
   it("two copies of one night never share a name", () => {

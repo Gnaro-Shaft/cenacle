@@ -5,7 +5,7 @@
  * and one line says why, naming no path, no value.
  */
 import { randomBytes } from "node:crypto";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { type CopieConfig, CopieConfigError, parseCopieConfig } from "./config.ts";
 import { type Container, CopieError, type DumpOptions } from "./export.ts";
@@ -29,6 +29,19 @@ export interface CopieDeps {
   readonly dump: (o: DumpOptions) => Promise<number>;
   readonly push: Push;
   readonly now: () => Date;
+}
+
+/** The night's own folders in the temporary space: a prefix no test or other program uses. */
+export const WORK_PREFIX = "cenacle-copie-nuit-";
+
+/**
+ * A copy cut short (the Mac off, the process killed) leaves its folder: the
+ * next one sweeps it. Only the copy's own (the instance lock: no other runs).
+ */
+function sweep(tmp: string): void {
+  for (const entry of readdirSync(tmp)) {
+    if (entry.startsWith(WORK_PREFIX)) rmSync(join(tmp, entry), { recursive: true, force: true });
+  }
 }
 
 export interface CopieResult {
@@ -76,7 +89,8 @@ export async function runCopie(deps: CopieDeps): Promise<CopieResult> {
       "aucun conteneur unique ne publie le port de la base, avec une adresse sur son réseau : aucune copie",
     );
   }
-  const dir = mkdtempSync(join(deps.tmp, "cenacle-copie-"));
+  sweep(deps.tmp);
+  const dir = mkdtempSync(join(deps.tmp, WORK_PREFIX));
   try {
     const name = copyName(deps.now());
     const out = join(dir, name);

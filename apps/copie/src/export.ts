@@ -44,6 +44,11 @@ export function isRealRsync(path: string): boolean {
   }
 }
 
+/** What docker and age are given: no DOCKER_HOST, no agent socket, nothing inherited. */
+function childEnv(): NodeJS.ProcessEnv {
+  return { PATH: "/usr/bin:/bin", HOME: process.env.HOME ?? "", LANG: "C" };
+}
+
 /** The database's container: its name, and its own address on its network. */
 export interface Container {
   readonly name: string;
@@ -58,8 +63,9 @@ const IPV4 = /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1
  */
 export function findContainer(docker: string, port: string): Container | null {
   try {
+    // The same reduced environment as the export: one daemon, the same for both.
     const run = (args: string[]) =>
-      execFileSync(docker, args, { encoding: "utf8", timeout: 15_000 });
+      execFileSync(docker, args, { encoding: "utf8", timeout: 15_000, env: childEnv() });
     const names = run(["ps", "--filter", `publish=${port}`, "--format", "{{.Names}}"])
       .split("\n")
       .filter((n) => n !== "");
@@ -146,7 +152,7 @@ function startsWithAgeHeader(path: string): boolean {
 
 /** Exports and encrypts, or throws — leaving no file behind. Returns the copy's size. */
 export async function dumpEncrypted(o: DumpOptions): Promise<number> {
-  const env = { PATH: "/usr/bin:/bin", HOME: process.env.HOME ?? "", LANG: "C" };
+  const env = childEnv();
   // stderr ignored: never copied into a log (it could name a table or a row).
   const dump = spawn(o.docker, dumpArgs(o.container, o.database), {
     env: { ...env, PGPASSWORD: o.password },
