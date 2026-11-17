@@ -8,6 +8,7 @@
  *   - a stranger's message is still refused, its refusal not journaled.
  * An invalid event is our bug, not an outage: it still throws (charter, rule 3).
  */
+import type { Ask } from "@cenacle/agenda/prise";
 import { InvalidEventError } from "@cenacle/journal";
 import type { Action } from "./handler.ts";
 import type { ReminderAction } from "./rappels-bot.ts";
@@ -19,9 +20,13 @@ export const STOP_NOT_RECORDED =
 export const MAINTENANCE_NOT_RECORDED =
   "⚠ Demande NON enregistrée : la base est injoignable. Renvoie /maintenance dans quelques minutes.";
 
+export const AGENDA_NOT_WIRED = "📅 L'agenda n'est pas branché sur ce bot.";
+
 export interface ActionDeps {
   readonly reply: (chatId: number, text: string) => Promise<void>;
   readonly askCto: (chatId: number, question: string) => void;
+  /** The agenda's hours (ADR-0042, P2), asked apart: a reading may take a minute. */
+  readonly agenda?: (chatId: number, ask: Ask) => void;
   readonly listFindings?: (chatId: number, id?: number) => Promise<void>;
   /** A reminder set, listed or cancelled (ADR-0041): its own answer, never a false "set". */
   readonly reminder?: (action: ReminderAction) => Promise<void>;
@@ -38,6 +43,9 @@ export async function perform(actions: readonly Action[], deps: ActionDeps): Pro
       notRecorded = null;
     } else if (action.kind === "ask_cto") {
       deps.askCto(action.chatId, action.question);
+    } else if (action.kind === "agenda") {
+      if (deps.agenda === undefined) await deps.reply(action.chatId, AGENDA_NOT_WIRED);
+      else deps.agenda(action.chatId, action.ask);
     } else if (action.kind === "securite_list") {
       await deps.listFindings?.(action.chatId, action.id);
     } else if (

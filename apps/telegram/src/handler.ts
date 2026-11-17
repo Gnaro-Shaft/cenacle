@@ -8,6 +8,7 @@
  */
 import { type AgentStatus, errorText, ProjectionError, type VisualState } from "@cenacle/core";
 import { QuestionError, validQuestion } from "@cenacle/cto/question";
+import { type AgendaAction, agendaAction } from "./agenda-bot.ts";
 import type { TelegramUpdate } from "./api.ts";
 import { type ReminderAction, reminderActions } from "./rappels-bot.ts";
 
@@ -22,7 +23,9 @@ export type Action =
   /** The security findings still to fix, with their buttons (J6b) — or one of them, by number. */
   | { readonly kind: "securite_list"; readonly chatId: number; readonly id?: number }
   /** A reminder set, listed or cancelled (ADR-0041). */
-  | ReminderAction;
+  | ReminderAction
+  /** Tomorrow's or the week's hours, asked of the page's server (ADR-0042, P2). */
+  | AgendaAction;
 
 export interface HandlerDeps {
   readonly allowedChatId: number;
@@ -68,6 +71,7 @@ const HELP = [
   "/rappel <quand> <texte> — un rappel ; quand : 2026-11-20 09:00, 20/11 09:00, demain 09:00 ou dans 2 h",
   "/rappels — les prochains rappels ; /annuler 12 : retire le n°12",
   "   ⚠ Jamais de nom de client ni de contenu de mail : le texte passe par Telegram.",
+  "/demain — les heures de mes rendez-vous de demain ; /agenda : les 7 jours à venir (des heures, jamais d'intitulé)",
   "/aide — cette aide",
 ].join("\n");
 
@@ -175,6 +179,12 @@ export async function handleUpdate(update: TelegramUpdate, deps: HandlerDeps): P
       const rest = (message.text ?? "").trim().replace(/^\S+\s*/, "");
       return reminderActions(command, rest, message.chat.id, deps.now?.() ?? new Date());
     }
+    case "/demain":
+    case "/agenda": {
+      const command = commandOf(message.text ?? "") as "/demain" | "/agenda";
+      const rest = (message.text ?? "").trim().replace(/^\S+\s*/, "");
+      return [agendaAction(command, rest, message.chat.id)];
+    }
     case "/start":
     case "/aide":
     case "/help":
@@ -182,7 +192,7 @@ export async function handleUpdate(update: TelegramUpdate, deps: HandlerDeps): P
     default:
       return [
         reply(
-          "Je ne comprends que /etat, /cto, /constats, /maintenance, /rappel, /rappels, /annuler, /stop et /aide.",
+          "Je ne comprends que /etat, /cto, /constats, /maintenance, /rappel, /rappels, /annuler, /demain, /agenda, /stop et /aide.",
         ),
       ];
   }

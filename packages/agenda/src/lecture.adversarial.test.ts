@@ -261,7 +261,11 @@ describe("nothing kept", () => {
 
   it("the package's code writes nowhere: no file written, no database, no console", () => {
     const dir = import.meta.dirname;
-    const sources = readdirSync(dir).filter((f) => f.endsWith(".ts") && !f.includes(".test."));
+    // The socket (prise.ts) makes its folder and socket file, and nothing else:
+    // its own test pins exactly that.
+    const sources = readdirSync(dir).filter(
+      (f) => f.endsWith(".ts") && !f.includes(".test.") && f !== "prise.ts",
+    );
     expect(sources.length).toBeGreaterThan(5);
     for (const file of sources) {
       const text = readFileSync(join(dir, file), "utf8");

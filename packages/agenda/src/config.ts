@@ -13,9 +13,10 @@
 import { readFileSync } from "node:fs";
 import { agendaPasswordVar } from "@cenacle/core";
 import { parse } from "smol-toml";
+import { ACCOUNT_NAME_RULE } from "./prise-protocole.ts";
 
 export const MAX_ACCOUNTS = 8;
-const NAME_RULE = /^[a-z][a-z0-9_]{0,23}$/;
+const NAME_RULE = ACCOUNT_NAME_RULE;
 const HOST_RULE =
   /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/;
 const ACCOUNT_KEYS = new Set(["nom", "serveur", "identifiant", "hotes", "exclus"]);

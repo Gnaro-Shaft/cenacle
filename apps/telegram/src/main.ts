@@ -5,6 +5,7 @@
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { agendaSocketPath, askHours } from "@cenacle/agenda/prise";
 import { heartbeatFromEnv, projectStatus, refuseForeignSecrets } from "@cenacle/core";
 import { askCtoService, ctoSocketPath } from "@cenacle/cto/client";
 import {
@@ -24,6 +25,7 @@ import {
 import { loadCadre } from "@cenacle/mail";
 import { parseMaintenanceSwitch, parseServerSwitch } from "@cenacle/securite";
 import { perform } from "./actions.ts";
+import { relayAgenda } from "./agenda-bot.ts";
 import { createTelegramApi, TelegramError, type TelegramFailure } from "./api.ts";
 import { sleepUnless } from "./backoff.ts";
 import { bellHeartbeat, bellMinute, createBellBeat } from "./bell.ts";
@@ -86,6 +88,15 @@ function relay(chatId: number, question: string): void {
     send: (text) => api.sendMessage(chatId, text),
     ask: (q) => askCtoService(ctoSocketPath(homedir()), q),
   }).finally(() => relaying.delete(job));
+}
+
+// The agenda's hours (ADR-0042, P2): asked of the page's server, apart, a
+// reading taking up to a minute and a half.
+function agendaHours(chatId: number, ask: "tomorrow" | "week"): void {
+  void relayAgenda(ask, {
+    send: (text) => api.sendMessage(chatId, text),
+    ask: (a) => askHours(agendaSocketPath(homedir()), a),
+  });
 }
 
 // The reminders (ADR-0041): none kept without their retention in the cadre.
@@ -265,6 +276,7 @@ await poll({
       {
         reply,
         askCto: relay,
+        agenda: agendaHours,
         listFindings: (chatId, id) => guarded(() => listFindings(chatId, securite, id), undefined),
         reminder: (action) =>
           performReminder(action, {
