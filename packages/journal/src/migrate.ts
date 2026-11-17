@@ -5,7 +5,9 @@
  * the owner: it uses `cenacle_app`, which may only INSERT and SELECT events
  * (and read, add, categorize and expire mail items). The executor alone uses
  * `cenacle_executor`, the only role allowed to claim and close a sending
- * (ADR-0013); its password lives in .env.executor, loaded by it alone.
+ * (ADR-0013); its password lives in .env.executor, loaded by it alone. The
+ * nightly copy alone uses `cenacle_copie`, which reads four tables and their
+ * sequences, and nothing else (ADR-0044); its password lives in .env.copie.
  *
  * Usage: node --env-file=.env packages/journal/src/migrate.ts
  * (self-contained on purpose: no relative imports, so Node can run it directly)
@@ -18,6 +20,19 @@ import postgres from "postgres";
 export const APP_ROLE = "cenacle_app";
 export const EXECUTOR_ROLE = "cenacle_executor";
 export const EXECUTOR_PASSWORD_VAR = "CENACLE_DB_EXECUTOR_PASSWORD";
+export const COPIE_ROLE = "cenacle_copie";
+export const COPIE_PASSWORD_VAR = "CENACLE_DB_COPIE_PASSWORD";
+/**
+ * What the nightly copy reads (ADR-0044): what can be read back from nowhere
+ * else. Never prospection_mails_lus (its ids only mean something with the
+ * mail memory, which is not copied), nor anything else of the base.
+ */
+export const COPIE_TABLES = [
+  "rappels",
+  "prospection_cartes",
+  "veille_articles",
+  "securite_constats",
+] as const;
 const SQL_DIR = join(import.meta.dirname, "..", "sql");
 const PASSWORD_RULE = /^[A-Za-z0-9_-]{16,128}$/;
 
@@ -98,26 +113,62 @@ export async function runsAsSuperuser(url: string): Promise<boolean> {
   }
 }
 
+/**
+ * The copy's role (ADR-0044): SELECT on the four tables and on the sequences
+ * they own (their identity values leave with them), and nothing else. Every
+ * right on the schema is taken back first, so a table leaving the list
+ * leaves the role's reach at the next migration.
+ */
+async function copieRole(tx: postgres.TransactionSql, database: string, password: string) {
+  await loginRole(tx, COPIE_ROLE, password, COPIE_PASSWORD_VAR);
+  await tx.unsafe(`GRANT CONNECT ON DATABASE "${database}" TO ${COPIE_ROLE}`);
+  await tx.unsafe(`GRANT USAGE ON SCHEMA public TO ${COPIE_ROLE}`);
+  await tx.unsafe(`REVOKE ALL ON ALL TABLES IN SCHEMA public FROM ${COPIE_ROLE}`);
+  await tx.unsafe(`REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM ${COPIE_ROLE}`);
+  await tx.unsafe(`GRANT SELECT ON ${COPIE_TABLES.join(", ")} TO ${COPIE_ROLE}`);
+  const owned = await tx<{ seq: string }[]>`
+    select s.oid::regclass::text as seq
+      from pg_class s
+      join pg_depend d on d.classid = 'pg_class'::regclass and d.objid = s.oid
+                      and d.refclassid = 'pg_class'::regclass and d.deptype in ('a', 'i')
+      join pg_class t on t.oid = d.refobjid
+     where s.relkind = 'S' and t.relnamespace = 'public'::regnamespace
+       and t.relname = any(${[...COPIE_TABLES]})
+     order by 1`;
+  if (owned.length !== COPIE_TABLES.length) {
+    throw new Error(`${COPIE_ROLE}: expected one sequence per copied table, found ${owned.length}`);
+  }
+  await tx.unsafe(
+    `GRANT SELECT ON SEQUENCE ${owned.map((o) => o.seq).join(", ")} TO ${COPIE_ROLE}`,
+  );
+}
+
 export interface MigrateOptions {
   ownerUrl: string;
   appPassword: string;
   executorPassword: string;
+  copiePassword: string;
 }
 
 export async function migrate({
   ownerUrl,
   appPassword,
   executorPassword,
+  copiePassword,
 }: MigrateOptions): Promise<string[]> {
-  for (const [password, name] of [
+  const passwords = [
     [appPassword, "CENACLE_DB_APP_PASSWORD"],
     [executorPassword, EXECUTOR_PASSWORD_VAR],
-  ] as const) {
+    [copiePassword, COPIE_PASSWORD_VAR],
+  ] as const;
+  for (const [password, name] of passwords) {
     if (!PASSWORD_RULE.test(password))
       throw new UsageError(`${name} must be 16-128 chars of [A-Za-z0-9_-]`);
   }
-  if (appPassword === executorPassword) {
-    throw new UsageError(`${EXECUTOR_PASSWORD_VAR} must differ from CENACLE_DB_APP_PASSWORD`);
+  // One password per role: whoever holds one never holds another's rights.
+  for (const [i, [password, name]] of passwords.entries()) {
+    const twin = passwords.slice(0, i).find(([other]) => other === password);
+    if (twin !== undefined) throw new UsageError(`${name} must differ from ${twin[1]}`);
   }
   const sql = postgres(ownerUrl, { infer: true, max: 1, onnotice: () => {} });
   const applied: string[] = [];
@@ -210,6 +261,7 @@ export async function migrate({
       await tx.unsafe(`GRANT INSERT, SELECT ON events TO ${EXECUTOR_ROLE}`);
       await tx.unsafe(`GRANT SELECT ON mail_items, mail_locations TO ${EXECUTOR_ROLE}`);
       await tx.unsafe(`GRANT SELECT, UPDATE ON proposals TO ${EXECUTOR_ROLE}`);
+      await copieRole(tx, db.name, copiePassword);
     });
   } finally {
     await sql.end();
@@ -252,6 +304,7 @@ if (import.meta.main) {
     ownerUrl: ownerUrlFromEnv("cenacle"),
     appPassword: requireEnv("CENACLE_DB_APP_PASSWORD"),
     executorPassword: requireEnv(EXECUTOR_PASSWORD_VAR),
+    copiePassword: requireEnv(COPIE_PASSWORD_VAR),
   });
   console.log(`Migrations applied: ${applied.join(", ")}`);
   if (await runsAsSuperuser(ownerUrlFromEnv("cenacle"))) {

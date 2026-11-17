@@ -5,7 +5,13 @@
 // the journal stays append-only all along.
 import postgres from "postgres";
 import { describe, expect, it } from "vitest";
-import { EXECUTOR_PASSWORD_VAR, migrate, ownerUrlFromEnv, requireEnv } from "./migrate.ts";
+import {
+  COPIE_PASSWORD_VAR,
+  EXECUTOR_PASSWORD_VAR,
+  migrate,
+  ownerUrlFromEnv,
+  requireEnv,
+} from "./migrate.ts";
 import { appConnection, loadEnv, TEST_DB } from "./test-db.ts";
 
 describe("db:migrate while the programs run", () => {
@@ -45,6 +51,7 @@ describe("db:migrate while the programs run", () => {
           ownerUrl: ownerUrlFromEnv(TEST_DB),
           appPassword: requireEnv("CENACLE_DB_APP_PASSWORD"),
           executorPassword: requireEnv(EXECUTOR_PASSWORD_VAR),
+          copiePassword: requireEnv(COPIE_PASSWORD_VAR),
         });
       }
     } finally {

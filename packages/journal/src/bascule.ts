@@ -21,7 +21,8 @@ export const OWNER_ROLE = "cenacle_owner";
 export const ADMIN_ROLE = "cenacle_admin";
 /** The temporary superuser: it only renames the bootstrap role, then it goes. */
 export const SWITCH_ROLE = "cenacle_bascule";
-const PROGRAM_ROLES = ["cenacle_app", "cenacle_executor"] as const;
+/** The programs' roles, handed to the new owner to manage (the copy's since ADR-0044). */
+const PROGRAM_ROLES = ["cenacle_app", "cenacle_executor", "cenacle_copie"] as const;
 const PASSWORD_RULE = /^[A-Za-z0-9_-]{16,128}$/;
 const NAME_RULE = /^[a-z][a-z0-9_]{0,62}$/;
 

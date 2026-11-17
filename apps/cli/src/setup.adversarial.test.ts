@@ -41,6 +41,7 @@ describe("a fresh checkout", () => {
         ".env",
         ".env.admin",
         ".env.bot",
+        ".env.copie",
         ".env.executor",
         ".env.mail",
         ".env.obs",
@@ -78,6 +79,7 @@ describe("a fresh checkout", () => {
       [".env.admin", "CENACLE_DB_ADMIN_PASSWORD", 48],
       [".env.owner", "CENACLE_DB_OWNER_PASSWORD", 48],
       [".env.executor", "CENACLE_DB_EXECUTOR_PASSWORD", 48],
+      [".env.copie", "CENACLE_DB_COPIE_PASSWORD", 48],
       [".env", "CENACLE_DB_APP_PASSWORD", 48],
       [".env.mail", "CENACLE_MAIL_KEY", 64],
       [".env.mail", "CENACLE_TEST_MAIL_PASSWORD", 32],
@@ -133,6 +135,6 @@ describe("what the review found (D5)", () => {
     expect(() => writeSetup(dir, failing)).toThrow("ENOSPC");
     expect(readdirSync(dir).sort()).toEqual(before);
     // And a rerun is not refused by half a set.
-    expect(writeSetup(dir).written).toHaveLength(8);
+    expect(writeSetup(dir).written).toHaveLength(9);
   });
 });

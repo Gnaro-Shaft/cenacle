@@ -11,6 +11,8 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   APP_ROLE,
+  COPIE_PASSWORD_VAR,
+  COPIE_ROLE,
   EXECUTOR_PASSWORD_VAR,
   EXECUTOR_ROLE,
   lockedDown,
@@ -130,10 +132,11 @@ describe("the owner is no superuser (ADR-0038)", () => {
       ownerUrl: ownerUrlFromEnv(TEST_DB),
       appPassword: requireEnv("CENACLE_DB_APP_PASSWORD"),
       executorPassword: requireEnv(EXECUTOR_PASSWORD_VAR),
+      copiePassword: requireEnv(COPIE_PASSWORD_VAR),
     };
     await migrate(options);
     await migrate(options);
-    for (const role of [APP_ROLE, EXECUTOR_ROLE]) {
+    for (const role of [APP_ROLE, EXECUTOR_ROLE, COPIE_ROLE]) {
       await expect(lockedDown(owner, role)).resolves.toBeUndefined();
     }
   });

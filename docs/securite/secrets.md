@@ -18,6 +18,7 @@
 | `.env.proxmox` | Le jeton **en lecture seule** de la grappe Proxmox (`cenacle@pve`, rôle `PVEAuditor`, ADR-0039) : il voit la grappe, il ne peut rien y changer | Le serveur de la page seul |
 | `.env.agenda` | Les **mots de passe d'application** de mes agendas (ADR-0042) — chez OVH, faute de mieux, celui de la boîte —, un par compte, nommés d'après lui : `CENACLE_AGENDA_MOT_DE_PASSE_<COMPTE>` — la famille est reconnue **par ce préfixe** | Le serveur de la page seul |
 | `.env.executor` | Le mot de passe du rôle de l'exécuteur (ADR-0013) | L'exécuteur, les migrations, les tests |
+| `.env.copie` | Le mot de passe du rôle de la copie de nuit, `cenacle_copie`, qui ne lit que quatre tables (ADR-0044) | La copie de la base, les migrations, les tests |
 | `.env.sentinel` | Le jeton partagé avec la sentinelle (S2), qui authentifie les battements ; le VPS en garde la copie dans `/etc/cenacle-sentinel.env`, lisible par root seul | Iris, l'exécuteur |
 
 Tous sont ignorés par git et lisibles par moi seul (droits 600).

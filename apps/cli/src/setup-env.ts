@@ -28,6 +28,7 @@ export function setupFiles(example: string, drawn: Drawn): Map<string, string> {
     CENACLE_DB_ADMIN_PASSWORD: drawn.hex(24),
     CENACLE_DB_OWNER_PASSWORD: drawn.hex(24),
     CENACLE_DB_EXECUTOR_PASSWORD: drawn.hex(24),
+    CENACLE_DB_COPIE_PASSWORD: drawn.hex(24),
     CENACLE_TEST_MAIL_PASSWORD: drawn.hex(16),
     CENACLE_MAIL_KEY: drawn.hex(32),
     GRAFANA_ADMIN_PASSWORD: drawn.hex(16),

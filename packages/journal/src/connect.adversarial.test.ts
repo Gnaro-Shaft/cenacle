@@ -12,6 +12,7 @@ import { appUrlFromEnv, EXECUTOR_PASSWORD_VAR, migrate, requireEnv } from "./mig
 // Synthetic values only.
 const GOOD = "synthetic_password_0123456789";
 const OTHER = "another_synthetic_pw_98765";
+const THIRD = "third_synthetic_password_42";
 
 /** Runs connectOrQuit in a fresh node, with only the given environment. */
 function quit(role: "app" | "executor", env: Record<string, string>) {
@@ -36,15 +37,39 @@ describe("a missing or malformed database setting", () => {
   });
 
   it.each([
-    ["a short app password", { appPassword: "short", executorPassword: GOOD }],
-    ["a password with a quote", { appPassword: `${GOOD}'`, executorPassword: OTHER }],
-    ["the same password twice", { appPassword: GOOD, executorPassword: GOOD }],
+    [
+      "a short app password",
+      { appPassword: "short", executorPassword: GOOD, copiePassword: THIRD },
+    ],
+    [
+      "a password with a quote",
+      { appPassword: `${GOOD}'`, executorPassword: OTHER, copiePassword: THIRD },
+    ],
+    ["a short copy password", { appPassword: GOOD, executorPassword: OTHER, copiePassword: "x" }],
+    [
+      "the copy's password with a quote",
+      { appPassword: GOOD, executorPassword: OTHER, copiePassword: `${THIRD}'` },
+    ],
+    [
+      "the same password twice",
+      { appPassword: GOOD, executorPassword: GOOD, copiePassword: THIRD },
+    ],
+    [
+      "the copy's as the app's",
+      { appPassword: GOOD, executorPassword: OTHER, copiePassword: GOOD },
+    ],
+    [
+      "the copy's as the executor's",
+      { appPassword: GOOD, executorPassword: OTHER, copiePassword: OTHER },
+    ],
   ])("refuses %s before connecting, and never quotes it", async (_label, passwords) => {
     const error = await migrate({ ownerUrl: "postgres://nobody@127.0.0.1:1/none", ...passwords })
       .then(() => null)
       .catch((e: unknown) => e);
     expect(error).toBeInstanceOf(UsageError);
-    expect((error as Error).message).not.toContain(passwords.appPassword);
+    for (const p of Object.values(passwords)) {
+      if (p.length > 1) expect((error as Error).message).not.toContain(p);
+    }
   });
 });
 
