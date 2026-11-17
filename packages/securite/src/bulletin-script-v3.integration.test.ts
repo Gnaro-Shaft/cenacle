@@ -199,24 +199,77 @@ describe("cenacle-bulletin version 3: the backups on the machine", () => {
   }, 120_000);
 
   const sain = SAIN["copie-dumps"];
+  // A key each source does not write (it belongs to another).
+  const FOREIGN: Record<string, string> = {
+    "copie-dumps": "jeu=2026-11-16:4",
+    "veiller-sauvegardes": "gardes=7",
+    "copie-bases": "invite=100:3",
+    "myriade-base": "noeud=nœud-a:OK:1794890000",
+  };
   it.each([
-    ["a key of another source", sain.replace("fin=1", "jeu=2026-11-16:4\nfin=1")],
-    ["a key said twice that may not be", sain.replace("fin=1", "verdict=SAIN\nfin=1")],
-    ["a line after fin=1", `${sain}motif=late\n`],
-    ["no fin=1", sain.replace("fin=1\n", "")],
-    ["no depuis at all", sain.replace("depuis=-\n", "")],
-    ["an instant out of shape", sain.replace("instant=1794900000", "instant=17949e5")],
-    ["a depuis neither a number nor -", sain.replace("depuis=-", "depuis=hier")],
-    ["ill after its own instant", sain.replace("depuis=-", "depuis=1794900001")],
-    ["a verdict of a third word", sain.replace("verdict=SAIN", "verdict=SOUFFRANT")],
-    ["an empty line", sain.replace("pool_pct=64\n", "pool_pct=64\n\n")],
+    [
+      "a key of another source",
+      (s: string, t: string) => t.replace("fin=1", `${FOREIGN[s]}\nfin=1`),
+    ],
+    [
+      "a key said twice that may not be",
+      (_s: string, t: string) => t.replace("fin=1", "verdict=SAIN\nfin=1"),
+    ],
+    ["a line after fin=1", (_s: string, t: string) => `${t}motif=late\n`],
+    ["no fin=1", (_s: string, t: string) => t.replace("fin=1\n", "")],
+    ["no depuis at all", (_s: string, t: string) => t.replace("depuis=-\n", "")],
+    [
+      "an instant out of shape",
+      (_s: string, t: string) => t.replace("instant=1794900000", "instant=17949e5"),
+    ],
+    [
+      "a depuis neither a number nor -",
+      (_s: string, t: string) => t.replace("depuis=-", "depuis=hier"),
+    ],
+    [
+      "ill after its own instant",
+      (_s: string, t: string) => t.replace("depuis=-", "depuis=1794900001"),
+    ],
+    [
+      "a verdict of a third word",
+      (_s: string, t: string) => t.replace("verdict=SAIN", "verdict=SOUFFRANT"),
+    ],
+    ["an empty line", (_s: string, t: string) => t.replace("depuis=-\n", "depuis=-\n\n")],
+    [
+      "a carriage return",
+      (_s: string, t: string) => t.replace("verdict=SAIN\n", "verdict=SAIN\r\n"),
+    ],
   ])(
-    "%s: illisible, and nothing of it said",
-    (_what, text) => {
-      expect(one("copie-dumps", text)).toEqual([{ source: "copie-dumps", read: "illisible" }]);
+    "%s, for each of the four sources: illisible, and nothing of it said",
+    (_what, spoil) => {
+      const spoilt = Object.fromEntries(Object.entries(SAIN).map(([s, t]) => [s, spoil(s, t)]));
+      for (const [s, t] of Object.entries(spoilt))
+        expect(t, s).not.toBe(SAIN[s as keyof typeof SAIN]);
+      expect(parseBulletin(recite(spoilt)).backups).toEqual(
+        Object.keys(SAIN).map((source) => ({ source, read: "illisible" })),
+      );
     },
     120_000,
   );
+
+  it("a motif over several lines (an error quoted whole) stays one motif, and none of it is said", () => {
+    const text = MALADE["veiller-sauvegardes"].replace(
+      "ne répond pas\n",
+      "ne répond pas\n  at /usr/share/perl5/PVE/RPC.pm line 12.\nparam=valeur via 192.0.2.11\n\n",
+    );
+    const raw = recite({ "veiller-sauvegardes": text });
+    for (const leak of ["perl5", "param", "192.0.2"]) expect(raw).not.toContain(leak);
+    expect(parseBulletin(raw).backups).toEqual([
+      {
+        source: "veiller-sauvegardes",
+        read: "ok",
+        verdict: "MALADE",
+        at: 1_794_900_000_000,
+        since: 1_794_700_000_000,
+        motifs: 1,
+      },
+    ]);
+  }, 120_000);
 
   it("a verdict file that is a link is not followed", () => {
     const setup =
