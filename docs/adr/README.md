@@ -48,5 +48,6 @@ Elles sont rédigées en français (le code et le README sont en anglais).
 | [0041](0041-rappels.md) | Les rappels : poser, garder l'heure, faire sonner, sans Legion | Acceptée |
 | [0042](0042-agenda.md) | L'agenda : lu à la demande, jamais retenu, sans Legion | Acceptée |
 | [0043](0043-veille-des-sauvegardes.md) | La veille des sauvegardes : lue par la ronde, sans root, sans Legion | Acceptée |
+| [0044](0044-copie-de-la-base.md) | La copie de la base : ce qui ne se relit pas, chiffré, hors du Mac | Acceptée |
 
 Les règles dures qui s'appliquent à tout le code sont dans [`../charte.md`](../charte.md).
