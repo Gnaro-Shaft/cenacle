@@ -47,5 +47,6 @@ Elles sont rédigées en français (le code et le README sont en anglais).
 | [0040](0040-ronde-de-cenacle.md) | La ronde de Cénacle : ses propres bulletins, sans Legion | Acceptée |
 | [0041](0041-rappels.md) | Les rappels : poser, garder l'heure, faire sonner, sans Legion | Acceptée |
 | [0042](0042-agenda.md) | L'agenda : lu à la demande, jamais retenu, sans Legion | Acceptée |
+| [0043](0043-veille-des-sauvegardes.md) | La veille des sauvegardes : lue par la ronde, sans root, sans Legion | Acceptée |
 
 Les règles dures qui s'appliquent à tout le code sont dans [`../charte.md`](../charte.md).
