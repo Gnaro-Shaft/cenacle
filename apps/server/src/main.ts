@@ -83,7 +83,7 @@ const locator = createLocator({
   keyer: keyerFromEnv(),
   locations: createLocationStore(sql),
 });
-refuseForeignSecrets("The page's server", ["mail", "page", "proxmox"]);
+refuseForeignSecrets("The page's server", ["mail", "page", "proxmox", "agenda"]);
 // One server at a time (ADR-0019): a second one would fail on the port, or
 // worse, replace the page's link with a token the running server never drew.
 const lockSql = connectOrQuit("lock");

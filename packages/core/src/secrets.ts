@@ -11,6 +11,17 @@
 import { PRIVATE_KEY_VAR } from "./acceptance.ts";
 import { CONFIRM_PRIVATE_KEY_VAR } from "./confirmation.ts";
 
+/**
+ * The agenda's application passwords (ADR-0042): one per account, named after
+ * it (CENACLE_AGENDA_MOT_DE_PASSE_PRO…), so the family is known by this prefix.
+ */
+export const AGENDA_PASSWORD_PREFIX = "CENACLE_AGENDA_MOT_DE_PASSE_";
+
+/** The variable that holds an account's password: its name in capitals. */
+export function agendaPasswordVar(account: string): string {
+  return `${AGENDA_PASSWORD_PREFIX}${account.toUpperCase()}`;
+}
+
 export const SECRET_FAMILIES = {
   /** The database owner: migrations and tests only. */
   owner: { file: ".env.owner", vars: ["CENACLE_DB_OWNER_PASSWORD"] },
@@ -33,6 +44,8 @@ export const SECRET_FAMILIES = {
   bot: { file: ".env.bot", vars: [CONFIRM_PRIVATE_KEY_VAR] },
   /** The Proxmox cluster's read-only token (ADR-0039): the page's server alone. */
   proxmox: { file: ".env.proxmox", vars: ["CENACLE_PROXMOX_TOKEN"] },
+  /** The agenda's application passwords (ADR-0042): the page's server alone, by prefix. */
+  agenda: { file: ".env.agenda", vars: [], prefix: AGENDA_PASSWORD_PREFIX },
   /** The executor's database role (B7). */
   executor: { file: ".env.executor", vars: ["CENACLE_DB_EXECUTOR_PASSWORD"] },
   /**
@@ -52,10 +65,19 @@ export class SecretPlacementError extends Error {
   }
 }
 
+/** A family's prefix, when its variables are known by it rather than listed. */
+function prefixOf(family: SecretFamily): string | null {
+  const entry = SECRET_FAMILIES[family];
+  return "prefix" in entry ? entry.prefix : null;
+}
+
 /** The family a variable belongs to, or null when it is not a secret. */
 export function familyOf(name: string): SecretFamily | null {
   for (const family of FAMILIES) {
     if ((SECRET_FAMILIES[family].vars as readonly string[]).includes(name)) return family;
+    const prefix = prefixOf(family);
+    // The prefix alone names no account: it is not a password, but it is refused all the same.
+    if (prefix !== null && name.startsWith(prefix)) return family;
   }
   return null;
 }
@@ -66,9 +88,13 @@ export function refuseForeignSecrets(
   allowed: readonly SecretFamily[],
   env: NodeJS.ProcessEnv = process.env,
 ): void {
-  const foreign = FAMILIES.filter((f) => !allowed.includes(f)).flatMap((f) =>
-    SECRET_FAMILIES[f].vars.filter((v) => (env[v] ?? "") !== ""),
-  );
+  const foreign = Object.keys(env)
+    .filter((name) => (env[name] ?? "") !== "")
+    .filter((name) => {
+      const family = familyOf(name);
+      return family !== null && !allowed.includes(family);
+    })
+    .sort();
   if (foreign.length > 0) {
     // Names only, never values.
     throw new SecretPlacementError(
