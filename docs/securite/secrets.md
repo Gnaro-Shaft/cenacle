@@ -16,7 +16,7 @@
 | `.env.page` | La clé privée de la page (ADR-0013) | La page seule |
 | `.env.bot` | La clé privée du bot, qui signe ma confirmation d'une action sur un serveur, d'un plan ou de la fusion d'une PR (ADR-0036) | Le bot seul |
 | `.env.proxmox` | Le jeton **en lecture seule** de la grappe Proxmox (`cenacle@pve`, rôle `PVEAuditor`, ADR-0039) : il voit la grappe, il ne peut rien y changer | Le serveur de la page seul |
-| `.env.agenda` | Les **mots de passe d'application** de mes agendas (ADR-0042), un par compte, nommés d'après lui : `CENACLE_AGENDA_MOT_DE_PASSE_<COMPTE>` — la famille est reconnue **par ce préfixe** | Le serveur de la page seul |
+| `.env.agenda` | Les **mots de passe d'application** de mes agendas (ADR-0042) — chez OVH, faute de mieux, celui de la boîte —, un par compte, nommés d'après lui : `CENACLE_AGENDA_MOT_DE_PASSE_<COMPTE>` — la famille est reconnue **par ce préfixe** | Le serveur de la page seul |
 | `.env.executor` | Le mot de passe du rôle de l'exécuteur (ADR-0013) | L'exécuteur, les migrations, les tests |
 | `.env.sentinel` | Le jeton partagé avec la sentinelle (S2), qui authentifie les battements ; le VPS en garde la copie dans `/etc/cenacle-sentinel.env`, lisible par root seul | Iris, l'exécuteur |
 
@@ -65,13 +65,16 @@ La dernière commande affiche la valeur du jeton **une seule fois** : dans `.env
 
 Le serveur de la page lit mes agendas en CalDAV au moment où l'onglet « Agenda » le demande, et n'en garde rien. Il lui faut, par compte :
 
-1. **Un mot de passe d'application**, jamais le mot de passe du compte : chez Apple, sur la page du compte Apple, « Mots de passe pour les apps » ; chez l'hébergeur du compte professionnel, l'équivalent de son espace client. Un mot de passe d'application se révoque seul, sans toucher au compte.
-2. **Sa déclaration** dans `agenda.local.toml` (ignoré par git ; voir `agenda.local.example.toml`) : un nom que je choisis (`pro`, `perso`), l'adresse CalDAV du serveur (https), l'identifiant, les hôtes admis en plus du serveur — nommés un par un : iCloud annonce mes agendas sur un hôte numéroté, à ajouter tel que le dit le premier refus `hote` — et les calendriers à ne pas lire, par leur nom affiché (le calendrier où Legion écrit ses rappels, tant qu'il le fait).
+1. **Un mot de passe d'application**, jamais le mot de passe du compte : chez Apple, sur la page du compte Apple, « Mots de passe pour les apps ». Un mot de passe d'application se révoque seul, sans toucher au compte.
+   **Exception, chez OVH** (agenda professionnel, constaté le 2026-11-17) : la messagerie d'OVH n'offre pas de mot de passe d'application ; c'est **le mot de passe de la boîte** qui porte l'agenda qui sert. Il ne se révoque donc pas seul : en cas de doute, c'est le mot de passe de cette boîte qu'il faut changer, puis le reporter dans `.env.agenda` — et dans `.env.mail` si c'est la boîte que lit Iris.
+2. **Sa déclaration** dans `agenda.local.toml` (ignoré par git ; voir `agenda.local.example.toml`) : un nom que je choisis (`pro`, `perso`) — **jamais le nom d'une personne** : `/demain` le dit sur Telegram quand le compte est en panne —, l'adresse CalDAV du serveur (https), l'identifiant, les hôtes admis en plus du serveur — nommés un par un : iCloud annonce mes agendas sur un hôte numéroté, à ajouter tel que le dit le premier refus `hote` — et les calendriers à ne pas lire, par leur nom affiché (le calendrier où Legion écrit ses rappels, tant qu'il le fait).
 3. **Le mot de passe** dans `.env.agenda` : `CENACLE_AGENDA_MOT_DE_PASSE_<NOM EN MAJUSCULES>=<valeur>` (`CENACLE_AGENDA_MOT_DE_PASSE_PERSO=…`), droits 600.
 
 Puis redémarre le serveur de la page (`launchctl kickstart -k gui/$(id -u)/org.cenacle.server`, puis `npm run page` : le lien change). `agenda.local.toml` est relu à chaque lecture ; `.env.agenda`, au démarrage seulement.
 
-Le journal du serveur ne dit d'une lecture manquée que le nom du compte et un mot : `refus` (le serveur refuse le mot de passe), `injoignable` (y compris une redirection, jamais suivie), `delai`, `illisible`, `hote` (une adresse hors des hôtes admis : le mot de passe n'y est pas parti), `config` (le mot de passe manque). **En cas de doute** : révoque le mot de passe d'application chez le fournisseur ; l'onglet dira `refus`.
+Le journal du serveur ne dit d'une lecture manquée que le nom du compte et un mot : `refus` (le serveur refuse le mot de passe), `injoignable` (y compris une redirection, jamais suivie), `delai`, `illisible`, `hote` (une adresse hors des hôtes admis : le mot de passe n'y est pas parti), `config` (le mot de passe manque). **En cas de doute** : révoque le mot de passe d'application chez le fournisseur (chez OVH : change celui de la boîte) ; l'onglet dira `refus`.
+
+**Sur Telegram (P2)** : `/demain` et `/agenda` passent par une prise locale du serveur de la page, `~/Library/Application Support/cenacle/agenda.sock` (droits 600, dans un dossier 700, à côté de celle du CTO). Le bot n'a aucun mot de passe de l'agenda ; il reçoit des dates, des heures, des nombres, des noms de compte et des mots de panne — un schéma fermé, vérifié des deux côtés, qui n'a pas de place pour un intitulé. La prise sert une lecture à la fois. Tout programme lancé sous mon compte pourrait l'ouvrir et déclencher une lecture : c'est l'exposition que l'ADR-0042 accepte, bornée par ce schéma. Si le serveur ne peut pas l'ouvrir, il écrit `agenda : prise indisponible` et la page continue de marcher.
 
 ## Sauvegarder
 

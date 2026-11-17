@@ -3,7 +3,8 @@
 # Read again at every reading: no restart needed after a change here.
 # See docs/securite/secrets.md, « L'agenda, en lecture seule ».
 #
-#   nom          a name you choose ([a-z][a-z0-9_]): the page shows it; the
+#   nom          a name you choose ([a-z][a-z0-9_]), never a person's name:
+#                the page shows it, and Telegram when the account fails; the
 #                password is CENACLE_AGENDA_MOT_DE_PASSE_<NOM IN CAPITALS> in
 #                .env.agenda — an application password, never the account's own
 #   serveur      the CalDAV address of the account, https only

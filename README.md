@@ -49,7 +49,7 @@ On the owner's Mac, the programs run under **launchd**: `npm run service -- inst
 | `iris` | every minute; collects every 15 min (8 h–20 h, weekdays), alerts and recaps on Telegram |
 | `executor` | the only program that can send: what the owner accepted, after 2 minutes, 20 a day at most |
 | `server` | the local API, which builds the page at start and serves it (ADR-0037); `npm run web` runs Vite's dev server to work on the page, with `CENACLE_WEB_DEV=1` on the server |
-| `bot` | the Telegram bot (`/etat`, `/cto`, findings' buttons) |
+| `bot` | the Telegram bot (`/etat`, `/cto`, findings' buttons, `/demain` and `/agenda`: hours only, asked of the page's server over a local socket) |
 | `cto` | the CTO's local service, asked from the page, Telegram or `npm run cto -- "question"` |
 | `veille` | the CTO's daily digest, at 8 h |
 | `securite` | the security round, every 15 min |

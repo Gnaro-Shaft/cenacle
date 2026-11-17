@@ -8,7 +8,14 @@
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { createAgenda, loadAgendaConfig, send } from "@cenacle/agenda";
+import {
+  agendaSocketPath,
+  createAgenda,
+  createHoursService,
+  listenHours,
+  loadAgendaConfig,
+  send,
+} from "@cenacle/agenda";
 import { privateKeyFromEnv, refuseForeignSecrets } from "@cenacle/core";
 import { askCtoService, ctoSocketPath } from "@cenacle/cto";
 import {
@@ -101,6 +108,20 @@ const instance = await holdOrQuit(
 const token = newToken();
 const acceptKey = privateKeyFromEnv();
 
+// The agenda (ADR-0042): read on demand from my calendars' servers, nothing
+// kept — by the page, and by the bot over a local socket (P2).
+const agenda = createAgenda({
+  config: () => loadAgendaConfig(AGENDA_TOML, process.env),
+  transport: (account, signal) => (request) =>
+    send(
+      request,
+      { login: account.login, password: account.password ?? "", admitted: account.admitted },
+      { signal },
+    ),
+  now: () => Date.now(),
+  log: (line) => console.error(line),
+});
+
 const app = createApp({
   readAfter: (agent, afterId) => journal.read({ agent, afterId, limit: 1000 }),
   guard: defaultGuardConfig(token, PORT, { devPage: WEB_DEV }),
@@ -123,17 +144,7 @@ const app = createApp({
     }),
   }),
   // The agenda (ADR-0042): read on demand from my calendars' servers, nothing kept.
-  agenda: createAgenda({
-    config: () => loadAgendaConfig(AGENDA_TOML, process.env),
-    transport: (account, signal) => (request) =>
-      send(
-        request,
-        { login: account.login, password: account.password ?? "", admitted: account.admitted },
-        { signal },
-      ),
-    now: () => Date.now(),
-    log: (line) => console.error(line),
-  }),
+  agenda,
   prospection: createProspectionService({
     store: board,
     config: () => loadProspectionConfig(),
@@ -166,6 +177,16 @@ const server = serve({ fetch: app.fetch, hostname: HOST, port: PORT }, (info) =>
   console.log("Page : lien prêt (valable jusqu'à l'arrêt du serveur) — ouvre-la avec npm run page");
 });
 
+// The bot's way to the agenda's hours (ADR-0042, P2): a socket only my account
+// can open. Without it the page still works; its absence is said, nothing more.
+// The path is computed inside the chain: one too long is a missing socket, not a dead server.
+const hours = await Promise.resolve()
+  .then(() => listenHours(agendaSocketPath(homedir()), createHoursService(agenda)))
+  .catch(() => {
+    console.error("agenda : prise indisponible");
+    return null;
+  });
+
 // Ctrl+C, or SIGTERM when macOS logs out or launchd unloads the server: a
 // clean stop, whose link no longer works, is removed.
 let stopping = false;
@@ -175,6 +196,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
     stopping = true;
     removePageUrl(linkPath, link);
     server.close();
+    await hours?.close();
     await instance.release();
     await Promise.all([lockSql.end({ timeout: 2 }), sql.end({ timeout: 2 })]);
     process.exit(0);
