@@ -34,6 +34,7 @@ const NAMES: Record<Program, string> = {
   operateur: "L'opérateur des serveurs",
   prospection: "L'agent prospection",
   ronde: "La ronde des machines",
+  copie: "La copie de la base",
 };
 const COMMANDS = ["install", "uninstall", "status"] as const;
 type Command = (typeof COMMANDS)[number];
@@ -105,7 +106,7 @@ try {
   }
   if (command === "install" && programs.some(timed)) {
     console.log(
-      "  La veille part chaque jour à 8 h ; l'agent sécurité fait sa ronde toutes les 15 min (rapport du matin à 7 h 30) ; Mac en veille : au réveil.",
+      "  La veille part chaque jour à 8 h, la copie de la base à 2 h 30 ; l'agent sécurité fait sa ronde toutes les 15 min (rapport du matin à 7 h 30) ; Mac en veille : au réveil.",
     );
   }
 } catch (error) {

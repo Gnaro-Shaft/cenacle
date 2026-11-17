@@ -18,7 +18,7 @@ import {
 import { type PurgeFloors, setPurgeFloors } from "./purge-floors.ts";
 
 /** The migrations, for tests that build a database of their own (ADR-0038 switch). */
-export { migrate } from "./migrate.ts";
+export { migrate, ownerUrlFromEnv, requireEnv } from "./migrate.ts";
 
 export const TEST_DB = "cenacle_test";
 /** The test database's purge floors: the retentions cadre.toml ships. */

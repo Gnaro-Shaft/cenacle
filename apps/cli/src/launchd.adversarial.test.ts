@@ -90,6 +90,15 @@ describe("the LaunchAgent", () => {
     expect(plist).not.toContain("ThrottleInterval");
   });
 
+  it("the copy of the base runs once a night at 2:30: never at load, never restarted", () => {
+    const plist = buildPlist("copie", deps());
+    expect(plist).toMatch(
+      /<key>StartCalendarInterval<\/key>\s*<dict>\s*<key>Hour<\/key><integer>2<\/integer>\s*<key>Minute<\/key><integer>30<\/integer>\s*<\/dict>/,
+    );
+    expect(plist).toContain("<key>RunAtLoad</key><false/>");
+    expect(plist).not.toContain("KeepAlive");
+  });
+
   it("every other program stays kept alive, and none of them is scheduled", () => {
     for (const program of PROGRAMS.filter(
       (p) => SCHEDULED[p] === undefined && INTERVALS[p] === undefined,
@@ -99,7 +108,7 @@ describe("the LaunchAgent", () => {
       expect(plist).toContain("<key>RunAtLoad</key><true/>");
       expect(plist).not.toContain("StartCalendarInterval");
     }
-    expect(Object.keys(SCHEDULED)).toEqual(["veille"]);
+    expect(Object.keys(SCHEDULED)).toEqual(["veille", "copie"]);
   });
 
   it("the security agent's round every 15 minutes: never at load, never kept alive", () => {
@@ -211,6 +220,8 @@ describe("the runner", () => {
     ["veille", "veille"],
     ["securite", "securite"],
     ["prospection", "prospection"],
+    ["ronde", "ronde"],
+    ["copie", "copie"],
   ])("starts %s with exactly the env files of `npm run %s`", (program, npmScript) => {
     const script = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).scripts[npmScript];
     const runner = readFileSync(RUNNER, "utf8");

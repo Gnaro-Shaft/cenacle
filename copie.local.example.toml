@@ -1,0 +1,18 @@
+# The nightly copy of the base (ADR-0044). Copy to copie.local.toml
+# (git-ignored: a host name and a path of your machine). Nothing here is a
+# secret: the age key is the PUBLIC one; its private half stays off the Mac.
+#
+#   destinataire  the age public key the copy is encrypted for (age1…);
+#                 a private key (AGE-SECRET-KEY-…) here is refused
+#   known_hosts   Cénacle's own known_hosts, the backup node's fingerprint pinned
+#   adresse       the backup node's host name (Tailscale)
+#   port          its ssh port (22 by default)
+#   compte        the account whose key is locked on rrsync -wo, never root
+#
+# The push key is no setting: ~/.ssh/cenacle/copie-pousser, readable by you
+# only (see deploy/serveurs/README.md).
+
+destinataire = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+known_hosts = "/Users/exemple/.ssh/cenacle/known_hosts"
+adresse = "sauvegarde.exemple.test"
+compte = "cenacle-depot"

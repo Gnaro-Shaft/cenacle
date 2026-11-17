@@ -61,12 +61,15 @@ describe("ssh, and the servers' list, belong to the operator alone", () => {
   // machines' bulletins, launching ssh in this file alone, with read-only keys only.
   const BULLETINS = join(ROOT, "apps", "ronde", "src", "ssh.ts");
   const RONDE = sources(join(ROOT, "apps", "ronde"));
+  // The second (ADR-0044): the nightly copy pushes one file through rrsync -wo,
+  // naming ssh in this file alone, with its push key only.
+  const PUSH = join(ROOT, "apps", "copie", "src", "pousser.ts");
 
   it("no other program launches ssh or reads serveurs.local.toml", () => {
     const outside = all.filter((p) => !p.startsWith(join(ROOT, "apps", "operateur")));
     for (const file of outside) {
       const text = readFileSync(file, "utf8");
-      if (file !== BULLETINS) {
+      if (file !== BULLETINS && file !== PUSH) {
         expect(text, relative(ROOT, file)).not.toMatch(/["'`]\/usr\/bin\/ssh["'`]/);
       }
       expect(text, relative(ROOT, file)).not.toMatch(/serveurs\.local\.toml["'`]\)/);
@@ -91,6 +94,24 @@ describe("ssh, and the servers' list, belong to the operator alone", () => {
     expect(pass).toMatch(/parseParkMachines/);
     const operator = sources(join(ROOT, "apps", "operateur")).map((f) => readFileSync(f, "utf8"));
     for (const t of operator) expect(t).not.toMatch(/parc\.local\.toml|parseParkMachines/);
+  });
+
+  it("the copy pushes with its own key alone: no agent, no operator's or ronde's key", () => {
+    const COPIE = sources(join(ROOT, "apps", "copie"));
+    expect(COPIE).toContain(PUSH);
+    for (const file of COPIE) {
+      const t = readFileSync(file, "utf8");
+      expect(t, relative(ROOT, file)).not.toMatch(
+        /serveurs\.local|parc\.local|parseServers|parseParkMachines/,
+      );
+      expect(t, relative(ROOT, file)).not.toMatch(/SSH_AUTH_SOCK|\.\.\.process\.env/);
+      if (file !== PUSH) expect(t, relative(ROOT, file)).not.toMatch(/\/usr\/bin\/ssh/);
+    }
+    const text = readFileSync(PUSH, "utf8");
+    expect(text.match(/\bexecFile\(/g) ?? []).toHaveLength(1);
+    expect(text).not.toMatch(/\b(spawn|exec|execSync|execFileSync|fork)\(/);
+    expect(text).toMatch(/IdentityAgent=none/);
+    expect(text).toMatch(/StrictHostKeyChecking=yes/);
   });
 
   it("the ronde's runner is the ronde's alone; the page's server reads no machine", () => {
