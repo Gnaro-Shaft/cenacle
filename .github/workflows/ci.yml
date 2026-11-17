@@ -87,7 +87,9 @@ jobs:
         run: echo "CENACLE_DB_COPIE_PASSWORD=ci_$(openssl rand -hex 16)" >> "$GITHUB_ENV"
       - run: npm run check
       - name: Audit dependencies
-        run: npm audit --audit-level=high
+        # npm audit at the high level, minus the advisories set aside, each
+        # with its reason and its date (apps/cli/src/audit-deps.ts).
+        run: npm run deps:audit
 
   secrets:
     runs-on: ubuntu-latest

@@ -39,6 +39,9 @@
     },
     {
       "path": "../../packages/conformite"
+    },
+    {
+      "path": "../../packages/securite"
     }
   ]
 }
