@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Agenda } from "./Agenda.tsx";
 import { AgentBox } from "./AgentBox.tsx";
 import type { Emblem } from "./Avatar.tsx";
 import { Board } from "./Board.tsx";
@@ -40,11 +41,14 @@ const TEAM: readonly { agent: string; title: string; duty: string; emblem: Emble
 ];
 const AGENTS = TEAM.map((member) => member.agent);
 
+/** The tabs, in their order. */
+const VIEWS = { travail: "Travail", agenda: "Agenda", parc: "Parc" } as const;
+
 export function App() {
   const team = useTeamStream(AGENTS);
   const [token, setToken] = useState<string | null>(() => takeToken());
-  /** The work (missions, drafts, the CTO) or the park (the machines): one at a time. */
-  const [view, setView] = useState<"travail" | "parc">("travail");
+  /** The work (missions, drafts, the CTO), the agenda, or the park (the machines): one at a time. */
+  const [view, setView] = useState<keyof typeof VIEWS>("travail");
   // The link pasted into an already open page changes only the part after #.
   useEffect(() => {
     const onHash = () => {
@@ -59,7 +63,7 @@ export function App() {
       <header className="entete">
         <h1>Cénacle</h1>
         <div className="onglets" role="tablist" aria-label="Vues">
-          {(["travail", "parc"] as const).map((v) => (
+          {(Object.keys(VIEWS) as (keyof typeof VIEWS)[]).map((v) => (
             <button
               key={v}
               type="button"
@@ -67,7 +71,7 @@ export function App() {
               aria-selected={view === v}
               onClick={() => setView(v)}
             >
-              {v === "travail" ? "Travail" : "Parc"}
+              {VIEWS[v]}
             </button>
           ))}
         </div>
@@ -89,11 +93,13 @@ export function App() {
       </aside>
       {token === null ? (
         <p className="bloc verrou">
-          Pour voir les missions, les brouillons, le parc et parler au CTO, ouvre la page avec{" "}
-          <code>npm run page</code> (le lien change à chaque démarrage du serveur).
+          Pour voir les missions, les brouillons, l'agenda, le parc et parler au CTO, ouvre la page
+          avec <code>npm run page</code> (le lien change à chaque démarrage du serveur).
         </p>
       ) : view === "parc" ? (
         <Parc token={token} onLost={() => setToken(null)} />
+      ) : view === "agenda" ? (
+        <Agenda token={token} onLost={() => setToken(null)} />
       ) : (
         <div className="colonnes">
           <div className="cote-missions">

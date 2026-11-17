@@ -6,6 +6,7 @@
  * URL. A test pins the keys it may carry. The proposals and the CTO need the
  * token (see guard.ts).
  */
+import { type AgendaView, DEFAULT_DAYS, MAX_DAYS } from "@cenacle/agenda";
 import { type CtoReply, CtoServiceError, QuestionError, validQuestion } from "@cenacle/cto";
 import { ProposalError } from "@cenacle/journal";
 import { type Context, Hono } from "hono";
@@ -36,6 +37,8 @@ export interface AppDeps {
   readonly prospection?: ProspectionService;
   /** The Parc tab (parc.ts): what Cénacle knows of the machines; absent, the route says so. */
   readonly parc?: () => Promise<ParcView>;
+  /** The agenda (ADR-0042), read at each call, nothing kept; absent, the route says so. */
+  readonly agenda?: (days: number) => Promise<AgendaView>;
   /** The built page's folder (apps/web/dist), served at / (ADR-0037); absent, only the API. */
   readonly page?: { readonly dist: string };
   /** Where a 500 or a broken stream is said in one line (api-log.ts); the console by default. */
@@ -78,12 +81,21 @@ export function createApp(deps: AppDeps): Hono {
   app.use("/api/prospection", tokenGuard(deps.guard));
   app.use("/api/prospection/*", tokenGuard(deps.guard));
   app.use("/api/parc", tokenGuard(deps.guard));
+  app.use("/api/agenda", tokenGuard(deps.guard));
 
   app.get("/api/health", (c) => c.json({ ok: true }));
   // Errors go to onError: one line in the log, a silent 500 to the page.
   app.get("/api/parc", async (c) => {
     if (deps.parc === undefined) return c.json({ error: "le parc n'est pas branché" }, 503);
     return c.json(await deps.parc());
+  });
+  // The agenda (ADR-0042): ?jours=1…31, 7 by default; the answer lives the time of the request.
+  app.get("/api/agenda", async (c) => {
+    const raw = c.req.query("jours") ?? String(DEFAULT_DAYS);
+    const days = /^\d{1,2}$/.test(raw) ? Number(raw) : 0;
+    if (days < 1 || days > MAX_DAYS) return c.json({ error: "jours : de 1 à 31" }, 400);
+    if (deps.agenda === undefined) return c.json({ error: "l'agenda n'est pas branché" }, 503);
+    return c.json(await deps.agenda(days));
   });
   mountProspection(app, deps.prospection, log);
 

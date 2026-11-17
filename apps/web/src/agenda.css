@@ -1,0 +1,61 @@
+/* The Agenda tab (ADR-0042): the days in a grid, the failures and set-asides first. */
+.agenda {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 1.2rem;
+  align-items: start;
+}
+.agenda-pannes,
+.agenda-ecartes {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 0.8rem 1rem 0.8rem 2rem;
+}
+.agenda-pannes {
+  border-color: var(--ton-mauvais);
+}
+.agenda-ecartes {
+  border-color: var(--ton-attention);
+  color: var(--encre-douce);
+}
+.agenda-jour > h2 {
+  margin-bottom: 0.4rem;
+}
+.agenda-jour > h2::first-letter {
+  text-transform: uppercase;
+}
+.agenda-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.agenda-rdv {
+  display: grid;
+  grid-template-columns: minmax(6.5rem, auto) minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0.2rem 0.7rem;
+  padding: 0.4rem 0;
+  border-top: 1px solid var(--trait);
+}
+.agenda-rdv:first-child {
+  border-top: none;
+}
+.agenda-heure {
+  color: var(--encre-douce);
+  font-variant-numeric: tabular-nums;
+  /* A night ("22:00 → ven. 20 02:00") goes on two lines rather than crush the title. */
+  max-width: 7.5rem;
+  font-size: 0.92rem;
+}
+.agenda-titre {
+  overflow-wrap: anywhere;
+}
+.agenda-compte {
+  color: var(--encre-douce);
+  font-size: 0.85rem;
+}
+.agenda-vide {
+  margin: 0;
+  color: var(--encre-douce);
+  font-style: italic;
+}

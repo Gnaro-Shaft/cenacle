@@ -5,6 +5,7 @@
   "license": "Apache-2.0",
   "type": "module",
   "dependencies": {
+    "@cenacle/agenda": "0.0.0",
     "@cenacle/core": "0.0.0",
     "@cenacle/cto": "0.0.0",
     "@cenacle/journal": "0.0.0",
