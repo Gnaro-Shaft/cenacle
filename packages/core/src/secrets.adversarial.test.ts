@@ -210,7 +210,7 @@ describe("the copy's database password, a family of its own (ADR-0044)", () => {
     expect(plan.summary[".env.copie"]).toEqual(["CENACLE_DB_COPIE_PASSWORD"]);
   });
 
-  it("no program lists the family yet: the copy program comes with B1b", () => {
+  it("only the copy program lists the family among its own", () => {
     const root = join(import.meta.dirname, "..", "..", "..");
     const holders: string[] = [];
     for (const top of ["apps", "packages"]) {
@@ -224,10 +224,10 @@ describe("the copy's database password, a family of its own (ADR-0044)", () => {
         }
       }
     }
-    expect(holders).toEqual([]);
+    expect(holders).toEqual(["apps/copie/src/main.ts"]);
   });
 
-  it("only the migrations load .env.copie among the npm scripts", () => {
+  it("only the copy program and the migrations load .env.copie among the npm scripts", () => {
     const root = join(import.meta.dirname, "..", "..", "..");
     const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as {
       scripts: Record<string, string>;
@@ -235,6 +235,6 @@ describe("the copy's database password, a family of its own (ADR-0044)", () => {
     const loaders = Object.entries(pkg.scripts)
       .filter(([, command]) => command.includes(".env.copie"))
       .map(([name]) => name);
-    expect(loaders).toEqual(["db:migrate"]);
+    expect(loaders.sort()).toEqual(["copie", "db:migrate"]);
   });
 });

@@ -24,6 +24,24 @@ npm run service -- install ronde
 
 Toutes les 5 minutes, elle lit le bulletin de chaque machine de `parc.local.toml` avec sa clé de lecture, le juge avec les règles de Legion, et laisse deux fichiers dans `~/Library/Caches/`, réécrits d'un bloc à chaque passage : le verdict, au format de Legion (`fr.gnaro.cenacle.ronde.verdict`), et les dernières mesures pour la page (`fr.gnaro.cenacle.ronde.bulletins.json`). Aucun secret, aucun message : son journal (`ronde.log`) dit une ligne quand l'état change, et le nom de chaque machine qu'elle n'a pas pu lire. Sans elle, l'onglet Parc dit que la ronde n'a pas encore tourné, ou que ses mesures sont trop anciennes.
 
+## La copie de la base (ADR-0044)
+
+```bash
+npm run service -- install copie
+```
+
+Chaque nuit à 2 h 30 (au réveil si le Mac dormait), elle exporte les données de quatre tables (`rappels`, `prospection_cartes`, `veille_articles`, `securite_constats`) par le rôle `cenacle_copie`, les chiffre avec `age` pour ta clé publique, et pousse le fichier chiffré sur le serveur de sauvegarde, par une clé qui n'y peut qu'écrire dans un dossier d'arrivée. Rien en clair ne touche le disque ; le fichier chiffré est effacé du Mac après l'envoi, réussi ou non. Son journal (`copie.log`) dit une ligne : la copie poussée et sa taille, ou pourquoi rien n'est parti.
+
+Ce qu'il lui faut, de ton côté, une fois :
+
+- `brew install age rsync` (le `rsync` de macOS, openrsync, n'est pas accepté) ;
+- `.env.copie` (le mot de passe du rôle, déjà créé pour B1a) ;
+- une paire de clés `age` : `age-keygen` **hors du Mac**, ou sur le Mac sans jamais l'écrire sur le disque ; la clé privée va dans ton gestionnaire de mots de passe et une copie hors ligne, **jamais** sur le Mac — sans elle, les copies sont illisibles ;
+- la clé de poussée, sans phrase de passe (la copie part seule, la nuit) : `ssh-keygen -t ed25519 -N "" -C cenacle-copie -f ~/.ssh/cenacle/copie-pousser` ; sa ligne publique va sur le serveur (`deploy/serveurs/README.md`) ;
+- `copie.local.toml`, d'après `copie.local.example.toml` : la clé publique `age1…`, le `known_hosts` de Cénacle avec l'empreinte du serveur, son adresse, le compte.
+
+Tant que l'un manque, la copie ne part pas, et le journal dit lequel.
+
 ## Ouvrir la page
 
 ```bash
