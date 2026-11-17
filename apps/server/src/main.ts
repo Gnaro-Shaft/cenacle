@@ -179,12 +179,13 @@ const server = serve({ fetch: app.fetch, hostname: HOST, port: PORT }, (info) =>
 
 // The bot's way to the agenda's hours (ADR-0042, P2): a socket only my account
 // can open. Without it the page still works; its absence is said, nothing more.
-const hours = await listenHours(agendaSocketPath(homedir()), createHoursService(agenda)).catch(
-  () => {
+// The path is computed inside the chain: one too long is a missing socket, not a dead server.
+const hours = await Promise.resolve()
+  .then(() => listenHours(agendaSocketPath(homedir()), createHoursService(agenda)))
+  .catch(() => {
     console.error("agenda : prise indisponible");
     return null;
-  },
-);
+  });
 
 // Ctrl+C, or SIGTERM when macOS logs out or launchd unloads the server: a
 // clean stop, whose link no longer works, is removed.

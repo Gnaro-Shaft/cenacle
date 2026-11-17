@@ -112,6 +112,10 @@ function day(v: unknown): DayHours {
     throw new Error("invalid day");
   }
   if (typeof v.date !== "string" || !DATE.test(v.date)) throw new Error("invalid date");
+  // A day that exists: no 31 February.
+  const [y = 0, m = 1, d = 1] = v.date.split("-").map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d));
+  if (t.getUTCMonth() !== m - 1 || t.getUTCDate() !== d) throw new Error("invalid date");
   const hours = v.hours;
   if (!Array.isArray(hours) || hours.length > MAX_HOURS_PER_DAY) throw new Error("invalid hours");
   for (const h of hours) {

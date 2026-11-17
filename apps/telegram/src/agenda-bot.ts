@@ -9,7 +9,8 @@ import { HoursError } from "@cenacle/agenda/prise";
 
 export type AgendaAction = { readonly kind: "agenda"; readonly chatId: number; readonly ask: Ask };
 
-export const USAGE = "Sans rien après : /demain pour demain, /agenda pour les 7 jours à venir.";
+export const USAGE =
+  "Sans rien après : /demain pour demain, /agenda pour 7 jours, aujourd'hui compris.";
 
 /** What "/demain" or "/agenda" asks for — nothing may follow the command. */
 export function agendaAction(
@@ -73,7 +74,7 @@ export function agendaText(ask: Ask, view: HoursView): string {
       );
     }
   } else {
-    lines.push("📅 Les 7 jours à venir :");
+    lines.push("📅 7 jours, aujourd'hui compris :");
     for (const day of view.days) lines.push(`${dayLabel(day.date)} : ${dayText(day)}`);
   }
   for (const f of view.failures) lines.push(`⚠ ${f.account} : ${FAILURE[f.state]}`);

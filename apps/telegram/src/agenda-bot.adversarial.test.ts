@@ -88,7 +88,7 @@ describe("the message", () => {
     const days = ["2026-11-17", "2026-11-18", "2026-11-19"].map((d) => day(d));
     days[1] = day("2026-11-18", { hours: ["10:00"] });
     expect(agendaText("week", ok(days)).split("\n")).toEqual([
-      "📅 Les 7 jours à venir :",
+      "📅 7 jours, aujourd'hui compris :",
       "mar. 17/11 : rien",
       "mer. 18/11 : 10:00",
       "jeu. 19/11 : rien",

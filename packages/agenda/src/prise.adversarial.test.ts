@@ -4,7 +4,15 @@
 // refused; no title crosses it, even one shaped like an hour; and the client
 // refuses any answer out of the schema. The bot's side imports nothing of the
 // reader (a test reads the code).
-import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { createConnection, createServer, type Socket } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -87,8 +95,18 @@ async function bare(at: string, onConn: (c: Socket) => void) {
 }
 
 describe("the socket", () => {
-  it("is 0600 in a 0700 folder", async () => {
+  it("refuses a folder that is a link elsewhere, and leaves its target alone", async () => {
+    const target = join(dir, "elsewhere");
+    mkdirSync(target, { mode: 0o755 });
+    symlinkSync(target, join(dir, "s"));
+    await expect(listenHours(path, async () => ({ read: "absent" }))).rejects.toThrow();
+    expect(statSync(target).mode & 0o777).toBe(0o755);
+  });
+
+  it("is 0600 in a 0700 folder, and leaves the process's umask as it found it", async () => {
+    const before = process.umask();
     await listen(async () => VIEW);
+    expect(process.umask()).toBe(before);
     expect(statSync(path).mode & 0o777).toBe(0o600);
     expect(statSync(join(dir, "s")).mode & 0o777).toBe(0o700);
   });
@@ -219,6 +237,7 @@ describe("the client", () => {
       ok({ days: [day({ hours: ["24:00"] })] }),
       ok({ days: [day({ title: TRAP })] }),
       ok({ days: [day({ date: "demain" })] }),
+      ok({ days: [day({ date: "2026-02-31" })] }),
       ok({ days: Array.from({ length: 8 }, () => day()) }),
       ok({ failures: [{ account: "M. Untel", state: "refus" }] }),
       ok({ failures: [{ account: "pro", state: "le serveur dit: RDV" }] }),

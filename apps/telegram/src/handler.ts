@@ -71,7 +71,7 @@ const HELP = [
   "/rappel <quand> <texte> — un rappel ; quand : 2026-11-20 09:00, 20/11 09:00, demain 09:00 ou dans 2 h",
   "/rappels — les prochains rappels ; /annuler 12 : retire le n°12",
   "   ⚠ Jamais de nom de client ni de contenu de mail : le texte passe par Telegram.",
-  "/demain — les heures de mes rendez-vous de demain ; /agenda : les 7 jours à venir (des heures, jamais d'intitulé)",
+  "/demain — les heures de mes rendez-vous de demain ; /agenda : 7 jours, aujourd'hui compris (des heures, jamais d'intitulé)",
   "/aide — cette aide",
 ].join("\n");
 

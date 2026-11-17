@@ -56,6 +56,10 @@ export async function listenHours(
   options: { readonly requestTimeoutMs?: number } = {},
 ): Promise<{ close(): Promise<void> }> {
   mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+  // The folder itself, never a link elsewhere whose target chmod would change.
+  if (!lstatSync(dirname(path)).isDirectory()) {
+    throw new Error(`${dirname(path)} is not a folder`);
+  }
   chmodSync(dirname(path), 0o700);
   try {
     if (!lstatSync(path).isSocket()) throw new Error(`${path} exists and is not a socket`);
@@ -112,10 +116,16 @@ export async function listenHours(
       );
     });
   });
-  await new Promise<void>((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(path, () => resolve());
-  });
+  // Born 0600 (umask), not opened then narrowed; set back once it exists.
+  const umask = process.umask(0o177);
+  try {
+    await new Promise<void>((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(path, () => resolve());
+    });
+  } finally {
+    process.umask(umask);
+  }
   chmodSync(path, 0o600);
   return {
     close: () =>
