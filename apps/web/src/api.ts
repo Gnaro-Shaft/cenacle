@@ -223,3 +223,45 @@ export interface ProxmoxNodeView {
 }
 
 export const getParc = (token: string) => call<ParcView>(token, "/api/parc");
+
+/** The agenda (ADR-0042): read at each call, nothing kept; titles and times only. */
+export type AgendaFailure = "refus" | "injoignable" | "delai" | "illisible" | "hote" | "config";
+export type AgendaReason =
+  | "fuseau-inconnu"
+  | "heure-flottante"
+  | "serie-non-etendue"
+  | "illisible"
+  | "trop-nombreux";
+export type AgendaEvent =
+  | {
+      readonly kind: "heure";
+      readonly account: string;
+      readonly title: string;
+      readonly start: number;
+      readonly end: number;
+    }
+  | {
+      readonly kind: "journee";
+      readonly account: string;
+      readonly title: string;
+      readonly first: string;
+      readonly last: string;
+    };
+export type AgendaView =
+  | { readonly read: "absent" }
+  | { readonly read: "config"; readonly why: string }
+  | {
+      readonly read: "ok";
+      readonly from: string;
+      readonly days: number;
+      readonly accounts: readonly { readonly name: string; readonly state: "ok" | AgendaFailure }[];
+      readonly events: readonly AgendaEvent[];
+      readonly setAside: readonly {
+        readonly account: string;
+        readonly reason: AgendaReason;
+        readonly count: number;
+      }[];
+    };
+
+export const getAgenda = (token: string, days = 7) =>
+  call<AgendaView>(token, `/api/agenda?jours=${days}`);

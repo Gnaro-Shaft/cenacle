@@ -68,6 +68,7 @@ Real configuration never goes in the repository (it is public): it lives in git-
 | `regles.local.toml` | sorting rules by exact domain; `[missions]` lists the exact alert addresses of the platforms |
 | `trames.local.toml` | the reply templates |
 | `prospection.local.toml` | the mission platforms (sender domain, link hosts) and the owner's profile (stack, minimum rate, remote work, places) |
+| `agenda.local.toml` | the calendars the page reads on demand (CalDAV, read-only, nothing kept — ADR-0042); their application passwords in `.env.agenda` |
 | `veille.local.toml`, `securite.local.toml`, `serveurs.local.toml` | the CTO's project map, the projects the security agent watches, the servers |
 
 ## Stack

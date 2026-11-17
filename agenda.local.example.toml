@@ -1,0 +1,30 @@
+# My calendars, read on demand by the page's server (ADR-0042). Copy to
+# agenda.local.toml (git-ignored: logins and addresses of your accounts).
+# Read again at every reading: no restart needed after a change here.
+# See docs/securite/secrets.md, « L'agenda, en lecture seule ».
+#
+#   nom          a name you choose ([a-z][a-z0-9_]): the page shows it; the
+#                password is CENACLE_AGENDA_MOT_DE_PASSE_<NOM IN CAPITALS> in
+#                .env.agenda — an application password, never the account's own
+#   serveur      the CalDAV address of the account, https only
+#   identifiant  the account's login
+#   hotes        the hosts admitted besides the server's, named exactly (no
+#                joker): iCloud serves your calendars from a numbered host;
+#                add it as the first `hote` failure on the page leads you to
+#   exclus       calendars not read, by their displayed name (a deny-list: a
+#                renamed calendar is read again)
+#
+# An account not declared here is not read. The same account declared twice
+# (same host, same login) is refused.
+
+[[compte]]
+nom = "pro"
+serveur = "https://dav.exemple.test/calendars/"
+identifiant = "moi@exemple.test"
+
+[[compte]]
+nom = "perso"
+serveur = "https://caldav.exemple.test/"
+identifiant = "moi.perso@exemple.test"
+hotes = ["p01-caldav.exemple.test"]
+exclus = ["Rappels de Legion"]

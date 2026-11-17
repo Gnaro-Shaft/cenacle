@@ -8,6 +8,7 @@
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { createAgenda, loadAgendaConfig, send } from "@cenacle/agenda";
 import { privateKeyFromEnv, refuseForeignSecrets } from "@cenacle/core";
 import { askCtoService, ctoSocketPath } from "@cenacle/cto";
 import {
@@ -54,6 +55,8 @@ if (WEB_DEV) {
 }
 const WEB_DIR = join(import.meta.dirname, "..", "..", "web");
 const SECURITE_TOML = join(import.meta.dirname, "..", "..", "..", "securite.toml");
+/** The agenda's accounts (ADR-0042), git-ignored, read again at each reading. */
+const AGENDA_TOML = join(import.meta.dirname, "..", "..", "..", "agenda.local.toml");
 /** securite.toml's [ronde] source; a file that cannot be read names none. */
 const rondeSource = () => {
   try {
@@ -83,7 +86,7 @@ const locator = createLocator({
   keyer: keyerFromEnv(),
   locations: createLocationStore(sql),
 });
-refuseForeignSecrets("The page's server", ["mail", "page", "proxmox"]);
+refuseForeignSecrets("The page's server", ["mail", "page", "proxmox", "agenda"]);
 // One server at a time (ADR-0019): a second one would fail on the port, or
 // worse, replace the page's link with a token the running server never drew.
 const lockSql = connectOrQuit("lock");
@@ -118,6 +121,18 @@ const app = createApp({
       get: getJson,
       now: () => Date.now(),
     }),
+  }),
+  // The agenda (ADR-0042): read on demand from my calendars' servers, nothing kept.
+  agenda: createAgenda({
+    config: () => loadAgendaConfig(AGENDA_TOML, process.env),
+    transport: (account, signal) => (request) =>
+      send(
+        request,
+        { login: account.login, password: account.password ?? "", admitted: account.admitted },
+        { signal },
+      ),
+    now: () => Date.now(),
+    log: (line) => console.error(line),
   }),
   prospection: createProspectionService({
     store: board,

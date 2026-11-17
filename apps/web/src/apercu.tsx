@@ -7,8 +7,9 @@
 import type { MailCounts } from "@cenacle/core";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { AgendaPanel } from "./Agenda.tsx";
 import { AgentCard } from "./AgentCard.tsx";
-import type { CardView, ProposalView } from "./api.ts";
+import type { AgendaView, CardView, ProposalView } from "./api.ts";
 import { BoardView } from "./Board.tsx";
 import { CtoAsk } from "./CtoAsk.tsx";
 import { Card } from "./Proposals.tsx";
@@ -17,6 +18,8 @@ import "./mise-en-page.css";
 import "./agents.css";
 import "./brouillons.css";
 import "./prospection.css";
+import "./parc.css";
+import "./agenda.css";
 
 window.fetch = () => Promise.reject(new Error("aperçu : aucun appel au serveur"));
 
@@ -122,6 +125,50 @@ const DRAFTS = [
 ];
 
 const nothing = () => undefined;
+
+/** A fictitious agenda: two accounts, one down, whole days, a night, set-asides. */
+const at = (iso: string) => Date.parse(iso);
+const AGENDA: AgendaView = {
+  read: "ok",
+  from: "2026-11-17",
+  days: 7,
+  accounts: [
+    { name: "pro", state: "ok" },
+    { name: "perso", state: "refus" },
+  ],
+  events: [
+    {
+      kind: "journee",
+      account: "pro",
+      title: "Salon fictif",
+      first: "2026-11-17",
+      last: "2026-11-18",
+    },
+    {
+      kind: "heure",
+      account: "pro",
+      title: "Point projet",
+      start: at("2026-11-17T08:00:00Z"),
+      end: at("2026-11-17T09:00:00Z"),
+    },
+    {
+      kind: "heure",
+      account: "pro",
+      title: "",
+      start: at("2026-11-17T13:30:00Z"),
+      end: at("2026-11-17T13:30:00Z"),
+    },
+    {
+      kind: "heure",
+      account: "pro",
+      title:
+        "Mise en production de nuit, un intitulé assez long pour passer à la ligne sans rien casser",
+      start: at("2026-11-19T21:00:00Z"),
+      end: at("2026-11-20T01:00:00Z"),
+    },
+  ],
+  setAside: [{ account: "pro", reason: "heure-flottante", count: 2 }],
+};
 
 function Apercu() {
   return (
@@ -260,6 +307,8 @@ function Apercu() {
           </section>
         </div>
       </div>
+      <h2>Agenda</h2>
+      <AgendaPanel view={AGENDA} />
     </main>
   );
 }

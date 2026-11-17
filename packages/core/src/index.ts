@@ -114,6 +114,8 @@ export {
   TIME_ZONE,
 } from "./schedule.ts";
 export {
+  AGENDA_PASSWORD_PREFIX,
+  agendaPasswordVar,
   FAMILIES,
   familyOf,
   refuseForeignSecrets,
