@@ -1,6 +1,6 @@
 # ADR-0044 — La copie de la base : ce qui ne se relit pas, chiffré, hors du Mac
 
-**Statut** : proposée (2026-11-17) — révise la décision du 04/10 (« la base n'est pas sauvegardée », `docs/securite/secrets.md`) ; s'appuie sur l'ADR-0043 (la veille des sauvegardes) et l'ADR-0038 (les rôles de la base)
+**Statut** : acceptée (2026-11-17) — révise la décision du 04/10 (« la base n'est pas sauvegardée », `docs/securite/secrets.md`) ; s'appuie sur l'ADR-0043 (la veille des sauvegardes) et l'ADR-0038 (les rôles de la base)
 
 ## Contexte
 
