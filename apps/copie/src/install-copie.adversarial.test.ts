@@ -80,6 +80,36 @@ describe.skipIf(!docker)("install-copie.sh on the backup node", () => {
     );
   });
 
+  // Seen on 19/11: the template line, pasted as is, sat in the lock.
+  it("says the template is to be filled in, and warns when it was pasted as is", () => {
+    expect(install.out).toMatch(
+      /replaced by the real\naddress and the content of .*copie-pousser\.pub/,
+    );
+    expect(install.out).toMatch(/never this template as is/);
+    expect(install.out).not.toMatch(/WARNING: .*template/);
+    const keys = `/home/${ACCOUNT}/.ssh/authorized_keys`;
+    const before = node.sh(`cat ${keys}`).out;
+    for (const pasted of [
+      'restrict,from="<adresse Tailscale du Mac>",command="x" ssh-ed25519 AAAA… cenacle-copie',
+      'restrict,from="100.64.0.1",command="x" ssh-ed25519 AAAA… cenacle-copie',
+      // A real key, but the address left as the template: from= binds nothing either.
+      'restrict,from="<adresse Tailscale du Mac>",command="x" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEssai cenacle-copie',
+    ]) {
+      node.sh(`printf '%s\\n' '${pasted}' >> ${keys}`);
+      const run = node.sh("/d/install-copie.sh");
+      node.sh(`printf '%s' '${before.replace(/'/g, "'\\''")}' > ${keys}`);
+      expect(run.code, run.out).toBe(0);
+      expect(run.out).toMatch(/WARNING: .*holds the template line as is/);
+    }
+    // A real line is never taken for the template.
+    node.sh(
+      `echo 'restrict,command="x" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEssai essai' >> ${keys}`,
+    );
+    const real = node.sh("/d/install-copie.sh");
+    node.sh(`printf '%s' '${before.replace(/'/g, "'\\''")}' > ${keys}`);
+    expect(real.out).not.toMatch(/WARNING: .*template/);
+  });
+
   it("a second run changes nothing, and keeps the key's line and the copies", () => {
     node.sh(
       `echo 'restrict,command="x" ssh-ed25519 AAAA essai' > /home/${ACCOUNT}/.ssh/authorized_keys; touch ${STORE}/gardees/garde`,

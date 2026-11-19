@@ -111,5 +111,12 @@ systemctl start veiller-copie-cenacle.service ||
   echo "(The unit fails while its verdict is MALADE: before the first copy, expected.)"
 cat "$ETAT/verdict" 2>/dev/null || echo "WARNING: no verdict yet: journalctl -u veiller-copie-cenacle"
 
-echo "Installed. Now add the Mac's push key to $keys, one line (README.md):"
+# The template below is a shape, never a line: pasted as is (seen on 19/11),
+# it binds nothing — say so if it is there.
+if grep -qF -e '<adresse Tailscale du Mac>' -e 'AAAA…' "$keys"; then
+  echo "WARNING: $keys holds the template line as is (<adresse Tailscale du Mac>, AAAA…): remove it, it binds no key."
+fi
+echo "Installed. Now add the Mac's push key to $keys, ONE line shaped as below,"
+echo "with <adresse Tailscale du Mac> and 'ssh-ed25519 AAAA… cenacle-copie' replaced by the real"
+echo "address and the content of ~/.ssh/cenacle/copie-pousser.pub (README.md) — never this template as is:"
 echo "restrict,from=\"<adresse Tailscale du Mac>\",command=\"/usr/bin/rrsync -wo -no-del -no-overwrite $RACINE/arrivee\" ssh-ed25519 AAAA… cenacle-copie"
