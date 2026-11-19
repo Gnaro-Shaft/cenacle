@@ -157,8 +157,10 @@ Si tu veux le dépôt sur le volume des sauvegardes, crée-le d'abord, puis le l
 
 ```
 sudo install -d -m 0711 /srv/sauvegardes/cenacle-copie
-sudo ln -s /srv/sauvegardes/cenacle-copie /var/backups/cenacle-copie
+sudo ln -sn /srv/sauvegardes/cenacle-copie /var/backups/cenacle-copie
 ```
+
+`-n` : relancée, la commande refuse (« File exists ») ; sans lui, elle suivrait le lien déjà posé et en mettrait un second **dans** le dépôt, pointant sur lui-même.
 
 Puis, depuis le Mac, `rsync` comme plus haut, et sur le serveur :
 
