@@ -1,0 +1,285 @@
+#!/bin/bash
+# veiller-copie-cenacle — on the backup node, every hour (ADR-0044, point 5).
+#
+# The Mac pushes the night's copy of Cénacle's base, encrypted with age, into
+# the arrival, through a key locked on `rrsync -wo -no-del -no-overwrite`
+# (account cenacle-depot). This script, as root:
+#   - takes each arrival out of that account's reach FIRST (a rename into a
+#     folder of root's, on the same disk: nothing followed, nothing copied),
+#     and only then looks at it — the account can no longer swap it for a link
+#     — in a copy of its own, a new inode of root's (a descriptor kept open on
+#     the original, or a hard link to it, cannot change what is judged);
+#   - keeps it under the server's own arrival time, written in its name: the
+#     file's date, which an rsync client sets, is never read;
+#   - refuses (quarantine, root alone): a name not of the copy's form, what is
+#     not a plain file, more than 1 GB, an empty file, no age header, a
+#     transfer left unfinished for more than 6 hours;
+#   - keeps a second copy within 12 hours of another, and says it: refused,
+#     a false copy pushed first with a stolen key would have the true one
+#     refused, night after night, until only false ones were left;
+#   - erases what was kept more than 7 days ago, EXCEPT the most recent (if
+#     the Mac stops, the last copy stays — and the verdict says so after 36 h),
+#     and what was refused more than 7 days ago;
+#   - writes the verdict, in the common format, for the bulletin.
+# MALADE: no copy kept, the most recent arrived more than 36 h ago, two
+# copies kept within 12 hours of the most recent (one a night is expected),
+# an arrival left unexamined, a clock behind the arrivals (then nothing is
+# erased), or a refusal at least as recent as the most recent copy. The next
+# copy, alone in its night, clears the last two; the quarantine stays 7 days,
+# to be looked at: sudo ls <root>/refusees.
+# A motif is a fixed phrase and numbers: never a name received.
+# Exit: 0 SAIN, 1 MALADE, 2 the store is not set as install-copie.sh sets it,
+# 3 no verdict can be written, 75 another pass is running.
+set -uo pipefail
+umask 077
+export LC_ALL=C
+
+RACINE=/var/backups/cenacle-copie
+ARRIVEE="$RACINE/arrivee"
+EXAMEN="$RACINE/examen"
+GARDEES="$RACINE/gardees"
+REFUSEES="$RACINE/refusees"
+ETAT=/var/lib/copie-cenacle
+VERDICT="$ETAT/verdict"
+
+GARDE=$((7 * 86400))
+PEREMPTION=$((36 * 3600))
+NUIT=$((12 * 3600))
+INACHEVE=$((6 * 3600))
+# A night's copy weighs a few megabytes: past this, it is no copy.
+# COPIE_CENACLE_TAILLE_MAX, like the clock below, is the tests'.
+TAILLE_MAX="${COPIE_CENACLE_TAILLE_MAX:-$((1024 * 1024 * 1024))}"
+[[ "$TAILLE_MAX" =~ ^[1-9][0-9]{0,11}$ ]] || { echo "the size limit is unreadable" >&2; exit 3; }
+NOM='^cenacle-[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9a-f]{16}\.age$'
+GARDEE='^([1-9][0-9]{0,10})-cenacle-[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9a-f]{16}\.age$'
+REFUSEE='^([1-9][0-9]{0,10})-[1-9][0-9]*-(nom|type|taille|vide|entete|inacheve)$'
+EPOQUE='^[1-9][0-9]{0,10}$'
+
+# The server's clock. COPIE_CENACLE_MAINTENANT is the tests' (root alone runs this).
+MAINTENANT="${COPIE_CENACLE_MAINTENANT:-$(date +%s)}"
+[[ "$MAINTENANT" =~ $EPOQUE ]] || { echo "the clock is unreadable" >&2; exit 3; }
+
+GARDES_N=0
+REFUSEES_N=0
+DERNIERE=0
+MOTIFS=()
+
+# The verdict, replaced whole (never read half written), readable by the
+# bulletin's account. `depuis` carries over while it stays ill.
+consigner() {
+    local etat="$1" depuis="-" ancien ancien_etat motif derniere="-"
+    [ "$DERNIERE" -gt 0 ] && derniere="$DERNIERE"
+    if [ "$etat" = MALADE ]; then
+        ancien_etat="$(sed -n 's/^verdict=//p' "$VERDICT" 2>/dev/null | head -1)"
+        ancien="$(sed -n 's/^depuis=//p' "$VERDICT" 2>/dev/null | head -1)"
+        if [ "$ancien_etat" = MALADE ] && [[ "$ancien" =~ $EPOQUE ]] && [ "$ancien" -le "$MAINTENANT" ]; then
+            depuis="$ancien"
+        else
+            depuis="$MAINTENANT"
+        fi
+    fi
+    {
+        echo "verdict=$etat"
+        echo "instant=$MAINTENANT"
+        echo "depuis=$depuis"
+        echo "gardes=$GARDES_N"
+        echo "refusees=$REFUSEES_N"
+        echo "derniere=$derniere"
+        for motif in "${MOTIFS[@]}"; do echo "motif=$motif"; done
+        echo "fin=1"
+    } >"$VERDICT.partiel" && chmod 0644 "$VERDICT.partiel" && mv -f "$VERDICT.partiel" "$VERDICT" ||
+        { echo "the verdict cannot be written" >&2; exit 3; }
+    cat "$VERDICT"
+}
+
+if [ -L "$ETAT" ] || [ ! -d "$ETAT" ]; then echo "no folder for the verdict" >&2; exit 3; fi
+exec 9>>"$ETAT/verrou" || exit 3
+flock -n 9 || { echo "another pass is running" >&2; exit 75; }
+
+# The store, as install-copie.sh sets it: four real folders on one disk (a
+# rename never copies), the three of root's closed to all others.
+regle=1
+for d in "$ARRIVEE" "$EXAMEN" "$GARDEES" "$REFUSEES"; do
+    if [ -L "$d" ] || [ ! -d "$d" ]; then regle=0; fi
+done
+if [ "$regle" = 1 ]; then
+    disque="$(stat -c %d -- "$ARRIVEE")"
+    for d in "$EXAMEN" "$GARDEES" "$REFUSEES"; do
+        [ "$(stat -c '%u %a %d' -- "$d")" = "0 700 $disque" ] || regle=0
+    done
+fi
+if [ "$regle" = 0 ]; then
+    MOTIFS+=("le dépôt n'est pas réglé comme install-copie.sh le règle : rien n'est examiné")
+    GARDES_N=-
+    REFUSEES_N=-
+    consigner MALADE
+    exit 2
+fi
+
+entries() { find "$1" -mindepth 1 -maxdepth 1 -printf '%f\0' | sort -z; }
+
+etrangers=0
+plus_recente() {
+    local name max=0
+    while IFS= read -r -d '' name; do
+        [[ "$name" =~ $GARDEE ]] && [ "${BASH_REMATCH[1]}" -gt "$max" ] && max="${BASH_REMATCH[1]}"
+    done < <(entries "$GARDEES")
+    DERNIERE="$max"
+}
+
+rang=0
+# Into the quarantine, under a name of ours (arrival, rank, reason): the name
+# received is not kept — it may say anything.
+refuser() {
+    local cible
+    while :; do
+        rang=$((rang + 1))
+        cible="$REFUSEES/$MAINTENANT-$rang-$2"
+        [ -e "$cible" ] || [ -L "$cible" ] || break
+    done
+    mv -T -- "$1" "$cible"
+}
+
+garder() {
+    local cible="$GARDEES/$MAINTENANT-$2"
+    if [ -e "$cible" ] || [ -L "$cible" ]; then refuser "$1" nom; return; fi
+    mv -T -- "$1" "$cible"
+}
+
+# Each file is judged in a copy of its own: a new inode, root's, 0600. A
+# descriptor the account kept open on what it pushed, or a hard link to it,
+# reaches the original only — which is then removed.
+ENTRANT="$GARDEES/.entrant"
+rm -f -- "$ENTRANT"
+
+# 1. Out of the account's reach. A name beginning with a dot is rsync's
+# transfer in progress: left alone, unless untouched for 6 hours (its ctime,
+# which no client sets).
+while IFS= read -r -d '' name; do
+    src="$ARRIVEE/$name"
+    if [[ "$name" == .* ]]; then
+        touche="$(stat -c %Z -- "$src" 2>/dev/null)" || continue
+        [[ "$touche" =~ ^[0-9]+$ ]] && [ $((MAINTENANT - touche)) -gt "$INACHEVE" ] &&
+            refuser "$src" inacheve
+        continue
+    fi
+    if [ -e "$EXAMEN/$name" ] || [ -L "$EXAMEN/$name" ]; then
+        refuser "$src" nom
+    else
+        mv -T -- "$src" "$EXAMEN/$name"
+    fi
+done < <(entries "$ARRIVEE")
+
+# 2. Looked at, in root's folder (what a pass cut short left there, too).
+while IFS= read -r -d '' name; do
+    f="$EXAMEN/$name"
+    if [ -L "$f" ] || [ ! -f "$f" ]; then
+        refuser "$f" type
+        continue
+    elif ! [[ "$name" =~ $NOM ]]; then
+        refuser "$f" nom
+        continue
+    fi
+    if ! head -c $((TAILLE_MAX + 1)) -- "$f" >"$ENTRANT"; then
+        rm -f -- "$ENTRANT" # the original stays here, and is said
+        continue
+    fi
+    rm -f -- "$f"
+    taille="$(stat -c %s -- "$ENTRANT")"
+    if [ "$taille" -gt "$TAILLE_MAX" ]; then
+        refuser "$ENTRANT" taille
+    elif [ "$taille" -eq 0 ]; then
+        refuser "$ENTRANT" vide
+    elif ! head -c 22 -- "$ENTRANT" | cmp -s - <(printf 'age-encryption.org/v1\n'); then
+        refuser "$ENTRANT" entete
+    else
+        garder "$ENTRANT" "$name"
+    fi
+done < <(entries "$EXAMEN")
+
+# 3. Seven days by arrival; the most recent copy kept stays, whatever its age.
+# Those within 12 hours of it are counted: more than one is no single night.
+# A clock behind an arrival already filed erases nothing: it would judge wrong.
+plus_recente
+purger=1
+rapprochees=0
+while IFS= read -r -d '' name; do
+    if [[ "$name" =~ $GARDEE || "$name" =~ $REFUSEE ]] && [ "${BASH_REMATCH[1]}" -gt "$MAINTENANT" ]; then
+        purger=0
+    fi
+done < <(entries "$GARDEES"; entries "$REFUSEES")
+while IFS= read -r -d '' name; do
+    if [[ "$name" =~ $GARDEE ]]; then
+        arrivee="${BASH_REMATCH[1]}"
+        if [ "$purger" = 1 ] && [ "$arrivee" -ne "$DERNIERE" ] && [ $((MAINTENANT - arrivee)) -gt "$GARDE" ]; then
+            rm -f -- "$GARDEES/$name"
+        else
+            GARDES_N=$((GARDES_N + 1))
+            [ $((DERNIERE - arrivee)) -lt "$NUIT" ] && rapprochees=$((rapprochees + 1))
+        fi
+    else
+        etrangers=$((etrangers + 1))
+    fi
+done < <(entries "$GARDEES")
+
+declare -A depuis_derniere=()
+derniere_refus=0
+while IFS= read -r -d '' name; do
+    if [[ "$name" =~ $REFUSEE ]]; then
+        arrivee="${BASH_REMATCH[1]}" raison="${BASH_REMATCH[2]}"
+        if [ "$purger" = 1 ] && [ $((MAINTENANT - arrivee)) -gt "$GARDE" ] &&
+            timeout 120 rm -rf --one-file-system -- "${REFUSEES:?}/$name"; then
+            continue
+        fi
+        REFUSEES_N=$((REFUSEES_N + 1))
+        [ "$arrivee" -gt "$derniere_refus" ] && derniere_refus="$arrivee"
+        if [ "$arrivee" -ge "$DERNIERE" ]; then
+            depuis_derniere[$raison]=$((${depuis_derniere[$raison]:-0} + 1))
+        fi
+    else
+        etrangers=$((etrangers + 1))
+    fi
+done < <(entries "$REFUSEES")
+
+# What could not be moved or copied: still in the examination, or in the
+# arrival under a name that is no transfer in progress.
+restees=0
+while IFS= read -r -d '' name; do
+    [[ "$name" == .* ]] || restees=$((restees + 1))
+done < <(entries "$EXAMEN"; entries "$ARRIVEE")
+
+# 4. The verdict.
+if [ "$DERNIERE" -eq 0 ]; then
+    MOTIFS+=("aucune copie gardée")
+elif [ $((MAINTENANT - DERNIERE)) -gt "$PEREMPTION" ]; then
+    MOTIFS+=("la copie la plus récente est arrivée il y a $(((MAINTENANT - DERNIERE) / 3600)) h (plus de 36 h)")
+fi
+if [ "$derniere_refus" -gt 0 ] && [ "$derniere_refus" -ge "$DERNIERE" ]; then
+    detail=""
+    for raison in nom type taille vide entete inacheve; do
+        n="${depuis_derniere[$raison]:-0}"
+        [ "$n" -gt 0 ] || continue
+        case "$raison" in
+            nom) libelle="nom inattendu" ;;
+            type) libelle="pas un fichier ordinaire" ;;
+            taille) libelle="plus de 1 Go" ;;
+            vide) libelle="vide" ;;
+            entete) libelle="sans en-tête age" ;;
+            inacheve) libelle="transfert inachevé" ;;
+        esac
+        detail="${detail:+$detail, }$n $libelle"
+    done
+    MOTIFS+=("refusées depuis la copie gardée la plus récente : $detail")
+fi
+[ "$rapprochees" -lt 2 ] ||
+    MOTIFS+=("$rapprochees copies gardées arrivées en moins de 12 h : une seule est attendue par nuit")
+[ "$purger" = 1 ] || MOTIFS+=("l'horloge du serveur retarde sur une arrivée déjà rangée : rien n'est effacé")
+[ "$etrangers" -eq 0 ] || MOTIFS+=("$etrangers entrée(s) inattendue(s) dans les dossiers de root")
+[ "$restees" -eq 0 ] || MOTIFS+=("$restees arrivée(s) non examinée(s) : à revoir au prochain passage")
+
+if [ "${#MOTIFS[@]}" -eq 0 ]; then
+    consigner SAIN
+    exit 0
+fi
+consigner MALADE
+exit 1

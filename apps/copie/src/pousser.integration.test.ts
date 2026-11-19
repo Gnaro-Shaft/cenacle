@@ -12,9 +12,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CopieConfig } from "./config.ts";
 import { findTool, isRealRsync, TOOLS } from "./export.ts";
 import { rsyncArgs, runPush, SSH, sshCommand } from "./pousser.ts";
+import { buildImage, IMAGE } from "./test-depot.ts";
 
-const BASE = process.env.CENACLE_TEST_DEBIAN_IMAGE ?? "debian:stable-slim";
-const IMAGE = "cenacle-test-rrsync:1";
 const DIR = mkdtempSync(join(tmpdir(), "cenacle-rrsync-"));
 const KEY = join(DIR, "pousser");
 const NAME = `cenacle-rrsync-${process.pid}`;
@@ -37,15 +36,7 @@ const SETUP = [
 ].join(" && ");
 
 beforeAll(async () => {
-  const dockerfile = [
-    "ARG BASE",
-    "FROM ${BASE}",
-    "RUN apt-get update && apt-get install -y --no-install-recommends openssh-server rsync python3 && rm -rf /var/lib/apt/lists/* && mkdir -p /run/sshd",
-  ].join("\n");
-  execFileSync("docker", ["build", "-q", "--build-arg", `BASE=${BASE}`, "-t", IMAGE, "-"], {
-    input: dockerfile,
-    stdio: ["pipe", "ignore", "inherit"],
-  });
+  buildImage();
   execFileSync("ssh-keygen", ["-q", "-t", "ed25519", "-N", "", "-f", KEY]);
   chmodSync(KEY, 0o600);
   spawnSync("docker", ["rm", "-f", NAME], { stdio: "ignore" });

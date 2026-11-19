@@ -137,3 +137,57 @@ npm run serveurs:verifier
 Il relit le fichier comme l'opérateur : la liste des machines et de leurs actions, ou l'erreur exacte (numéro du bloc compris), code 1. Le fichier est strict — une clé inconnue (une liste `ports` de Legion collée là, par exemple) ou une machine sans `cles` font refuser **toutes** les actions jusqu'à correction ; une machine sur laquelle on n'agit pas n'y figure pas. Sur Telegram, le refus dit la sorte d'erreur, jamais le détail.
 
 Rien ne part tant que `[serveurs] actif = false` dans `securite.toml` : on l'active par une PR, au moment de l'essai par le bouton (J6f1b).
+
+## La copie de la base : le serveur de sauvegarde (ADR-0044, B1c)
+
+Chaque nuit, le Mac pousse une copie chiffrée de quatre tables de la base (`deploy/launchd/README.md`). Le **serveur de sauvegarde seul** la reçoit, par un compte à part, **`cenacle-depot`**, qui n'est pas `cenacle` : la clé qui dépose ne sert ni à regarder ni à agir.
+
+- **Le compte** n'a ni mot de passe, ni groupe autre que le sien, ni `sudo`. Sa maison et son `authorized_keys` sont à root : la clé ne peut pas changer sa propre serrure.
+- **Le dépôt**, `/var/backups/cenacle-copie` : `arrivee/` (au compte : la clé y écrit, rien d'autre), `examen/`, `gardees/` et `refusees/` (à root seul). Le dossier lui-même peut être un **lien vers un volume à part** : une clé volée ne remplirait alors que ce volume ; les quatre dossiers dessous, jamais des liens.
+- **Le minuteur `veiller-copie-cenacle`**, toutes les heures, en root mais enfermé (sans réseau, `/usr` et `/etc` en lecture seule) :
+  - il sort chaque arrivée de la portée du compte **avant** de la regarder, la juge dans **une copie à lui** (un fichier neuf, à root : ce que le compte garderait ouvert ou lié ne l'atteint pas), et la garde sous **l'heure d'arrivée du serveur**, écrite dans son nom — jamais la date du fichier ;
+  - il **refuse** (quarantaine, `refusees/`) : un nom qui n'est pas celui d'une copie, ce qui n'est pas un fichier ordinaire, plus de 1 Go, un fichier vide, sans en-tête `age`, un transfert inachevé depuis 6 h ;
+  - il **garde et signale** une deuxième copie moins de 12 h après une autre : refusée, une fausse copie poussée avant la vraie avec une clé volée ferait refuser la vraie ; gardées, aucune n'évince l'autre ;
+  - il **efface** les copies arrivées depuis plus de 7 jours, **sauf la plus récente**, et la quarantaine après 7 jours ;
+  - il écrit le **verdict** `/var/lib/copie-cenacle/verdict` (format commun : `verdict`, `instant`, `depuis`, `gardes`, `refusees`, `derniere`, `motif`, `fin=1`), lisible par le compte `cenacle` pour le bulletin (B2). **MALADE** : aucune copie gardée, la plus récente arrivée il y a plus de 36 h, plus d'une copie arrivée à moins de 12 h de la plus récente, une arrivée qui n'a pas pu être examinée, une horloge en retard sur une arrivée déjà rangée (rien n'est alors effacé), ou un refus au moins aussi récent que la copie la plus récente — la copie suivante, seule dans sa nuit, lève ces deux derniers ; la quarantaine reste 7 jours pour que tu la regardes : `sudo ls -l /var/backups/cenacle-copie/refusees` (chaque nom dit l'heure d'arrivée et la raison).
+
+### Sur le serveur de sauvegarde, une fois
+
+Si tu veux le dépôt sur le volume des sauvegardes, crée-le d'abord, puis le lien (sinon, `install-copie.sh` le crée sur le disque de `/var`) :
+
+```
+sudo install -d -m 0711 /srv/sauvegardes/cenacle-copie
+sudo ln -s /srv/sauvegardes/cenacle-copie /var/backups/cenacle-copie
+```
+
+Puis, depuis le Mac, `rsync` comme plus haut, et sur le serveur :
+
+```
+sudo ~/cenacle-serveurs/serveurs/install-copie.sh
+```
+
+Il vérifie `rrsync` (rsync 3.2.4 au moins) et `python3`, crée le compte et le dépôt, pose le minuteur et le lance une première fois : son verdict dit alors `aucune copie gardée`, c'est attendu. Il prévient si `sshd` ne laisse entrer que certains comptes (`AllowUsers`, `AllowGroups`) : ajoute alors `cenacle-depot`. Le relancer est sans danger.
+
+### La clé de poussée
+
+Sur le Mac (`deploy/launchd/README.md`) :
+
+```
+ssh-keygen -t ed25519 -N "" -C cenacle-copie -f ~/.ssh/cenacle/copie-pousser
+```
+
+Sur le serveur, **une ligne** dans `/home/cenacle-depot/.ssh/authorized_keys` (`sudo`, le fichier est à root), la clé publique précédée de ses verrous :
+
+```
+restrict,from="<adresse Tailscale du Mac>",command="/usr/bin/rrsync -wo -no-del -no-overwrite /var/backups/cenacle-copie/arrivee" ssh-ed25519 AAAA… cenacle-copie
+```
+
+Le `known_hosts` de Cénacle porte déjà l'empreinte du serveur s'il a une clé d'action ou de bulletin ; sinon, épingle-la comme plus haut. Puis `copie.local.toml` sur le Mac, et l'essai :
+
+```
+npm run copie
+```
+
+Attendu : « ✔ Copie de la base : poussée ». Dans l'heure, sur le serveur, `sudo cat /var/lib/copie-cenacle/verdict` doit dire `verdict=SAIN`. Alors seulement : `npm run service -- install copie` sur le Mac.
+
+**Clé perdue ou volée** : retire sa ligne de `authorized_keys`, regarde la quarantaine et les copies gardées depuis la date du vol (une fausse copie chiffrée pour une autre clé ne se voit qu'à la restauration), tire une nouvelle clé, remets une ligne.
