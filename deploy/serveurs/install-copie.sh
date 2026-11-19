@@ -30,7 +30,7 @@ help="$(/usr/bin/rrsync -h 2>&1 || true)"
 for option in -wo -no-del -no-overwrite; do
   grep -qe "^ *$option" <<<"$help" || fail "this rrsync has no $option option: a newer rsync is required"
 done
-for tool in flock cmp find stat timeout; do
+for tool in flock cmp find stat timeout runuser readlink; do
   command -v "$tool" >/dev/null || fail "$tool is required"
 done
 
@@ -67,6 +67,22 @@ install -d -m 0700 -o "$COMPTE" -g "$COMPTE" "$RACINE/arrivee"
 for d in examen gardees refusees; do
   install -d -m 0700 -o root -g root "$RACINE/$d"
 done
+# The key's rrsync opens the arrival as the account: every folder on the way
+# must let it through, and a backup volume is often root's alone. Asked of the
+# account itself; on refusal, the first folder that stops it is named.
+arrivee="$RACINE/arrivee"
+if ! runuser -u "$COMPTE" -- test -r "$arrivee" -a -w "$arrivee" -a -x "$arrivee"; then
+  for chemin in "$(dirname "$RACINE")" "$(readlink -f "$RACINE")"; do
+    sous=""
+    IFS=/ read -ra noms <<<"${chemin#/}"
+    for nom in "${noms[@]}"; do
+      sous="$sous/$nom"
+      runuser -u "$COMPTE" -- test -x "$sous" ||
+        fail "$COMPTE cannot pass through $sous, on the way to its arrival: let it through and nothing more (setfacl -m u:$COMPTE:--x $sous, package acl), then run this again"
+    done
+  done
+  fail "$COMPTE cannot write in its arrival ($arrivee)"
+fi
 disque="$(stat -c %d "$RACINE/arrivee")"
 for d in examen gardees refusees; do
   [ "$(stat -c %d "$RACINE/$d")" = "$disque" ] ||
