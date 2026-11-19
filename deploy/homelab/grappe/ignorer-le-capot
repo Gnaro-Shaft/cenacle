@@ -1,0 +1,62 @@
+#!/bin/bash
+# Un portable qui sert d'hyperviseur ne doit jamais s'endormir. Il tourne SUR
+# le noeud :
+#
+#   ssh -J root@<rebond> root@<noeud> 'bash -s' < deploy/homelab/grappe/ignorer-le-capot
+#
+# Pourquoi : un des noeuds est un portable, et un hyperviseur ne doit pas dormir.
+#
+# CE N'ETAIT PAS LA CAUSE DE LA PANNE du 25/09/2026, et c'est dit ici pour ne
+# pas tromper : on l'a cru, on l'a pose, et fermer le capot coupait toujours le
+# reseau. Le journal a montre que l'adaptateur Ethernet USB se deconnectait
+# puis revenait HORS du pont vmbr0. La reparation est ailleurs — voir
+# poser-rebranchement. Ce correctif reste, parce qu'une mise en veille aurait
+# le meme effet et qu'il ne coute rien.
+#
+# Deux verrous, et le second tient meme si le premier saute :
+#   - un fichier de surcharge dedie ignore le capot, sur batterie, sur secteur
+#     et sur station d'accueil. A part de logind.conf : une mise a jour ne le
+#     touchera pas ;
+#   - la veille est masquee a la source. Meme un reglage perdu ne pourrait
+#     plus endormir la machine.
+#
+# Il affiche d'abord ce que le journal dit du capot : la preuve de la cause.
+set -euo pipefail
+export LC_ALL=C
+
+ok()    { printf '  ok     %s\n' "$1"; }
+echec() { printf '  ECHEC  %s\n' "$1" >&2; exit 1; }
+
+echo "-- $(hostname) : ce que le journal dit du capot depuis le demarrage --"
+JOURNAL="$(journalctl -b --no-pager 2>/dev/null || true)"
+grep -iE 'lid (closed|opened)|suspend|sleep' <<< "$JOURNAL" | tail -8 || true
+
+echo "-- le correctif --"
+install -d -m 755 /etc/systemd/logind.conf.d
+cat > /etc/systemd/logind.conf.d/serveur-capot.conf <<'EOF'
+# Pose par deploy/homelab/grappe/ignorer-le-capot (Cenacle, ADR-0045) : ce portable est
+# un hyperviseur, il ne dort jamais.
+[Login]
+HandleLidSwitch=ignore
+HandleLidSwitchExternalPower=ignore
+HandleLidSwitchDocked=ignore
+EOF
+ok "capot ignore (logind.conf.d/serveur-capot.conf)"
+systemctl mask --quiet sleep.target suspend.target hibernate.target hybrid-sleep.target
+ok "veille masquee"
+systemctl restart systemd-logind
+ok "logind relance"
+
+echo "-- la preuve --"
+REGLAGE="$(systemd-analyze cat-config systemd/logind.conf 2>/dev/null || true)"
+for cle in HandleLidSwitch HandleLidSwitchExternalPower HandleLidSwitchDocked; do
+    # La derniere valeur lue l'emporte, comme pour logind.
+    VALEUR="$(grep -E "^$cle=" <<< "$REGLAGE" | tail -1 || true)"
+    [ "$VALEUR" = "$cle=ignore" ] || echec "$cle vaut « ${VALEUR:-rien} », pas ignore"
+done
+ok "logind ignore le capot, dans les trois cas"
+ETAT="$(systemctl is-enabled suspend.target 2>/dev/null || true)"
+[ "$ETAT" = "masked" ] || echec "suspend.target est « $ETAT », pas masque"
+ok "suspend.target est masque"
+echo
+echo "Referme le capot, puis depuis le Mac : ping ce noeud (en rebond s'il n'est pas sur le tailnet)"

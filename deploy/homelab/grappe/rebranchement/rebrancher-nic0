@@ -1,0 +1,88 @@
+#!/bin/bash
+# Remettre l'adaptateur nic0 dans le pont vmbr0, et le prouver.
+#
+# Lance par rebrancher-nic0.service, lui-meme demande par la regle udev a
+# chaque (re)apparition de l'adaptateur, ET par rebrancher-nic0.timer chaque
+# minute. Voir 90-legion-rebrancher-nic0.rules.
+#
+# Il attend que la carte ET le pont existent — jusqu'a deux minutes, pour
+# couvrir le demarrage, ou vmbr0 nait apres l'adaptateur. Il est idempotent :
+# une carte deja dans le pont est seulement reactivee.
+#
+# Le 22/10/2026 : l'adaptateur est revenu en « eth0 » (renommage refuse,
+# l'ancienne nic0 existait encore) ; udev a alors abandonne l'evenement et la
+# regle n'a jamais declenche ce service. D'ou le minuteur, et la recherche de
+# la carte par son pilote plutot que par son nom. Le meme jour, vmbr0
+# n'existait pas (networking annule au demarrage) : on relance une fois
+# ifreload au lieu d'abandonner.
+#
+# Il SORT EN ERREUR s'il ne peut pas conclure : le service apparait alors en
+# echec dans le journal. Une machine injoignable sans trace, c'est la panne
+# du 25/09/2026 ; on ne la reproduit pas en silence.
+#
+# SYS, CARTE, PONT, PILOTE, ESSAIS, ATTENTE : pour l'eprouver hors d'un noeud.
+set -uo pipefail
+
+SYS="${SYS:-/sys/class/net}"
+CARTE="${CARTE:-nic0}"
+PONT="${PONT:-vmbr0}"
+PILOTE="${PILOTE:-cdc_ncm}"
+ESSAIS="${ESSAIS:-60}"
+ATTENTE="${ATTENTE:-2}"
+
+maitre() {
+    local lien
+    lien="$(readlink "$SYS/$CARTE/master" 2>/dev/null || true)"
+    printf '%s' "${lien##*/}"
+}
+
+# Une carte physique tenue par le pilote, quel que soit son nom.
+# (vmbr0 n'a pas de « device » : il est ecarte d'office.)
+trouver_par_pilote() {
+    local d pilote
+    for d in "$SYS"/*; do
+        [ -e "$d/device/driver" ] || continue
+        pilote="$(readlink "$d/device/driver")"
+        [ "${pilote##*/}" = "$PILOTE" ] || continue
+        printf '%s' "${d##*/}"
+        return
+    done
+}
+
+relance=0
+for _ in $(seq "$ESSAIS"); do
+    # Revenue sous un autre nom : la renommer, une fois l'ancienne partie.
+    if [ ! -e "$SYS/$CARTE" ]; then
+        autre="$(trouver_par_pilote)"
+        if [ -n "$autre" ]; then
+            if ip link set "$autre" down && ip link set "$autre" name "$CARTE"; then
+                echo "$autre renommee en $CARTE"
+            else
+                echo "renommage de $autre en $CARTE refuse, nouvel essai"
+            fi
+        fi
+    fi
+    # Carte la, pont absent : le reseau n'a pas ete monte. Une seule relance.
+    if [ -e "$SYS/$CARTE" ] && [ ! -e "$SYS/$PONT" ] && [ "$relance" = 0 ]; then
+        echo "$PONT absent : relance de la configuration reseau"
+        mkdir -p /run/network
+        ifreload -a || echo "ifreload a echoue"
+        relance=1
+    fi
+    [ -e "$SYS/$CARTE" ] && [ -e "$SYS/$PONT" ] && break
+    sleep "$ATTENTE"
+done
+[ -e "$SYS/$CARTE" ] || { echo "ECHEC : $CARTE n'est pas apparue"; exit 1; }
+[ -e "$SYS/$PONT" ] || { echo "ECHEC : $PONT n'existe pas — le reseau n'est pas monte"; exit 1; }
+
+if [ "$(maitre)" = "$PONT" ]; then
+    echo "$CARTE est deja dans $PONT"
+else
+    ip link set "$CARTE" master "$PONT" || { echo "ECHEC : $CARTE refuse d'entrer dans $PONT"; exit 1; }
+    echo "$CARTE remise dans $PONT"
+fi
+ip link set "$CARTE" up || { echo "ECHEC : $CARTE refuse de s'activer"; exit 1; }
+
+# La preuve, relue apres coup : un « ip » qui reussit sans effet ne passe pas.
+[ "$(maitre)" = "$PONT" ] || { echo "ECHEC : $CARTE n'est toujours pas dans $PONT"; exit 1; }
+echo "ok : $CARTE dans $PONT, activee"

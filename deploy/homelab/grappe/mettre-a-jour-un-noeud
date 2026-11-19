@@ -1,0 +1,168 @@
+#!/bin/bash
+# Mettre a jour un noeud Proxmox, en deux phases. Il tourne SUR le noeud :
+#
+#   ssh root@<noeud> 'bash -s -- appliquer' < deploy/homelab/grappe/mettre-a-jour-un-noeud
+#   (puis, TOI : ssh root@<noeud> reboot)
+#   ssh root@<noeud> 'bash -s -- retour'    < deploy/homelab/grappe/mettre-a-jour-un-noeud
+#
+# Pour un noeud hors du tailnet, meme chose avec « -J root@<rebond> root@<noeud> ».
+# Pour un VPS (v10, vitrine) : « ssh ubuntu@<adresse> 'sudo bash -s -- appliquer' ».
+# Hors grappe — pas de pvecm —, les controles de quorum sont sautes et dits.
+#
+# IL NE REDEMARRE JAMAIS LE NOEUD. Redemarrer un hyperviseur arrete ses invites
+# et, la grappe n'ayant plus de marge (2 votes sur 3), lui fait perdre son
+# quorum : c'est une decision humaine, prise au moment choisi.
+#
+# « appliquer » :
+#   - refuse si la grappe n'a pas son quorum, ou si dpkg n'est pas propre ;
+#   - refuse si needrestart est installe SANS le garde-fou qui l'empeche de
+#     relancer des services : le 24/09/2026, une mise a jour a relance le bot
+#     de trading de v10, en position ouverte, quatre secondes apres les paquets ;
+#   - lance dist-upgrade par systemd-run, PAS dans la session SSH : si la
+#     connexion tombe, dpkg n'est pas interrompu — le vrai danger d'une mise a
+#     jour d'hyperviseur. Les configurations existantes sont gardees
+#     (--force-confold) ; la version du paquet est posee a cote en .dpkg-dist ;
+#   - prouve : dpkg propre, plus rien a mettre a jour, et dit si le noyau
+#     installe n'est pas celui qui tourne.
+# « retour », apres le redemarrage :
+#   - le noyau qui tourne est le plus recent installe ;
+#   - le quorum est revenu (attendu jusqu'a deux minutes) ;
+#   - tout invite marque « onboot » tourne.
+#
+# RACINE, et les commandes de l'hote remplacees dans le PATH, permettent de
+# l'eprouver ailleurs que sur un noeud.
+set -euo pipefail
+export LC_ALL=C
+
+PHASE="${1:?phase attendue : appliquer ou retour}"
+RACINE="${RACINE:-}"
+ESSAIS="${GRAPPE_ESSAIS:-40}"
+
+ok()    { printf '  ok     %s\n' "$1"; }
+echec() { printf '  ECHEC  %s\n' "$1" >&2; exit 1; }
+
+# Lu dans une variable : sous pipefail, un lecteur qui s'arrete tot tuerait
+# pvecm par SIGPIPE, et un quorum present passerait pour absent.
+quorum() {
+    local etat
+    etat="$(pvecm status 2>/dev/null || true)"
+    grep -qE '^Quorate:[[:space:]]*Yes' <<< "$etat"
+}
+
+# Le plus recent noyau installe, d'apres /boot : « -pve » pour Proxmox,
+# « -generic » pour Ubuntu, sans les « .old ». Tri par version, pas par nom :
+# « 7.0.14 » vient apres « 7.0.2 ».
+noyau_installe() {
+    local noyaux
+    noyaux="$(ls "$RACINE"/boot/vmlinuz-* 2>/dev/null | grep -v '\.old$' || true)"
+    [ -n "$noyaux" ] || return 1
+    printf '%s\n' "$noyaux" | sed 's|.*/vmlinuz-||' | sort -V | tail -1
+}
+
+# Une grappe, ou une machine seule ?
+GRAPPE=non
+command -v pvecm >/dev/null 2>&1 && GRAPPE=oui
+
+# Le garde-fou de needrestart : « restart = 'l' », lister sans relancer. Sans
+# lui, son hook apt relance tout service liant une bibliotheque mise a jour.
+garde_fou_needrestart() {
+    [ -d "$RACINE/etc/needrestart" ] || return 0
+    grep -rqsE "nrconf\{restart\}[[:space:]]*=[[:space:]]*'l'" "$RACINE/etc/needrestart"
+}
+
+case "$PHASE" in
+appliquer)
+    echo "-- $(hostname) : avant --"
+    if [ "$GRAPPE" = oui ]; then
+        quorum || echec "la grappe n'a pas son quorum : on ne met pas a jour un noeud d'une grappe deja affaiblie"
+        ok "la grappe a son quorum"
+    else
+        ok "hors grappe : pas de quorum a controler"
+    fi
+    AUDIT="$(dpkg --audit 2>&1 || true)"
+    [ -z "$AUDIT" ] || echec "dpkg n'est pas propre — une installation a ete interrompue :
+$AUDIT"
+    ok "dpkg est propre"
+    garde_fou_needrestart ||
+        echec "needrestart est installe sans « \$nrconf{restart} = 'l' » : il relancerait des services — voir deploy/serveurs (needrestart)"
+    [ -d "$RACINE/etc/needrestart" ] && ok "needrestart ne relancera rien (garde-fou en place)"
+
+    echo "-- la mise a jour (detachee de la session SSH) --"
+    QUAND="$(date +%Y%m%d-%H%M%S)"
+    JOURNAL="$RACINE/root/maj-$QUAND.log"
+    # --wait : on attend la fin, mais l'unite vit sans nous. Si la connexion
+    # tombe, elle continue ; « journalctl -u legion-maj-$QUAND » la retrouve.
+    if ! systemd-run --unit="legion-maj-$QUAND" --wait --collect --quiet \
+            --setenv=DEBIAN_FRONTEND=noninteractive \
+            bash -c "apt-get -y -o Dpkg::Options::=--force-confdef \
+                     -o Dpkg::Options::=--force-confold dist-upgrade > '$JOURNAL' 2>&1"; then
+        echec "dist-upgrade a echoue — voir $JOURNAL"
+    fi
+    ok "dist-upgrade termine (journal : $JOURNAL)"
+
+    echo "-- apres --"
+    AUDIT="$(dpkg --audit 2>&1 || true)"
+    [ -z "$AUDIT" ] || echec "dpkg n'est pas propre apres la mise a jour :
+$AUDIT"
+    ok "dpkg est propre"
+    SIMUL="$(apt-get -s dist-upgrade 2>/dev/null || true)"
+    RESTE="$(grep -c '^Inst' <<< "$SIMUL" || true)"
+    [ "$RESTE" = "0" ] || echec "$RESTE paquet(s) restent a mettre a jour — voir $JOURNAL"
+    ok "plus rien a mettre a jour"
+    GARDES="$(grep -c 'dpkg-dist' "$JOURNAL" 2>/dev/null || true)"
+    [ "${GARDES:-0}" = "0" ] || ok "$GARDES configuration(s) gardee(s), la nouvelle version posee en .dpkg-dist"
+    if command -v needrestart >/dev/null 2>&1; then
+        ATTENTE="$(needrestart -b 2>/dev/null || true)"
+        SERVICES="$(grep '^NEEDRESTART-SVC:' <<< "$ATTENTE" | sed 's/^NEEDRESTART-SVC: //' | tr '\n' ' ' || true)"
+        [ -z "$SERVICES" ] || echo "  A SAVOIR  services a relancer (rien n'a ete relance) : $SERVICES"
+    fi
+    NOUVEAU="$(noyau_installe)" || echec "aucun noyau trouve dans /boot"
+    EN_MARCHE="$(uname -r)"
+    if [ "$NOUVEAU" = "$EN_MARCHE" ]; then
+        ok "le noyau qui tourne est deja le plus recent ($EN_MARCHE)"
+    else
+        echo "  A FAIRE  redemarrer : $NOUVEAU installe, $EN_MARCHE en marche"
+    fi
+    ;;
+
+retour)
+    echo "-- $(hostname) : au retour --"
+    NOUVEAU="$(noyau_installe)" || echec "aucun noyau trouve dans /boot"
+    EN_MARCHE="$(uname -r)"
+    [ "$NOUVEAU" = "$EN_MARCHE" ] || echec "le noyau en marche est $EN_MARCHE, pas $NOUVEAU"
+    ok "le nouveau noyau tourne ($EN_MARCHE)"
+    if [ "$GRAPPE" = oui ]; then
+        for _ in $(seq "$ESSAIS"); do
+            quorum && break
+            sleep 3
+        done
+        quorum || echec "pas de quorum apres $((ESSAIS * 3)) s"
+        ok "la grappe a retrouve son quorum"
+    else
+        ok "hors grappe : pas de quorum a attendre"
+    fi
+    # Un invite arrete n'est un probleme que s'il devait demarrer seul.
+    # L'etat n'est pas dans la meme colonne : 3e pour « qm list »
+    # (VMID NAME STATUS …), 2e pour « pct list » (VMID Status Lock Name).
+    ARRETES=""
+    for sorte in qm pct; do
+        case "$sorte" in qm) colonne=3 ;; pct) colonne=2 ;; esac
+        LISTE="$($sorte list 2>/dev/null || true)"
+        ETATS="$(awk -v c="$colonne" 'NR > 1 && $1 ~ /^[0-9]+$/ { print $1, $c }' <<< "$LISTE")"
+        while read -r id etat; do
+            [ -n "$id" ] || continue
+            [ "$etat" = "running" ] && continue
+            CONFIG="$($sorte config "$id" 2>/dev/null || true)"
+            if grep -qE '^onboot:[[:space:]]*1' <<< "$CONFIG"; then
+                ARRETES="$ARRETES $sorte/$id"
+            fi
+        done <<< "$ETATS"
+    done
+    [ -z "$ARRETES" ] || echec "invite(s) marque(s) onboot mais arrete(s) :$ARRETES"
+    ok "tout invite marque onboot tourne"
+    ;;
+
+*)
+    echec "phase inconnue « $PHASE » : appliquer ou retour"
+    ;;
+esac

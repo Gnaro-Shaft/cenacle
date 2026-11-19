@@ -1,0 +1,9 @@
+[Unit]
+Description=Verifier chaque minute que nic0 est bien dans vmbr0
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+
+[Install]
+WantedBy=timers.target

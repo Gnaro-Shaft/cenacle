@@ -1,0 +1,8 @@
+# Remettre nic0 dans vmbr0 apres son retour. Voir 90-legion-rebrancher-nic0.rules.
+[Unit]
+Description=Remettre l'adaptateur USB nic0 dans le pont vmbr0
+After=networking.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/rebrancher-nic0
