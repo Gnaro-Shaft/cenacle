@@ -65,7 +65,16 @@ Ce que Legion faisait pour ses propres bases (son ADR-027) : une copie datée ch
 
    Ce que la restauration ramène, à dire : un rappel annulé après la copie revient ; un rappel qui a sonné après la copie sonne de nouveau ; une décision prise après la copie est à reprendre.
 
+   - *Précisé le 19/11, en B1d, avec ton accord* :
+     - **les migrations ne sont pas appliquées** par la restauration : elles demandent trois familles de secrets (propriétaire, exécutant, copie). Elle vérifie que la base a **chaque colonne de la copie**, et sinon refuse en disant `npm run db:migrate`. Elle ne détient que **la famille du propriétaire**, qui gagne ce détenteur (avec les migrations et les tests) ;
+     - **`--remplacer` est refusé tant que `securite_raisons` ou `serveur_actions` ont des lignes** : elles pointent vers `securite_constats` (`ON DELETE CASCADE`) sans être copiées, et la vider les effacerait en silence. Le refus dit combien ;
+     - **la copie n'est pas crue** : une clé de poussée volée et la clé publique suffisent à en forger une, et les entrées d'une archive portent leur propre SQL. Le script que `pg_restore` en tire est jugé ligne à ligne : passent les blocs `COPY` des quatre tables, les `setval` de leurs séquences, les `SET` de `pg_dump` et sa garde `\restrict` — chacun une fois, tous les quatre. Rien d'autre ; sinon, rien n'est rechargé ;
+     - **la clé privée se tape au terminal**, sans écho (les trois lignes d'`age-keygen` collées passent) ; elle va à `age` par son entrée, jamais en argument, dans l'environnement ou un fichier. Ni la copie déchiffrée ni le script ne touchent le disque ;
+     - **les services arrêtés** sont ceux qui écrivent dans ces tables : le bot, le serveur de la page, l'agent sécurité, la veille, la prospection et l'opérateur (ses actions pointent vers les constats) — chacun chargé, et eux seuls, relancés quoi qu'il arrive ;
+     - tout ce qui peut refuser refuse **avant** que rien ne s'arrête ; une erreur dans la transaction ne change aucune table, et le message ne cite jamais une ligne.
+
 8. **Une restauration éprouvée, pas supposée.** Une copie qu'on n'a jamais restaurée n'est pas une copie : le premier palier se termine par **une restauration réelle** dans la base de test (`cenacle_test`), comparée table à table à la production — par des comptes de lignes, des sommes de contrôle et les valeurs des séquences, jamais en affichant une ligne.
+   - *Précisé le 19/11, en B1d* : c'est `npm run base:restaurer -- --depuis <fichier> --essai` — la base de test rechargée (ses tables vidées d'abord), aucun service arrêté, chaque table dite « identique » ou « diffère de la production ». À lancer juste après une copie fraîche : ce qui a changé en production depuis la copie diffère, à juste titre.
 
 9. **Aucune IA, aucun tiers nouveau.** Le serveur de sauvegarde est à moi (France) ; rien ne part chez un fournisseur. Rien à inscrire au registre de l'IA. Au registre des traitements : une ligne « copies de la base » (les quatre tables, chiffrées, leur durée, le serveur de sauvegarde), et la durée des copies pour T-09 et T-10.
 

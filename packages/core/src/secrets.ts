@@ -23,7 +23,7 @@ export function agendaPasswordVar(account: string): string {
 }
 
 export const SECRET_FAMILIES = {
-  /** The database owner: migrations and tests only. */
+  /** The database owner: migrations, tests, and the restore of the copy (ADR-0044). */
   owner: { file: ".env.owner", vars: ["CENACLE_DB_OWNER_PASSWORD"] },
   /**
    * The database's superuser (ADR-0038): loaded by no program, not even the
