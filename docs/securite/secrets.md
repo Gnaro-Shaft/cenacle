@@ -8,7 +8,7 @@
 | Fichier | Contient | Chargé par |
 |---|---|---|
 | `.env` | Ce qui n'est pas secret (ports, modèle, mesure, clé publique de la page, clé publique du bot, identifiant Telegram autorisé) et le mot de passe applicatif de la base | Tous |
-| `.env.owner` | Le mot de passe du **propriétaire** de la base : il peut tout défaire dans la base de Cénacle (déclencheurs, rôles des programmes), mais n'est pas super-utilisateur (ADR-0038) : ni fichier du serveur, ni commande du système | `npm run db:migrate`, les tests, Docker Compose |
+| `.env.owner` | Le mot de passe du **propriétaire** de la base : il peut tout défaire dans la base de Cénacle (déclencheurs, rôles des programmes), mais n'est pas super-utilisateur (ADR-0038) : ni fichier du serveur, ni commande du système | `npm run db:migrate`, les tests, la restauration de la copie (`npm run base:restaurer`, ADR-0044), Docker Compose |
 | `.env.admin` | Le mot de passe du **super-utilisateur** `cenacle_admin` (ADR-0038) : il peut tout, y compris dans le conteneur | **Aucun programme**, ni les migrations : Docker Compose seul, et moi à la main, rarement |
 | `.env.mail` | Le mot de passe de la boîte, et `CENACLE_MAIL_KEY` (clés HMAC des adresses) | Iris, la page, l'exécuteur, les commandes de messagerie, Docker Compose |
 | `.env.telegram` | Le jeton du bot | Iris, le bot, la veille du CTO, l'agent sécurité |
@@ -25,7 +25,7 @@ Tous sont ignorés par git et lisibles par moi seul (droits 600).
 
 **Le lien de la page** (ADR-0019) n'est pas un fichier `.env` mais il porte un secret : le serveur de la page écrit le lien et son jeton de session dans `~/Library/Application Support/cenacle/page-url` (droits 600, dossier 700), une fois son port ouvert, et l'efface à l'arrêt propre ; `npm run page` l'ouvre sans l'afficher. Le jeton change à chaque démarrage du serveur et n'apparaît jamais dans les journaux.
 
-**Refus au démarrage** : Iris (boîte, Telegram, sentinelle), la page (boîte, clé privée, jeton Proxmox, mots de passe de l'agenda), l'exécuteur (boîte, son rôle, sentinelle), le bot (Telegram, sa clé de confirmation), la veille du CTO (Telegram), l'agent sécurité (Telegram ; et, pour les PR de J6c, l'accès `gh` déjà installé sur le Mac, dans le trousseau, jamais dans un `.env`) et le service du CTO (aucune famille) refusent de démarrer s'ils trouvent un secret d'une autre famille. Le message nomme la variable, jamais sa valeur.
+**Refus au démarrage** : Iris (boîte, Telegram, sentinelle), la page (boîte, clé privée, jeton Proxmox, mots de passe de l'agenda), l'exécuteur (boîte, son rôle, sentinelle), le bot (Telegram, sa clé de confirmation), la veille du CTO (Telegram), l'agent sécurité (Telegram ; et, pour les PR de J6c, l'accès `gh` déjà installé sur le Mac, dans le trousseau, jamais dans un `.env`) le service du CTO (aucune famille), la copie de la base (la sienne seule) et sa restauration (celle du propriétaire seule) refusent de démarrer s'ils trouvent un secret d'une autre famille. Le message nomme la variable, jamais sa valeur.
 
 **Limite assumée** (ADR-0013) : sur un Mac à utilisateur unique, un programme qui tourne sous mon compte peut lire tous ces fichiers. La séparation protège contre une erreur ou une dépendance compromise **dans un processus**, pas contre la prise de mon compte macOS.
 
@@ -97,10 +97,16 @@ Ce que la perte coûterait sans sauvegarde :
 - `CENACLE_MAIL_KEY` : la mémoire des mails devient illisible ; il faut la vider (elle se relit) et la **liste d'opposition** (C3) devient inutilisable : les personnes opposées seraient relues. C'est la perte la plus grave.
 - La clé privée de la page : les acceptations pas encore envoyées échouent ; en tirer une nouvelle (`npm run keys:accept`).
 - La clé privée du bot (ADR-0036) : supprimer `.env.bot`, en tirer une nouvelle (`npm run keys:confirm`), recopier la clé publique affichée dans `.env` (l'opérateur et l'agent sécurité la lisent), redémarrer le bot. Les confirmations pas encore exécutées, et les fusions demandées pas encore faites, sont refusées, et dites.
-- Les mots de passe de la base : se remettent par une migration ; celui de la boîte, chez l'hébergeur.
+- Les mots de passe de la base (`.env.copie` compris) : se remettent par une migration ; celui de la boîte, chez l'hébergeur.
+- La clé privée `age` des copies de la base (ADR-0044) n'est **pas** dans cette archive (elle n'est jamais sur le Mac) : voir plus bas.
 
-## La base de Cénacle n'est pas sauvegardée (décidé le 04/10), sauf la liste d'opposition
+## La base de Cénacle : quatre tables copiées chaque nuit (ADR-0044), la liste d'opposition à part
 
-La mémoire des mails se relit depuis la boîte, l'historique des propositions est purgé à 90 jours, le journal ne contient aucune donnée de personne. Ne pas sauvegarder la base évite d'avoir à faire suivre les purges et les effacements (C1, C3) dans des copies.
+Le 04/10, la base n'était pas sauvegardée : la mémoire des mails se relit depuis la boîte, l'historique des propositions est purgé à 90 jours, le journal ne contient aucune donnée de personne. **Cela tient toujours pour elles.** Depuis le 17/11 (ADR-0044), **quatre tables qui ne se relisent de nulle part** sont copiées chaque nuit : `rappels`, `prospection_cartes`, `veille_articles`, `securite_constats` (pas `prospection_mails_lus`, qui n'a de sens qu'avec la mémoire des mails).
+
+- **Chiffrée pour une clé que le Mac n'a pas** (`age`) : la clé publique est dans `copie.local.toml` ; la **clé privée** est dans mon gestionnaire de mots de passe et dans une copie hors ligne — jamais sur le Mac, jamais sur le serveur de sauvegarde. **Perdue, les copies sont illisibles** : c'est revenir au 04/10. Elle n'est demandée qu'à la restauration, au terminal, sans écho.
+- **Le rôle `cenacle_copie`** (`.env.copie`) ne lit que ces quatre tables et leurs séquences ; la copie part sur le serveur de sauvegarde par **la clé de poussée** (`~/.ssh/cenacle/copie-pousser`, 600), verrouillée là-bas sur un dossier d'arrivée où elle ne peut qu'écrire. Perdue ou volée : `deploy/serveurs/README.md` (retirer sa ligne, en tirer une nouvelle).
+- **Gardée 7 jours** par heure d'arrivée sur le serveur (la plus récente toujours) : une donnée purgée ou effacée dans la base quitte les copies en 7 jours. Aucune des quatre tables n'est atteinte par l'effacement d'une personne (`npm run personne`).
+- **Restaurer** : `npm run base:restaurer -- --depuis <copie.age>` (et `--essai` pour la recharger dans la base de test et la comparer à la production) — `deploy/launchd/README.md`. Un essai de temps en temps : une copie jamais relue n'est pas une copie.
 
 **La liste d'opposition fait exception** : sa perte ferait relire des personnes qui ont demandé l'effacement. Elle part dans la même archive chiffrée que les secrets (ses clés ne servent à rien sans `CENACLE_MAIL_KEY`, qui part avec elles) : `secrets:backup` la lit dans la base, et refuse de sauvegarder si la base est injoignable — une archive sans elle aurait l'air complète. `secrets:restore` la réinscrit (sans doublon) ; pour une installation neuve, une fois la base migrée : `npm run secrets:restore -- --from <fichier> --opposition-seule`. Après chaque effacement, `npm run personne` rappelle de refaire la sauvegarde. Une opposition retirée après la dernière sauvegarde reviendrait à la restauration : l'erreur va dans le sens le plus protecteur.
