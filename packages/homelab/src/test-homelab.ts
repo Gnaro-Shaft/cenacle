@@ -24,7 +24,7 @@ export function buildImage(): void {
   const dockerfile = [
     "ARG BASE",
     "FROM ${BASE}",
-    "RUN apt-get update && apt-get install -y --no-install-recommends rsync zstd strace python3 && rm -rf /var/lib/apt/lists/*",
+    "RUN apt-get update && apt-get install -y --no-install-recommends rsync zstd strace python3 python3-pytest && rm -rf /var/lib/apt/lists/*",
   ].join("\n");
   execFileSync("docker", ["build", "-q", "--build-arg", `BASE=${BASE}`, "-t", IMAGE, "-"], {
     input: dockerfile,

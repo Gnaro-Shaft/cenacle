@@ -1,0 +1,58 @@
+#!/bin/bash
+# Attendre que la grappe ait reforme son quorum, avant de la juger.
+#
+# **Pourquoi ce script existe.** Le 25/09/2026, le noeud de sauvegarde est revenu apres
+# deux heures d'absence. Trente-deux secondes plus tard, « Persistent=true »
+# rattrapait les trois passages nocturnes manques — et les trois veilleurs ont
+# juge une grappe que corosync n'avait pas fini de reformer. Verdict MALADE,
+# motif « l'invite 100 vit sur <un autre noeud>, hors ligne ». Ce noeud allait
+# parfaitement bien.
+#
+# Le cout n'est pas l'alerte, c'est sa DUREE : le passage suivant etant a
+# 04:00, la fausse alerte aurait tenu trois heures et se serait lue au reveil
+# comme un vrai probleme. Une alerte permanente cesse d'etre lue (ADR-025).
+#
+# « Persistent=true » n'est pas en cause et ne doit pas sauter : les unites
+# expliquent pourquoi elles en ont besoin. Le defaut est de juger une grappe
+# qu'on vient de rejoindre.
+#
+# **IL REND TOUJOURS ZERO.** Sortir en erreur ferait echouer l'unite, et un
+# veilleur en echec est un veilleur qui ne veille pas — on echangerait une
+# fausse alerte contre un silence, ce qui est pire. Si le quorum ne revient
+# pas, le veilleur juge quand meme ET DIT VRAI : la grappe est cassee.
+set -u
+
+DELAI="${GRAPPE_DELAI:-120}"
+
+# **Cherche, ne devine pas.** Le chemin etait code en dur a /usr/sbin/pvecm ;
+# il vit dans /usr/bin sur Proxmox 8. Le script annoncait donc « rien a
+# attendre » sur un noeud de la grappe — il avait l'air de fonctionner et ne
+# faisait rien, ce qui est precisement le defaut qu'il est cense empecher.
+PVECM="${GRAPPE_PVECM:-}"
+if [ -z "$PVECM" ]; then
+    for candidat in /usr/bin/pvecm /usr/sbin/pvecm; do
+        [ -x "$candidat" ] && { PVECM="$candidat"; break; }
+    done
+    [ -z "$PVECM" ] && PVECM="$(command -v pvecm 2>/dev/null || true)"
+fi
+
+# Une machine hors grappe n'a pas de quorum a attendre. L'attendre quand meme
+# retarderait pour rien un veilleur qui n'a que faire de corosync.
+if [ -z "$PVECM" ] || [ ! -x "$PVECM" ]; then
+    echo "attendre-la-grappe : aucun pvecm trouve, rien a attendre"
+    exit 0
+fi
+
+DEPART=$(date +%s)
+while :; do
+    if "$PVECM" status 2>/dev/null | grep -qE '^Quorate:[[:space:]]*Yes'; then
+        echo "attendre-la-grappe : quorum apres $(( $(date +%s) - DEPART )) s"
+        exit 0
+    fi
+    if [ $(( $(date +%s) - DEPART )) -ge "$DELAI" ]; then
+        # On le dit, et on laisse juger. Le veilleur dira la verite.
+        echo "attendre-la-grappe : pas de quorum apres ${DELAI} s — on juge quand meme"
+        exit 0
+    fi
+    sleep 3
+done
