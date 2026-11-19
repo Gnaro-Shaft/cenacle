@@ -1,0 +1,99 @@
+# Que tirer, et le stockage le permet-il ? Chargé par `copier-les-dumps`.
+#
+# Ces fonctions lisent les variables du script qui les charge : DEST, SOURCE,
+# GARDEES, RSYNC, LVS, PERIPH, SSH_RSYNC, PAS_ARCHIVE. Elles sont nées de la panne
+# du 31/10/2026 : un pool thin plein, invisible pour `df`, et un rsync qui sortait
+# en code 0 sur des fichiers restés troués.
+
+# L'occupation du pool thin qui porte la destination, en pourcentage entier
+# arrondi au-dessus : la plus haute des données et des métadonnées, car l'une
+# comme l'autre bloque le pool une fois pleine. « - » : pas de pool thin ici.
+# « ? » : il y en a peut-être un, et on n'a pas su le lire. Sur LVM, une lecture
+# ratée refuse la copie : ne pas savoir n'est pas une bonne nouvelle.
+pool_occupe() {
+    local dev lien vg pool chiffres
+    dev="${PERIPH:-$(findmnt -no SOURCE -T "$DEST" 2>/dev/null)}"
+    case "$dev" in
+        /dev/mapper/*|/dev/dm-*) ;;
+        "") echo "?"; return ;;
+        *) echo "-"; return ;;
+    esac
+    lien=$(LC_ALL=C "$LVS" --noheadings -o vg_name,pool_lv "$dev" 2>/dev/null) || { echo "?"; return; }
+    read -r vg pool <<< "$lien"
+    [ -n "$vg" ] || { echo "?"; return; }
+    [ -n "$pool" ] || { echo "-"; return; }
+    chiffres=$(LC_ALL=C "$LVS" --noheadings --nosuffix -o data_percent,metadata_percent "$vg/$pool" 2>/dev/null) \
+        || { echo "?"; return; }
+    awk 'NF == 2 && $1 ~ /^[0-9.]+$/ && $2 ~ /^[0-9.]+$/ {
+             m = ($1 + 0 > $2 + 0) ? $1 + 0 : $2 + 0
+             e = int(m); if (e < m) e++
+             print e; ok = 1
+         }
+         END { if (!ok) print "?" }' <<< "$chiffres"
+}
+
+# Le plus ancien des dumps sains que l'élagage garderait. Une archive plus
+# ancienne que lui serait élaguée aussitôt copiée : si la source a perdu ses
+# dumps récents, elle reviendrait chaque nuit.
+plancher() {
+    local f oks=()
+    while IFS= read -r f; do
+        [ "$(etat_controle "$f")" = "ok" ] && oks+=("$f")
+    done < <(archives "$1" | sort)
+    [ "${#oks[@]}" -ge "$GARDEES" ] && echo "${oks[$(( ${#oks[@]} - GARDEES ))]}"
+}
+
+# Parmi les noms proposés par la source, ceux à tirer : les plus récents de
+# chaque invité, avec leur journal et leur note quand ils existent. Un invité
+# sans aucune archive garde ses journaux : le verdict doit pouvoir le nommer.
+#
+# **On ne tire que ce qu'on gardera.** La source garde 7 quotidiens, la copie 3,
+# et tirer tout le répertoire faisait revenir chaque nuit les dumps élagués la
+# nuit d'avant : environ 6 Gio réécrits pour rien, et c'est ce va-et-vient qui a
+# réécrit des dumps sains pendant que le pool était plein, le 01/11/2026.
+a_tirer() {
+    local liste="$1" invite nom seuil candidats
+    for invite in $(sed -n 's/^vzdump-[a-z]*-\([0-9]\{1,\}\)-.*/\1/p' "$liste" | sort -u); do
+        candidats=$(grep -E "^vzdump-[a-z]+-$invite-" "$liste" | grep -vE "$PAS_ARCHIVE" | sort | tail -n "$GARDEES")
+        if [ -z "$candidats" ]; then
+            grep -E "^vzdump-[a-z]+-$invite-" "$liste" | grep -vE '\.(dat|tmp)$'
+            continue
+        fi
+        seuil=$(plancher "$invite")
+        for nom in $candidats; do
+            [ ! -e "$DEST/$nom" ] && [ -n "$seuil" ] && [[ "$nom" < "$seuil" ]] && continue
+            echo "$nom"
+            grep -Fx -e "${nom%%.*}.log" -e "$nom.notes" "$liste"
+        done
+    done
+}
+
+# Un dump en échec qui existe encore à la source. Ni `a_tirer` ni le test rapide
+# de rsync ne le répareraient : taille et date sont les bonnes, seul le contenu
+# est faux.
+a_retenter() {
+    local nom
+    while IFS= read -r nom; do
+        [ "$(etat_controle "$nom")" = "echec" ] && grep -qFx "$nom" "$1" && echo "$nom"
+    done < <(archives)
+}
+
+# `--fsync` : sur un pool thin plein, l'écriture différée échoue **après** que
+# rsync a fini, qui sort alors en code 0 et laisse le fichier sous son nom
+# définitif. Avec lui, la panne se voit avant le renommage.
+#
+# `--partial-dir` et non `--partial` : `--partial` seul garde le fragment **sous
+# son nom définitif**, où rien ne le distingue d'un dump entier.
+#
+# Pas de `--delete` : une suppression à la source — élagage, incident, fausse
+# manœuvre — ne doit pas se propager à la copie. C'est le sens sûr.
+tirer() {
+    local liste="$1" sortie code
+    shift
+    sortie=$("$RSYNC" -a --fsync --partial-dir=.en-cours "$@" --files-from="$liste" \
+        -e "$SSH_RSYNC" "$SOURCE" "$DEST/" 2>&1)
+    code=$?
+    [ "$code" -eq 0 ] && return 0
+    signaler "rsync a échoué (code $code) : $(printf '%s' "$sortie" | tr '\n' ' ' | cut -c1-200)"
+    return 1
+}

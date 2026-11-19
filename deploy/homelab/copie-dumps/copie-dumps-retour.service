@@ -1,0 +1,24 @@
+# L'autre sens : sortir du nœud de sauvegarde les sauvegardes qu'il produit.
+#
+# Cette unité vit sur **le nœud source de l'autre unité**. Elle emploie le même
+# script, avec une source et une destination différentes, lues dans son propre
+# /etc/default/copie-dumps — le script ne connaît aucune des deux machines, il
+# ne connaît que ses variables.
+#
+# Pourquoi elle existe : la tâche `vzdump` écrit sur le stockage `local`, celui
+# du nœud qui héberge l'invité. Un invité tourne sur le nœud de sauvegarde, donc
+# sa sauvegarde y reste — sur le disque même qu'elle sauvegarde. C'est le défaut
+# corrigé le 18/09/2026 pour Legion, à l'identique et dans l'autre sens.
+
+[Unit]
+Description=Copie des sauvegardes du nœud de sauvegarde vers un autre nœud
+Documentation=file:/root/copie-dumps/LISEZ-MOI.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# La source et la destination (ADR-0045) : absentes, le script refuse et le dit.
+EnvironmentFile=-/etc/default/copie-dumps
+ExecStart=/usr/local/bin/copier-les-dumps
+TimeoutStartSec=1h

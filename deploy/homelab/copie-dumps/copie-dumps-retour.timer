@@ -1,0 +1,17 @@
+# Tous les jours à 03:30, et non 03:00.
+#
+# Une demi-heure après celle du nœud de sauvegarde, pour que les deux copies ne
+# se croisent pas sur le réseau ni sur les disques — la première lit l'autre
+# nœud et écrit sur le nœud de sauvegarde, la seconde fait l'inverse. Les lancer ensemble ferait
+# que chaque machine lit et écrit en même temps, et rallongerait les deux.
+
+[Unit]
+Description=Copie quotidienne des sauvegardes du nœud de sauvegarde
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+AccuracySec=5min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

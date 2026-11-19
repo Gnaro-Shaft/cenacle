@@ -1,0 +1,368 @@
+#!/bin/bash
+# La copie des sauvegardes : sortir les dumps de la machine qui les produit.
+#
+# Il vit sur le nœud de sauvegarde, et tire les sauvegardes d'un autre nœud de
+# la grappe (une seconde unité fait l'inverse, ADR-0045). La tâche
+# `vzdump` de la grappe écrit sur le stockage `local`, c'est-à-dire le disque
+# du nœud qui héberge l'invité : **les sauvegardes d'un invité vivent sur le
+# disque de la machine qui le fait tourner.** Ce n'est pas une sauvegarde,
+# c'est une copie. Un disque qui lâche emporte les deux d'un coup.
+#
+# Ce n'est pas une hypothèse : le 16/09/2026, le disque d'un nœud a lâché.
+# Il n'emportait aucune sauvegarde — mais il emportait un invité qui ne
+# figurait dans aucune tâche de sauvegarde, et personne ne l'a su pendant deux
+# jours.
+#
+# **Il tire, il ne se fait pas pousser.** Rien n'est installé sur la source, et
+# la copie ne dépend pas de la bonne volonté de la machine observée.
+#
+# **Il ne juge pas la sauvegarde, il juge qu'elle arrive.** Vérifier qu'un dump
+# restaure vraiment demanderait de le restaurer, donc une machine pour
+# l'accueillir. Ce qu'il fait ici est plus modeste et se tient : les octets
+# arrivent entiers, et ils arrivent encore.
+set -uo pipefail
+
+# La source et la destination n'ont **aucune valeur par défaut** : elles portent
+# de vrais noms, que le dépôt ne porte pas (ADR-0045). systemd les lit dans
+# /etc/default/copie-dumps, écrit sur chaque nœud d'après
+# copie-dumps.exemple.conf. Absentes ou hors de forme, rien n'est tiré : l'unité
+# passe en échec et le verdict, qui ne se renouvelle plus, se lit comme périmé
+# — le nom de la variable est dit, jamais sa valeur.
+#
+# Le reste se laisse déplacer pour que les épreuves adverses s'exercent sans
+# toucher aux vraies sauvegardes. Un dispositif qu'on ne peut pas mettre en
+# défaut n'a jamais été vérifié.
+SOURCE="${COPIE_SOURCE:-}"
+DEST="${COPIE_DEST:-}"
+# Chaque élément du chemin commence par une lettre, un chiffre ou « _ » : ni « . »,
+# ni « .. », ni « // », ni la racine seule.
+[[ "$SOURCE" =~ ^([a-z_][a-z0-9_-]*@[A-Za-z0-9._-]+:)?(/[A-Za-z0-9_][A-Za-z0-9._-]*)+/$ ]] || {
+    echo "COPIE_SOURCE manque ou est hors de forme ([utilisateur@hôte:]/chemin/) : /etc/default/copie-dumps" >&2
+    exit 1
+}
+[[ "$DEST" =~ ^(/[A-Za-z0-9_][A-Za-z0-9._-]*)+$ ]] || {
+    echo "COPIE_DEST manque ou est hors de forme (un chemin absolu) : /etc/default/copie-dumps" >&2
+    exit 1
+}
+ETAT="${COPIE_ETAT:-/var/lib/copie-dumps}"
+VERDICT="$ETAT/verdict"
+CONTROLES="$ETAT/controles"
+
+# Trois copies par invité. Sans borne, les tâches `vzdump` (7 quotidiens pour les
+# uns, 3 hebdomadaires pour les autres) rempliraient le pool qui les reçoit, et
+# un pool plein est une panne de plus, pas une sauvegarde.
+GARDEES="${COPIE_GARDEES:-3}"
+
+# Go libres exigés avant de copier. En dessous, on refuse la copie **sans rien
+# détruire** : mieux vaut trois sauvegardes anciennes et un cri qu'un disque
+# plein et le silence.
+MARGE="${COPIE_MARGE:-10}"
+
+# Dix jours, et non trois fois la semaine de la tâche.
+#
+# Le facteur 3 de la maison vaut pour des cadences courtes : trois heures sur
+# un tour horaire, c'est un retard. Sur une tâche hebdomadaire, il donnerait
+# **trois semaines** de sauvegarde en panne avant de crier — exactement la
+# « sauvegarde nocturne en échec quatre nuits d'affilée » que l'ADR-015 donne
+# comme faute fondatrice. Dix jours, c'est un samedi manqué plus la marge d'un
+# rattrapage.
+PEREMPTION_DUMP="${COPIE_PEREMPTION:-864000}"
+
+RSYNC="${COPIE_RSYNC:-rsync}"
+ZSTD="${COPIE_ZSTD:-zstd}"
+SSH_RSYNC="ssh -T -o BatchMode=yes -o ConnectTimeout=20 -o StrictHostKeyChecking=yes"
+
+# Occupation maximale du pool LVM thin qui porte la destination.
+#
+# `df` ne le voit pas. Le 31/10/2026, il annonçait 50 Go libres sur un volume de
+# 200 Go posé sur un pool de 188 Go, plein à 100 % : les blocs supprimés ne
+# reviennent au pool qu'au `fstrim`. Neuf dumps sont restés troués.
+SEUIL_POOL="${COPIE_SEUIL_POOL:-90}"
+LVS="${COPIE_LVS:-lvs}"
+PERIPH="${COPIE_PERIPH:-}"
+
+# `sort` et `<` doivent classer les noms de la même façon, quelle que soit la
+# langue de la machine.
+export LC_COLLATE=C
+
+MOTIFS=()
+signaler() { MOTIFS+=("$1"); }
+
+# Le tirage vit à côté de ce script. Sans lui, on s'arrête : l'unité passe en
+# échec et le verdict, qui ne se renouvelle plus, finit par se lire comme périmé.
+TIRAGE="$(dirname "$(readlink -f "$0")")/copie-dumps-tirage"
+# shellcheck source=copie-dumps-tirage
+. "$TIRAGE" || { echo "impossible de charger $TIRAGE" >&2; exit 1; }
+
+# Le nom d'un dump porte son type, son invité et sa date :
+#   vzdump-lxc-200-2026_09_12-02_05_39.tar.zst     (un conteneur)
+#   vzdump-qemu-301-2026_09_18-12_26_52.vma.zst    (une machine virtuelle)
+# Trié par nom, un invité est trié par date. C'est vrai tant que le format est
+# celui-là, et c'est vérifié par les épreuves — pas supposé.
+
+# **Une archive est tout ce que vzdump produit qui n'est ni son journal ni sa
+# note.** Énumérer les extensions était une faute, et elle a coûté cher : le
+# 18/09/2026, le premier dump d'une machine virtuelle est arrivé en `.vma.zst`
+# là où le script n'attendait que `.tar.zst`. Il n'a été ni contrôlé, ni compté,
+# ni élagué — et le verdict a dit **SAIN**, parce que le garde-fou « aucune
+# sauvegarde » se fonde sur les noms, qui eux correspondaient. Un échec
+# silencieux, exactement ce que la règle 3 du projet interdit.
+#
+# Définir par la négative plutôt que par une liste : un nouveau compresseur
+# ajoutera une extension, il n'ajoutera pas un journal. `.dat` et `.tmp` sont ce
+# que vzdump écrit **avant** d'avoir fini : le 23/10/2026, un `.tar.dat` copié en
+# cours d'écriture a été contrôlé comme une archive.
+PAS_ARCHIVE='\.(log|notes|dat|tmp)$'
+archives() {
+    ls "$DEST" 2>/dev/null |
+        grep -E "^vzdump-[a-z]+-${1:-[0-9]+}-" |
+        grep -vE "$PAS_ARCHIVE"
+}
+
+# -- ce qui est déjà là ---------------------------------------------------------
+
+mkdir -p "$DEST" "$ETAT" "$CONTROLES" || {
+    echo "impossible de créer $DEST ou $ETAT" >&2
+    exit 1
+}
+
+# L'empreinte d'un fichier telle qu'on la retient : sa taille et sa date.
+# Pas son contenu — relire 7,7 Go pour savoir s'il a bougé coûterait le prix
+# du contrôle lui-même, à chaque passage.
+empreinte() { stat -c '%s %Y' -- "$1" 2>/dev/null; }
+
+# Un dump est-il déjà contrôlé, et le contrôle porte-t-il sur **ce** fichier ?
+#
+# Un marqueur qui ne vérifie pas l'empreinte laisserait un dump remplacé à la
+# source passer pour contrôlé. On ne re-contrôle pas ce qui n'a pas bougé, mais
+# on re-contrôle tout ce qui a bougé.
+deja_controle() {
+    local marqueur="$CONTROLES/$1.controle"
+    [ -f "$marqueur" ] || return 1
+    [ "$(awk -F= '$1=="empreinte"{sub(/^empreinte=/,""); print; exit}' "$marqueur")" \
+      = "$2" ]
+}
+
+etat_controle() {
+    awk -F= '$1=="etat"{print $2; exit}' "$CONTROLES/$1.controle" 2>/dev/null
+}
+
+raison_controle() {
+    awk '/^raison=/{sub(/^raison=/, ""); print; exit}' "$CONTROLES/$1.controle" 2>/dev/null
+}
+
+# -- on élague ------------------------------------------------------------------
+#
+# Deux fois : avant de tirer, pour faire de la place ; après, pour retirer ce
+# que la nouvelle copie a rendu surnuméraire.
+#
+# **Seuls les dumps contrôlés comptent comme gardés, et seuls eux s'élaguent.**
+# Un dump en échec ou jamais contrôlé n'est ni une copie sur laquelle se
+# reposer, ni un fichier qu'on retire en silence : c'est une anomalie, elle
+# reste, et le verdict la nomme. Sans cette règle, un dump neuf et corrompu
+# chasserait trois dumps anciens et sains.
+elaguer() {
+    local invite dumps garde
+    for invite in $(ls "$DEST" 2>/dev/null | sed -n 's/^vzdump-[a-z]*-\([0-9]\{1,\}\)-.*/\1/p' | sort -u); do
+        dumps=()
+        while IFS= read -r f; do
+            [ -n "$f" ] || continue
+            [ "$(etat_controle "$f")" = "ok" ] && dumps+=("$f")
+        done < <(archives "$invite" | sort)
+
+        garde=$(( ${#dumps[@]} - GARDEES ))
+        [ "$garde" -gt 0 ] || continue
+        for ((i = 0; i < garde; i++)); do
+            local nom="${dumps[$i]}"
+            rm -f -- "$DEST/$nom" "$DEST/$nom.notes" "$CONTROLES/$nom.controle"
+            # Le journal porte le nom de l'archive sans son extension. Un
+            # `${nom%.tar.zst}` ne retirait rien d'un `.vma.zst` et laissait le
+            # journal derrière lui ; `%%.*` coupe au premier point, et le nom de
+            # vzdump n'en contient aucun avant l'extension.
+            rm -f -- "$DEST/${nom%%.*}.log"
+            echo "élagué : $nom"
+        done
+    done
+}
+
+elaguer
+
+# -- la place -------------------------------------------------------------------
+
+place_libre() { df -BG --output=avail "$DEST" 2>/dev/null | tail -1 | tr -dc '0-9'; }
+
+LIBRE=$(place_libre)
+if [ -z "$LIBRE" ]; then
+    signaler "place libre sur $DEST : illisible"
+elif [ "$LIBRE" -lt "$MARGE" ]; then
+    signaler "plus que $LIBRE Go libres (marge exigée : $MARGE Go) — copie refusée"
+fi
+
+POOL=$(pool_occupe)
+if [ "$POOL" = "?" ]; then
+    signaler "occupation du pool LVM de $DEST : illisible — copie refusée"
+elif [ "$POOL" != "-" ] && [ "$POOL" -gt "$SEUIL_POOL" ]; then
+    signaler "pool LVM plein à $POOL % (seuil $SEUIL_POOL %) — copie refusée, rien n'est détruit"
+fi
+
+# -- on tire --------------------------------------------------------------------
+
+if [ ${#MOTIFS[@]} -eq 0 ]; then
+    LISTE="$ETAT/.tirage-source"; CHOIX="$ETAT/.tirage-choix"
+    SORTIE=$("$RSYNC" --list-only -e "$SSH_RSYNC" "$SOURCE" 2>&1)
+    CODE=$?
+    if [ "$CODE" -ne 0 ]; then
+        signaler "rsync a échoué (code $CODE) : $(printf '%s' "$SORTIE" | tr '\n' ' ' | cut -c1-200)"
+    else
+        awk '$1 ~ /^-/ {print $NF}' <<< "$SORTIE" > "$LISTE"
+        a_tirer "$LISTE" > "$CHOIX"
+        if [ ! -s "$CHOIX" ] || tirer "$CHOIX"; then
+            # `--checksum` : recopier seulement si le contenu diffère. Une source
+            # abîmée elle aussi ne se retélécharge donc pas chaque nuit.
+            # `--whole-file` : ne rien reprendre d'une copie qu'on sait fausse.
+            a_retenter "$LISTE" > "$CHOIX"
+            if [ -s "$CHOIX" ] && tirer "$CHOIX" --checksum --whole-file; then
+                # L'empreinte n'a pas bougé : sans cela, il resterait « en échec ».
+                while IFS= read -r nom; do
+                    rm -f -- "$CONTROLES/$nom.controle"
+                done < "$CHOIX"
+            fi
+        fi
+        rm -f -- "$LISTE" "$CHOIX"
+    fi
+fi
+
+# -- on contrôle ----------------------------------------------------------------
+#
+# Une sauvegarde jamais lue est une hypothèse. `zstd -t` déroule le flux entier
+# et vérifie ses sommes de contrôle : il ne dit pas que le conteneur restaurera,
+# il dit que les octets sont arrivés entiers. C'est ce qu'une copie peut
+# promettre, et c'est tout ce qu'elle promet.
+
+CORROMPUS=0
+CONTROLES_FAITS=0
+
+while IFS= read -r nom; do
+    [ -n "$nom" ] || continue
+    chemin="$DEST/$nom"
+    emp=$(empreinte "$chemin")
+
+    if deja_controle "$nom" "$emp"; then
+        [ "$(etat_controle "$nom")" = "ok" ] || {
+            CORROMPUS=$((CORROMPUS + 1))
+            raison=$(raison_controle "$nom")
+            signaler "$nom : contrôlé en échec${raison:+ ($raison)}, laissé en place"
+        }
+        continue
+    fi
+
+    # Relire le disque et non le cache. Sans effet sur les pages pas encore
+    # écrites, c'est pourquoi `--fsync` vient d'abord.
+    dd if="$chemin" iflag=nocache count=0 status=none 2>/dev/null
+
+    if ERREUR=$("$ZSTD" -t -q -- "$chemin" 2>&1 >/dev/null); then
+        printf 'etat=ok\nempreinte=%s\ncontrole=%s\n' "$emp" "$(date -u +%s)" \
+            > "$CONTROLES/$nom.controle"
+        CONTROLES_FAITS=$((CONTROLES_FAITS + 1))
+    else
+        # La première ligne, sans le chemin : c'est elle qui distingue un fichier
+        # troué (« unsupported format », « corruption ») d'un fichier tronqué.
+        raison=$(printf '%s\n' "$ERREUR" | head -1 | sed -E 's/^.*\.zst *: *//' | tr -d '=' | cut -c1-120)
+        printf 'etat=echec\nempreinte=%s\ncontrole=%s\nraison=%s\n' "$emp" "$(date -u +%s)" "$raison" \
+            > "$CONTROLES/$nom.controle"
+        CORROMPUS=$((CORROMPUS + 1))
+        signaler "$nom : flux zstd illisible${raison:+ ($raison)} — la copie n'est pas exploitable"
+    fi
+# Un `while … done < <(…)` et non un `… | while` : le tube ouvrirait un
+# sous-shell, et les deux compteurs y mourraient avec lui.
+done < <(archives)
+
+elaguer
+
+# -- a-t-on encore des sauvegardes, et sont-elles récentes ? --------------------
+#
+# Le piège que ce bloc ferme : une copie qui marche parfaitement pendant que la
+# **source** a cessé de produire. Tout serait vert, et il n'y aurait plus rien
+# de neuf à sauver. Juger « ma copie a-t-elle tourné » sans juger « y avait-il
+# quelque chose à copier » laisse passer exactement ça.
+
+MAINTENANT=$(date -u +%s)
+INVITES=$(ls "$DEST" 2>/dev/null | sed -n 's/^vzdump-[a-z]*-\([0-9]\{1,\}\)-.*/\1/p' | sort -u)
+
+if [ -z "$INVITES" ]; then
+    # Refus par défaut : aucune copie n'est un motif d'alerte, jamais un
+    # « rien à signaler ».
+    signaler "aucune sauvegarde dans $DEST — il n'y a rien à restaurer"
+fi
+
+RESUME=()
+for invite in $INVITES; do
+    dernier=$(archives "$invite" | sort | tail -1)
+    if [ -z "$dernier" ]; then
+        # Des fichiers à son nom, mais aucune archive. Passer son chemin en
+        # silence était la moitié du défaut du 18/09 : l'invité disparaissait
+        # du verdict sans qu'un seul motif ne le dise.
+        signaler "invité $invite : un journal, mais aucune archive — la sauvegarde n'a pas abouti"
+        continue
+    fi
+    sains=$(for f in $(archives "$invite"); do
+                [ "$(etat_controle "$f")" = "ok" ] && echo "$f"
+            done | wc -l | tr -d ' ')
+    age=$(( (MAINTENANT - $(stat -c '%Y' -- "$DEST/$dernier" 2>/dev/null || echo 0)) / 86400 ))
+    RESUME+=("$invite:$sains:$age")
+
+    if [ "$sains" -eq 0 ]; then
+        signaler "invité $invite : aucune copie contrôlée saine"
+    fi
+    if [ "$(( age * 86400 ))" -gt "$PEREMPTION_DUMP" ]; then
+        signaler "invité $invite : la sauvegarde la plus récente date de $age jours (seuil $((PEREMPTION_DUMP / 86400)) j) — la source n'en produit plus"
+    fi
+done
+
+# La place est **remesurée** ici. Celle d'avant a servi à décider s'il y avait
+# de quoi copier ; la porter au verdict la ferait lire comme la place restante,
+# alors qu'elle date d'avant l'arrivée de 26 Go. Un champ juste au moment où on
+# l'écrit et faux au moment où on le lit vaut moins que pas de champ du tout.
+LIBRE=$(place_libre)
+POOL=$(pool_occupe)
+
+[ ${#MOTIFS[@]} -eq 0 ] && ETAT_VU="SAIN" || ETAT_VU="MALADE"
+
+# -- on consigne ----------------------------------------------------------------
+#
+# Même format que le veilleur, et ce n'est pas de l'imitation : le Mac lit les
+# deux avec le même découpage, et une clé inconnue s'y lirait comme absente.
+
+DEPUIS="-"
+if [ "$ETAT_VU" != "SAIN" ]; then
+    ANCIEN=$(awk -F= '$1=="depuis"{print $2}' "$VERDICT" 2>/dev/null)
+    ANCIEN_ETAT=$(awk -F= '$1=="verdict"{print $2}' "$VERDICT" 2>/dev/null)
+    if [ "$ANCIEN_ETAT" != "SAIN" ] && [ -n "$ANCIEN" ] && [ "$ANCIEN" != "-" ]; then
+        DEPUIS="$ANCIEN"
+    else
+        DEPUIS="$MAINTENANT"
+    fi
+fi
+
+{
+    echo "verdict=$ETAT_VU"
+    echo "instant=$MAINTENANT"
+    echo "depuis=$DEPUIS"
+    echo "libre_go=${LIBRE:--}"
+    echo "pool_pct=$POOL"
+    echo "gardees=$GARDEES"
+    echo "controles=$CONTROLES_FAITS"
+    echo "corrompus=$CORROMPUS"
+    for r in ${RESUME+"${RESUME[@]}"}; do
+        echo "invite=$r"
+    done
+    for motif in ${MOTIFS+"${MOTIFS[@]}"}; do
+        echo "motif=$(printf '%s' "$motif" | awk 'NF {l = l (l ? " · " : "") $0} END {print l}')"
+    done
+    echo "fin=1"
+} > "$VERDICT.partiel"
+# Remplacement atomique : le Mac ne doit jamais lire un verdict à moitié écrit.
+mv -f "$VERDICT.partiel" "$VERDICT"
+
+cat "$VERDICT"
+[ "$ETAT_VU" = "SAIN" ]
