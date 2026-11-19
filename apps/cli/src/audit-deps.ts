@@ -23,16 +23,9 @@ export interface AuditException {
   readonly jusqua: string;
 }
 
-export const EXCEPTIONS: readonly AuditException[] = [
-  {
-    ghsa: "GHSA-fc5q-39xc-vjpf",
-    packages: ["picomatch"],
-    raison:
-      "picomatch, ReDoS sur des extglobs répétés : aucune version corrigée au 17/11/2026 ; " +
-      "seuls vite et vitest le tirent (outils de développement), sur des motifs écrits par nous",
-    jusqua: "2026-12-17",
-  },
-];
+// GHSA-fc5q-39xc-vjpf (picomatch), set aside on 17/11/2026, was withdrawn by
+// GitHub on 18/11: nothing left to set aside.
+export const EXCEPTIONS: readonly AuditException[] = [];
 
 export interface AuditVerdict {
   readonly ok: boolean;
