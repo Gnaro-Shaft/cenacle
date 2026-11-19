@@ -1,0 +1,12 @@
+# Les adresses que fail2ban ne bannit jamais sur CE VPS — un exemple fictif.
+#
+# A copier en /etc/fail2ban/jail.d/ignorer.local, sur le VPS, avec les vraies
+# adresses : celles d'ou passe la ronde (la box, le Mac sur le tailnet...).
+# Elles ne s'ecrivent jamais dans le depot (ADR-0045).
+#
+# Cette ligne REMPLACE celle de jail.local : garder 127.0.0.1/8 et ::1.
+# Un seul fichier de jail.d/ peut porter un ignoreip — fail2ban garde le
+# dernier lu, sans rien dire ; poser-fail2ban refuse s'il en trouve un autre.
+
+[sshd]
+ignoreip = 127.0.0.1/8 ::1 192.0.2.10 100.64.0.10

@@ -1,0 +1,23 @@
+// Le redemarrage apres une mise a jour qui l'exige — LE VPS DU SITE PUBLIC SEULEMENT.
+//
+// L'original est dans le depot Cenacle, sous « deploy/homelab/redemarrage-auto/ »
+// (ADR-0045). A poser en /etc/apt/apt.conf.d/52legion-redemarrage. Un fichier a
+// part, pour que les installateurs des sites, qui ecrivent 20auto-upgrades, ne
+// l'ecrasent pas. Voir README.md.
+//
+// COUPE depuis le 26/10/2026 : unattended-upgrades installe seul les correctifs
+// de securite, mais ne redemarre plus ; le redemarrage est le bouton 🔄 de
+// Cenacle. cenacle-maj-securite REFUSE de tourner si cette ligne passe a
+// "true" — elle le priverait du choix du moment.
+Unattended-Upgrade::Automatic-Reboot "false";
+
+// Sans effet tant que la ligne du dessus est a "false" ; gardees pour le jour
+// ou on la rallumerait. Sans la premiere, une session ouverte au mauvais
+// moment — la ronde passe toutes les cinq minutes — repousse le redemarrage a
+// la nuit suivante, sans rien dire.
+Unattended-Upgrade::Automatic-Reboot-WithUsers "true";
+
+// UTC, l'heure de la machine : 05:30 a Paris. Loin de l'audience (00:15 UTC),
+// de la copie du CRM poussee par le Mac (02:15 UTC) et d'unattended-upgrades
+// lui-meme (06:00-07:00 UTC).
+Unattended-Upgrade::Automatic-Reboot-Time "03:30";
