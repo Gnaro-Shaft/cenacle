@@ -1,0 +1,90 @@
+#!/bin/bash
+# Poser fail2ban sur un VPS, et le prouver : la jail lit le journal de systemd,
+# et elle ignore bien les adresses de CE VPS.
+#
+#   deploy/homelab/fail2ban/poser-fail2ban <compte@vps>
+#
+# Depuis le Mac, a la racine du depot ; le compte a sudo sans mot de passe.
+# AVANT : /etc/fail2ban/jail.d/ignorer.local, ecrit a la main sur le VPS
+# d'apres ignorer.exemple.local (ADR-0045 : aucune adresse dans le depot).
+#
+# Il refuse, avant de rien toucher : sans ignorer.local, s'il n'ignore que la
+# machine elle-meme, ou si un autre fichier de jail.d/ porte aussi un ignoreip
+# — fail2ban garderait le dernier lu, sans rien dire. Si fail2ban rejette le
+# nouveau jail.local, l'ancien est remis, et fail2ban relance avec lui.
+set -euo pipefail
+export LC_ALL=C
+
+ICI="$(cd "$(dirname "$0")" && pwd)"
+[ $# -eq 1 ] && [[ "$1" =~ ^[a-z_][a-z0-9_-]*@[A-Za-z0-9._-]+$ ]] || {
+    echo "usage : poser-fail2ban <compte@vps>" >&2
+    exit 2
+}
+CIBLE="$1"
+
+echo "-- copie --"
+scp -q "$ICI/jail.local" "$CIBLE:/tmp/jail.local"
+printf '  ok     %s\n' "jail.local copie"
+
+echo "-- pose et preuves --"
+ssh "$CIBLE" 'sudo bash -s' <<'DISTANT'
+set -euo pipefail
+export LC_ALL=C
+D=/etc/fail2ban
+IGN="$D/jail.d/ignorer.local"
+ok()    { printf '  ok     %s\n' "$1"; }
+echec() { printf '  ECHEC  %s\n' "$1" >&2; rm -f /tmp/jail.local; exit 1; }
+
+# Les adresses du fichier, hors la machine elle-meme ; fail2ban ecrit
+# « a.b.c.d/32 » sans son « /32 », et « x::y/128 » sans son « /128 ».
+[ -s "$IGN" ] || echec "$IGN absent : l'ecrire d'apres ignorer.exemple.local, puis relancer"
+LISTE="$(sed -n 's/^[[:space:]]*ignoreip[[:space:]]*=[[:space:]]*//p' "$IGN" | tail -1)"
+ADRESSES="$(tr ' \t' '\n\n' <<< "$LISTE" | grep -v -x -E '127\.0\.0\.1/8|::1|' |
+    sed -E 's#^([0-9.]+)/32$#\1#; s#^([0-9A-Fa-f:]+)/128$#\1#' || true)"
+[ -n "$ADRESSES" ] ||
+    echec "$IGN n'ignore que la machine elle-meme : la ronde pourrait se faire bannir"
+AUTRES="$(grep -l -E '^[[:space:]]*ignoreip[[:space:]]*=' "$D"/jail.d/*.conf "$D"/jail.d/*.local 2>/dev/null |
+    grep -v -x -F "$IGN" || true)"
+[ -z "$AUTRES" ] ||
+    echec "un autre fichier pose un ignoreip, fail2ban n'en garderait qu'un : $(tr '\n' ' ' <<< "$AUTRES")— reunir ses adresses dans $IGN, puis le retirer"
+ok "$(wc -l <<< "$ADRESSES" | tr -d ' ') adresse(s) a ignorer, dans ignorer.local seul"
+
+dpkg -s fail2ban python3-systemd >/dev/null 2>&1 ||
+    DEBIAN_FRONTEND=noninteractive apt-get install -y fail2ban python3-systemd >/dev/null
+ok "fail2ban et python3-systemd installes"
+
+# L'ancien jail.local, garde pour le remettre si fail2ban rejette le nouveau.
+AVANT=""
+if [ -f "$D/jail.local" ]; then AVANT="$(mktemp)"; cp -p "$D/jail.local" "$AVANT"; fi
+remettre() {
+    if [ -n "$AVANT" ]; then mv "$AVANT" "$D/jail.local"; else rm -f "$D/jail.local"; fi
+    systemctl restart fail2ban >/dev/null 2>&1 || true
+    echec "$1 — l'ancien jail.local est remis"
+}
+install -m 644 -o root -g root /tmp/jail.local "$D/jail.local"
+rm -f /tmp/jail.local
+fail2ban-client -d >/dev/null 2>&1 || remettre "fail2ban ne sait pas lire la configuration"
+systemctl enable --now fail2ban >/dev/null 2>&1 || remettre "fail2ban ne s'active pas"
+systemctl restart fail2ban || remettre "fail2ban ne redemarre pas"
+for _ in $(seq 1 "${ATTENTE_F2B:-20}"); do
+    fail2ban-client ping >/dev/null 2>&1 && break
+    sleep 1
+done
+
+# Que le service tourne ne prouve rien : la jail doit lire le journal...
+STATUT="$(fail2ban-client status sshd 2>&1)" || remettre "la jail sshd ne repond pas"
+grep -q 'Journal matches' <<< "$STATUT" ||
+    remettre "la jail sshd ne lit pas le journal de systemd : elle ne bannirait personne"
+ok "la jail sshd lit le journal de systemd"
+# ... et ignorer, vraiment, chaque adresse du fichier.
+VIVE="$(fail2ban-client get sshd ignoreip | sed -n 's/^[|`]- //p')"
+for a in $ADRESSES; do
+    grep -qxF "$a" <<< "$VIVE" || remettre "fail2ban n'ignore pas une adresse de ignorer.local ($a)"
+done
+ok "chaque adresse de ignorer.local est ignoree"
+[ -z "$AVANT" ] || rm -f "$AVANT"
+DISTANT
+
+echo
+echo "Reste l'epreuve, qui dit si la jail voit des echecs :"
+echo "  deploy/homelab/fail2ban/eprouver-fail2ban.sh $CIBLE <adresse ignoree>"

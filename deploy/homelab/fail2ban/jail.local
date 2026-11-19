@@ -1,0 +1,40 @@
+# Ce que fail2ban fait sur les VPS de la maison.
+#
+# L'original est dans le depot Cenacle, sous « deploy/homelab/fail2ban/ »
+# (ADR-0045). Une modification faite sur la machine sera perdue au prochain
+# deploiement.
+
+[DEFAULT]
+
+# **Le journal, jamais le fichier.** La jail « sshd » par defaut lit
+# /var/log/auth.log. Sur le VPS du site public (Debian 12) ce fichier N'EXISTE
+# PAS et rsyslog est inactif : la jail tournerait, le service afficherait
+# « active », et elle ne bannirait personne. C'est le mode d'echec le plus
+# courant de fail2ban, et le plus trompeur — il ressemble trait pour trait a un
+# succes.
+#
+# Le meme reglage sur les deux machines, bien qu'Ubuntu ait le fichier : une
+# configuration unique se relit, deux configurations divergent.
+backend = systemd
+
+# **La machine elle-meme, et rien d'autre ici.** Les adresses a ne jamais
+# bannir — celles d'ou passe la ronde — sont propres a chaque VPS et vivent sur
+# lui, dans /etc/fail2ban/jail.d/ignorer.local (voir ignorer.exemple.local).
+# Ce fichier-la REMPLACE cette ligne, il ne s'y ajoute pas : c'est pourquoi il
+# repete 127.0.0.1/8 et ::1. Sans lui, la ronde peut se faire bannir, et la
+# surveillance s'arreter sur la machine meme qu'elle surveille.
+ignoreip = 127.0.0.1/8 ::1
+
+# Quatre tentatives dans dix minutes. Une heure de bannissement, doublee a
+# chaque recidive, jusqu'a une semaine : dix minutes — le defaut — ne servent
+# presque a rien face a une source qui frappe neuf cents fois par heure.
+maxretry = 4
+findtime = 10m
+bantime  = 1h
+
+bantime.increment = true
+bantime.factor    = 2
+bantime.maxtime   = 1w
+
+[sshd]
+enabled = true

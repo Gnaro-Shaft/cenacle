@@ -1,12 +1,13 @@
 // Shared by the homelab's tests (ADR-0045): a throwaway Debian with what the
 // scripts of deploy/homelab need (rsync, zstd, strace for the fsync fault,
-// python3 for the backup watch), deploy/ mounted read-only. No network once
-// built; skipped where Docker or the base image is absent (the CI).
+// python3 for the backup watch, the real fail2ban and unattended-upgrades for
+// the VPS), deploy/ mounted read-only. No network once built; skipped where
+// Docker or the base image is absent (the CI).
 import { execFileSync, spawnSync } from "node:child_process";
 import { join } from "node:path";
 
 export const ROOT = join(import.meta.dirname, "..", "..", "..");
-export const IMAGE = "cenacle-test-homelab:1";
+export const IMAGE = "cenacle-test-homelab:2";
 const BASE = process.env.CENACLE_TEST_DEBIAN_IMAGE ?? "debian:stable-slim";
 
 /** Docker and the base image already here (never on the CI): else the tests are skipped. */
@@ -24,7 +25,7 @@ export function buildImage(): void {
   const dockerfile = [
     "ARG BASE",
     "FROM ${BASE}",
-    "RUN apt-get update && apt-get install -y --no-install-recommends rsync zstd strace python3 python3-pytest && rm -rf /var/lib/apt/lists/*",
+    "RUN apt-get update && apt-get install -y --no-install-recommends rsync zstd strace python3 python3-pytest fail2ban python3-systemd unattended-upgrades && rm -rf /var/lib/apt/lists/*",
   ].join("\n");
   execFileSync("docker", ["build", "-q", "--build-arg", `BASE=${BASE}`, "-t", IMAGE, "-"], {
     input: dockerfile,
