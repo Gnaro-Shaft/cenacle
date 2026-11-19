@@ -115,6 +115,13 @@ describe.skipIf(!docker)("install-copie.sh on the backup node", () => {
       "",
       /is a link/,
     ],
+    [
+      "a folder on the way the account cannot pass",
+      "chmod 0700 /var/backups",
+      "chmod 0755 /var/backups",
+      "",
+      /cannot pass through \/var\/backups, .*setfacl -m u:cenacle-depot:--x \/var\/backups,/,
+    ],
   ])("refuses: %s", (_what, breakIt, mend, user, said) => {
     node.sh(breakIt);
     const run = node.sh("/d/install-copie.sh", user || undefined);
@@ -136,6 +143,31 @@ describe.skipIf(!docker)("the store's root, a link to a volume of its own", () =
     expect(node.sh(WATCHER).code).toBe(0);
     expect(node.sh("ls /srv/volume/gardees").out).toMatch(/00000000000000bb\.age/);
     node.sh(`find /srv/volume/gardees -mindepth 1 -delete`);
+  });
+
+  // Seen on the real node (19/11): the volume's folder root's alone, the
+  // install passed, and the push failed later, rrsync refused its arrival.
+  it("refuses a volume the account cannot reach, names the folder, passes once let through", () => {
+    node.sh(
+      `rm ${STORE} && install -d -m 0700 /srv/ferme && install -d -m 0711 /srv/ferme/vol && ln -s /srv/ferme/vol ${STORE}`,
+    );
+    const refused = node.sh("/d/install-copie.sh");
+    expect(refused.code).not.toBe(0);
+    expect(refused.out).toMatch(/cannot pass through \/srv\/ferme, /);
+    expect(node.sh(`test -w ${STORE}/arrivee`, ACCOUNT).code).not.toBe(0);
+
+    node.sh("chmod 0711 /srv/ferme");
+    const passed = node.sh("/d/install-copie.sh");
+    expect(passed.code, passed.out).toBe(0);
+    expect(node.sh(`test -w ${STORE}/arrivee`, ACCOUNT).code).toBe(0);
+
+    // The link's own folder closed: the volume's path alone would not show it.
+    node.sh("chmod 0700 /var/backups");
+    const link = node.sh("/d/install-copie.sh");
+    node.sh("chmod 0755 /var/backups");
+    expect(link.code).not.toBe(0);
+    expect(link.out).toMatch(/cannot pass through \/var\/backups, /);
+    node.sh(`rm ${STORE} && ln -s /srv/volume ${STORE} && /d/install-copie.sh`);
   });
 });
 

@@ -162,13 +162,19 @@ sudo ln -sn /srv/sauvegardes/cenacle-copie /var/backups/cenacle-copie
 
 `-n` : relancée, la commande refuse (« File exists ») ; sans lui, elle suivrait le lien déjà posé et en mettrait un second **dans** le dépôt, pointant sur lui-même.
 
+Le compte doit **traverser** chaque dossier jusqu'à son arrivée, et un volume de sauvegardes est souvent fermé à tout autre que root. `install-copie.sh` le vérifie, comme le compte, et nomme le dossier qui l'arrête. Laisse-le alors passer, et rien de plus (ni lire ni lister ; paquet `acl`) — jamais `chmod o+x`, qui ouvrirait le passage à tous les comptes :
+
+```
+sudo setfacl -m u:cenacle-depot:--x /srv/sauvegardes
+```
+
 Puis, depuis le Mac, `rsync` comme plus haut, et sur le serveur :
 
 ```
 sudo ~/cenacle-serveurs/serveurs/install-copie.sh
 ```
 
-Il vérifie `rrsync` (rsync 3.2.4 au moins) et `python3`, crée le compte et le dépôt, pose le minuteur et le lance une première fois : son verdict dit alors `aucune copie gardée`, c'est attendu. Il prévient si `sshd` ne laisse entrer que certains comptes (`AllowUsers`, `AllowGroups`) : ajoute alors `cenacle-depot`. Le relancer est sans danger.
+Il vérifie `rrsync` (rsync 3.2.4 au moins) et `python3`, crée le compte et le dépôt, vérifie que le compte atteint son arrivée, pose le minuteur et le lance une première fois : son verdict dit alors `aucune copie gardée`, c'est attendu. Il prévient si `sshd` ne laisse entrer que certains comptes (`AllowUsers`, `AllowGroups`) : ajoute alors `cenacle-depot`. Le relancer est sans danger.
 
 ### La clé de poussée
 
