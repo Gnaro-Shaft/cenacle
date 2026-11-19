@@ -23,7 +23,9 @@ ICI="$(cd "$(dirname "$0")" && pwd)"
 CIBLE="$1"
 
 echo "-- copie --"
-scp -q "$ICI/jail.local" "$CIBLE:/tmp/jail.local"
+# Dans le dossier du compte, pas dans /tmp : un autre compte de la machine
+# pourrait y substituer le fichier avant que root ne l'installe.
+scp -q "$ICI/jail.local" "$CIBLE:jail.local.cenacle"
 printf '  ok     %s\n' "jail.local copie"
 
 echo "-- pose et preuves --"
@@ -32,14 +34,20 @@ set -euo pipefail
 export LC_ALL=C
 D=/etc/fail2ban
 IGN="$D/jail.d/ignorer.local"
+COMPTE="${SUDO_USER:-root}"
+NEUF="$(getent passwd "$COMPTE" | cut -d: -f6)/jail.local.cenacle"
 ok()    { printf '  ok     %s\n' "$1"; }
-echec() { printf '  ECHEC  %s\n' "$1" >&2; rm -f /tmp/jail.local; exit 1; }
+echec() { printf '  ECHEC  %s\n' "$1" >&2; rm -f "$NEUF"; exit 1; }
 
-# Les adresses du fichier, hors la machine elle-meme ; fail2ban ecrit
-# « a.b.c.d/32 » sans son « /32 », et « x::y/128 » sans son « /128 ».
+[ -f "$NEUF" ] && [ ! -L "$NEUF" ] && [ "$(stat -c %U "$NEUF")" = "$COMPTE" ] ||
+    echec "le jail.local copie n'est pas un fichier de $COMPTE"
+
+# Les adresses du fichier, hors la machine elle-meme (sous toutes ses formes) ;
+# fail2ban accepte les virgules, et ecrit « a.b.c.d/32 » sans son « /32 ».
 [ -s "$IGN" ] || echec "$IGN absent : l'ecrire d'apres ignorer.exemple.local, puis relancer"
 LISTE="$(sed -n 's/^[[:space:]]*ignoreip[[:space:]]*=[[:space:]]*//p' "$IGN" | tail -1)"
-ADRESSES="$(tr ' \t' '\n\n' <<< "$LISTE" | grep -v -x -E '127\.0\.0\.1/8|::1|' |
+ADRESSES="$(tr ' \t,' '\n\n\n' <<< "$LISTE" |
+    grep -v -x -E '127(\.[0-9]+){0,3}(/[0-9]+)?|::1(/128)?|localhost|' |
     sed -E 's#^([0-9.]+)/32$#\1#; s#^([0-9A-Fa-f:]+)/128$#\1#' || true)"
 [ -n "$ADRESSES" ] ||
     echec "$IGN n'ignore que la machine elle-meme : la ronde pourrait se faire bannir"
@@ -49,8 +57,9 @@ AUTRES="$(grep -l -E '^[[:space:]]*ignoreip[[:space:]]*=' "$D"/jail.d/*.conf "$D
     echec "un autre fichier pose un ignoreip, fail2ban n'en garderait qu'un : $(tr '\n' ' ' <<< "$AUTRES")— reunir ses adresses dans $IGN, puis le retirer"
 ok "$(wc -l <<< "$ADRESSES" | tr -d ' ') adresse(s) a ignorer, dans ignorer.local seul"
 
+# </dev/null : ce script arrive par l'entree standard, apt ne doit pas la lire.
 dpkg -s fail2ban python3-systemd >/dev/null 2>&1 ||
-    DEBIAN_FRONTEND=noninteractive apt-get install -y fail2ban python3-systemd >/dev/null
+    DEBIAN_FRONTEND=noninteractive apt-get install -y fail2ban python3-systemd >/dev/null </dev/null
 ok "fail2ban et python3-systemd installes"
 
 # L'ancien jail.local, garde pour le remettre si fail2ban rejette le nouveau.
@@ -61,13 +70,14 @@ remettre() {
     systemctl restart fail2ban >/dev/null 2>&1 || true
     echec "$1 — l'ancien jail.local est remis"
 }
-install -m 644 -o root -g root /tmp/jail.local "$D/jail.local"
-rm -f /tmp/jail.local
+install -m 644 -o root -g root "$NEUF" "$D/jail.local"
+rm -f "$NEUF"
 fail2ban-client -d >/dev/null 2>&1 || remettre "fail2ban ne sait pas lire la configuration"
 systemctl enable --now fail2ban >/dev/null 2>&1 || remettre "fail2ban ne s'active pas"
 systemctl restart fail2ban || remettre "fail2ban ne redemarre pas"
+# La jail, pas seulement le socket : il repond avant qu'elle soit chargee.
 for _ in $(seq 1 "${ATTENTE_F2B:-20}"); do
-    fail2ban-client ping >/dev/null 2>&1 && break
+    fail2ban-client status sshd >/dev/null 2>&1 && break
     sleep 1
 done
 
@@ -77,7 +87,8 @@ grep -q 'Journal matches' <<< "$STATUT" ||
     remettre "la jail sshd ne lit pas le journal de systemd : elle ne bannirait personne"
 ok "la jail sshd lit le journal de systemd"
 # ... et ignorer, vraiment, chaque adresse du fichier.
-VIVE="$(fail2ban-client get sshd ignoreip | sed -n 's/^[|`]- //p')"
+VIVE="$(fail2ban-client get sshd ignoreip 2>&1)" || remettre "fail2ban ne dit pas ce qu'il ignore"
+VIVE="$(sed -n 's/^[|`]- //p' <<< "$VIVE")"
 for a in $ADRESSES; do
     grep -qxF "$a" <<< "$VIVE" || remettre "fail2ban n'ignore pas une adresse de ignorer.local ($a)"
 done

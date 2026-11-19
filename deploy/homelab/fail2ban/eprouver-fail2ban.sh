@@ -14,6 +14,8 @@ CIBLE="${1:?usage: $0 <compte@vps> <adresse ignoree>}"
 ADRESSE="${2:?usage: $0 <compte@vps> <adresse ignoree>}"
 # Elle part dans une commande distante : des chiffres, des points, des deux-points, une barre.
 [[ "$ADRESSE" =~ ^[0-9A-Fa-f:./]+$ ]] || { echo "adresse hors de forme : $ADRESSE" >&2; exit 2; }
+# fail2ban l'ecrit sans son « /32 ».
+ADRESSE="${ADRESSE%/32}"
 SSH="${F2B_SSH:-/usr/bin/ssh -o BatchMode=yes -o ConnectTimeout=15}"
 REUSSIES=0; ECHOUEES=0
 

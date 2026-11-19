@@ -16,7 +16,10 @@ const FAKES: Record<string, string> = {
   ssh: `echo "ssh $*" >> /tmp/appels-ssh; while [ $# -gt 1 ]; do shift; done; exec bash -c "$1"`,
   scp: `echo "scp $*" >> /tmp/appels-ssh
 files=(); for a in "$@"; do [ "\${a#-}" = "$a" ] && files+=("$a"); done
-dest="\${files[-1]}"; unset 'files[-1]'; cp "\${files[@]}" "\${dest#*:}"`,
+dest="\${files[-1]#*:}"; unset 'files[-1]'; [ "\${dest#/}" = "$dest" ] && dest="$HOME/$dest"
+cp "\${files[@]}" "$dest"
+# Another account swapping the copy for a link, before root installs it.
+[ -n "\${FAUX_LIEN:-}" ] && rm -f "$dest" && ln -s /etc/shadow "$dest"; true`,
   sudo: `[ "$1" = -n ] && shift; exec "$@"`,
   // No systemd in the box: the real server, started and stopped by hand.
   systemctl: `echo "systemctl $*" >> /tmp/appels
@@ -53,7 +56,7 @@ afterAll(() => box?.stop());
 
 /** fail2ban stopped, nothing posed, Debian 12's defaults: the jail would read a file. */
 function reset() {
-  box.sh(`fail2ban-client stop >/dev/null 2>&1; rm -rf /tmp/appels /tmp/appels-ssh /tmp/jail.local /tmp/f2b /etc/fail2ban/jail.local /etc/fail2ban/jail.d/*
+  box.sh(`fail2ban-client stop >/dev/null 2>&1; rm -rf /tmp/appels /tmp/appels-ssh /root/jail.local.cenacle /tmp/f2b /etc/fail2ban/jail.local /etc/fail2ban/jail.d/*
     printf '[sshd]\\nenabled = true\\n' > /etc/fail2ban/jail.d/defaults-debian.conf
     sed -i 's/^sshd_backend = .*/sshd_backend = %(default_backend)s/' /etc/fail2ban/paths-debian.conf
     rm -f /var/log/auth.log; true`);
@@ -146,6 +149,11 @@ describe.skipIf(!docker)("poser-fail2ban", () => {
       /n'ignore que la machine elle-meme/,
     ],
     [
+      "an ignorer.local with the machine itself, written otherwise",
+      "[sshd]\nignoreip = 127.0.0.1, 127.0.0.0/8 localhost ::1/128",
+      /n'ignore que la machine elle-meme/,
+    ],
+    [
       "an ignorer.local without any ignoreip",
       "[sshd]\nmaxretry = 4",
       /n'ignore que la machine elle-meme/,
@@ -158,7 +166,24 @@ describe.skipIf(!docker)("poser-fail2ban", () => {
     expect(r.err).toMatch(said);
     expect(posed()).toBe("");
     expect(box.sh("cat /tmp/appels 2>/dev/null").out).not.toMatch(/systemctl/);
-    expect(box.sh("ls /tmp/jail.local 2>/dev/null").out).toBe("");
+    expect(box.sh("ls /root/jail.local.cenacle 2>/dev/null").out).toBe("");
+  });
+
+  it("the copy swapped for a link before root installs it: refused, nothing touched", () => {
+    reset();
+    ignorer();
+    const r = box.sh(`FAUX_LIEN=1 PATH=/fake:$PATH bash ${F}/poser-fail2ban root@vps-exemple`);
+    expect(r.code).toBe(1);
+    expect(r.err).toMatch(/le jail\.local copie n'est pas un fichier de root/);
+    expect(posed()).toBe("");
+  });
+
+  it("an ignoreip separated by commas, as fail2ban allows: read, not refused", () => {
+    reset();
+    ignorer("[sshd]\nignoreip = 127.0.0.1/8, ::1, 192.0.2.10");
+    const r = poser();
+    expect(r.code, r.out + r.err).toBe(0);
+    expect(r.out).toMatch(/1 adresse\(s\) a ignorer/);
   });
 
   it.each([
@@ -192,7 +217,10 @@ describe.skipIf(!docker)("poser-fail2ban", () => {
     expect(running()).toBe(true);
     // A set: its order changes from one start to the next, and the last line is « `- ».
     expect(box.sh("fail2ban-client get sshd ignoreip").out).toMatch(/^[|`]- 192\.0\.2\.10$/m);
-    expect(box.sh("ls /tmp/jail.local /tmp/tmp.* 2>/dev/null").out).toBe("");
+    expect(box.sh("ls /root/jail.local.cenacle /tmp/tmp.* 2>/dev/null").out).toBe("");
+    expect(box.sh("cat /tmp/appels-ssh").out).toMatch(
+      /^scp -q \S+\/jail\.local root@vps-exemple:jail\.local\.cenacle$/m,
+    );
   });
 
   it("an address written /32 is the one fail2ban shows bare: not a false refusal", () => {
@@ -263,8 +291,11 @@ describe.skipIf(!docker)("eprouver-fail2ban.sh (Legion's trial, its address an a
     );
   };
 
-  it("a VPS that bans: every check passes, the tabulated counts read", () => {
-    const r = trial("root@vps-exemple 192.0.2.10");
+  it.each([
+    ["", "192.0.2.10"],
+    [" (the address written /32, as fail2ban never prints it)", "192.0.2.10/32"],
+  ])("a VPS that bans%s: every check passes, the tabulated counts read", (_w, address) => {
+    const r = trial(`root@vps-exemple ${address}`);
     expect(r.code, r.out).toBe(0);
     expect(r.out).toMatch(/la jail voit des echecs \(12\)/);
     expect(r.out).toMatch(/actuellement bannies : 3/);
