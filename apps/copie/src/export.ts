@@ -45,7 +45,7 @@ export function isRealRsync(path: string): boolean {
 }
 
 /** What docker and age are given: no DOCKER_HOST, no agent socket, nothing inherited. */
-function childEnv(): NodeJS.ProcessEnv {
+export function childEnv(): NodeJS.ProcessEnv {
   return { PATH: "/usr/bin:/bin", HOME: process.env.HOME ?? "", LANG: "C" };
 }
 

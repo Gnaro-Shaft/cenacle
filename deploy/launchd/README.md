@@ -42,6 +42,14 @@ Ce qu'il lui faut, de ton côté, une fois :
 
 Tant que l'un manque, la copie ne part pas, et le journal dit lequel.
 
+**Restaurer** (ADR-0044, points 7 et 8). Rapatrie d'abord une copie gardée du serveur de sauvegarde (elle est chiffrée : elle peut toucher le disque) ; s'il y en a deux d'une même nuit, c'est à toi de choisir — un essai sur chacune aide. Puis, dans le dossier de Cénacle, au terminal (ta clé privée est demandée, rien ne s'affiche) :
+
+```bash
+npm run base:restaurer -- --depuis <copie.age> --essai
+```
+
+`--essai` recharge la base de test et compare chaque table à la production ; rien ne s'arrête. Sans `--essai`, la vraie base : les services qui écrivent dans ces tables s'arrêtent le temps du rechargement, puis repartent ; des tables non vides sont refusées sans `--remplacer`. Si la base n'a pas les colonnes de la copie : `npm run db:migrate` d'abord.
+
 ## Ouvrir la page
 
 ```bash
