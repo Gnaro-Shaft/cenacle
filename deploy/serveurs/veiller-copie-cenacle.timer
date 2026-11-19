@@ -1,0 +1,12 @@
+# Cénacle (ADR-0044, point 5): every hour, at the server's pace, not the Mac's.
+# A machine off at the hour catches up when it starts (Persistent).
+[Unit]
+Description=Cénacle : ranger et juger les copies de la base, toutes les heures
+
+[Timer]
+OnCalendar=hourly
+AccuracySec=1min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

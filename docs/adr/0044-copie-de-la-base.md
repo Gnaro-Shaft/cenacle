@@ -39,9 +39,17 @@ Ce que Legion faisait pour ses propres bases (son ADR-027) : une copie datée ch
 
 5. **Le serveur reçoit, garde et juge — à son heure, pas à celle du Mac.** Sur le serveur de sauvegarde, un minuteur `veiller-copie-cenacle` (posé par `deploy/serveurs/`, en root comme les autres veilles), **toutes les heures** :
    - **déplace** chaque arrivée dans un dossier que seul root lit, en notant **l'heure de son arrivée** (l'horloge du serveur : celle du fichier, que le client de rsync peut fixer, n'est jamais crue) ;
-   - refuse et signale une copie **sans en-tête `age`**, **vide**, ou une **deuxième copie dans la même nuit** (une clé volée ne peut pas noyer les vraies sous des fausses sans que le verdict le dise) ;
+   - refuse et signale une copie **sans en-tête `age`**, **vide**, ou une **deuxième copie dans la même nuit** (*révisé le 19/11 : gardée et signalée, voir plus bas* ; une clé volée ne peut pas noyer les vraies sous des fausses sans que le verdict le dise) ;
    - **efface les copies arrivées depuis plus de 7 jours, sauf la plus récente** : si le Mac n'en fait plus, la dernière reste — c'est la seule entorse aux 7 jours, et le verdict la signale dès 36 heures ;
    - écrit **un verdict au format commun** (`verdict=`, `instant=`, `depuis=`, `gardes=`, `refusees=`, `motif=`, `fin=1`) sous `/var/lib/copie-cenacle/verdict`, lisible par le compte `cenacle` : MALADE si la plus récente est arrivée il y a plus de **36 heures**, ou si une copie a été refusée depuis le dernier verdict sain.
+
+   - *Précisé le 18/11, en B1c, avec ton accord* :
+     - **« la même nuit »**, c'est moins de 12 heures après la copie gardée la plus récente, à l'heure d'arrivée ; un transfert inachevé depuis 6 heures est refusé aussi ;
+     - **« refusée depuis le dernier verdict sain »**, prise à la lettre, ne redevenait jamais saine : le verdict est MALADE **tant qu'un refus est au moins aussi récent que la copie gardée la plus récente** ; la copie saine suivante le lève. Un Mac réveillé le soir après une nuit manquée pousse deux copies à quelques heures d'écart : la fausse alerte s'efface d'elle-même la nuit suivante. Les refusées restent 7 jours en quarantaine, à root seul, sous un nom qui dit leur heure et leur raison, jamais le nom reçu ;
+     - le verdict ajoute **`derniere=`**, l'heure d'arrivée de la copie la plus récente : on peut le recalculer ;
+     - l'arrivée est d'abord **sortie de la portée du compte de dépôt** (un renommage vers un dossier de root, sur le même disque), puis seulement examinée : le compte ne peut plus l'échanger contre un lien.
+
+   - *Révisé le 19/11, en B1c, avec ton accord* : une **deuxième copie dans la même nuit est gardée et signalée**, et non plus refusée. Refusée, une fausse copie poussée avec une clé volée **avant** la vraie faisait refuser la vraie, nuit après nuit : au bout de 7 jours, il ne restait que des fausses. Gardées toutes les deux, aucune n'évince l'autre, chacune reste ses 7 jours ; le verdict est MALADE **tant que plus d'une copie gardée est arrivée à moins de 12 heures de la plus récente** ; la suivante, seule dans sa nuit, le lève. Le but de la règle tient : une clé volée ne noie pas les vraies sans que le verdict le dise. Reste le risque déjà dit plus bas : une fausse copie seule dans sa nuit, que seule une restauration révèle ; et la restauration (B1d) ne doit pas choisir seule entre deux copies d'une même nuit.
 
    Le bulletin ajoute cette source, **`copie-cenacle`**, à sa liste fermée et ses clés à leur liste (ADR-0043, point 1) ; la ronde la juge comme les autres dès S2. Une copie qui ne part plus se voit donc **sur Telegram en 36 heures**.
 
