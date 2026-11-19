@@ -1,0 +1,25 @@
+# Constater que les sauvegardes de la grappe ont bien eu lieu, et réussi.
+#
+# Le canal de courrier de Proxmox ne fonctionne pas : le port 25 sortant est
+# bloqué, et un échec de sauvegarde attendrait cinq jours dans la file de
+# postfix avant de rebondir vers un root que personne ne lit. Éprouvé le
+# 18/09/2026. Ce verdict prend sa place.
+#
+# L'échec de cette unité est un second signal, gratuit : elle reste visible
+# dans `systemctl --failed`. Ce n'est pas le canal principal — il faut penser à
+# regarder, et c'est le défaut qu'on corrige — mais il ne coûte rien.
+
+[Unit]
+Description=Veille sur les sauvegardes de la grappe
+Documentation=file:/root/sauvegardes/LISEZ-MOI.md
+After=pve-cluster.service
+Wants=pve-cluster.service
+
+[Service]
+Type=oneshot
+# Ne pas juger une grappe qu'on vient de rejoindre : au demarrage,
+# « Persistent=true » rattrape les passages manques avant que corosync
+# n'ait reforme le quorum. Voir deploiement/grappe/.
+ExecStartPre=/usr/local/bin/attendre-la-grappe
+ExecStart=/usr/local/bin/veiller-les-sauvegardes.py
+TimeoutStartSec=10min

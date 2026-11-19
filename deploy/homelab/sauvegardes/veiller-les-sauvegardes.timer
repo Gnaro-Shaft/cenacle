@@ -1,0 +1,19 @@
+# Tous les jours à 04:00.
+#
+# Après la tâche `vzdump` du samedi (02:00, finie vers 02:17) et après les deux
+# copies (03:00 et 03:30) : quand il juge, tout ce qu'il juge a eu lieu.
+#
+# Quotidien et non hebdomadaire, pour la même raison que les copies : un échec
+# du samedi doit se voir dès le dimanche, pas au samedi suivant. Et les six
+# autres jours, le verdict confirme simplement que rien n'a bougé.
+
+[Unit]
+Description=Veille quotidienne sur les sauvegardes
+
+[Timer]
+OnCalendar=*-*-* 04:00:00
+AccuracySec=5min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
