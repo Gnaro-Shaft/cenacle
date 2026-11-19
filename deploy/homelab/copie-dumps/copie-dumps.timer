@@ -1,0 +1,21 @@
+# Tous les jours à 03:00, et non le seul samedi.
+#
+# La tâche `vzdump` de la grappe tourne le samedi à 02:00 et finit vers 02:17.
+# Un passage hebdomadaire suffirait — tant que le nœud de sauvegarde est allumé ce
+# samedi-là. Les six autres jours, `rsync` ne trouve rien de neuf et coûte
+# quelques secondes : c'est ce qui rattrape un samedi manqué **sans écrire le
+# moindre mécanisme de rattrapage**.
+#
+# `Persistent=true` couvre l'autre cas : la machine éteinte à 03:00 rattrape au
+# démarrage.
+
+[Unit]
+Description=Copie quotidienne des sauvegardes d'un nœud
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+AccuracySec=5min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,27 @@
+# Sortir les sauvegardes de la machine qui les produit.
+#
+# L'échec de cette unité est un second signal, gratuit : elle reste visible
+# dans `systemctl --failed` sur le nœud de sauvegarde. Ce n'est pas le canal principal —
+# il faut penser à regarder, et c'est précisément le défaut qu'on corrige —
+# mais il ne coûte rien et il survit au reste.
+
+[Unit]
+Description=Copie des sauvegardes d'un nœud vers le nœud de sauvegarde
+Documentation=file:/root/copie-dumps/LISEZ-MOI.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# La source et la destination (ADR-0045) : absentes, le script refuse et le dit.
+EnvironmentFile=-/etc/default/copie-dumps
+# Ne pas juger une grappe qu'on vient de rejoindre : au demarrage,
+# « Persistent=true » rattrape les passages manques avant que corosync
+# n'ait reforme le quorum. Voir deploiement/grappe/.
+ExecStartPre=/usr/local/bin/attendre-la-grappe
+ExecStart=/usr/local/bin/copier-les-dumps
+# Vingt-six Go sur un lien 10 Gb/s tiennent en quelques minutes ; une heure
+# laisse la place à un disque lent ou à une reprise. Au-delà, quelque chose ne
+# va pas, et une unité qui traîne indéfiniment masque la panne au lieu de la
+# dire.
+TimeoutStartSec=1h
