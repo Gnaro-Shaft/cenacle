@@ -1,6 +1,6 @@
 # ADR-0045 — Les configurations du homelab : rapatriées de Legion, à l'identique, sans vrai nom
 
-**Statut** : proposée (2026-11-19) — reprend ce que le dossier `deploiement/` de Legion porte pour le homelab, sans ADR de Legion pour la plupart (seuls leurs `LISEZ-MOI.md`) ; s'appuie sur l'ADR-0043 (la veille des sauvegardes lit leurs verdicts) et l'ADR-0040 (l'arrêt de Legion, palier R4)
+**Statut** : acceptée (2026-11-19) — reprend ce que le dossier `deploiement/` de Legion porte pour le homelab, sans ADR de Legion pour la plupart (seuls leurs `LISEZ-MOI.md`) ; s'appuie sur l'ADR-0043 (la veille des sauvegardes lit leurs verdicts) et l'ADR-0040 (l'arrêt de Legion, palier R4)
 
 ## Contexte
 
@@ -29,9 +29,9 @@ Ces fichiers portent de **vrais noms** — de machines, d'invités, de réseau �
 
 4. **Éprouvés comme le reste.** Les essais en bash de Legion deviennent des tests vitest, dans un Debian jetable comme ceux du minuteur de la copie (B1c) ; les tests pytest de `veiller-les-sauvegardes` deviennent des tests vitest qui lancent le vrai script avec `python3` (il n'utilise que la bibliothèque standard). Chaque ensemble ajoute ses `*.adversarial.test.ts` : configuration absente ou fausse, verdict inchangé, et ce que ses `LISEZ-MOI` décrivent comme pièges (la grappe qu'on vient de rejoindre, la jail qui ne lit rien).
 
-5. **Mnemo n'est pas du homelab** : ses surcharges vont dans le dépôt de Mnemo, s'il en a un ; sinon dans `deploy/homelab/mnemo/`, au même régime. *À trancher.*
+5. **Mnemo n'est pas du homelab** : ses surcharges iraient dans le dépôt de Mnemo, s'il en avait un. *Tranché le 19/11* : aucun dépôt de Mnemo sur le Mac — elles vont dans `deploy/homelab/mnemo/`, au même régime ; elles en sortiront si Mnemo prend un dépôt à lui.
 
-6. **Le conflit du VPS du site public.** Le redémarrage automatique que Legion y a posé (`Automatic-Reboot "true"`) fait refuser, toujours, le bouton « mises à jour de sécurité » de Cénacle (`cenacle-maj-securite` exige qu'aucun redémarrage ne se fasse seul). **Proposé** : garder le redémarrage automatique sur ce VPS — `unattended-upgrades` y installe déjà les correctifs, et un noyau corrigé se charge la nuit, sans moi — et ne pas lui déclarer ce bouton dans `serveurs.local.toml`. L'autre voie : retirer le redémarrage automatique et passer par le bouton de redémarrage. *À trancher.*
+6. **Le conflit du VPS du site public.** Le redémarrage automatique que Legion y a posé (`Automatic-Reboot "true"`) fait refuser, toujours, le bouton « mises à jour de sécurité » de Cénacle (`cenacle-maj-securite` exige qu'aucun redémarrage ne se fasse seul). **Proposé** : garder le redémarrage automatique sur ce VPS — `unattended-upgrades` y installe déjà les correctifs, et un noyau corrigé se charge la nuit, sans moi — et ne pas lui déclarer ce bouton dans `serveurs.local.toml`. L'autre voie : retirer le redémarrage automatique et passer par le bouton de redémarrage. *Tranché le 19/11 : la proposition* — le redémarrage automatique reste, le bouton n'est pas déclaré pour ce VPS.
 
 7. **Rien ne change sur un serveur sans moi.** Chaque ensemble se déploie de ma main (`rsync`, puis son installateur ou la copie des fichiers, comme `deploy/serveurs/`), un à la fois ; la ronde et les verdicts disent s'il tourne. Les copies dans le dépôt de Legion restent jusqu'à son archivage, marquées « déménagé dans Cénacle » dans leur `LISEZ-MOI`.
 
