@@ -31,6 +31,8 @@ Une difficulté que Legion n'avait pas : **Cénacle ne se connecte jamais en roo
 
    **Lecture directe, sans `sudo` et sans root** : le compte `cenacle` lit le fichier comme n'importe quel compte. Aucune unité systemd de ces scripts ne fixe `UMask=`, la valeur par défaut est `0022`, et leurs dossiers et fichiers sont créés par `mkdir -p` et une redirection : ils devraient être lisibles par tous. C'est plausible, pas vérifié depuis le Mac : je le vérifie avant le palier S1 (`sudo -u cenacle cat /var/lib/<source>/verdict` sur chaque nœud), **et de nouveau après une nuit**, parce que chaque passage remplace le fichier. Si un fichier ne l'est pas, la correction se fait **chez l'écrivain** (une surcharge `UMask=0022` de son unité) ou sur son dossier, jamais par un `chmod` du fichier, que le passage suivant effacerait.
 
+   - *Précisé le 19/11 (ADR-0044, B2)* : une cinquième source, **`copie-cenacle`** (la copie de la base de Cénacle, `/var/lib/copie-cenacle/verdict`, écrit par `veiller-copie-cenacle`), ses clés `gardes`, `refusees`, `derniere` ; le Mac la connaît avant que le serveur la récite.
+
 2. **La ronde juge.** Les sources attendues se déclarent par machine dans `parc.local.toml` (non versionné) : `sauvegardes = ["copie-dumps", "veiller-sauvegardes", …]`. La ronde rend la machine MALADE, avec un motif qui nomme la source, quand une source attendue :
    - dit MALADE ;
    - manque, ou est illisible ;

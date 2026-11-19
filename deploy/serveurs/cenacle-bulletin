@@ -215,9 +215,10 @@ fi
 
 # ── Version 3: the backups on this machine (ADR-0043) ───────────────────────
 #
-# Each writer of Legion's backup chain (and Myriade's) leaves a verdict under
+# Each writer of Legion's backup chain (and Myriade's, and Cénacle's copy of
+# its base, ADR-0044) leaves a verdict under
 # /var/lib/<source>/verdict: verdict=SAIN|MALADE, instant=, depuis= (a number,
-# or "-" when healthy), its own keys, motif= lines, then fin=1. Only the four
+# or "-" when healthy), its own keys, motif= lines, then fin=1. Only the five
 # sources below are read, each at its fixed path, as this account — never by
 # sudo: a verdict this account cannot read is said "illisible", and the fix
 # belongs to its writer (its unit's UMask), not to a rule here.
@@ -294,5 +295,6 @@ backup copie-dumps "libre_go,pool_pct,gardees,controles,corrompus" "invite"
 backup veiller-sauvegardes "invites" "noeud"
 backup copie-bases "libre_go,gardes,controles,fautifs,ecrit_le" "jeu"
 backup myriade-base "chiffre,dernier,taille_octets,gardes,elagues" ""
+backup copie-cenacle "gardes,refusees,derniere" ""
 
 printf 'fin=1\n'
