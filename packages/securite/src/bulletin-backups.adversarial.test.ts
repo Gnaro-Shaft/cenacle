@@ -65,6 +65,33 @@ describe("the backups of a version 3 bulletin", () => {
     ]);
   });
 
+  it("reads Cénacle's copy (ADR-0044), last in the list", () => {
+    const copie = [
+      "sauvegarde.copie-cenacle.verdict=MALADE",
+      "sauvegarde.copie-cenacle.instant=1794900000",
+      "sauvegarde.copie-cenacle.depuis=1794850000",
+      "sauvegarde.copie-cenacle.motifs=1",
+    ];
+    expect(parseBulletin(bulletin([...copie, ...SAIN])).backups).toEqual([
+      {
+        source: "copie-dumps",
+        read: "ok",
+        verdict: "SAIN",
+        at: 1_794_900_000_000,
+        since: null,
+        motifs: 0,
+      },
+      {
+        source: "copie-cenacle",
+        read: "ok",
+        verdict: "MALADE",
+        at: 1_794_900_000_000,
+        since: 1_794_850_000_000,
+        motifs: 1,
+      },
+    ]);
+  });
+
   it("a machine without backups recites none: an empty list, not null", () => {
     expect(parseBulletin(bulletin([])).backups).toEqual([]);
   });
@@ -102,6 +129,16 @@ describe("the backups of a version 3 bulletin", () => {
       [...SAIN.slice(0, 2), "sauvegarde.copie-dumps.motifs=1001"],
     ],
     ["a source outside the list", ["sauvegarde.restic.verdict=SAIN"]],
+    ["a source named like the copy, but not it", ["sauvegarde.copie-cenacle2.verdict=SAIN"]],
+    [
+      "a key of the copy's verdict, never recited",
+      [
+        "sauvegarde.copie-cenacle.verdict=SAIN",
+        "sauvegarde.copie-cenacle.instant=1794900000",
+        "sauvegarde.copie-cenacle.motifs=0",
+        "sauvegarde.copie-cenacle.gardes=7",
+      ],
+    ],
     [
       "a field outside the list (a motif's text)",
       [...SAIN, "sauvegarde.copie-dumps.motif=rsync vers 192.0.2.7"],

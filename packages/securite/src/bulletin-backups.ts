@@ -16,6 +16,8 @@ export const BACKUP_SOURCES = [
   "veiller-sauvegardes",
   "copie-bases",
   "myriade-base",
+  // Cénacle's own copy of its base, judged by veiller-copie-cenacle (ADR-0044, B2).
+  "copie-cenacle",
 ] as const;
 export type BackupSource = (typeof BACKUP_SOURCES)[number];
 
@@ -34,7 +36,7 @@ export type BackupState =
 
 /** A backup key: sauvegarde.<source>.<field>. */
 export const BACKUP_KEY =
-  /^sauvegarde\.(copie-dumps|veiller-sauvegardes|copie-bases|myriade-base)\.(lecture|verdict|instant|depuis|motifs)$/;
+  /^sauvegarde\.(copie-dumps|veiller-sauvegardes|copie-bases|myriade-base|copie-cenacle)\.(lecture|verdict|instant|depuis|motifs)$/;
 
 const MAX_INSTANT = 99_999_999_999;
 const MAX_MOTIFS = 1000;

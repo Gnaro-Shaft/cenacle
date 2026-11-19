@@ -1,7 +1,8 @@
 // The real bulletin script, version 3 (ADR-0043), in a throwaway Debian
 // container (no network), with backup verdicts shaped as each writer writes
 // them (Legion's copie-dumps, veiller-les-sauvegardes and copie-bases,
-// Myriade's tirer-la-base, read on 17/11/2026). What is checked: a motif's
+// Myriade's tirer-la-base, read on 17/11/2026; Cénacle's veiller-copie-cenacle,
+// ADR-0044). What is checked: a motif's
 // text never leaves the server — not its addresses, not its host names —
 // only the verdict, its instant, since when and how many motifs; a verdict
 // out of its source's shape, a link, a file the account cannot read are
@@ -75,6 +76,15 @@ const SAIN = {
     "elagues=1",
     "fin=1",
   ),
+  "copie-cenacle": v(
+    "verdict=SAIN",
+    "instant=1794900000",
+    "depuis=-",
+    "gardes=7",
+    "refusees=0",
+    "derniere=1794899000",
+    "fin=1",
+  ),
 };
 const MALADE = {
   "copie-dumps": v(
@@ -117,6 +127,17 @@ const MALADE = {
     "instant=1794900000",
     "depuis=1794900000",
     "motif=le tirage a échoué (code 255) : ssh: Could not resolve hostname hote-exemple",
+    "fin=1",
+  ),
+  "copie-cenacle": v(
+    "verdict=MALADE",
+    "instant=1794900000",
+    "depuis=1794850000",
+    "gardes=2",
+    "refusees=1",
+    "derniere=1794899000",
+    "motif=2 copies gardées arrivées en moins de 12 h : une seule est attendue par nuit",
+    "motif=une arrivée refusée (entete) depuis la copie la plus récente — via hote-exemple",
     "fin=1",
   ),
 };
@@ -163,24 +184,26 @@ const one = (source: string, text: string, setup = "") =>
   parseBulletin(recite({ [source]: text }, setup)).backups;
 
 describe("cenacle-bulletin version 3: the backups on the machine", () => {
-  it("four healthy sources: verdict and instant, healthy since nothing, no motif", () => {
+  it("five healthy sources: verdict and instant, healthy since nothing, no motif", () => {
     const text = recite(SAIN);
     const b = parseBulletin(text);
     expect(b.version).toBe(3);
     expect(b.backups).toEqual(
-      ["copie-dumps", "veiller-sauvegardes", "copie-bases", "myriade-base"].map((source) => ({
-        source,
-        read: "ok",
-        verdict: "SAIN",
-        at: 1_794_900_000_000,
-        since: null,
-        motifs: 0,
-      })),
+      ["copie-dumps", "veiller-sauvegardes", "copie-bases", "myriade-base", "copie-cenacle"].map(
+        (source) => ({
+          source,
+          read: "ok",
+          verdict: "SAIN",
+          at: 1_794_900_000_000,
+          since: null,
+          motifs: 0,
+        }),
+      ),
     );
     expect(text.length).toBeLessThan(MAX_BULLETIN);
   }, 120_000);
 
-  it("four ill sources: since when and how many motifs — never a motif's text", () => {
+  it("five ill sources: since when and how many motifs — never a motif's text", () => {
     const text = recite(MALADE);
     for (const leak of LEAKS) expect(text).not.toContain(leak);
     const b = parseBulletin(text);
@@ -191,6 +214,7 @@ describe("cenacle-bulletin version 3: the backups on the machine", () => {
       ["MALADE", 1_794_700_000_000, 1],
       ["MALADE", 1_794_890_000_000, 1],
       ["MALADE", 1_794_900_000_000, 1],
+      ["MALADE", 1_794_850_000_000, 2],
     ]);
   }, 120_000);
 
@@ -205,6 +229,8 @@ describe("cenacle-bulletin version 3: the backups on the machine", () => {
     "veiller-sauvegardes": "gardes=7",
     "copie-bases": "invite=100:3",
     "myriade-base": "noeud=nœud-a:OK:1794890000",
+    // A key of Myriade's: never Cénacle's copy's.
+    "copie-cenacle": "elagues=1",
   };
   it.each([
     [
@@ -240,7 +266,7 @@ describe("cenacle-bulletin version 3: the backups on the machine", () => {
       (_s: string, t: string) => t.replace("verdict=SAIN\n", "verdict=SAIN\r\n"),
     ],
   ])(
-    "%s, for each of the four sources: illisible, and nothing of it said",
+    "%s, for each of the five sources: illisible, and nothing of it said",
     (_what, spoil) => {
       const spoilt = Object.fromEntries(Object.entries(SAIN).map(([s, t]) => [s, spoil(s, t)]));
       for (const [s, t] of Object.entries(spoilt))
