@@ -1,0 +1,78 @@
+#!/bin/bash
+# Poser, sur le noeud portable, l'autoreparation de son adaptateur reseau USB,
+# et le prouver sans rien debrancher.
+#
+#   deploy/homelab/grappe/poser-rebranchement <rebond> <noeud>
+#
+# Depuis le Mac, a la racine du depot. <rebond> : le compte@machine par lequel
+# on atteint le noeud (il n'est pas sur le tailnet) ; <noeud> : root@son adresse.
+# Aucun des deux n'est ecrit ici (ADR-0045). Voir rebranchement/* : la regle
+# udev, le service, le script, et le minuteur qui le relance chaque minute.
+#
+# Les preuves :
+#   - la regle reconnait le VRAI adaptateur : « udevadm test », une simulation
+#     qui n'applique rien, doit rendre SYSTEMD_WANTS=rebrancher-nic0.service ;
+#   - le service tourne sans erreur maintenant — la carte etant deja dans le
+#     pont, il doit dire « deja dans vmbr0 ».
+# L'epreuve reelle reste humaine : fermer le capot, et que la machine reponde.
+set -euo pipefail
+export LC_ALL=C
+
+ICI="$(cd "$(dirname "$0")/rebranchement" && pwd)"
+[ $# -eq 2 ] && [[ "$1" =~ ^[a-z_][a-z0-9_-]*@[A-Za-z0-9._-]+$ ]] && [[ "$2" =~ ^[a-z_][a-z0-9_-]*@[A-Za-z0-9._-]+$ ]] || {
+    echo "usage : poser-rebranchement <compte@rebond> <compte@noeud>" >&2
+    exit 2
+}
+SAUT=(-J "$1")
+NOEUD="$2"
+
+ok()    { printf '  ok     %s\n' "$1"; }
+echec() { printf '  ECHEC  %s\n' "$1" >&2; exit 1; }
+
+echo "-- copie --"
+scp -q "${SAUT[@]}" "$ICI/90-legion-rebrancher-nic0.rules" "$ICI/rebrancher-nic0.service" \
+    "$ICI/rebrancher-nic0" "$ICI/rebrancher-nic0.timer" "$NOEUD:/tmp/"
+ok "quatre fichiers copies"
+
+echo "-- pose et preuves --"
+ssh "${SAUT[@]}" "$NOEUD" 'bash -s' <<'DISTANT'
+set -euo pipefail
+ok()    { printf '  ok     %s\n' "$1"; }
+echec() { printf '  ECHEC  %s\n' "$1" >&2; exit 1; }
+
+install -m 644 /tmp/90-legion-rebrancher-nic0.rules /etc/udev/rules.d/
+install -m 644 /tmp/rebrancher-nic0.service /tmp/rebrancher-nic0.timer /etc/systemd/system/
+install -m 755 /tmp/rebrancher-nic0 /usr/local/sbin/
+rm -f /tmp/90-legion-rebrancher-nic0.rules /tmp/rebrancher-nic0.service /tmp/rebrancher-nic0 /tmp/rebrancher-nic0.timer
+ok "regle, service, script et minuteur installes"
+
+if udevadm verify --help >/dev/null 2>&1; then
+    udevadm verify /etc/udev/rules.d/90-legion-rebrancher-nic0.rules >/dev/null ||
+        echec "udev juge la regle invalide"
+    ok "udev juge la regle valide"
+fi
+udevadm control --reload
+systemctl daemon-reload
+systemctl enable --now rebrancher-nic0.timer >/dev/null ||
+    echec "le minuteur ne demarre pas"
+ok "udev et systemd recharges, minuteur actif"
+
+# Une simulation : elle rejoue les regles pour la vraie carte sans rien
+# appliquer. Lue dans une variable — sous pipefail, un grep -q derriere un
+# tuyau tuerait udevadm par SIGPIPE.
+SIMUL="$(udevadm test --action=add /sys/class/net/nic0 2>&1 || true)"
+grep -q 'SYSTEMD_WANTS=.*rebrancher-nic0.service' <<< "$SIMUL" ||
+    echec "la regle ne reconnait pas l'adaptateur nic0 (pilote cdc_ncm ?)"
+ok "la regle reconnait l'adaptateur reel"
+
+systemctl start rebrancher-nic0.service ||
+    echec "le service echoue — voir journalctl -u rebrancher-nic0"
+DERNIER="$(journalctl -u rebrancher-nic0 -n 5 --no-pager -o cat)"
+grep -q '^ok : nic0 dans vmbr0' <<< "$DERNIER" ||
+    echec "le service n'a pas conclu — voir journalctl -u rebrancher-nic0"
+ok "le service tourne : $(grep -E 'deja|remise' <<< "$DERNIER" | tail -1)"
+DISTANT
+
+echo
+echo "Reste l'epreuve reelle : fermer le capot, attendre une minute, puis"
+echo "  ssh $1 'ping -c3 -W2 ${NOEUD#*@}'"

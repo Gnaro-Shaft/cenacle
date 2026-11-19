@@ -1,0 +1,12 @@
+# Quand l'adaptateur Ethernet USB du noeud portable (re)apparait, le remettre dans
+# le pont vmbr0. Pose par deploy/homelab/grappe/poser-rebranchement (Cenacle, ADR-0045).
+#
+# Pourquoi : le 25/09/2026, fermer le capot a deconnecte puis reconnecte
+# l'adaptateur (bus 4-1.4 -> 1-4.4). Il est revenu en « eth0 », renomme
+# « nic0 », mais HORS du pont : vmbr0 gardait son adresse, sans carte derriere,
+# et la machine etait injoignable. Rien ne le rebranchait.
+#
+# Le pilote plutot que l'adresse MAC : un adaptateur remplace serait couvert.
+# Le travail est confie a systemd : lance depuis la regle, udev le couperait
+# au bout de quelques secondes.
+ACTION=="add", SUBSYSTEM=="net", DRIVERS=="cdc_ncm", TAG+="systemd", ENV{SYSTEMD_WANTS}+="rebrancher-nic0.service"

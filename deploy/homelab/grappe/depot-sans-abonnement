@@ -1,0 +1,123 @@
+#!/bin/bash
+# Passer un noeud Proxmox sur le depot « pve-no-subscription ». Il tourne SUR
+# le noeud, envoye depuis le Mac :
+#
+#   ssh root@<noeud> 'bash -s' < deploy/homelab/grappe/depot-sans-abonnement
+#   ssh -J root@<rebond> root@<noeud> 'bash -s' < deploy/homelab/grappe/depot-sans-abonnement
+#
+# Pourquoi : le 25/09/2026, aucun des deux noeuds ne recevait de mise a jour de
+# Proxmox. L'un pointait sur les depots « enterprise », reserves aux
+# abonnes (401 Unauthorized) ; l'autre n'avait aucun depot Proxmox. Le
+# noyau, l'hyperviseur, corosync et leurs correctifs de securite n'etaient
+# jamais proposes — et apt n'en montrait rien, seuls les paquets Debian
+# apparaissaient.
+#
+# Ce qu'il fait : desactive les depots enterprise (« Enabled: no », sans les
+# supprimer — ils se reactivent le jour d'un abonnement), ajoute
+# pve-no-subscription, puis PROUVE : apt-get update sans erreur, pve-manager
+# propose par le nouveau depot. Il N'INSTALLE RIEN : il affiche la simulation
+# du rattrapage, a juger avant d'appliquer.
+#
+# Chaque fichier touche est copie dans /root/depots-avant-<date>/, hors de
+# sources.list.d : apt y lirait une copie, ou s'y plaindrait d'une extension.
+#
+# RACINE et l'absence d'apt permettent de l'eprouver ailleurs que sur un noeud.
+set -euo pipefail
+export LC_ALL=C
+
+RACINE="${RACINE:-}"
+SOURCES="$RACINE/etc/apt/sources.list.d"
+CLE="$RACINE/usr/share/keyrings/proxmox-archive-keyring.gpg"
+# shellcheck disable=SC1091
+. "$RACINE/etc/os-release"
+SUITE="${VERSION_CODENAME:?version de Debian illisible dans os-release}"
+
+ok()    { printf '  ok     %s\n' "$1"; }
+echec() { printf '  ECHEC  %s\n' "$1" >&2; exit 1; }
+
+echo "-- $(hostname) : Debian $SUITE --"
+[ -s "$CLE" ] || echec "cle Proxmox absente ($CLE) : le nouveau depot serait refuse"
+ok "cle de signature Proxmox presente"
+
+GARDE="$RACINE/root/depots-avant-$(date +%Y%m%d-%H%M%S)"
+
+# Desactiver, dans un fichier .sources, les SEULS blocs qui citent le depot
+# enterprise : « Enabled: no » apres leur « Types: », tout « Enabled: »
+# existant retire. Un fichier peut melanger les blocs ; desactiver le fichier
+# entier couperait aussi Debian, et le noeud ne recevrait plus rien.
+# Les blocs sont separes par une ligne vide (RS vide : mode paragraphe).
+desactiver_sources() {
+    awk 'BEGIN { RS = ""; ORS = "\n\n" }
+         $0 !~ /enterprise\.proxmox\.com/ { print; next }
+         {
+             n = split($0, ligne, "\n"); bloc = ""
+             for (i = 1; i <= n; i++) {
+                 if (ligne[i] ~ /^Enabled:/) continue
+                 bloc = bloc ligne[i] "\n"
+                 if (ligne[i] ~ /^Types:/) bloc = bloc "Enabled: no\n"
+             }
+             sub(/\n$/, "", bloc); print bloc
+         }' "$1" > "$1.neuf"
+    mv "$1.neuf" "$1"
+}
+# L'ancien format : on commente la ligne.
+desactiver_list() {
+    awk '/^[[:space:]]*deb(-src)?[[:space:]].*enterprise\.proxmox\.com/ { print "# " $0; next } { print }' \
+        "$1" > "$1.neuf"
+    mv "$1.neuf" "$1"
+}
+
+TOUCHES=0
+for f in "$SOURCES"/*.sources "$SOURCES"/*.list "$RACINE/etc/apt/sources.list"; do
+    [ -f "$f" ] || continue
+    grep -q 'enterprise\.proxmox\.com' "$f" || continue
+    mkdir -p "$GARDE"
+    cp -p "$f" "$GARDE/"
+    case "$f" in
+        *.sources) desactiver_sources "$f" ;;
+        *) desactiver_list "$f" ;;
+    esac
+    TOUCHES=$((TOUCHES + 1))
+    ok "desactive : ${f#"$RACINE"} (copie dans ${GARDE#"$RACINE"})"
+done
+[ "$TOUCHES" -gt 0 ] || ok "aucun depot enterprise a desactiver"
+
+NEUF="$SOURCES/proxmox.sources"
+if grep -qs 'pve-no-subscription' "$NEUF"; then
+    ok "pve-no-subscription deja declare"
+else
+    if [ -f "$NEUF" ]; then
+        mkdir -p "$GARDE"
+        cp -p "$NEUF" "$GARDE/"
+    fi
+    cat > "$NEUF" <<EOF
+# Pose par deploy/homelab/grappe/depot-sans-abonnement (Cenacle, ADR-0045), le $(date +%d/%m/%Y).
+Types: deb
+URIs: http://download.proxmox.com/debian/pve
+Suites: $SUITE
+Components: pve-no-subscription
+Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
+EOF
+    ok "pve-no-subscription ajoute pour $SUITE"
+fi
+
+command -v apt-get >/dev/null || { echo "  (pas d'apt ici : epreuve seulement)"; exit 0; }
+
+echo "-- la preuve --"
+# Lue dans une variable, pas par un tuyau : sous pipefail, un lecteur qui
+# s'arrete tot tuerait apt par SIGPIPE.
+SORTIE="$(apt-get update 2>&1)" || echec "apt-get update a echoue"
+ERREURS="$(grep -E '^(E|Err):' <<< "$SORTIE" || true)"
+[ -z "$ERREURS" ] || echec "apt-get update rend des erreurs :
+$ERREURS"
+ok "apt-get update sans erreur"
+POLITIQUE="$(apt-cache policy pve-manager)"
+grep -q 'pve-no-subscription' <<< "$POLITIQUE" ||
+    echec "pve-manager n'est pas propose par pve-no-subscription"
+ok "pve-manager est propose par pve-no-subscription"
+
+echo "-- le rattrapage (simulation, rien n'est installe) --"
+SIMUL="$(apt-get -s dist-upgrade)"
+echo "  $(grep -c '^Inst' <<< "$SIMUL" || true) paquet(s) a mettre a jour, dont :"
+grep '^Inst' <<< "$SIMUL" | grep -E 'proxmox-kernel|pve-manager|pve-cluster|corosync|qemu-server|pve-qemu' |
+    awk '{print "         " $2 " " $3 " " $4}' || true
