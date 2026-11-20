@@ -38,3 +38,13 @@ bantime.maxtime   = 1w
 
 [sshd]
 enabled = true
+
+# **Aussi les robots a cles** (choisi le 20/11/2026). En mode « normal », une
+# connexion coupee avant l'authentification (« Connection closed by
+# authenticating user root ... [preauth] ») n'est pas un echec : c'est pourtant
+# tout ce que laissent les robots qui n'essaient que des cles. Sur 24 h du VPS
+# du site public : 110 echecs reconnus en « normal », 1010 en « aggressive ».
+# Le revers : quatre connexions ratees en dix minutes, depuis une adresse que
+# ignorer.local ne porte pas, bannissent une heure — d'ou le Mac et la box dans
+# la liste de chaque VPS.
+mode = aggressive

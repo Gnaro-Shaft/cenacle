@@ -20,9 +20,15 @@ C'est arrivé : sur le VPS du bot, un fichier posé le 14/11 pour ne plus bannir
 
 ## Sans les adresses de la ronde, elle devient aveugle
 
-Une ronde interroge ces machines : un incident d'authentification la ferait bannir, et la surveillance s'arrêterait sur la machine même qu'elle surveille. Au 19/11, les listes diffèrent — le VPS du bot ignore le Mac (sur le tailnet), le VPS du site public ignore la box (la ronde de Legion en sort). Les aligner est une amélioration, à faire à part.
+Une ronde interroge ces machines : un incident d'authentification la ferait bannir, et la surveillance s'arrêterait sur la machine même qu'elle surveille. Au 19/11, les listes différaient — le VPS du bot ignorait le Mac (sur le tailnet), le VPS du site public la box (la ronde de Legion en sort). **Alignées le 20/11 : les deux VPS ignorent la machine elle-même, le Mac sur le tailnet et l'adresse publique de la box** — la ronde de Cénacle, et moi depuis la maison.
 
 **À revoir si l'adresse de la box change.** Rien ne la mettra à jour tout seul, et rien ne criera : on s'en apercevra le jour où la ronde dira « injoignable ».
+
+## Le mode « aggressive »
+
+Choisi le 20/11/2026. En mode `normal`, une connexion coupée avant l'authentification (`Connection closed by authenticating user root … [preauth]`) n'est pas un échec — c'est pourtant tout ce que laissent les robots qui n'essaient que des clés. Sur 24 h du journal du VPS du site public, `fail2ban-regex` reconnaissait 110 échecs en `normal`, **1010** en `aggressive`.
+
+Le revers : quatre connexions ratées en dix minutes, depuis une adresse qu'`ignorer.local` ne porte pas (un téléphone hors du tailnet), bannissent une heure, puis plus longtemps à chaque récidive. D'où les listes alignées, **posées avant** ce mode.
 
 ## Poser
 
@@ -50,7 +56,21 @@ Il refuse sans `ignorer.local`, s'il n'ignore que la machine elle-même, ou si u
 deploy/homelab/fail2ban/eprouver-fail2ban.sh <compte@vps> <adresse ignorée>
 ```
 
-`packages/homelab/src/fail2ban.adversarial.test.ts` éprouve le tout sur le vrai fail2ban, dans un Debian jetable : la configuration réellement chargée (avec les réglages par défaut de Debian 12, là où le piège existe), chaque refus de `poser-fail2ban`, le retour de l'ancien `jail.local`, et les verdicts de l'épreuve.
+Elle compare ce que la jail a compté **depuis le démarrage de fail2ban** — qui remet son compteur à zéro — à ce que le journal porte depuis le même instant, jugé par `fail2ban-regex` (adresses ignorées retirées) :
+
+- la jail a compté des échecs : ok ;
+- elle n'en compte aucun, le journal en porte : **ECHEC**, elle lit au mauvais endroit ;
+- aucun ni d'un côté ni de l'autre : « rien à juger », code de sortie 3 — à relancer plus tard. Le 20/11, quatre minutes après une pose, l'ancien contrôle criait « AUCUN échec » sur une jail qui marchait.
+
+Le journal est jugé en mode `normal`, quel que soit celui de la jail : chaque échec du mode `normal` en est un aussi en `aggressive` (éprouvé le 20/11 sur fail2ban 1.1). Depuis un fichier : sur Debian 12, `fail2ban-regex` plante sur `systemd-journal[journalmatch=…]`. Le journal s'arrête dix secondes avant la lecture du compteur, pour qu'un échec encore en route ne passe pas pour un échec ignoré.
+
+Ce qu'elle suppose :
+
+- le compteur ne repart à zéro qu'au **démarrage** du service : après un `fail2ban-client reload`, redémarrer fail2ban avant l'épreuve ;
+- seules les adresses simples d'`ignorer.local` (et la boucle locale) sont retirées du journal, pas un réseau `a.b.c.d/n` — un réseau ignoré y ferait crier l'épreuve à tort ;
+- le compte a `sudo` sans mot de passe pour `bash`, comme pour la pose.
+
+`packages/homelab/src/fail2ban.adversarial.test.ts` éprouve le tout sur le vrai fail2ban, dans un Debian jetable : la configuration réellement chargée (avec les réglages par défaut de Debian 12, là où le piège existe, et le mode `aggressive`), chaque refus de `poser-fail2ban`, le retour de l'ancien `jail.local`. `fail2ban-epreuve.adversarial.test.ts` éprouve les verdicts de l'épreuve, le journal jugé par le vrai `fail2ban-regex`.
 
 ## Ce que ça change pour la ronde
 
