@@ -7,7 +7,7 @@
 
 [Unit]
 Description=Copie des sauvegardes d'un nœud vers le nœud de sauvegarde
-Documentation=file:/root/copie-dumps/LISEZ-MOI.md
+Documentation=file:/root/cenacle-homelab/homelab/copie-dumps/README.md
 After=network-online.target
 Wants=network-online.target
 
@@ -17,7 +17,7 @@ Type=oneshot
 EnvironmentFile=-/etc/default/copie-dumps
 # Ne pas juger une grappe qu'on vient de rejoindre : au demarrage,
 # « Persistent=true » rattrape les passages manques avant que corosync
-# n'ait reforme le quorum. Voir deploiement/grappe/.
+# n'ait reforme le quorum. Voir deploy/homelab/grappe/README.md.
 ExecStartPre=/usr/local/bin/attendre-la-grappe
 ExecStart=/usr/local/bin/copier-les-dumps
 # Vingt-six Go sur un lien 10 Gb/s tiennent en quelques minutes ; une heure

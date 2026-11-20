@@ -12,7 +12,7 @@
 
 [Unit]
 Description=Copie des sauvegardes du nœud de sauvegarde vers un autre nœud
-Documentation=file:/root/copie-dumps/LISEZ-MOI.md
+Documentation=file:/root/cenacle-homelab/homelab/copie-dumps/README.md
 After=network-online.target
 Wants=network-online.target
 
