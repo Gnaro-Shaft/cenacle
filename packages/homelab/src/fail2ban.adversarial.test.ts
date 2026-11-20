@@ -2,10 +2,10 @@
 // in a throwaway Debian set back to Debian 12's defaults (the sshd jail reads
 // /var/log/auth.log, absent there: the trap jail.local exists for). What it
 // really loads; that a jail.d ignoreip REPLACES the list, and a second one
-// silently wins (the 14/11 trap); every refusal of poser-fail2ban, the old
-// jail.local put back; and the verdicts of Legion's trial, its address now an
-// argument. No real address: 192.0.2.0/24, 198.51.100.0/24, 100.64.0.0/10.
-// Skipped without Docker.
+// silently wins (the 14/11 trap); the aggressive mode really loaded; every
+// refusal of poser-fail2ban, the old jail.local put back. The trial lives in
+// fail2ban-epreuve.adversarial.test.ts. No real address: 192.0.2.0/24,
+// 198.51.100.0/24, 100.64.0.0/10. Skipped without Docker.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { type Box, buildImage, docker, q, startBox } from "./test-homelab.ts";
 
@@ -28,16 +28,6 @@ case "$1" in
   is-active) fail2ban-client ping >/dev/null 2>&1 && echo active || { echo inactive; exit 3; } ;;
 esac`,
 };
-// What a VPS answers to the trial: canned, tabulated as fail2ban-client prints.
-const TRIAL: Record<string, string> = {
-  "fail2ban-client": `case "$*" in
-  "get sshd logencoding") echo UTF-8 ;;
-  "status sshd") printf 'Status for the jail: sshd\\n|- Filter\\n|  |- Currently failed:\\t1\\n|  |- Total failed:\\t%s\\n|  \`- Journal matches:\\t_SYSTEMD_UNIT=ssh.service\\n\`- Actions\\n   |- Currently banned:\\t3\\n   \`- Banned IP list:\\t\\n' "\${FAUX_ECHECS:-12}" ;;
-  "get sshd ignoreip") printf 'These IP addresses/networks are ignored:\\n|- 127.0.0.0/8\\n|- ::1\\n\`- 192.0.2.10\\n' ;;
-esac`,
-  systemctl: `echo "\${FAUX_ACTIF:-active}"`,
-};
-
 function fakes(dir: string, set: Record<string, string>) {
   for (const [name, body] of Object.entries(set)) {
     box.sh(`mkdir -p ${dir} && printf '%s\\n' ${q(`#!/bin/bash\n${body}`)} > ${dir}/${name}`);
@@ -50,7 +40,6 @@ beforeAll(() => {
   buildImage();
   box = startBox();
   fakes("/fake", FAKES);
-  fakes("/fake-vps", TRIAL);
 }, 600_000);
 afterAll(() => box?.stop());
 
@@ -97,6 +86,32 @@ describe.skipIf(!docker)("the configuration fail2ban really loads", () => {
     reset();
     box.sh(`sed '/^backend/d' ${F}/jail.local > /etc/fail2ban/jail.local`);
     expect(dump()).toMatch(/^\['add', 'sshd', 'auto'\]$/m);
+  });
+
+  // A cut before authentication — all a key-only robot leaves — counts as a
+  // failure in aggressive mode only: in normal mode its rule is « NOFAIL ».
+  const PREAUTH_FAILS = "'^<F-MLFFORGET>(?:Connection (?:closed|reset)";
+  const PREAUTH_NOFAIL = "'^<F-NOFAIL><F-MLFFORGET>(?:Connection (?:closed|reset)";
+
+  it("the sshd jail in aggressive mode: a cut [preauth] is a failure, and the ddos rules load", () => {
+    reset();
+    box.sh(`cp ${F}/jail.local /etc/fail2ban/`);
+    ignorer();
+    const d = dump();
+    expect(d).toContain(PREAUTH_FAILS);
+    expect(d).toContain("kex_exchange_identification");
+    // Aggressive, not ddos alone: the « extra » rules come with it.
+    expect(d).toContain("authentication methods available");
+  });
+
+  it("without its mode line, the same jail.local is back to normal: the cut is no failure", () => {
+    reset();
+    box.sh(`sed '/^mode = /d' ${F}/jail.local > /etc/fail2ban/jail.local`);
+    const d = dump();
+    expect(d).not.toContain(PREAUTH_FAILS);
+    expect(d).toContain(PREAUTH_NOFAIL);
+    expect(d).not.toContain("kex_exchange_identification");
+    expect(d).not.toContain("authentication methods available");
   });
 
   it("jail.local alone ignores the machine itself, and no address is written in it", () => {
@@ -280,64 +295,5 @@ describe.skipIf(!docker)("poser-fail2ban", () => {
     expect(r.code).toBe(1);
     expect(r.err).toMatch(/l'ancien jail\.local est remis/);
     expect(posed()).toBe("");
-  });
-});
-
-describe.skipIf(!docker)("eprouver-fail2ban.sh (Legion's trial, its address an argument)", () => {
-  const trial = (args: string, env = "", jail = `cp ${F}/jail.local /etc/fail2ban/jail.local`) => {
-    box.sh(`rm -f /tmp/appels-ssh /tmp/pirate; ${jail}`);
-    return box.sh(
-      `${env} F2B_SSH=/fake/ssh PATH=/fake-vps:/fake:$PATH bash ${F}/eprouver-fail2ban.sh ${args}`,
-    );
-  };
-
-  it.each([
-    ["", "192.0.2.10"],
-    [" (the address written /32, as fail2ban never prints it)", "192.0.2.10/32"],
-  ])("a VPS that bans%s: every check passes, the tabulated counts read", (_w, address) => {
-    const r = trial(`root@vps-exemple ${address}`);
-    expect(r.code, r.out).toBe(0);
-    expect(r.out).toMatch(/la jail voit des echecs \(12\)/);
-    expect(r.out).toMatch(/actuellement bannies : 3/);
-    expect(r.out).toMatch(/^4 reussies, 0 echouees$/m);
-  });
-
-  it.each([
-    ["the service stopped", "192.0.2.10", "FAUX_ACTIF=inactive", /ECHEC le service tourne/],
-    [
-      "a jail that sees no failure",
-      "192.0.2.10",
-      "FAUX_ECHECS=0",
-      /ECHEC la jail ne voit AUCUN echec/,
-    ],
-    ["an address not ignored", "198.51.100.7", "", /ECHEC l'appelant de la ronde est ignore/],
-    ["a prefix of an ignored address", "192.0.2.1", "", /ECHEC l'appelant de la ronde est ignore/],
-  ])("%s: ECHEC, exit 1", (_what, address, env, said) => {
-    const r = trial(`root@vps-exemple ${address}`, env);
-    expect(r.code).toBe(1);
-    expect(r.out).toMatch(said);
-  });
-
-  it("a jail.local without its backend line: ECHEC", () => {
-    const r = trial(
-      "root@vps-exemple 192.0.2.10",
-      "",
-      `sed '/^backend/d' ${F}/jail.local > /etc/fail2ban/jail.local`,
-    );
-    expect(r.code).toBe(1);
-    expect(r.out).toMatch(/ECHEC la jail lit le journal/);
-  });
-
-  it.each([
-    ["no address", "root@vps-exemple"],
-    [
-      "an address that would run a command",
-      `root@vps-exemple ${q("192.0.2.10'; touch /tmp/pirate; '")}`,
-    ],
-  ])("%s: refused before any connection", (_what, args) => {
-    const r = trial(args);
-    expect(r.code).not.toBe(0);
-    expect(box.sh("cat /tmp/appels-ssh 2>/dev/null").out).toBe("");
-    expect(box.sh("ls /tmp/pirate 2>/dev/null").out).toBe("");
   });
 });
