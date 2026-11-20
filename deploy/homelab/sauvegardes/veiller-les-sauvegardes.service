@@ -11,7 +11,7 @@
 
 [Unit]
 Description=Veille sur les sauvegardes de la grappe
-Documentation=file:/root/sauvegardes/LISEZ-MOI.md
+Documentation=file:/root/cenacle-homelab/homelab/sauvegardes/README.md
 After=pve-cluster.service
 Wants=pve-cluster.service
 
@@ -19,7 +19,7 @@ Wants=pve-cluster.service
 Type=oneshot
 # Ne pas juger une grappe qu'on vient de rejoindre : au demarrage,
 # « Persistent=true » rattrape les passages manques avant que corosync
-# n'ait reforme le quorum. Voir deploiement/grappe/.
+# n'ait reforme le quorum. Voir deploy/homelab/grappe/README.md.
 ExecStartPre=/usr/local/bin/attendre-la-grappe
 ExecStart=/usr/local/bin/veiller-les-sauvegardes.py
 TimeoutStartSec=10min
