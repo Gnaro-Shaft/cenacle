@@ -41,7 +41,7 @@ La finalité de chacun de ces traitements a pris fin le 22/11 ; les garder sans 
    1. **Chez les tiers** : le mot de passe d'application iCloud de Legion révoqué chez Apple ; son accès IMAP révoqué chez OVH. S'il partage son identifiant avec un autre lecteur de la boîte (Iris), on change le mot de passe et on met ce lecteur à jour le même jour — c'est à vérifier avant, dans les réglages de la boîte, pas dans les fichiers de Legion.
    2. **Sur le parc** : les lignes de clés autorisées, puis les clés privées et publiques, puis le compte `ronde` (`userdel -r`, son dossier et ses clés avec) et ses règles `sudo`, puis le proxy `tailscale serve`.
    3. **Les fichiers et les unités.**
-   4. **Les données**, après le choix du point 4.
+   4. **Les données**, selon le point 4.
 
 2. **De ma main, une machine à la fois.** Cénacle ne se connecte jamais en root (ADR-0039, 0040) et ne retire rien lui-même. Chaque machine suit le même pas : l'inventaire, le retrait, l'inventaire de nouveau. Une machine n'est pas commencée tant que la précédente ne dit pas « rien ne reste ».
 
@@ -57,13 +57,12 @@ La finalité de chacun de ces traitements a pris fin le 22/11 ; les garder sans 
    - avant de retirer le proxy, `tailscale serve status` : si le port 443 ne servait que Legion, il disparaît, et `tailnet/tcp/443` sort des ports attendus du conteneur dans `parc.local.toml` le même jour, sinon la ronde le dit SOUFFRANT ;
    - `/var/lib/copie-bases` ne part qu'**après S3** : `relever-la-copie.sh` le lit jusque-là.
 
-4. **Les données : effacées, sans archive** (*proposé, à trancher*). Leur finalité a disparu, et rien de ce qu'elles portent ne manque à Cénacle : les rappels ont été repris (ADR-0041, « rien à ressaisir »), l'état des machines est celui de la ronde de Cénacle. L'effacement porte sur :
+4. **Les données : effacées, sans archive** (*tranché le 22/11*). Leur finalité a disparu, et rien de ce qu'elles portent ne manque à Cénacle : les rappels ont été repris (ADR-0041, « rien à ressaisir »), l'état des machines est celui de la ronde de Cénacle. L'effacement porte sur :
    - la base du conteneur, ses jeux de copies, son fichier d'environnement, et les copies du nœud de sauvegarde ;
    - les notes de Legion dans le coffre, effacées par moi (Cénacle ne touche pas au coffre) ;
    - le calendrier iCloud de Legion, supprimé chez Apple ;
    - **puis un `fstrim`** — `pct fstrim` du conteneur depuis son nœud, `fstrim` du volume des copies sur le nœud de sauvegarde : sur un volume fin, un fichier effacé reste lisible sur le disque tant que ses blocs ne sont pas rendus.
 
-   **L'autre voie** : une seule archive, chiffrée par une clé `age` à part (pas celle de la copie de Cénacle, ADR-0044), gardée hors du parc pour une durée fixée, puis effacée. Elle ne se justifie que si je veux pouvoir relire Legion ; je ne m'en connais pas de raison.
 
    **Ce qui s'efface seul, et quand** — dit plutôt que tu :
    - Myriade : ses 30 jours, au plus tard le 22/12 ;
@@ -91,7 +90,7 @@ La finalité de chacun de ces traitements a pris fin le 22/11 ; les garder sans 
 - **L1** — `deploy/homelab/retrait-legion/` : l'inventaire, ses tests, le `README` des retraits par machine, la liste du Mac et celle des tiers.
 - **L2** — de ma main : les accès chez les tiers, puis la confiance sur le parc, machine par machine.
 - **L3** — de ma main : les fichiers et les unités ; `/var/lib/copie-bases` après S3.
-- **L4** — de ma main, après le choix du point 4 : les données, le coffre, le calendrier, le `fstrim`. Puis la précision datée sur les sauvegardes.
+- **L4** — de ma main : les données, le coffre, le calendrier, le `fstrim`. Puis la précision datée sur les sauvegardes.
 - **L5** — le registre de Legion fermé (une PR dans Legion), puis son dépôt archivé sur GitHub, par moi.
 
 ## Conséquences
@@ -111,4 +110,5 @@ La finalité de chacun de ces traitements a pris fin le 22/11 ; les garder sans 
 - **Un script qui retire tout seul** : une commande irréversible par machine, lancée d'un bloc. L'inventaire en lecture seule et des commandes relues une à une laissent voir chaque retrait avant qu'il se fasse.
 - **Le retrait par Cénacle** (une action du catalogue) : il faudrait à Cénacle des droits root qu'il n'a jamais eus, pour un geste fait une seule fois.
 - **Garder les données « au cas où »** : c'est précisément ce que la limitation de la conservation interdit.
+- **Une archive chiffrée** (une clé `age` à part, hors du parc, une durée fixée) : elle ne se justifierait que pour relire Legion un jour, et je ne m'en connais pas de raison (*écartée le 22/11*).
 - **Effacer les sauvegardes du conteneur à la main** : elles portent tout le reste du conteneur ; leur rotation suffit, avec son horizon dit.
