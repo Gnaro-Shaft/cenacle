@@ -42,6 +42,8 @@ Ce que Legion fait, et que cet ADR reprend (étudié le 15/11 dans son code et s
    - Quand les différences sont expliquées, **je** bascule la source par une PR ; un retour arrière est la même ligne.
    - Legion s'arrête ensuite, par moi. La ronde de Cénacle reprend la machine qui héberge Legion, avec le bulletin et la clé posés comme ailleurs.
 
+   *Précision du 22/11 : la bascule est avancée d'un jour, après six jours de comparaison au lieu de sept.* La fenêtre, ouverte le 16/11, couvrait déjà le samedi des sauvegardes hebdomadaires, le jour le plus chargé ; il n'y manquait que la fin d'un dimanche. Des 265 différences relevées, 251 étaient closes ; les 14 encore ouvertes allaient toutes dans le même sens — des ports que seule la ronde de Legion attendait encore (111 sur les deux nœuds, 5355 sur le VPS du site public, 3002, 5984 et 8420 sur la machine de Mnemo), absents parce que leurs services ont été fermés ou retirés exprès. La liste de Legion était périmée, celle de Cénacle juste : les différences sont expliquées.
+
 4. **Les garde-fous de l'ADR-0027 ne changent pas de nature.** L'opérateur exige toujours un verdict de moins de 35 minutes qui montre encore le problème ; ses messages disent « le relevé » au lieu de « le relevé de Legion ». Avec une ronde toutes les 5 minutes, la preuve après un redémarrage arrive plus tôt ; les délais de l'ADR-0027 (3 minutes après, 30 minutes pour revenir) restent.
 
 5. **Une ronde silencieuse est une alerte.** Un verdict de plus de 20 minutes (quatre passages manqués) ou daté du futur devient un constat de l'agent sécurité, comme celui de Legion aujourd'hui ; un bulletin illisible rend la machine MALADE avec la raison, jamais SAINE.
@@ -56,7 +58,7 @@ Ce que Legion fait, et que cet ADR reprend (étudié le 15/11 dans son code et s
 - **R1** — le bulletin version 2 et son lecteur strict ; `install.sh` pose les deux règles `sudo` et le réglage de `needrestart`. À installer par moi sur chaque machine ; la page n'en montre rien de plus.
 - **R2** — le programme `ronde` : lecture, jugement, verdict et bulletins écrits ; la page lit son fichier ; l'exception `ssh` déplacée.
 - **R3** — la source dans `securite.toml`, la comparaison des deux verdicts, les messages de l'opérateur. *Fait le 2026-11-16 ; la page nomme aussi la source de son verdict.*
-- **R4** — après sept jours et ma bascule : la machine de Legion dans la ronde, Legion arrêté par moi, `legion_ronde` et son chemin retirés du code.
+- **R4** — après sept jours et ma bascule : la machine de Legion dans la ronde, Legion arrêté par moi, `legion_ronde` et son chemin retirés du code. *Bascule faite le 2026-11-22, après six jours (précision du point 3).*
 
 ## Conséquences
 

@@ -39,9 +39,10 @@ describe("the source securite.toml names", () => {
     expect(parseRondeSource(text)).toBeNull();
   });
 
-  it("the repository's securite.toml names Legion's, as before R3", () => {
+  // A switch is a pull request of mine, never a side effect: this line moves with it.
+  it("the repository's securite.toml names Cénacle's, since the switch of 22/11/2026", () => {
     const text = readFileSync(join(import.meta.dirname, "..", "..", "..", "securite.toml"), "utf8");
-    expect(parseRondeSource(text)).toBe("legion");
+    expect(parseRondeSource(text)).toBe("cenacle");
   });
 });
 

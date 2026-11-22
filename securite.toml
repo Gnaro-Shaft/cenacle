@@ -46,8 +46,9 @@ actif = true
 # ronde, every 5 minutes). The security agent compares both at every round
 # while both run; I switch here, by a pull request, once their differences
 # are explained — and back the same way. Anything else: no verdict is
-# believed, and the operator does not act.
-source = "legion"
+# believed, and the operator does not act. Switched to "cenacle" on 22/11/2026,
+# after six days of comparison (ADR-0040, precision of that day).
+source = "cenacle"
 
 [[delegation]]
 # Prepare the pull request of an npm advisory fix without a major version
