@@ -1,11 +1,14 @@
 /**
  * The last bulletins, as the ronde leaves them for the page (ADR-0040, R2):
  * the measures only — never what the ronde judges (ports, updates, quorum)
- * — for each machine of parc.local.toml, or why it could not be read. The
+ * but the backups (ADR-0043, S2b: ronde-bulletins-backups.ts) — for each
+ * machine of parc.local.toml, or why it could not be read. The
  * ronde writes the file whole at every pass; the page reads it back here,
  * as strictly as any input: a file out of shape is unreadable, never half shown.
  */
 import type { Bulletin } from "./bulletin.ts";
+import type { BackupSource } from "./bulletin-backups.ts";
+import { backupsOf, declaredOf, type FileBackup } from "./ronde-bulletins-backups.ts";
 
 /** Where the ronde leaves the last bulletins, overwritten at every pass. */
 export const RONDE_BULLETINS_PATH =
@@ -38,9 +41,25 @@ export function measuresOnly(b: Bulletin): BulletinMeasures {
 export type MachineUnread = "injoignable" | "illisible" | "cle" | "autre-hote";
 const UNREAD: readonly string[] = ["injoignable", "illisible", "cle", "autre-hote"];
 
+/**
+ * Every machine carries the sources parc.local.toml declares (S2b), read or
+ * not: a machine that expects backups and could not be read says so. A read
+ * one carries the ronde's judgment of each source; null for a bulletin that
+ * recites none (versions 1 and 2).
+ */
 export type MachineRead =
-  | { readonly name: string; readonly read: "ok"; readonly bulletin: BulletinMeasures }
-  | { readonly name: string; readonly read: MachineUnread };
+  | {
+      readonly name: string;
+      readonly read: "ok";
+      readonly bulletin: BulletinMeasures;
+      readonly declared: readonly BackupSource[];
+      readonly backups: readonly FileBackup[] | null;
+    }
+  | {
+      readonly name: string;
+      readonly read: MachineUnread;
+      readonly declared: readonly BackupSource[];
+    };
 
 export interface RondeBulletins {
   /** When the pass ended, in ms. */
@@ -138,13 +157,26 @@ export function parseRondeBulletins(raw: string): RondeBulletins {
     if (names.has(m.name)) return fail("a machine twice");
     names.add(m.name);
     if (m.read === "ok") {
-      if (!keysAre(m, ["name", "read", "bulletin"])) return fail("machine out of shape");
-      return { name: m.name, read: "ok", bulletin: measuresOf(m.bulletin) };
+      if (!keysAre(m, ["name", "read", "bulletin", "declared", "backups"])) {
+        return fail("machine out of shape");
+      }
+      const declared = declaredOf(m.declared, fail);
+      return {
+        name: m.name,
+        read: "ok",
+        bulletin: measuresOf(m.bulletin),
+        declared,
+        backups: backupsOf(m.backups, declared, fail),
+      };
     }
-    if (!keysAre(m, ["name", "read"]) || typeof m.read !== "string" || !UNREAD.includes(m.read)) {
+    if (
+      !keysAre(m, ["name", "read", "declared"]) ||
+      typeof m.read !== "string" ||
+      !UNREAD.includes(m.read)
+    ) {
       return fail("read");
     }
-    return { name: m.name, read: m.read as MachineUnread };
+    return { name: m.name, read: m.read as MachineUnread, declared: declaredOf(m.declared, fail) };
   });
   return { at, config, machines: out };
 }

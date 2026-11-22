@@ -48,13 +48,18 @@ function view(over: Partial<ParcView> = {}): ParcView {
     },
     lastRound: null,
     sentinel: null,
-    machines: { ...RONDE_OK, machines: [{ name: "beta", read: "injoignable" }] },
+    machines: { ...RONDE_OK, machines: [{ name: "beta", read: "injoignable", declared: [] }] },
     proxmox: null,
     ...over,
   };
 }
 const withBulletin = (b: BulletinView) =>
-  view({ machines: { ...RONDE_OK, machines: [{ name: "alpha", read: "ok", bulletin: b }] } });
+  view({
+    machines: {
+      ...RONDE_OK,
+      machines: [{ name: "alpha", read: "ok", bulletin: b, declared: [], backups: null }],
+    },
+  });
 
 describe("one card per machine", () => {
   it("every name any source gives, once, sorted", () => {
@@ -139,7 +144,12 @@ describe("one machine, whatever case its name is written in (14/11)", () => {
   it("Legion's « alpha » and Proxmox's « Alpha »: one card, Legion's name, both sources on it", () => {
     const cards = machinesOf(
       view({
-        machines: { ...RONDE_OK, machines: [{ name: "alpha", read: "ok", bulletin: BULLETIN }] },
+        machines: {
+          ...RONDE_OK,
+          machines: [
+            { name: "alpha", read: "ok", bulletin: BULLETIN, declared: [], backups: null },
+          ],
+        },
         proxmox: { read: "ok", nodes: [{ ...NODE, name: "Alpha" }] },
       }),
     );
@@ -185,7 +195,9 @@ describe("the ronde's file, said when anything is off (ADR-0040)", () => {
 
   it("a bulletin from another machine: said on the card, no gauge from it", () => {
     const [alpha] = machinesOf(
-      view({ machines: { ...RONDE_OK, machines: [{ name: "alpha", read: "autre-hote" }] } }),
+      view({
+        machines: { ...RONDE_OK, machines: [{ name: "alpha", read: "autre-hote", declared: [] }] },
+      }),
     );
     expect(alpha?.unread).toEqual(["le bulletin vient d'une autre machine que celle déclarée"]);
     expect(alpha?.cpu).toBeNull();

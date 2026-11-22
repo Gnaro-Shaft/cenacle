@@ -13,7 +13,7 @@
  * the bulletin never recites one.
  */
 import type { Bulletin } from "./bulletin.ts";
-import type { BackupSource } from "./bulletin-backups.ts";
+import type { BackupSource, BackupState } from "./bulletin-backups.ts";
 import type { RondeState } from "./ronde-rules.ts";
 
 /** Every writer runs each night: a day and a half without a verdict is a night missed. */
@@ -32,22 +32,79 @@ export const BACKUP_WORDS = {
 /** The motif of a machine declaring sources whose bulletin is too old to recite them. */
 export const BACKUPS_NOT_RECITED = "sauvegardes non recitees — bulletin trop ancien";
 
+/**
+ * What the ronde says of one source (S2b): the page shows these words, never
+ * judges again. `non-declaree`: recited, not expected — shown, never judged.
+ */
+export const BACKUP_JUDGMENTS = [
+  "sain",
+  "malade",
+  "illisible",
+  "absente",
+  "perimee",
+  "future",
+  "non-declaree",
+] as const;
+export type BackupJudgment = (typeof BACKUP_JUDGMENTS)[number];
+
+export interface JudgedBackup {
+  readonly source: BackupSource;
+  readonly judgment: BackupJudgment;
+  /** What the bulletin recites of it; null when it recites nothing. */
+  readonly recited: BackupState | null;
+}
+
+const WORDS_OF: Readonly<Record<Exclude<BackupJudgment, "sain" | "non-declaree">, string>> = {
+  malade: BACKUP_WORDS.ill,
+  illisible: BACKUP_WORDS.unreadable,
+  absente: BACKUP_WORDS.missing,
+  perimee: BACKUP_WORDS.stale,
+  future: BACKUP_WORDS.future,
+};
+
+function judgeOne(b: Bulletin, s: BackupState | undefined): BackupJudgment {
+  if (s === undefined) return "absente";
+  if (s.read === "illisible") return "illisible";
+  if (s.at - b.at > BACKUP_FUTURE_MS) return "future";
+  if (b.at - s.at > BACKUP_STALE_MS) return "perimee";
+  return s.verdict === "MALADE" ? "malade" : "sain";
+}
+
+/**
+ * Every source the ronde knows of on this machine: the declared ones first,
+ * in the declared order, then the recited ones nobody declared, in the
+ * bulletin's order. Null when the bulletin recites none (versions 1 and 2).
+ */
+export function backupJudgments(
+  b: Bulletin,
+  declared: readonly BackupSource[],
+): JudgedBackup[] | null {
+  const recited = b.backups;
+  if (recited === null) return null;
+  const out: JudgedBackup[] = declared.map((source) => {
+    const s = recited.find((x) => x.source === source);
+    return { source, judgment: judgeOne(b, s), recited: s ?? null };
+  });
+  for (const s of recited) {
+    if (!declared.includes(s.source)) {
+      out.push({ source: s.source, judgment: "non-declaree", recited: s });
+    }
+  }
+  return out;
+}
+
 /** The motifs of the declared sources, in the declared order; none when none is declared. */
 export function backupMotifs(
   b: Bulletin,
   declared: readonly BackupSource[],
 ): [RondeState, string][] {
   if (declared.length === 0) return [];
-  if (b.backups === null) return [["MALADE", BACKUPS_NOT_RECITED]];
+  const judged = backupJudgments(b, declared);
+  if (judged === null) return [["MALADE", BACKUPS_NOT_RECITED]];
   const out: [RondeState, string][] = [];
-  for (const source of declared) {
-    const s = b.backups.find((x) => x.source === source);
-    const say = (words: string) => out.push(["MALADE", `sauvegarde ${source} ${words}`]);
-    if (s === undefined) say(BACKUP_WORDS.missing);
-    else if (s.read === "illisible") say(BACKUP_WORDS.unreadable);
-    else if (s.at - b.at > BACKUP_FUTURE_MS) say(BACKUP_WORDS.future);
-    else if (b.at - s.at > BACKUP_STALE_MS) say(BACKUP_WORDS.stale);
-    else if (s.verdict === "MALADE") say(BACKUP_WORDS.ill);
+  for (const { source, judgment } of judged) {
+    if (judgment === "sain" || judgment === "non-declaree") continue;
+    out.push(["MALADE", `sauvegarde ${source} ${WORDS_OF[judgment]}`]);
   }
   return out;
 }

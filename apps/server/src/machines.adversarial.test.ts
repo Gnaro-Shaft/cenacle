@@ -21,8 +21,19 @@ const FILE = {
         memory: null,
         disks: [],
       },
+      declared: ["copie-dumps"],
+      backups: [
+        {
+          source: "copie-dumps",
+          judgment: "sain",
+          verdict: "SAIN",
+          at: AT - 3_600_000,
+          since: null,
+          motifs: 0,
+        },
+      ],
     },
-    { name: "beta", read: "injoignable" },
+    { name: "beta", read: "injoignable", declared: ["copie-dumps"] },
   ],
 };
 
@@ -36,6 +47,15 @@ const unreadable = (): string | null => {
 describe("the ronde's file", () => {
   it("read: each machine as the ronde found it, fresh", async () => {
     expect(await read(JSON.stringify(FILE))).toEqual({ ...FILE, ronde: "ok", stale: false });
+  });
+
+  it("a file from before the backups (S2b): unreadable until the ronde writes again, never half shown", async () => {
+    const old = JSON.parse(JSON.stringify(FILE));
+    for (const m of old.machines) {
+      delete m.declared;
+      delete m.backups;
+    }
+    expect(await read(JSON.stringify(old))).toMatchObject({ ronde: "illisible", machines: [] });
   });
 
   it("not written yet: said, no machine", async () => {
