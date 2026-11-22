@@ -6,6 +6,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { ApiError, getParc, type ParcView } from "./api.ts";
+import { Backups } from "./Backups.tsx";
 import { Machines } from "./Machines.tsx";
 import {
   ago,
@@ -159,6 +160,7 @@ export function Parc({ token, onLost }: { readonly token: string; readonly onLos
     <section className="parc" aria-label="Le parc">
       {message !== null && <p className="message">{message}</p>}
       <Machines view={view} />
+      <Backups view={view} now={now} />
       <article className={`bloc parc-carte ton-cadre-${tone}`}>
         <h2>Sécurité</h2>
         <Findings view={view.findings} now={now} />

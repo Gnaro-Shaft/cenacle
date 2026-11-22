@@ -169,10 +169,19 @@ export interface ParcView {
     readonly stale: boolean;
     readonly config: "absent" | "illisible" | "ok";
     readonly machines: readonly (
-      | { readonly name: string; readonly read: "ok"; readonly bulletin: BulletinView }
+      | {
+          readonly name: string;
+          readonly read: "ok";
+          readonly bulletin: BulletinView;
+          /** The backup sources parc.local.toml declares for it (ADR-0043, S2b). */
+          readonly declared: readonly string[];
+          /** The ronde's judgment of each source; null when its bulletin recites none. */
+          readonly backups: readonly BackupView[] | null;
+        }
       | {
           readonly name: string;
           readonly read: "injoignable" | "illisible" | "cle" | "autre-hote";
+          readonly declared: readonly string[];
         }
     )[];
   } | null;
@@ -181,6 +190,28 @@ export interface ParcView {
     | { readonly read: "absent" | "config" | "injoignable" | "refuse" | "illisible" }
     | { readonly read: "ok"; readonly nodes: readonly ProxmoxNodeView[] }
     | null;
+}
+
+/**
+ * One backup source as the ronde judged it (ADR-0043, S2b): its words, never
+ * judged again here. Never a motif's text: their number only.
+ */
+export interface BackupView {
+  readonly source: string;
+  readonly judgment:
+    | "sain"
+    | "malade"
+    | "illisible"
+    | "absente"
+    | "perimee"
+    | "future"
+    | "non-declaree";
+  readonly verdict: "SAIN" | "MALADE" | null;
+  /** When its writer judged, in ms; null with no verdict. */
+  readonly at: number | null;
+  /** Since when it is ill, in ms. */
+  readonly since: number | null;
+  readonly motifs: number | null;
 }
 
 export interface BulletinView {

@@ -8,7 +8,9 @@
 import {
   asServer,
   BulletinError,
+  backupJudgments,
   failureVerdict,
+  fileBackups,
   judge,
   type MachineRead,
   type MachineUnread,
@@ -47,27 +49,29 @@ interface One {
 }
 
 function failed(
-  name: string,
+  machine: ParkMachine,
   read: MachineUnread,
   failure: RondeFailure,
   note: string,
   code = 0,
 ): One {
+  const { name } = machine;
   return {
     verdict: { name, ...failureVerdict(name, failure, code) },
-    read: { name, read },
+    // What it expects stays said: its backups are unknown, never healthy.
+    read: { name, read, declared: machine.expect.backups },
     note: `${name}: ${note}`,
   };
 }
 
 async function readOne(machine: ParkMachine, config: ParkConfig, deps: PassDeps): Promise<One> {
   const { name } = machine;
-  if (!deps.keyOk(machine.key)) return failed(name, "cle", "cle", "key not private (600)");
+  if (!deps.keyOk(machine.key)) return failed(machine, "cle", "cle", "key not private (600)");
   const { code, out } = await deps.run(sshArgs(asServer(machine), machine.key, config.knownHosts));
-  if (code === -1) return failed(name, "injoignable", "delai", "cut off");
-  if (code === -2) return failed(name, "illisible", "lancement", "ssh could not start");
-  if (code === 255) return failed(name, "injoignable", "ssh", "ssh 255", code);
-  if (code !== 0) return failed(name, "illisible", "ssh", `exit ${code}`, code);
+  if (code === -1) return failed(machine, "injoignable", "delai", "cut off");
+  if (code === -2) return failed(machine, "illisible", "lancement", "ssh could not start");
+  if (code === 255) return failed(machine, "injoignable", "ssh", "ssh 255", code);
+  if (code !== 0) return failed(machine, "illisible", "ssh", `exit ${code}`, code);
   let bulletin: ReturnType<typeof parseBulletin>;
   try {
     bulletin = parseBulletin(out);
@@ -75,7 +79,7 @@ async function readOne(machine: ParkMachine, config: ParkConfig, deps: PassDeps)
     if (!(error instanceof BulletinError)) throw error;
     // The reason may quote 40 characters of the machine's own: kept to plain ones.
     const reason = error.message.replace(/[^\w .:=/-]/g, "?").slice(0, 120);
-    return failed(name, "illisible", "illisible", reason);
+    return failed(machine, "illisible", "illisible", reason);
   }
   const verdict = { name, ...judge(name, bulletin, machine.expect, deps.now()) };
   // Another machine's bulletin: judged MALADE, and its measures are not this machine's.
@@ -83,11 +87,23 @@ async function readOne(machine: ParkMachine, config: ParkConfig, deps: PassDeps)
   if (hostname !== null && bulletin.host !== hostname) {
     return {
       verdict,
-      read: { name, read: "autre-hote" },
+      read: { name, read: "autre-hote", declared: machine.expect.backups },
       note: `${name}: another host's bulletin`,
     };
   }
-  return { verdict, read: { name, read: "ok", bulletin: measuresOnly(bulletin) }, note: null };
+  const declared = machine.expect.backups;
+  const judged = backupJudgments(bulletin, declared);
+  return {
+    verdict,
+    read: {
+      name,
+      read: "ok",
+      bulletin: measuresOnly(bulletin),
+      declared,
+      backups: judged === null ? null : fileBackups(judged),
+    },
+    note: null,
+  };
 }
 
 export async function runPass(deps: PassDeps): Promise<PassResult> {

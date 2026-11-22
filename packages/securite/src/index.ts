@@ -172,10 +172,14 @@ export {
 } from "./report.ts";
 export {
   BACKUP_FUTURE_MS,
+  BACKUP_JUDGMENTS,
   BACKUP_STALE_MS,
   BACKUP_WORDS,
   BACKUPS_NOT_RECITED,
+  type BackupJudgment,
+  backupJudgments,
   backupMotifs,
+  type JudgedBackup,
 } from "./ronde-backups.ts";
 export {
   type BulletinMeasures,
@@ -188,6 +192,7 @@ export {
   type RondeBulletins,
   RondeBulletinsError,
 } from "./ronde-bulletins.ts";
+export { type FileBackup, fileBackups } from "./ronde-bulletins-backups.ts";
 export {
   failureVerdict,
   type HostVerdict,

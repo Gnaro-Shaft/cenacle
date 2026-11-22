@@ -75,6 +75,20 @@
   white-space: nowrap;
   font-size: 0.92rem;
 }
+/* The backups' words may be long: they wrap, never squeezing the name (S2b). */
+.sauvegardes .parc-ligne {
+  grid-template-columns: 0.8rem minmax(0, 1fr) minmax(0, 1.3fr);
+}
+.parc-valeur.sauvegarde-mots {
+  white-space: normal;
+  text-align: right;
+}
+.sauvegarde-commande {
+  grid-column: 2 / -1;
+  color: var(--encre-douce);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
 .parc-motifs {
   grid-column: 2 / -1;
   margin: 0;

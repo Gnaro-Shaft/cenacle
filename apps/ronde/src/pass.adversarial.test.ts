@@ -107,7 +107,7 @@ describe("a machine that cannot be judged: MALADE with its reason, the others ju
   ])("%s", async (_what, code, out, read, motif) => {
     const r = await setup({ ...healthy, "alpha.exemple.test": { code, out } }).pass();
     expect(r.hosts[0]).toEqual({ name: "alpha", state: "MALADE", motifs: [motif] });
-    expect(r.bulletins.machines[0]).toEqual({ name: "alpha", read });
+    expect(r.bulletins.machines[0]).toEqual({ name: "alpha", read, declared: [] });
     expect(r.hosts[1]).toEqual({ name: "beta", state: "SAIN", motifs: [] });
   });
 
@@ -119,7 +119,7 @@ describe("a machine that cannot be judged: MALADE with its reason, the others ju
       state: "MALADE",
       motifs: ["bulletin d'un autre hote (beta-host) — non juge"],
     });
-    expect(r.bulletins.machines[0]).toEqual({ name: "alpha", read: "autre-hote" });
+    expect(r.bulletins.machines[0]).toEqual({ name: "alpha", read: "autre-hote", declared: [] });
   });
 
   it("a key readable by others: not used, no call made, MALADE", async () => {
@@ -130,7 +130,7 @@ describe("a machine that cannot be judged: MALADE with its reason, the others ju
       state: "MALADE",
       motifs: ["beta : cle du bulletin mal protegee — non utilisee"],
     });
-    expect(r.bulletins.machines[1]).toEqual({ name: "beta", read: "cle" });
+    expect(r.bulletins.machines[1]).toEqual({ name: "beta", read: "cle", declared: [] });
     expect(calls.map((a) => a.at(-1))).toEqual(["alpha.exemple.test"]);
   });
 
@@ -191,5 +191,76 @@ describe("what the review found (R2)", () => {
     const r = await setup({ ...healthy, "alpha.exemple.test": { code: 0, out } }).pass();
     expect(r.hosts[0]?.state).toBe("MALADE");
     expect(r.notes[0]).toMatch(/^alpha: [\w .:=/?-]+$/);
+  });
+});
+
+describe("the backups, for the page (ADR-0043, S2b)", () => {
+  const v3 = (host: string, lines: readonly string[]) =>
+    bulletin(host)
+      .replace("version=2", "version=3")
+      .replace("fin=1", [...lines, "fin=1"].join("\n"));
+  const DUMPS_SAIN = [
+    "sauvegarde.copie-dumps.verdict=SAIN",
+    "sauvegarde.copie-dumps.instant=1794675666",
+    "sauvegarde.copie-dumps.motifs=0",
+  ];
+  const BASES_MALADE = [
+    "sauvegarde.copie-bases.verdict=MALADE",
+    "sauvegarde.copie-bases.instant=1794675666",
+    "sauvegarde.copie-bases.depuis=1794600000",
+    "sauvegarde.copie-bases.motifs=3",
+  ];
+  const declaring = CONFIG.replace(
+    'hote = "alpha-host"',
+    'hote = "alpha-host"\nsauvegardes = ["copie-dumps", "myriade-base"]',
+  );
+
+  it("a read machine: the ronde's judgment of each source, the same as its motifs", async () => {
+    const answers = {
+      ...healthy,
+      "alpha.exemple.test": { code: 0, out: v3("alpha-host", [...DUMPS_SAIN, ...BASES_MALADE]) },
+    };
+    const r = await setup(answers, { readConfig: () => declaring }).pass();
+    expect(r.bulletins.machines[0]).toMatchObject({
+      declared: ["copie-dumps", "myriade-base"],
+      backups: [
+        { source: "copie-dumps", judgment: "sain", verdict: "SAIN", at: 1_794_675_666_000 },
+        { source: "myriade-base", judgment: "absente", verdict: null },
+        // Undeclared and ill: shown, never judged — the machine's verdict says nothing of it.
+        { source: "copie-bases", judgment: "non-declaree", verdict: "MALADE", motifs: 3 },
+      ],
+    });
+    expect(r.hosts[0]?.motifs).toEqual(["sauvegarde myriade-base sans verdict"]);
+  });
+
+  it("a machine out of reach keeps what it declares: its backups are unknown, never healthy", async () => {
+    const r = await setup({}, { readConfig: () => declaring }).pass();
+    expect(r.bulletins.machines[0]).toEqual({
+      name: "alpha",
+      read: "injoignable",
+      declared: ["copie-dumps", "myriade-base"],
+    });
+  });
+
+  it("a version 2 bulletin: no backups at all, the declared kept, the machine MALADE", async () => {
+    const r = await setup(healthy, { readConfig: () => declaring }).pass();
+    expect(r.bulletins.machines[0]).toMatchObject({
+      declared: ["copie-dumps", "myriade-base"],
+      backups: null,
+    });
+    expect(r.hosts[0]?.state).toBe("MALADE");
+  });
+
+  it("another machine's bulletin: none of its backups shown as this one's", async () => {
+    const answers = {
+      ...healthy,
+      "alpha.exemple.test": { code: 0, out: v3("beta-host", DUMPS_SAIN) },
+    };
+    const r = await setup(answers, { readConfig: () => declaring }).pass();
+    expect(r.bulletins.machines[0]).toEqual({
+      name: "alpha",
+      read: "autre-hote",
+      declared: ["copie-dumps", "myriade-base"],
+    });
   });
 });

@@ -11,6 +11,7 @@
     "src/proposal-rules.ts",
     "src/parc-rules.ts",
     "src/parc-machines.ts",
+    "src/parc-backups.ts",
     "src/agenda-rules.ts",
     "src/api.ts"
   ],

@@ -38,11 +38,17 @@ const FILE: RondeBulletins = {
   at: 1_794_679_300_000,
   config: "ok",
   machines: [
-    { name: "alpha", read: "ok", bulletin: measuresOnly(parseBulletin(V2)) },
-    { name: "beta", read: "injoignable" },
-    { name: "gamma", read: "autre-hote" },
-    { name: "delta", read: "cle" },
-    { name: "epsilon", read: "illisible" },
+    {
+      name: "alpha",
+      read: "ok",
+      bulletin: measuresOnly(parseBulletin(V2)),
+      declared: [],
+      backups: null,
+    },
+    { name: "beta", read: "injoignable", declared: [] },
+    { name: "gamma", read: "autre-hote", declared: [] },
+    { name: "delta", read: "cle", declared: [] },
+    { name: "epsilon", read: "illisible", declared: [] },
   ],
 };
 const text = (f: unknown = FILE) => JSON.stringify(f);
@@ -84,12 +90,15 @@ describe("refused whole", () => {
     ["a negative date", edit((f) => Object.assign(f, { at: -1 }))],
     ["a configuration of its own", edit((f) => Object.assign(f, { config: "partielle" }))],
     ["machines without a configuration", edit((f) => Object.assign(f, { config: "absent" }))],
-    ["a machine twice", edit((f) => push(f, { name: "beta", read: "cle" }))],
-    ["a name that is not a name", edit((f) => push(f, { name: "../x", read: "cle" }))],
-    ["a reading of its own", edit((f) => push(f, { name: "zeta", read: "sain" }))],
+    ["a machine twice", edit((f) => push(f, { name: "beta", read: "cle", declared: [] }))],
+    [
+      "a name that is not a name",
+      edit((f) => push(f, { name: "../x", read: "cle", declared: [] })),
+    ],
+    ["a reading of its own", edit((f) => push(f, { name: "zeta", read: "sain", declared: [] }))],
     [
       "an unread machine carrying measures",
-      edit((f) => push(f, { name: "zeta", read: "cle", bulletin: {} })),
+      edit((f) => push(f, { name: "zeta", read: "cle", declared: [], bulletin: {} })),
     ],
     ["the ports riding along", edit((f) => Object.assign(alpha(f), { ports: ["tcp/22"] }))],
     ["the health riding along", edit((f) => Object.assign(alpha(f), { health: {} }))],
