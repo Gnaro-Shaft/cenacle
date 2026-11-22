@@ -116,8 +116,6 @@ export {
 export { MAX_LEAKS, parseGitleaks } from "./parse-gitleaks.ts";
 export {
   classifyMotif,
-  LEGION_STALE_MS,
-  LEGION_VERDICT_PATH,
   type LegionState,
   type LegionView,
   legionView,
@@ -183,7 +181,6 @@ export {
   type RondeBulletins,
   RondeBulletinsError,
 } from "./ronde-bulletins.ts";
-export { COMPARE_CHECK, compareVerdicts, DIFFERENCE } from "./ronde-compare.ts";
 export {
   failureVerdict,
   type HostVerdict,

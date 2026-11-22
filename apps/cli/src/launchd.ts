@@ -39,7 +39,7 @@ export const SCHEDULED: Readonly<Partial<Record<Program, { hour: number; minute:
 };
 
 /**
- * Programs started every so many seconds (Legion's ronde). Asleep, the Mac
+ * Programs started every so many seconds. Asleep, the Mac
  * runs one round when it wakes; a round still running is never overlapped
  * (the program's own instance lock).
  */

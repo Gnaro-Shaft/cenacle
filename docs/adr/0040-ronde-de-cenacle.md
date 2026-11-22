@@ -37,7 +37,7 @@ Ce que Legion fait, et que cet ADR reprend (étudié le 15/11 dans son code et s
 
    C'est lui, et non plus le serveur de la page, qui détient les clés de lecture : **l'exception `ssh` de l'ADR-0039 passe du serveur à la ronde**, toujours dans un seul fichier, vérifiée par le même test de frontière. La page lit le fichier de la ronde, plus aucune machine : ses mesures ont au plus 5 minutes au lieu d'une.
 
-3. **Une bascule, pas un saut.** `securite.toml` dit d'où l'agent sécurité et l'opérateur lisent le verdict : `[ronde] source = "legion"` (par défaut, au départ) ou `"cenacle"`.
+3. **Une bascule, pas un saut.** `securite.toml` dit d'où l'agent sécurité et l'opérateur lisent le verdict : `[ronde] source = "legion"` (par défaut, au départ) ou `"cenacle"`. *Depuis R4, `"cenacle"` seul.*
    - **Pendant au moins sept jours**, les deux rondes tournent ; l'agent sécurité compare les deux verdicts à chaque passage et dit une seule fois chaque différence (une machine, un motif, de part ou d'autre).
    - Quand les différences sont expliquées, **je** bascule la source par une PR ; un retour arrière est la même ligne.
    - Legion s'arrête ensuite, par moi. La ronde de Cénacle reprend la machine qui héberge Legion, avec le bulletin et la clé posés comme ailleurs.
@@ -58,7 +58,7 @@ Ce que Legion fait, et que cet ADR reprend (étudié le 15/11 dans son code et s
 - **R1** — le bulletin version 2 et son lecteur strict ; `install.sh` pose les deux règles `sudo` et le réglage de `needrestart`. À installer par moi sur chaque machine ; la page n'en montre rien de plus.
 - **R2** — le programme `ronde` : lecture, jugement, verdict et bulletins écrits ; la page lit son fichier ; l'exception `ssh` déplacée.
 - **R3** — la source dans `securite.toml`, la comparaison des deux verdicts, les messages de l'opérateur. *Fait le 2026-11-16 ; la page nomme aussi la source de son verdict.*
-- **R4** — après sept jours et ma bascule : la machine de Legion dans la ronde, Legion arrêté par moi, `legion_ronde` et son chemin retirés du code. *Bascule faite le 2026-11-22, après six jours (précision du point 3).*
+- **R4** — après sept jours et ma bascule : la machine de Legion dans la ronde, Legion arrêté par moi, `legion_ronde` et son chemin retirés du code. *Bascule faite le 2026-11-22, après six jours (précision du point 3).* *Fait le 2026-11-22 : Legion arrêté par moi ; la machine qui l'hébergeait était déjà dans la ronde depuis R3. La source `legion`, le chemin de son verdict et la comparaison des deux rondes sont retirés ; la clé `[ronde] source` reste, avec la seule valeur `cenacle`, comme garde-fou (absente ou fausse, rien n'est cru). Le contrôle garde son nom, `legion_ronde` : il est l'identifiant de l'historique des constats, de leur gravité et de la cadence. Les constats de la comparaison, qu'aucun contrôle ne peut plus fermer, sont fermés en silence (`caduc`) par la migration 037.*
 
 ## Conséquences
 

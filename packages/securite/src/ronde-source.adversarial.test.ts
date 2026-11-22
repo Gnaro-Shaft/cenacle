@@ -1,10 +1,10 @@
-// Which ronde Cénacle believes (ADR-0040, R3): `[ronde] source` in
-// securite.toml. Absent, Legion's, as before; anything else than the two
-// words is no source at all — never a silent fall back on the other ronde.
+// Which ronde Cénacle believes (ADR-0040): `[ronde] source` in securite.toml.
+// Since R4 (Legion stopped on 22/11/2026) one word only, "cenacle"; anything
+// else — "legion" included, the section absent included — is no source at
+// all: nothing judged, and never Legion's old verdict by default.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { LEGION_STALE_MS } from "./parse-legion.ts";
 import {
   CENACLE_STALE_MS,
   freshSourceVerdict,
@@ -12,18 +12,19 @@ import {
   RONDE_SOURCES,
 } from "./ronde-source.ts";
 
+/** Where Legion's reader left its verdict on the Mac: the file may outlive Legion. */
+const OLD_LEGION_PATH = `${process.env.HOME ?? ""}/Library/Caches/fr.gnaro.legion.ronde.verdict`;
+
 describe("the source securite.toml names", () => {
-  it.each([
-    ["no [ronde] at all", "[serveurs]\nactif = true\n", "legion"],
-    ["an empty [ronde]", "[ronde]\n", "legion"],
-    ["Legion's", '[ronde]\nsource = "legion"\n', "legion"],
-    ["Cénacle's", '[ronde]\nsource = "cenacle"\n', "cenacle"],
-    ["an empty file", "", "legion"],
-  ] as const)("%s → %s", (_what, text, source) => {
-    expect(parseRondeSource(text)).toBe(source);
+  it("Cénacle's", () => {
+    expect(parseRondeSource('[ronde]\nsource = "cenacle"\n')).toBe("cenacle");
   });
 
   it.each([
+    ["Legion's, now that Legion is stopped", '[ronde]\nsource = "legion"\n'],
+    ["no [ronde] at all (Legion's by default, before R4)", "[serveurs]\nactif = true\n"],
+    ["an empty [ronde] (Legion's by default, before R4)", "[ronde]\n"],
+    ["an empty file", ""],
     ["a typo", '[ronde]\nsource = "cenacel"\n'],
     ["another case", '[ronde]\nsource = "Cenacle"\n'],
     ["the accent", '[ronde]\nsource = "cénacle"\n'],
@@ -35,7 +36,7 @@ describe("the source securite.toml names", () => {
     ["[ronde] not a table", 'ronde = "cenacle"\n'],
     ["a file that does not parse", '[ronde\nsource = "cenacle"\n'],
     ["[ronde] twice", '[ronde]\nsource = "legion"\n[ronde]\nsource = "cenacle"\n'],
-  ])("%s: no source, never the other ronde", (_what, text) => {
+  ])("%s: no source", (_what, text) => {
     expect(parseRondeSource(text)).toBeNull();
   });
 
@@ -46,32 +47,29 @@ describe("the source securite.toml names", () => {
   });
 });
 
-describe("each source's facts", () => {
-  it("Legion at its 45 minutes, Cénacle at four passes missed (20 minutes)", () => {
-    expect(RONDE_SOURCES.legion.staleMs).toBe(LEGION_STALE_MS);
+describe("the one source's facts", () => {
+  it("Cénacle's alone, at four passes missed (20 minutes), never Legion's file", () => {
+    expect(Object.keys(RONDE_SOURCES)).toEqual(["cenacle"]);
     expect(RONDE_SOURCES.cenacle.staleMs).toBe(CENACLE_STALE_MS);
     expect(CENACLE_STALE_MS).toBe(20 * 60_000);
-    expect(RONDE_SOURCES.legion.path).not.toBe(RONDE_SOURCES.cenacle.path);
+    expect(RONDE_SOURCES.cenacle.path).not.toBe(OLD_LEGION_PATH);
   });
 });
 
-describe("what the review found (R3)", () => {
-  it("a missing securite.toml names no source: never Legion by default", () => {
-    expect(parseRondeSource(null)).toBeNull();
-  });
-
+describe("the operator's verdict", () => {
   const NOW = 1_794_679_266_000;
   const at = (minutes: number) =>
     `etat=SAIN\ninstant=${Math.floor((NOW - minutes * 60_000) / 1000)}\nhotes=0\nfin=1`;
   const only = (path: string, text: string) => (p: string) => (p === path ? text : null);
 
-  it("the operator's verdict: at its own source's limit, the tighter one winning", () => {
+  it("a missing securite.toml names no source", () => {
+    expect(parseRondeSource(null)).toBeNull();
+  });
+
+  it("at Cénacle's limit: 19 minutes fresh, 21 not", () => {
     const cenacle = RONDE_SOURCES.cenacle.path;
-    const legion = RONDE_SOURCES.legion.path;
     expect(freshSourceVerdict(only(cenacle, at(19)), "cenacle", NOW)).toBe(at(19));
     expect(freshSourceVerdict(only(cenacle, at(21)), "cenacle", NOW)).toBeNull();
-    // Legion's 45 minutes: 21 is fresh for it (the operator's own 35 still applies after).
-    expect(freshSourceVerdict(only(legion, at(21)), "legion", NOW)).toBe(at(21));
   });
 
   it("no source: nothing read at all; no file: nothing", () => {
@@ -85,8 +83,7 @@ describe("what the review found (R3)", () => {
     expect(freshSourceVerdict(() => null, "cenacle", NOW)).toBeNull();
   });
 
-  it("the other source's file is never read in its place", () => {
-    const legionOnly = only(RONDE_SOURCES.legion.path, at(1));
-    expect(freshSourceVerdict(legionOnly, "cenacle", NOW)).toBeNull();
+  it("Legion's verdict left on the Mac, fresh: never read in Cénacle's place", () => {
+    expect(freshSourceVerdict(only(OLD_LEGION_PATH, at(1)), "cenacle", NOW)).toBeNull();
   });
 });

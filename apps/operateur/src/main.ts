@@ -22,6 +22,7 @@ import {
   waitForDatabase,
 } from "@cenacle/journal";
 import {
+  CENACLE_STALE_MS,
   freshSourceVerdict,
   OPERATOR_STATE_PATH,
   parseLegionVerdict,
@@ -86,6 +87,9 @@ async function pass(sql: ReturnType<typeof connectOrQuit>): Promise<void> {
   // older than its own source's limit, none either.
   const source = parseRondeSource(securiteText);
   const verdict = () => freshSourceVerdict(read, source, Date.now());
+  // Already fresh for its source (freshSourceVerdict); read again at the same limit.
+  const parseAtCenacleLimit = (raw: string, now: number) =>
+    parseLegionVerdict(raw, now, CENACLE_STALE_MS);
   const send = (text: string) => telegram.sendMessage(chatId, text);
   // The validated maintenance plan (J7d), before the actions: a step it
   // launches runs in this same pass.
@@ -95,7 +99,7 @@ async function pass(sql: ReturnType<typeof connectOrQuit>): Promise<void> {
     actions: store,
     planSigned: (plan) => planSigned(confirmKey, plan),
     verdict,
-    parseVerdict: parseLegionVerdict,
+    parseVerdict: parseAtCenacleLimit,
     send,
     journal,
     now: () => new Date(),
@@ -106,7 +110,7 @@ async function pass(sql: ReturnType<typeof connectOrQuit>): Promise<void> {
     sourceOk: source !== null,
     config,
     verdict,
-    parseVerdict: parseLegionVerdict,
+    parseVerdict: parseAtCenacleLimit,
     keyIsPrivate: (path) => keyIsPrivate(path),
     notConfirmed: (a) => notConfirmed({ publicKey: confirmKey, plans }, a),
     ssh: (args) => runSsh(args),

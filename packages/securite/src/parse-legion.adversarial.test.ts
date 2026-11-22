@@ -7,8 +7,11 @@
 import { describe, expect, it } from "vitest";
 import { fixFor } from "./catalogue.ts";
 import { reconcile } from "./lifecycle.ts";
-import { classifyMotif, LEGION_STALE_MS, parseLegionVerdict } from "./parse-legion.ts";
+import { classifyMotif, parseLegionVerdict } from "./parse-legion.ts";
 import { CheckOutputError } from "./types.ts";
+
+// Each source gives its limit (ADR-0040); Legion's, with Legion, is gone.
+const STALE_MS = 20 * 60_000;
 
 const NOW = Date.parse("2026-10-10T20:30:00Z");
 const instant = (ms = NOW) => String(Math.floor(ms / 1000));
@@ -20,7 +23,7 @@ describe("a verdict that cannot be trusted could not run", () => {
   it.each([
     ["cut short (no fin=1)", ["etat=MALADE", `instant=${instant()}`, ...TWO].join("\n")],
     ["undated", verdict(TWO, "demain")],
-    ["too old (three relays missed)", verdict(TWO, instant(NOW - LEGION_STALE_MS - 60_000))],
+    ["too old for its limit", verdict(TWO, instant(NOW - STALE_MS - 60_000))],
     ["from the future", verdict(TWO, instant(NOW + 10 * 60_000))],
     [
       "a host count that does not add up",
@@ -36,13 +39,13 @@ describe("a verdict that cannot be trusted could not run", () => {
     ["an unknown state", ["etat=PEUT-ETRE", `instant=${instant()}`, ...TWO, "fin=1"].join("\n")],
     ["empty", ""],
   ])("%s", (_, raw) => {
-    expect(() => parseLegionVerdict(raw, NOW)).toThrow(CheckOutputError);
+    expect(() => parseLegionVerdict(raw, NOW, STALE_MS)).toThrow(CheckOutputError);
   });
 
   it("just under 45 minutes old is still read", () => {
-    expect(parseLegionVerdict(verdict(TWO, instant(NOW - LEGION_STALE_MS + 60_000)), NOW)).toEqual(
-      [],
-    );
+    expect(
+      parseLegionVerdict(verdict(TWO, instant(NOW - STALE_MS + 60_000)), NOW, STALE_MS),
+    ).toEqual([]);
   });
 });
 
@@ -60,6 +63,7 @@ describe("each of Legion's motifs, its finding", () => {
         "vps-b.motif2=12 service(s) tournent sur une bibliotheque remplacee",
       ]),
       NOW,
+      STALE_MS,
     );
     expect(got.map((o) => [o.target, o.type, o.occurrence, o.severity])).toEqual([
       ["noeud-a", "serveur_disque", "/", "eleve"],
@@ -116,6 +120,7 @@ describe("followed like any finding", () => {
           `noeud-a.motif1=${n} mise(s) a jour de securite en attente`,
         ]),
         NOW,
+        STALE_MS,
       );
     const first = at(10)[0];
     if (first === undefined) throw new Error("no finding");
