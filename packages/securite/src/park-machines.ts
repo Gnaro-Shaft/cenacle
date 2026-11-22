@@ -7,6 +7,7 @@
  */
 import { isAbsolute, normalize } from "node:path";
 import { parse } from "smol-toml";
+import { BACKUP_SOURCES, type BackupSource } from "./bulletin-backups.ts";
 import { DISK_ALERT, DISK_WARN, type MachineExpectation, PORT_JOKERS } from "./ronde-rules.ts";
 import { ACCOUNT, ADDRESS, NAME, type Server } from "./servers.ts";
 
@@ -68,6 +69,7 @@ const KEYS = [
   "ports",
   "disque_avertir",
   "disque_alerter",
+  "sauvegardes",
 ];
 
 /** The declared ports: a port as recited, or one of Legion's three jokers; none twice. */
@@ -92,6 +94,25 @@ function portsOf(v: unknown, at: string): string[] {
   return [...seen];
 }
 
+/** The backup sources it must recite (ADR-0043): from the closed list, none twice. */
+function backupsOf(v: unknown, at: string): BackupSource[] {
+  if (v === undefined) return [];
+  if (!Array.isArray(v) || v.length > BACKUP_SOURCES.length) {
+    throw new ParkConfigError(`${at}: sauvegardes must be a list of known sources`);
+  }
+  const seen = new Set<BackupSource>();
+  for (const s of v) {
+    const known = BACKUP_SOURCES.find((k) => k === s);
+    // The text is not echoed: it could be anything.
+    if (known === undefined) {
+      throw new ParkConfigError(`${at}: an unknown backup source (${BACKUP_SOURCES.join(", ")})`);
+    }
+    if (seen.has(known)) throw new ParkConfigError(`${at}: source ${known} twice`);
+    seen.add(known);
+  }
+  return [...seen];
+}
+
 const threshold = (v: unknown, fallback: number, what: string): number => {
   if (v === undefined) return fallback;
   if (typeof v !== "number" || !Number.isInteger(v) || v < 1 || v > 100) {
@@ -110,7 +131,13 @@ function expectationOf(raw: Record<string, unknown>, at: string): MachineExpecta
   if (diskWarn > diskAlert) {
     throw new ParkConfigError(`${at}: disque_avertir above disque_alerter`);
   }
-  return { hostname: hote ?? null, ports: portsOf(raw.ports, at), diskWarn, diskAlert };
+  return {
+    hostname: hote ?? null,
+    ports: portsOf(raw.ports, at),
+    diskWarn,
+    diskAlert,
+    backups: backupsOf(raw.sauvegardes, at),
+  };
 }
 
 export function parseParkMachines(text: string): ParkConfig {

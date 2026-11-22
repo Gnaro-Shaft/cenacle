@@ -273,12 +273,15 @@ export function hostState(raw: string, host: string): "SAIN" | "SOUFFRANT" | "MA
  * disk, an unexpected port, a cluster without quorum. Any other MALADE is a
  * bulletin it could not read — ssh failed, unreadable, refused (2026-10-26:
  * a node at 91 % of disk was MALADE, and would have been "not back" after a
- * reboot it had come back from).
+ * reboot it had come back from). A backup the ronde judges ill (ADR-0043,
+ * point 3) is one too: the machine recited it, so it answered — else a
+ * broken backup would pass for a server not back after a reboot.
  */
 const JUDGED_ILL: ReadonlySet<string> = new Set([
   "serveur_disque",
   "serveur_port",
   "serveur_quorum",
+  "sauvegarde",
 ]);
 
 /**

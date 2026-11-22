@@ -71,6 +71,8 @@ Une difficulté que Legion n'avait pas : **Cénacle ne se connecte jamais en roo
 - **P0** — cet ADR, pour relecture.
 - **S1** — le lecteur du Mac accepte la version 3 ; puis le bulletin version 3, à installer par moi sur les deux nœuds, après la vérification des droits du point 1. La page n'en montre rien de plus.
 - **S2** — une fois la ronde basculée sur `cenacle` (ADR-0040, R3) : le jugement, `sauvegardes = […]` dans `parc.local.toml`, le type de constat `sauvegarde`, la preuve de l'opérateur et la comparaison ajustées, la rubrique « Sauvegardes » de l'onglet Parc ; la veille de Legion continue.
+
+  *Précision du 22/11, au code de S2 :* la ronde a basculé le 22/11 et Legion est arrêté (ADR-0040, R4) : **la comparaison des deux rondes n'existe plus**, il n'y a rien à y ajuster (point 3). S2 se fait en deux PR : **S2a**, le jugement, la clé `sauvegardes`, le type `sauvegarde` et la preuve de l'opérateur ; **S2b**, la rubrique de l'onglet Parc. Les constats `sauvegarde` sont de gravité **élevée** (*choisi le 22/11*) : un échec de la nuit arrive avec le rapport du matin, il ne réveille pas. Le motif « bulletin trop ancien » devient lui aussi un constat `sauvegarde` (occurrence `bulletin`), pour qu'une machine qui a répondu ne passe jamais pour une machine absente.
 - **S3** — après sept jours et ma vérification : l'arrêt de `fr.gnaro.copie-dumps` et de sa note, par moi.
 
 ## Conséquences

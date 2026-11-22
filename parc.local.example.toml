@@ -18,6 +18,10 @@
 #                   jokers: tailnet/tcp/*, tailnet/udp/*, local/tcp/* (32768 and up)
 #   disque_avertir  SOUFFRANT from this percent (80 by default)
 #   disque_alerter  MALADE from this percent (90 by default)
+#   sauvegardes     the backup verdicts its bulletin must recite (ADR-0043), among
+#                   copie-dumps, veiller-sauvegardes, copie-bases, myriade-base,
+#                   copie-cenacle; a declared one ill, missing, unreadable, older
+#                   than 36 h or from the future: MALADE. None declared, none judged.
 
 known_hosts = "/Users/exemple/.ssh/cenacle/known_hosts"
 
