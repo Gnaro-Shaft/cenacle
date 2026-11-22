@@ -50,5 +50,6 @@ Elles sont rédigées en français (le code et le README sont en anglais).
 | [0043](0043-veille-des-sauvegardes.md) | La veille des sauvegardes : lue par la ronde, sans root, sans Legion | Acceptée |
 | [0044](0044-copie-de-la-base.md) | La copie de la base : ce qui ne se relit pas, chiffré, hors du Mac | Acceptée |
 | [0045](0045-configurations-du-homelab.md) | Les configurations du homelab : rapatriées de Legion, à l'identique, sans vrai nom | Acceptée |
+| [0046](0046-retrait-de-legion.md) | Le retrait de Legion : sa confiance révoquée, ses traces retirées, ses données tranchées | Acceptée |
 
 Les règles dures qui s'appliquent à tout le code sont dans [`../charte.md`](../charte.md).
