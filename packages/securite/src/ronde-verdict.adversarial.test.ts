@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { Bulletin } from "./bulletin.ts";
 import { legionView, parseLegionVerdict } from "./parse-legion.ts";
 import { failureVerdict, judge } from "./ronde-rules.ts";
+import { CENACLE_STALE_MS } from "./ronde-source.ts";
 import { type NamedVerdict, verdictText } from "./ronde-verdict.ts";
 
 const INSTANT = 1_794_679_266;
@@ -92,11 +93,13 @@ describe("read back by the security agent (parse-legion.ts)", () => {
   const text = verdictText(EVERYTHING, INSTANT);
 
   it("none refused: every motif is in the words it accepts", () => {
-    expect(() => parseLegionVerdict(text, NOW_MS)).not.toThrow();
+    expect(() => parseLegionVerdict(text, NOW_MS, CENACLE_STALE_MS)).not.toThrow();
   });
 
   it("each judged motif is the finding it always was", () => {
-    const found = parseLegionVerdict(text, NOW_MS).filter((o) => o.target === "alpha");
+    const found = parseLegionVerdict(text, NOW_MS, CENACLE_STALE_MS).filter(
+      (o) => o.target === "alpha",
+    );
     expect(found.map((o) => [o.type, o.occurrence])).toEqual([
       ["serveur_autre", "bulletin vieux de # s"],
       ["serveur_redemarrage", "-"],
@@ -116,7 +119,7 @@ describe("read back by the security agent (parse-legion.ts)", () => {
   });
 
   it("every host is seen, with its state, by the page's reader too", () => {
-    const view = legionView(text, NOW_MS);
+    const view = legionView(text, NOW_MS, CENACLE_STALE_MS);
     expect(view.state).toBe("MALADE");
     expect(view.stale).toBe(false);
     expect(view.hosts.map((h) => [h.name, h.state])).toEqual(
@@ -130,7 +133,9 @@ describe("read back by the security agent (parse-legion.ts)", () => {
   });
 
   it("a failure is a finding of its own, never a closed one", () => {
-    const failures = parseLegionVerdict(text, NOW_MS).filter((o) => o.target.startsWith("d"));
+    const failures = parseLegionVerdict(text, NOW_MS, CENACLE_STALE_MS).filter((o) =>
+      o.target.startsWith("d"),
+    );
     expect(failures).toHaveLength(6);
     expect(failures.every((o) => o.type === "serveur_autre" && o.severity === "moyen")).toBe(true);
   });
@@ -167,7 +172,7 @@ describe("one machine can never make the whole verdict unreadable", () => {
     const expect_ = { hostname: "alpha-host", ports: expected, diskWarn: 80, diskAlert: 90 };
     const v = judge("alpha", b, expect_, NOW_MS);
     const text = verdictText([{ name: "alpha", ...v }, healthy], INSTANT);
-    const found = parseLegionVerdict(text, NOW_MS);
+    const found = parseLegionVerdict(text, NOW_MS, CENACLE_STALE_MS);
     expect(found.filter((o) => o.type === "serveur_port")).toHaveLength(256);
     expect(found.filter((o) => o.type === "serveur_port_absent")).toHaveLength(256);
   });
@@ -181,7 +186,7 @@ describe("one machine can never make the whole verdict unreadable", () => {
     const alpha: NamedVerdict = { name: "alpha", state: "MALADE", motifs: [motif, reboot] };
     const text = verdictText([alpha, healthy], INSTANT);
     expect(text).toContain("alpha.motif1=motif hors forme — non recopie\n");
-    expect(parseLegionVerdict(text, NOW_MS).map((o) => o.type)).toEqual([
+    expect(parseLegionVerdict(text, NOW_MS, CENACLE_STALE_MS).map((o) => o.type)).toEqual([
       "serveur_autre",
       "serveur_redemarrage",
     ]);
@@ -192,6 +197,6 @@ describe("one machine can never make the whole verdict unreadable", () => {
     const text = verdictText([{ name: "alpha", state: "MALADE", motifs }], INSTANT);
     expect(text).toContain("alpha.motif99=motifs trop nombreux — les suivants non recopies\n");
     expect(text).not.toContain("alpha.motif100=");
-    expect(parseLegionVerdict(text, NOW_MS)).toHaveLength(99);
+    expect(parseLegionVerdict(text, NOW_MS, CENACLE_STALE_MS)).toHaveLength(99);
   });
 });

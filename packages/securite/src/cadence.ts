@@ -17,7 +17,7 @@ export const LOCAL_CHECKS: readonly string[] = [
   "firewall",
   "sip",
   "gatekeeper",
-  // Legion's verdict, a file on the Mac refreshed every 15 minutes (the bridge).
+  // The ronde's verdict, a file on the Mac refreshed every 5 minutes (ADR-0040).
   "legion_ronde",
 ];
 export const NETWORK_EVERY_MS = 3_600_000;

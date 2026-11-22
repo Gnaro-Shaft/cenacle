@@ -1,13 +1,15 @@
-// The servers' checks (ADR-0040, R3): the verdict of the source securite.toml
-// names, at that source's own limit; both rondes compared. A source that names
-// nothing, a verdict missing or too old: could not run — never a clean bill,
-// never the other ronde's verdict in its place.
-import { LEGION_VERDICT_PATH, RONDE_VERDICT_PATH } from "@cenacle/securite";
+// The servers' check (ADR-0040, R4): the verdict of Cénacle's ronde, at its own
+// limit, when securite.toml names it — one check, under the id it always had.
+// A source that names nothing, a verdict missing, too old or cut short: could
+// not run — never a clean bill, never Legion's old verdict in its place. The
+// comparison of the two rondes ended with Legion: no result of it, ever.
+import { RONDE_VERDICT_PATH } from "@cenacle/securite";
 import { describe, expect, it } from "vitest";
 import { rondeResults } from "./ronde-checks.ts";
 
 const NOW_S = 1_794_679_266;
 const NOW = NOW_S * 1000;
+const OLD_LEGION_PATH = `${process.env.HOME ?? ""}/Library/Caches/fr.gnaro.legion.ronde.verdict`;
 const verdict = (motif: string | null, minutes = 1) =>
   [
     `etat=${motif === null ? "SAIN" : "SOUFFRANT"}`,
@@ -24,86 +26,59 @@ const toml = (source: string) => `[ronde]\nsource = "${source}"\n`;
 const files =
   (legion: string | null, cenacle: string | null) =>
   (path: string): string | null =>
-    path === LEGION_VERDICT_PATH ? legion : path === RONDE_VERDICT_PATH ? cenacle : null;
-const run = (legion: string | null, cenacle: string | null, securiteToml: string) =>
+    path === OLD_LEGION_PATH ? legion : path === RONDE_VERDICT_PATH ? cenacle : null;
+const run = (legion: string | null, cenacle: string | null, securiteToml: string | null) =>
   rondeResults(files(legion, cenacle), securiteToml, NOW);
-const types = (r: ReturnType<typeof run>[number]) =>
-  r.ran ? r.observations.map((o) => o.type) : "could not run";
+const COULD_NOT_RUN = [{ check: "legion_ronde", ran: false }];
 
-describe("the servers' check reads the source chosen, and that one only", () => {
-  it("Legion's: its findings", () => {
-    const [servers] = run(LEGION, CENACLE, toml("legion"));
-    expect(servers?.check).toBe("legion_ronde");
-    expect(servers && types(servers)).toEqual(["serveur_redemarrage"]);
-  });
-
+describe("the servers' check reads Cénacle's ronde, and that one only", () => {
   it("Cénacle's: its findings, under the same check (open findings stay theirs)", () => {
-    const [servers] = run(LEGION, CENACLE, toml("cenacle"));
+    const results = run(LEGION, CENACLE, toml("cenacle"));
+    expect(results).toHaveLength(1);
+    const [servers] = results;
     expect(servers?.check).toBe("legion_ronde");
-    expect(servers && types(servers)).toEqual(["serveur_services"]);
+    expect(servers?.ran && servers.observations.map((o) => o.type)).toEqual(["serveur_services"]);
   });
 
-  it("no [ronde] at all: Legion's, as before", () => {
-    const [servers] = run(LEGION, CENACLE, "[serveurs]\nactif = true\n");
-    expect(servers && types(servers)).toEqual(["serveur_redemarrage"]);
+  it("Cénacle's at 19 minutes still proves", () => {
+    expect(run(LEGION, verdict(null, 19), toml("cenacle"))[0]?.ran).toBe(true);
   });
 
   it.each([
+    ["Legion named, its verdict fresh on the Mac", LEGION, CENACLE, toml("legion")],
+    ["no [ronde] at all (Legion's by default, before R4)", LEGION, CENACLE, "[serveurs]\n"],
     ["a source securite.toml does not name", LEGION, CENACLE, toml("cenacel")],
     ["securite.toml that does not parse", LEGION, CENACLE, "[ronde"],
-    ["Cénacle's chosen, and none written yet", LEGION, null, toml("cenacle")],
-    ["Cénacle's chosen, 21 minutes old", LEGION, verdict(null, 21), toml("cenacle")],
-    ["Legion's chosen, 46 minutes old", verdict(null, 46), CENACLE, toml("legion")],
-    ["Legion's chosen, cut short", LEGION.replace("\nfin=1", ""), CENACLE, toml("legion")],
-  ])("%s: could not run, the other ronde never read instead", (_what, legion, cenacle, text) => {
-    const [servers] = run(legion, cenacle, text);
-    expect(servers).toEqual({ check: "legion_ronde", ran: false });
+    ["securite.toml missing", LEGION, CENACLE, null],
+    ["Cénacle's, none written yet — Legion's there", LEGION, null, toml("cenacle")],
+    ["Cénacle's, 21 minutes old", LEGION, verdict(null, 21), toml("cenacle")],
+    ["Cénacle's, cut short", LEGION, CENACLE.replace("\nfin=1", ""), toml("cenacle")],
+  ])("%s: could not run, Legion's never read instead", (_what, legion, cenacle, text) => {
+    expect(run(legion, cenacle, text)).toEqual(COULD_NOT_RUN);
   });
 
-  it("Legion's chosen at 40 minutes still proves (its own limit), Cénacle's at 19 too", () => {
-    expect(run(verdict(null, 40), CENACLE, toml("legion"))[0]?.ran).toBe(true);
-    expect(run(LEGION, verdict(null, 19), toml("cenacle"))[0]?.ran).toBe(true);
+  it("Legion's old verdict file is never even opened", () => {
+    const opened: string[] = [];
+    const read = (path: string) => {
+      opened.push(path);
+      return path === RONDE_VERDICT_PATH ? CENACLE : LEGION;
+    };
+    rondeResults(read, toml("cenacle"), NOW);
+    rondeResults(read, toml("legion"), NOW);
+    expect(opened).toEqual([RONDE_VERDICT_PATH]);
   });
 
   it("a file that cannot be read (denied, a folder): could not run, nothing thrown", () => {
     const read = (): string | null => {
       throw new Error("EACCES");
     };
-    expect(rondeResults(read, toml("legion"), NOW)).toEqual([
-      { check: "legion_ronde", ran: false },
-      { check: "ronde_comparaison", ran: false },
-    ]);
-  });
-});
-
-describe("both rondes compared, whatever the source", () => {
-  it("each difference a finding", () => {
-    const [, compared] = run(LEGION, CENACLE, toml("legion"));
-    expect(compared?.check).toBe("ronde_comparaison");
-    expect(compared && types(compared)).toEqual(["ronde_ecart", "ronde_ecart"]);
+    expect(rondeResults(read, toml("cenacle"), NOW)).toEqual(COULD_NOT_RUN);
   });
 
-  it("compared even when securite.toml names no source", () => {
-    expect(run(LEGION, CENACLE, toml("cenacel"))[1]?.ran).toBe(true);
-  });
-
-  it.each([
-    ["Cénacle's missing", LEGION, null],
-    ["Legion's missing", null, CENACLE],
-    ["Cénacle's too old", LEGION, verdict(null, 21)],
-  ])("%s: could not run, never « no difference »", (_what, legion, cenacle) => {
-    expect(run(legion, cenacle, toml("legion"))[1]).toEqual({
-      check: "ronde_comparaison",
-      ran: false,
-    });
-  });
-});
-
-describe("what the review found (R3)", () => {
-  it("securite.toml missing: no source — the servers' check could not run", () => {
-    expect(rondeResults(files(LEGION, CENACLE), null, NOW)[0]).toEqual({
-      check: "legion_ronde",
-      ran: false,
-    });
+  it("no comparison of the two rondes, whatever the files", () => {
+    for (const text of [toml("cenacle"), toml("legion"), null]) {
+      const checks = run(LEGION, CENACLE, text).map((r) => r.check);
+      expect(checks).not.toContain("ronde_comparaison");
+    }
   });
 });

@@ -1,22 +1,17 @@
 /**
- * Reading Legion's ronde verdict (the bridge, ADR-0025): Legion watches the
- * servers around the clock from a machine always on, and leaves a raw copy of
- * its verdict on the Mac; each of its motifs becomes a finding here, followed
- * like any other. Strict: a verdict cut short, undated, from the future, too
- * old (three missed relays) or whose host count does not add up "could not
- * run" — it proves nothing and closes no server finding. Names, mounts and
+ * Reading a ronde verdict in Legion's format (ADR-0025, then ADR-0040): the
+ * format Legion's ronde wrote, kept by Cénacle's own ronde, so that the agent,
+ * the operator and the page read it unchanged. Since R4 (22/11/2026) only
+ * Cénacle's ronde writes one. Each motif becomes a finding, followed like any
+ * other. Strict: a verdict cut short, undated, from the future, older than its
+ * source's limit or whose host count does not add up "could not run" — it
+ * proves nothing and closes no server finding. Names, mounts and
  * ports are checked before any use; a number that changes (10 then 12
  * updates) keeps the same finding, a new port opens a new one.
  */
 import { plainOutput } from "./parse-mac.ts";
 import { CheckOutputError, type Observation, type Severity } from "./types.ts";
 
-export const LEGION_STALE_MS = 45 * 60_000;
-
-/** Where Legion's reader leaves the raw verdict (the bridge, ADR-0025); read by the agent and the operator. */
-export const LEGION_VERDICT_PATH =
-  process.env.LEGION_VERDICT_PATH ??
-  `${process.env.HOME ?? ""}/Library/Caches/fr.gnaro.legion.ronde.verdict`;
 const FUTURE_TOLERANCE_MS = 5 * 60_000;
 const HOST = /^[a-z0-9][a-z0-9-]{0,39}$/;
 const MOUNT = /^\/[A-Za-z0-9._/-]{0,100}$/;
@@ -152,7 +147,7 @@ export interface LegionView {
 }
 
 /** The verdict for the page: as strict as the check, except on its age (its source's limit). */
-export function legionView(raw: string, nowMs: number, staleMs = LEGION_STALE_MS): LegionView {
+export function legionView(raw: string, nowMs: number, staleMs: number): LegionView {
   const fields = verdictFields(raw);
   const at = Number(fields.get("instant")) * 1000;
   const age = nowMs - at;
@@ -212,14 +207,10 @@ function hostsOf(fields: ReadonlyMap<string, string>): string[] {
 }
 
 /** The verdict's findings; too old for its source (`staleMs`) or from the future, "could not run". */
-export function parseLegionVerdict(
-  raw: string,
-  nowMs: number,
-  staleMs = LEGION_STALE_MS,
-): Observation[] {
+export function parseLegionVerdict(raw: string, nowMs: number, staleMs: number): Observation[] {
   const fields = verdictFields(raw);
   const age = nowMs - Number(fields.get("instant")) * 1000;
-  // Too old (Legion: three relays missed; Cénacle: four passes) or from the future: no watch is seen.
+  // Too old (Cénacle: four passes missed) or from the future: no watch is seen.
   if (age > staleMs || age < -FUTURE_TOLERANCE_MS) throw fail();
   const out: Observation[] = [];
   for (const [key, value] of fields) {

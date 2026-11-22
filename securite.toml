@@ -41,11 +41,9 @@ actif = true
 actif = true
 
 [ronde]
-# Which ronde's verdict Cénacle believes (ADR-0040, R3): "legion" (its
-# verdict copied to the Mac every 15 minutes) or "cenacle" (Cénacle's own
-# ronde, every 5 minutes). The security agent compares both at every round
-# while both run; I switch here, by a pull request, once their differences
-# are explained — and back the same way. Anything else: no verdict is
+# Which ronde's verdict Cénacle believes (ADR-0040): "cenacle", its own ronde,
+# every 5 minutes — the only value since Legion stopped (R4, 22/11/2026).
+# Anything else, "legion" included, or the section removed: no verdict is
 # believed, and the operator does not act. Switched to "cenacle" on 22/11/2026,
 # after six days of comparison (ADR-0040, precision of that day).
 source = "cenacle"

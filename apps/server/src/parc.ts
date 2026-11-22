@@ -1,6 +1,6 @@
 /**
  * The Parc tab (14/11): what Cénacle already knows of the machines, in one
- * answer — Legion's verdict on the servers (the bridge, ADR-0025), the
+ * answer — the ronde's verdict on the servers (ADR-0040), the
  * security findings still open, the security agent's last round, the
  * sentinel's last word; the machines' measures, from the file the ronde
  * leaves (ADR-0040), and Proxmox's view of its nodes (ADR-0039).
@@ -19,7 +19,7 @@ const MAX_VERDICT = 64 * 1024;
 
 export interface ParcView {
   readonly at: string;
-  /** The chosen ronde's verdict (ADR-0040): its source named, « Legion » or « Cénacle ». */
+  /** The chosen ronde's verdict (ADR-0040): its source named, « Cénacle ». */
   readonly servers:
     | { readonly read: "missing" | "unreadable"; readonly source: string }
     /** securite.toml names no ronde: nothing is shown as known. */
@@ -63,7 +63,7 @@ export interface ParcDeps {
   readonly store: ParcStore;
   /** That ronde's raw verdict, or null when there is none. */
   readonly readVerdict: (source: RondeSource) => string | null;
-  /** Which ronde securite.toml names (ADR-0040); absent, Legion's; null, none readable. */
+  /** Which ronde securite.toml names (ADR-0040); absent, Cénacle's; null, none believed. */
   readonly source?: () => RondeSource | null;
   readonly now: () => Date;
   /** The machines' bulletins (machines.ts); absent, none are read. */
@@ -127,7 +127,7 @@ export function createParc(deps: ParcDeps): () => Promise<ParcView> {
     ]);
     return {
       at: now.toISOString(),
-      servers: servers(deps.readVerdict, deps.source ? deps.source() : "legion", now),
+      servers: servers(deps.readVerdict, deps.source ? deps.source() : "cenacle", now),
       findings: {
         counts: findings.counts,
         setAside: findings.setAside,

@@ -51,11 +51,9 @@ export const EXPIRE_ON_ABSENCE: readonly string[] = ["bulletin_avis"];
 
 /** Clearer words for the checks whose failure says something by itself. */
 const IMPOSSIBLE_TITLE: Readonly<Record<string, string>> = {
-  // The id stays Legion's until R4: the open findings keep it (ADR-0040).
+  // The id stayed Legion's after R4 (ADR-0040): its findings keep their history.
   legion_ronde:
     "La ronde qui juge les serveurs ne répond plus (verdict absent, périmé ou illisible), ou sa source dans securite.toml est illisible — plus rien ne surveille les serveurs",
-  ronde_comparaison:
-    "Les deux rondes n'ont pas pu être comparées : un des deux verdicts manque, est périmé ou illisible",
   certfr_alertes:
     "Les alertes du CERT-FR n'ont pas pu être lues (site injoignable, flux vide ou liste [bulletins] illisible)",
   certfr_avis:

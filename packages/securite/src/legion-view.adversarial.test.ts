@@ -2,7 +2,10 @@
 // but a stale verdict is shown — marked — instead of refused; the check
 // itself (parseLegionVerdict) still refuses it.
 import { describe, expect, it } from "vitest";
-import { LEGION_STALE_MS, legionView, parseLegionVerdict } from "./parse-legion.ts";
+import { legionView, parseLegionVerdict } from "./parse-legion.ts";
+
+// Each source gives its limit (ADR-0040); Legion's, with Legion, is gone.
+const STALE_MS = 20 * 60_000;
 
 const NOW = Date.parse("2026-11-14T18:00:00Z");
 const verdict = (instantMs: number, extra: string[] = []) =>
@@ -20,7 +23,7 @@ const verdict = (instantMs: number, extra: string[] = []) =>
 
 describe("legionView", () => {
   it("a fresh verdict: each host, its state, its motifs in words without the host", () => {
-    const view = legionView(verdict(NOW - 60_000), NOW);
+    const view = legionView(verdict(NOW - 60_000), NOW, STALE_MS);
     expect(view.state).toBe("SOUFFRANT");
     expect(view.stale).toBe(false);
     expect(view.hosts).toEqual([
@@ -38,9 +41,9 @@ describe("legionView", () => {
   });
 
   it("too old, or from the future: shown, marked stale — and still refused by the check", () => {
-    for (const at of [NOW - LEGION_STALE_MS - 60_000, NOW + 10 * 60_000]) {
-      expect(legionView(verdict(at), NOW).stale).toBe(true);
-      expect(() => parseLegionVerdict(verdict(at), NOW)).toThrow();
+    for (const at of [NOW - STALE_MS - 60_000, NOW + 10 * 60_000]) {
+      expect(legionView(verdict(at), NOW, STALE_MS).stale).toBe(true);
+      expect(() => parseLegionVerdict(verdict(at), NOW, STALE_MS)).toThrow();
     }
   });
 
@@ -54,16 +57,20 @@ describe("legionView", () => {
     ["an undated verdict", verdict(NOW).replace(/instant=\d+/, "instant=hier")],
     ["a motif with characters Legion never writes", verdict(NOW, ["alpha.motif1=<b>{x}</b>"])],
   ])("%s: refused whole, never half shown", (_what, raw) => {
-    expect(() => legionView(raw, NOW)).toThrow();
+    expect(() => legionView(raw, NOW, STALE_MS)).toThrow();
   });
 
   it("a control character in a motif is taken out, never shown", () => {
-    const view = legionView(verdict(NOW, ["alpha.motif1=disque / occupe a 95 %\u0007"]), NOW);
+    const view = legionView(
+      verdict(NOW, ["alpha.motif1=disque / occupe a 95 %\u0007"]),
+      NOW,
+      STALE_MS,
+    );
     expect(view.hosts[0]?.motifs).toEqual(["disque / occupé à 95 %"]);
   });
 
   it("the check reads the same verdict as before the split", () => {
-    const found = parseLegionVerdict(verdict(NOW - 60_000), NOW);
+    const found = parseLegionVerdict(verdict(NOW - 60_000), NOW, STALE_MS);
     expect(found.map((o) => o.type)).toEqual([
       "serveur_redemarrage",
       "serveur_port_absent",

@@ -129,7 +129,7 @@ describe("the servers, never healthy by default", () => {
   ];
   it.each(cases)("%s: %s", async (_what, read, expected) => {
     const view = await parcWith(read)();
-    expect(view.servers).toEqual({ read: expected, source: "Legion" });
+    expect(view.servers).toEqual({ read: expected, source: "Cénacle" });
   });
 
   it("a stale verdict is shown, marked stale", async () => {
@@ -138,8 +138,8 @@ describe("the servers, never healthy by default", () => {
   });
 });
 
-describe("the servers' verdict comes from the ronde securite.toml names (ADR-0040, R3)", () => {
-  const withSource = (source: "legion" | "cenacle" | null, readVerdict: () => string | null) =>
+describe("the servers' verdict comes from the ronde securite.toml names (ADR-0040, R4)", () => {
+  const withSource = (source: "cenacle" | null, readVerdict: () => string | null) =>
     createParc({ store, readVerdict, source: () => source, now: () => NOW });
 
   it("Cénacle's: shown, its source named", async () => {
@@ -147,11 +147,11 @@ describe("the servers' verdict comes from the ronde securite.toml names (ADR-004
     expect(view.servers).toMatchObject({ read: "ok", source: "Cénacle", stale: false });
   });
 
-  it("Cénacle's at 21 minutes: marked stale (four passes missed), where Legion's would not be", async () => {
+  it("Cénacle's at 21 minutes: marked stale (four passes missed); at 19, not", async () => {
     expect((await withSource("cenacle", () => verdict(21))()).servers).toMatchObject({
       stale: true,
     });
-    expect((await withSource("legion", () => verdict(21))()).servers).toMatchObject({
+    expect((await withSource("cenacle", () => verdict(19))()).servers).toMatchObject({
       stale: false,
     });
   });
