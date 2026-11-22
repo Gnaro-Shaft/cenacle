@@ -1,6 +1,6 @@
 # ADR-0046 — Le retrait de Legion : sa confiance révoquée, ses traces retirées, ses données tranchées
 
-**Statut** : proposée (2026-11-22) — fait suite à l'ADR-0040 (palier R4 : Legion arrêté le 22/11) et à l'ADR-0045 (ce qui devait survivre est rapatrié dans `deploy/homelab/`) ; tranche ce que l'ADR-0043, point 5, renvoyait à l'archivage de Legion (le sort des copies de ses bases)
+**Statut** : acceptée (2026-11-22) — fait suite à l'ADR-0040 (palier R4 : Legion arrêté le 22/11) et à l'ADR-0045 (ce qui devait survivre est rapatrié dans `deploy/homelab/`) ; tranche ce que l'ADR-0043, point 5, renvoyait à l'archivage de Legion (le sort des copies de ses bases)
 
 ## Contexte
 
