@@ -4,6 +4,7 @@
  * values the parsers checked — never copied from a tool's output, never
  * written by the model. The agent proposes; I run it myself, or not.
  */
+import { BACKUP_SOURCES } from "./bulletin-backups.ts";
 import { NPM_NAME, SEMVER } from "./parse-npm.ts";
 import type { FindingKey } from "./types.ts";
 
@@ -160,6 +161,17 @@ const CATALOGUE: Readonly<Record<string, Builder>> = {
     advice: `${on(p)}relancer les services qui tournent sur une bibliothèque remplacée (la liste d'abord).`,
     command: "sudo needrestart -r l",
   }),
+  // The backups (ADR-0043): read on the server, never a button — nothing to act on from here.
+  sauvegarde: (_k, p) => {
+    const source = BACKUP_SOURCES.find((s) => s === p.source);
+    return {
+      advice:
+        source === undefined
+          ? `${on(p)}le bulletin ne récite pas les sauvegardes : le mettre à jour (version 3, deploy/serveurs).`
+          : `${on(p)}lire le verdict de ${source} et ses motifs ; une source sans verdict, c'est son écrivain qui ne tourne plus.`,
+      command: source === undefined ? null : `cat /var/lib/${source}/verdict`,
+    };
+  },
   serveur_autre: (_k, p) => ({
     advice: `${on(p)}motif signalé par la ronde : à examiner sur la machine.`,
     command: null,

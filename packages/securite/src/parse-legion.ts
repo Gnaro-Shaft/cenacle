@@ -9,7 +9,9 @@
  * ports are checked before any use; a number that changes (10 then 12
  * updates) keeps the same finding, a new port opens a new one.
  */
+import { BACKUP_SOURCES } from "./bulletin-backups.ts";
 import { plainOutput } from "./parse-mac.ts";
+import { BACKUP_WORDS, BACKUPS_NOT_RECITED } from "./ronde-backups.ts";
 import { CheckOutputError, type Observation, type Severity } from "./types.ts";
 
 const FUTURE_TOLERANCE_MS = 5 * 60_000;
@@ -42,6 +44,42 @@ const finding = (
   title,
   params: { host, ...params },
 });
+
+/** As the page and the report say it, accents restored. */
+const BACKUP_TITLE: Readonly<Record<string, string>> = {
+  [BACKUP_WORDS.ill]: "MALADE",
+  [BACKUP_WORDS.unreadable]: "illisible",
+  [BACKUP_WORDS.missing]: "sans verdict",
+  [BACKUP_WORDS.stale]: "sans verdict depuis 36 h",
+  [BACKUP_WORDS.future]: "datée du futur",
+};
+const BACKUP_MOTIF = new RegExp(
+  `^sauvegarde (${BACKUP_SOURCES.join("|")}) (${Object.values(BACKUP_WORDS).join("|")})$`,
+);
+
+/** A backup motif of the ronde as its finding; null for any other motif. */
+function backupFinding(host: string, motif: string): Observation | null {
+  if (motif === BACKUPS_NOT_RECITED) {
+    return finding(
+      host,
+      "sauvegarde",
+      "bulletin",
+      "eleve",
+      `${host} : sauvegardes non récitées (bulletin trop ancien)`,
+    );
+  }
+  const m = BACKUP_MOTIF.exec(motif);
+  if (m === null) return null;
+  const [source = "", words = ""] = [m[1], m[2]];
+  return finding(
+    host,
+    "sauvegarde",
+    source,
+    "eleve",
+    `${host} : sauvegarde ${source} ${BACKUP_TITLE[words] ?? words}`,
+    { source },
+  );
+}
 
 /** One of Legion's motifs, as findings (several for a list of ports). */
 export function classifyMotif(host: string, motif: string): Observation[] {
@@ -123,6 +161,10 @@ export function classifyMotif(host: string, motif: string): Observation[] {
       ),
     ];
   }
+  // The backups (ADR-0043, point 3): their own type, fixed words, the machine
+  // and the source — never a writer's motif, which the bulletin never recites.
+  const backup = backupFinding(host, motif);
+  if (backup !== null) return [backup];
   // Any other motif: kept, under its words without their numbers.
   const occurrence = motif.toLowerCase().replace(/\d+/g, "#").slice(0, 60);
   return [finding(host, "serveur_autre", occurrence, "moyen", `${host} : ${motif.slice(0, 200)}`)];

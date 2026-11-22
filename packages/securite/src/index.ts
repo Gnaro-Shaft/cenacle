@@ -171,6 +171,13 @@ export {
   type TrustLine,
 } from "./report.ts";
 export {
+  BACKUP_FUTURE_MS,
+  BACKUP_STALE_MS,
+  BACKUP_WORDS,
+  BACKUPS_NOT_RECITED,
+  backupMotifs,
+} from "./ronde-backups.ts";
+export {
   type BulletinMeasures,
   MAX_BULLETINS_FILE,
   type MachineRead,

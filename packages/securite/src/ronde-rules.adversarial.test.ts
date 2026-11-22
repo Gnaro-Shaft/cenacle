@@ -29,6 +29,7 @@ const EXPECT: MachineExpectation = {
   ports: ["tcp/22"],
   diskWarn: 80,
   diskAlert: 90,
+  backups: [],
 };
 type Health = NonNullable<Bulletin["health"]>;
 const withHealth = (h: Partial<Health>): Bulletin => ({

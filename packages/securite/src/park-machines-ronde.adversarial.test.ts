@@ -23,6 +23,7 @@ describe("what the ronde expects", () => {
       ports: [],
       diskWarn: 80,
       diskAlert: 90,
+      backups: [],
     });
   });
 
@@ -30,12 +31,14 @@ describe("what the ronde expects", () => {
     const text = machine(`hote = "alpha-host.exemple"
 ports = ["tcp/22", "local/tcp/25", "tailnet/udp/41641", "tailnet/tcp/*", "local/tcp/*"]
 disque_avertir = 70
-disque_alerter = 85`);
+disque_alerter = 85
+sauvegardes = ["copie-dumps", "veiller-sauvegardes"]`);
     expect(parseParkMachines(text).machines[0]?.expect).toEqual({
       hostname: "alpha-host.exemple",
       ports: ["tcp/22", "local/tcp/25", "tailnet/udp/41641", "tailnet/tcp/*", "local/tcp/*"],
       diskWarn: 70,
       diskAlert: 85,
+      backups: ["copie-dumps", "veiller-sauvegardes"],
     });
   });
 

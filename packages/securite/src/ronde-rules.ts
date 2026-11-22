@@ -11,6 +11,8 @@
  * with ssh's error output.
  */
 import type { Bulletin } from "./bulletin.ts";
+import type { BackupSource } from "./bulletin-backups.ts";
+import { backupMotifs } from "./ronde-backups.ts";
 
 export type RondeState = "SAIN" | "SOUFFRANT" | "MALADE";
 
@@ -27,6 +29,8 @@ export interface MachineExpectation {
   readonly ports: readonly string[];
   readonly diskWarn: number;
   readonly diskAlert: number;
+  /** The backup sources it must recite (ADR-0043); none, none judged. */
+  readonly backups: readonly BackupSource[];
 }
 
 /** Legion's three jokers, the only ones (its ADR-029). */
@@ -193,6 +197,9 @@ export function judge(
         : "";
     found.push(["MALADE", `grappe sans quorum${votes} — /etc/pve en lecture seule`]);
   }
+
+  // The backups last (ADR-0043): Legion's motifs keep their order.
+  found.push(...backupMotifs(b, expected.backups));
 
   return { state: worstState(found.map(([s]) => s)), motifs: found.map(([, m]) => m) };
 }

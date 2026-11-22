@@ -169,7 +169,13 @@ describe("one machine can never make the whole verdict unreadable", () => {
       },
       backups: null,
     };
-    const expect_ = { hostname: "alpha-host", ports: expected, diskWarn: 80, diskAlert: 90 };
+    const expect_ = {
+      hostname: "alpha-host",
+      ports: expected,
+      diskWarn: 80,
+      diskAlert: 90,
+      backups: [],
+    };
     const v = judge("alpha", b, expect_, NOW_MS);
     const text = verdictText([{ name: "alpha", ...v }, healthy], INSTANT);
     const found = parseLegionVerdict(text, NOW_MS, CENACLE_STALE_MS);
