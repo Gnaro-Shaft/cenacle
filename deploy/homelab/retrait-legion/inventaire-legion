@@ -1,0 +1,263 @@
+#!/bin/bash
+# Inventaire de ce que Legion a laissé sur une machine (ADR-0046, point 3).
+#
+# **Il ne fait que lire.** Il cherche une liste fermée de traces — celles que le
+# dépôt de Legion dit avoir posées — et dit pour chacune PRÉSENTE, absente ou
+# ILLISIBLE. Jamais « absente » quand il n'a pas pu lire : un inventaire qui se
+# tait sur ce qu'il ne voit pas ferait croire à une machine propre.
+#
+# **Il n'affiche aucun contenu** : ni clé, ni ligne de fichier, ni nom de fichier
+# de données. Une ligne de clé se compte ; un dossier se dit présent avec sa
+# taille ; un compte humain se désigne par son uid. Les erreurs des commandes
+# vont à /dev/null : elles nommeraient des fichiers.
+#
+# **Il ne suit aucun lien symbolique.** Un lien qui porte un nom de la liste est
+# une trace (PRÉSENTE, non suivi) ; un chemin qui passe par un lien est ILLISIBLE.
+# Seule exception, nommée : sur un nœud, le authorized_keys de root est un lien
+# vers /etc/pve/priv/authorized_keys, que l'inventaire lit par son propre chemin.
+#
+# **Il ignore les pièces gardées exprès** (52legion-redemarrage, la règle udev et
+# les unités rebrancher-nic0, attendre-la-grappe, les unités passagères
+# legion-maj-*, zz-cenacle.conf) : elles servent Cénacle sous leur vieux nom.
+#
+# Sortie : 0 « rien ne reste » ; 1 quelque chose reste ; 2 rien de présent, mais
+# quelque chose n'a pas pu être lu.
+#
+# Pour les épreuves : INVENTAIRE_RACINE préfixe chaque chemin (une racine
+# factice), INVENTAIRE_TAILSCALE désigne le client tailscale.
+set -u
+
+R="${INVENTAIRE_RACINE:-}"
+TAILSCALE="${INVENTAIRE_TAILSCALE:-tailscale}"
+
+# Les lignes de clés qui nomment Legion : les commentaires de ses clés et les
+# commandes auxquelles elles sont contraintes, en minuscules (la casse d'une
+# ligne n'y change rien). Rien d'autre n'est compté.
+MARQUES="ronde-legion legion-bulletin veilleur-legion copie-bases /.legion/"
+
+# Ses unités, posées sous /etc/systemd/system (son dossier deploiement/).
+UNITES="legion.service legion.timer legion-sante.service legion-sante.timer
+legion-travaux.service legion-travaux.timer legion-fenetre.service
+veilleur-legion.service veilleur-legion.timer copie-bases.service copie-bases.timer"
+
+PRESENTES=0
+ILLISIBLES=0
+RESTE=""
+
+dire() { # $1 mot, $2 libellé — alignés à la main : printf compte les octets, pas les lettres
+  case "$1" in
+    PRÉSENTE) printf 'PRÉSENTE  %s\n' "$2" ;;
+    absente) printf 'absente   %s\n' "$2" ;;
+    *) printf 'ILLISIBLE %s\n' "$2" ;;
+  esac
+  case "$1" in
+    PRÉSENTE) PRESENTES=$((PRESENTES + 1)); RESTE="$RESTE  $2"$'\n' ;;
+    ILLISIBLE) ILLISIBLES=$((ILLISIBLES + 1)) ;;
+  esac
+}
+
+# L'état d'un chemin, sans suivre aucun lien : absente, presente, lien, illisible.
+etat() {
+  local abs="$1" reste="${1#/}" pre="" part
+  if [ ! -d "$R/" ] || [ ! -x "$R/" ]; then ETAT=illisible; return; fi
+  while [ "${reste#*/}" != "$reste" ]; do
+    part="${reste%%/*}"
+    reste="${reste#*/}"
+    pre="$pre/$part"
+    if [ -L "$R$pre" ]; then ETAT=illisible; return; fi
+    if [ ! -e "$R$pre" ]; then ETAT=absente; return; fi
+    if [ ! -d "$R$pre" ]; then ETAT=absente; return; fi
+    if [ ! -x "$R$pre" ]; then ETAT=illisible; return; fi
+  done
+  if [ -L "$R$abs" ]; then ETAT=lien
+  elif [ -e "$R$abs" ]; then ETAT=presente
+  else ETAT=absente
+  fi
+}
+
+# Un fichier ou un dossier nommé : sa présence suffit.
+chemin() { # $1 chemin, $2 libellé
+  etat "$1"
+  case "$ETAT" in
+    presente)
+      if [ -d "$R$1" ]; then dire PRÉSENTE "$2 — $(taille "$R$1")"
+      else dire PRÉSENTE "$2"
+      fi ;;
+    lien) dire PRÉSENTE "$2 (un lien, non suivi)" ;;
+    illisible) dire ILLISIBLE "$2" ;;
+    *) dire absente "$2" ;;
+  esac
+}
+
+# La taille d'un dossier, sans nom de fichier ni lien suivi (du -P).
+taille() {
+  local k
+  k="$(du -skP -- "$1" 2>/dev/null | cut -f1)"
+  if [ -z "$k" ]; then printf 'taille illisible'
+  elif du -skP -- "$1" >/dev/null 2>&1; then printf '%s Kio' "$k"
+  else printf 'au moins %s Kio, une part illisible' "$k"
+  fi
+}
+
+# Le nombre de lignes de clés qui nomment Legion, hors commentaires.
+compter() { # $1 fichier réel
+  awk -v marques="$MARQUES" '
+    BEGIN { n = split(marques, m, " "); c = 0 }
+    /^[[:space:]]*#/ { next }
+    { for (i = 1; i <= n; i++) if (index(tolower($0), m[i])) { c++; break } }
+    END { print c }' "$1" 2>/dev/null
+}
+
+cles() { # $1 chemin d'un authorized_keys, $2 libellé
+  local n
+  etat "$1"
+  case "$ETAT" in
+    absente) dire absente "$2" ; return ;;
+    illisible) dire ILLISIBLE "$2" ; return ;;
+    lien)
+      if [ "$1" = /root/.ssh/authorized_keys ] &&
+        [ "$(readlink -- "$R$1")" = /etc/pve/priv/authorized_keys ]; then
+        # Sa cible doit se lire : /etc/pve vide ou mort (pve-cluster arrêté) la
+        # ferait dire absente, et ses lignes ne seraient comptées nulle part.
+        etat /etc/pve/priv/authorized_keys
+        if [ "$ETAT" = presente ] && [ -f "$R/etc/pve/priv/authorized_keys" ] &&
+          [ -r "$R/etc/pve/priv/authorized_keys" ]; then
+          printf -- '-         %s\n' "$2 : un lien vers /etc/pve/priv/authorized_keys, compté là"
+        else
+          dire ILLISIBLE "$2 (un lien vers /etc/pve/priv/authorized_keys, introuvable : /etc/pve est-il monté ?)"
+        fi
+      else
+        dire ILLISIBLE "$2 (un lien, non suivi)"
+      fi
+      return ;;
+  esac
+  if [ ! -f "$R$1" ] || [ ! -r "$R$1" ] || ! n="$(compter "$R$1")" || [ -z "$n" ]; then
+    dire ILLISIBLE "$2"
+  elif [ "$n" -gt 0 ]; then
+    dire PRÉSENTE "$2 : $n ligne(s) de Legion"
+  else
+    dire absente "$2"
+  fi
+}
+
+if [ "$(id -u)" -ne 0 ]; then
+  echo "attention : lancé sans être root — ce qui ne se lit pas se dit ILLISIBLE"
+fi
+
+echo "== L2 · les lignes de clés autorisées"
+cles /root/.ssh/authorized_keys "authorized_keys de root"
+cles /root/.ssh/authorized_keys2 "authorized_keys2 de root"
+cles /etc/pve/priv/authorized_keys "authorized_keys de la grappe (/etc/pve/priv)"
+cles /home/ronde/.ssh/authorized_keys "authorized_keys de ronde"
+etat /etc/passwd
+if [ "$ETAT" = presente ] && [ -r "$R/etc/passwd" ]; then
+  while IFS=: read -r uid home; do
+    case "$home" in /*) ;; *) continue ;; esac
+    [ "$home" = /home/ronde ] && continue # déjà lu, plus haut
+    cles "$home/.ssh/authorized_keys" "authorized_keys du compte d'uid $uid"
+    cles "$home/.ssh/authorized_keys2" "authorized_keys2 du compte d'uid $uid"
+  done < <(awk -F: '$1 == "ronde" || ($3 >= 1000 && $3 < 65534) { print $3 ":" $6 }' "$R/etc/passwd" 2>/dev/null)
+else
+  dire ILLISIBLE "les comptes humains (/etc/passwd)"
+fi
+
+echo "== L2 · les clés de Legion"
+for k in ronde veilleur-legion copie-bases; do
+  chemin "/root/.ssh/$k" "clé privée /root/.ssh/$k"
+  chemin "/root/.ssh/$k.pub" "clé publique /root/.ssh/$k.pub"
+done
+
+echo "== L2 · le compte ronde et ses règles sudo"
+etat /etc/passwd
+if [ "$ETAT" != presente ] || [ ! -r "$R/etc/passwd" ]; then
+  dire ILLISIBLE "le compte ronde (/etc/passwd)"
+elif awk -F: '$1 == "ronde" { t = 1 } END { exit !t }' "$R/etc/passwd" 2>/dev/null; then
+  dire PRÉSENTE "le compte ronde"
+else
+  dire absente "le compte ronde"
+fi
+chemin /home/ronde "le dossier /home/ronde"
+chemin /etc/sudoers.d/ronde-redemarrages "/etc/sudoers.d/ronde-redemarrages"
+chemin /etc/sudoers.d/ronde-grappe "/etc/sudoers.d/ronde-grappe"
+
+echo "== L2 · le proxy tailscale serve vers 127.0.0.1:8787"
+if ! command -v "$TAILSCALE" >/dev/null 2>&1; then
+  dire absente "tailscale serve (pas de tailscale)"
+elif ! servi="$(timeout 20 "$TAILSCALE" serve status 2>/dev/null)"; then
+  dire ILLISIBLE "tailscale serve status"
+elif printf '%s\n' "$servi" | grep -qE '(127\.0\.0\.1|localhost|\[::1\]):8787([^0-9]|$)'; then
+  dire PRÉSENTE "tailscale serve vers 127.0.0.1:8787"
+else
+  dire absente "tailscale serve vers 127.0.0.1:8787"
+fi
+unset servi
+
+echo "== L3 · les fichiers posés"
+for f in legion-bulletin-hote legion-bulletin veilleur-legion copier-les-bases; do
+  chemin "/usr/local/bin/$f" "/usr/local/bin/$f"
+done
+chemin /etc/needrestart/conf.d/legion.conf "/etc/needrestart/conf.d/legion.conf"
+etat /etc/needrestart/conf.d/legion.conf
+if [ "$ETAT" = presente ] || [ "$ETAT" = lien ]; then
+  etat /etc/needrestart/conf.d/zz-cenacle.conf
+  case "$ETAT" in
+    presente) echo "          garde : zz-cenacle.conf est là, legion.conf peut partir" ;;
+    illisible) echo "          garde : zz-cenacle.conf illisible, legion.conf reste" ;;
+    *) echo "          garde : zz-cenacle.conf ABSENT, legion.conf reste (deploy/serveurs/install.sh d'abord)" ;;
+  esac
+fi
+
+echo "== L3 · les unités"
+etat /etc/systemd/system
+if [ "$ETAT" != presente ] || [ ! -r "$R/etc/systemd/system" ]; then
+  dire ILLISIBLE "les unités (/etc/systemd/system)"
+else
+  for u in $UNITES; do chemin "/etc/systemd/system/$u" "unité $u"; done
+  for u in $UNITES; do
+    etat "/etc/systemd/system/$u.d"
+    [ "$ETAT" = absente ] || chemin "/etc/systemd/system/$u.d" "surcharge $u.d"
+  done
+  for e in "$R"/etc/systemd/system/legion*; do
+    n="${e##*/}"
+    case "$n" in
+      'legion*' | legion-maj-*) continue ;;
+      *.service | *.timer) ;;
+      *) continue ;;
+    esac
+    case " $(echo $UNITES) " in *" $n "*) continue ;; esac
+    dire PRÉSENTE "unité inattendue $n"
+  done
+  for w in "$R"/etc/systemd/system/*.wants; do
+    [ -d "$w" ] && [ ! -L "$w" ] || continue
+    if [ ! -r "$w" ] || [ ! -x "$w" ]; then dire ILLISIBLE "le dossier ${w##*/}"; continue; fi
+    for u in $UNITES; do
+      if [ -L "$w/$u" ] || [ -e "$w/$u" ]; then dire PRÉSENTE "lien d'activation ${w##*/}/$u"; fi
+    done
+  done
+fi
+
+echo "== L3 · les dossiers de travail (leur taille seule)"
+chemin /var/lib/legion-ronde "/var/lib/legion-ronde (son sel)"
+chemin /var/lib/veilleur-legion "/var/lib/veilleur-legion"
+chemin /var/lib/copie-bases "/var/lib/copie-bases (ne part qu'après S3)"
+chemin /root/veilleur "/root/veilleur"
+chemin /root/copie-bases "/root/copie-bases"
+
+echo "== L4 · les données (leur taille seule)"
+chemin /root/projects/legion "/root/projects/legion (son code et son .env)"
+chemin /root/storage/legion/.legion "/root/storage/legion/.legion (sa base et ses copies)"
+chemin /var/backups/legion-bases "/var/backups/legion-bases (les copies de ses bases)"
+
+echo "== bilan"
+if [ "$PRESENTES" -gt 0 ]; then
+  echo "reste $PRESENTES trace(s) :"
+  printf '%s' "$RESTE"
+  [ "$ILLISIBLES" -gt 0 ] && echo "et $ILLISIBLES lecture(s) impossible(s)"
+  exit 1
+fi
+if [ "$ILLISIBLES" -gt 0 ]; then
+  echo "rien de présent, mais $ILLISIBLES lecture(s) impossible(s) : relancer en root"
+  exit 2
+fi
+echo "rien ne reste"
+exit 0
