@@ -9,6 +9,7 @@
  * know, a value out of shape — the whole bulletin is unreadable.
  */
 import { BulletinError, whole } from "./bulletin-fields.ts";
+import type { Severity } from "./types.ts";
 
 /** The sources the bulletin may read, each at its fixed path (deploy/serveurs/cenacle-bulletin). */
 export const BACKUP_SOURCES = [
@@ -18,8 +19,48 @@ export const BACKUP_SOURCES = [
   "myriade-base",
   // Cénacle's own copy of its base, judged by veiller-copie-cenacle (ADR-0044, B2).
   "copie-cenacle",
+  // Not a backup: the house's weekly quality verdict (ADR-0047), same form.
+  "maison",
 ] as const;
 export type BackupSource = (typeof BACKUP_SOURCES)[number];
+
+export interface SourceFacts {
+  /** Where its writer leaves the verdict, on its machine. */
+  readonly path: string;
+  /** How I read it there by hand, motifs included. */
+  readonly read: string;
+  /** How the findings and the page name it. */
+  readonly name: string;
+  /** Its writer runs each night, or each week (ADR-0047). */
+  readonly rhythm: "nightly" | "weekly";
+  /** Its findings: a backup lost comes with the morning report (ADR-0043); a bad week of the house, less (ADR-0047). */
+  readonly severity: Severity;
+}
+
+const nightly = (source: string): SourceFacts => ({
+  path: `/var/lib/${source}/verdict`,
+  read: `cat /var/lib/${source}/verdict`,
+  name: `sauvegarde ${source}`,
+  rhythm: "nightly",
+  severity: "eleve",
+});
+
+/** What the bulletin, the ronde and the catalogue know of each source. */
+export const SOURCE_FACTS: Readonly<Record<BackupSource, SourceFacts>> = {
+  "copie-dumps": nightly("copie-dumps"),
+  "veiller-sauvegardes": nightly("veiller-sauvegardes"),
+  "copie-bases": nightly("copie-bases"),
+  "myriade-base": nightly("myriade-base"),
+  "copie-cenacle": nightly("copie-cenacle"),
+  maison: {
+    path: "/var/lib/maison/mesure/verdict",
+    // Its folder is closed to all but root; only the bulletin's account may pass (ADR-0047).
+    read: "sudo cat /var/lib/maison/mesure/verdict",
+    name: "mesure de la maison",
+    rhythm: "weekly",
+    severity: "moyen",
+  },
+};
 
 export type BackupState =
   | { readonly source: BackupSource; readonly read: "illisible" }
@@ -36,7 +77,7 @@ export type BackupState =
 
 /** A backup key: sauvegarde.<source>.<field>. */
 export const BACKUP_KEY =
-  /^sauvegarde\.(copie-dumps|veiller-sauvegardes|copie-bases|myriade-base|copie-cenacle)\.(lecture|verdict|instant|depuis|motifs)$/;
+  /^sauvegarde\.(copie-dumps|veiller-sauvegardes|copie-bases|myriade-base|copie-cenacle|maison)\.(lecture|verdict|instant|depuis|motifs)$/;
 
 const MAX_INSTANT = 99_999_999_999;
 const MAX_MOTIFS = 1000;

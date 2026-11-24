@@ -9,7 +9,7 @@
  * ports are checked before any use; a number that changes (10 then 12
  * updates) keeps the same finding, a new port opens a new one.
  */
-import { BACKUP_SOURCES } from "./bulletin-backups.ts";
+import { BACKUP_SOURCES, SOURCE_FACTS } from "./bulletin-backups.ts";
 import { plainOutput } from "./parse-mac.ts";
 import { BACKUP_WORDS, BACKUPS_NOT_RECITED } from "./ronde-backups.ts";
 import { CheckOutputError, type Observation, type Severity } from "./types.ts";
@@ -51,6 +51,7 @@ const BACKUP_TITLE: Readonly<Record<string, string>> = {
   [BACKUP_WORDS.unreadable]: "illisible",
   [BACKUP_WORDS.missing]: "sans verdict",
   [BACKUP_WORDS.stale]: "sans verdict depuis 36 h",
+  [BACKUP_WORDS.staleWeekly]: "sans verdict depuis 8 jours",
   [BACKUP_WORDS.future]: "datée du futur",
 };
 const BACKUP_MOTIF = new RegExp(
@@ -70,13 +71,16 @@ function backupFinding(host: string, motif: string): Observation | null {
   }
   const m = BACKUP_MOTIF.exec(motif);
   if (m === null) return null;
-  const [source = "", words = ""] = [m[1], m[2]];
+  const source = BACKUP_SOURCES.find((s) => s === m[1]);
+  const words = m[2] ?? "";
+  if (source === undefined) return null;
+  const facts = SOURCE_FACTS[source];
   return finding(
     host,
     "sauvegarde",
     source,
-    "eleve",
-    `${host} : sauvegarde ${source} ${BACKUP_TITLE[words] ?? words}`,
+    facts.severity,
+    `${host} : ${facts.name} ${BACKUP_TITLE[words] ?? words}`,
     { source },
   );
 }
