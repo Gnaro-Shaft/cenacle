@@ -63,6 +63,11 @@ La finalité de chacun de ces traitements a pris fin le 22/11 ; les garder sans 
    - le calendrier iCloud de Legion, supprimé chez Apple ;
    - **puis un `fstrim`** — `pct fstrim` du conteneur depuis son nœud, `fstrim` du volume des copies sur le nœud de sauvegarde : sur un volume fin, un fichier effacé reste lisible sur le disque tant que ses blocs ne sont pas rendus.
 
+   *Précision du 24/11, au bilan de L2 à L4 :* les paliers L2, L3 et L4 sont faits, de ma main, les 23 et 24/11 : chez les tiers, sur les cinq machines du parc, sur le Mac et dans le coffre. L'inventaire dit « rien ne reste » partout, **sauf sur le nœud de sauvegarde**, qui garde jusqu'à S3 ce que le point 3 lui réserve : `copie-bases.service|timer` (arrêtés, désactivés) et `/var/lib/copie-bases`. Ailleurs, les copies `/root/*.avant-legion` des fichiers de clés sont effacées ; sur ce nœud, les siennes, s'il en a, ne partiront qu'avec eux. Trois écarts au texte :
+   - **Pas de `fstrim` sur le nœud de sauvegarde.** Ses copies des bases n'étaient pas sur un volume fin, mais sur le volume système du nœud : un volume classique, sur un disque à plateaux, sans `discard`. `fstrim` y est refusé. Les blocs effacés restent donc sur le disque jusqu'à ce que d'autres écritures les recouvrent : les relire demande le root sur le nœud ou le disque en main. C'est accepté (*choisi le 24/11*) : réécrire tout l'espace libre remplirait le volume système d'un nœud de la grappe en service, et les sauvegardes du conteneur gardent de toute façon les mêmes données jusqu'à leur rotation. Celui du conteneur a bien rendu ses blocs.
+   - **`/root/storage/legion` reste**, sans `.legion` : il porte aussi la projection des projets du miroir, gardé (« Hors périmètre », plus bas). Le `rmdir` du `README` l'aurait refusé, comme prévu.
+   - **Une trace hors de la liste fermée** : une ancienne copie d'un minuteur de Legion, à côté de ses unités sur le conteneur, que systemd ignorait et que l'inventaire ne voyait pas. Elle est retirée avec les unités. L'inventaire ne cherche toujours que sa liste.
+
 
    **Ce qui s'efface seul, et quand** — dit plutôt que tu :
    - Myriade : ses 30 jours, au plus tard le 22/12 ;
