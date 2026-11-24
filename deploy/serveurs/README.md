@@ -110,6 +110,24 @@ Puis copie `parc.local.example.toml` en `parc.local.toml` (ignoré par git), une
 
 Pour chaque machine, déclare aussi ce que la ronde doit trouver : `hote`, le nom qu'elle récite (la ligne `hote=` de l'essai ci-dessus), et `ports`, les ports qu'elle doit écouter, écrits comme le bulletin les récite (`tcp/22`, `local/tcp/25`, `tailnet/udp/41641`, et les trois jokers de Legion). Tant qu'ils manquent, la machine est SOUFFRANTE — « rien n'est contrôlé » —, jamais SAINE par défaut. Un port qui écoute sans être déclaré la rend MALADE ; un port déclaré absent, SOUFFRANTE.
 
+## Une machine qu'on regarde sans y agir : la maison (ADR-0047)
+
+Sur une machine où Cénacle ne lance jamais rien — la VM de la maison, Legion v2 —, `install.sh --bulletin-seul` crée le compte `cenacle` et pose le bulletin, **rien d'autre** : aucun script d'action, aucune règle `sudo`, ni la garde de `needrestart` (inutile sans `sudo`). Il refuse une machine qui porte déjà les actions (`/etc/sudoers.d/cenacle`), un compte placé dans un autre groupe, et tout `sudo` qui accorderait quelque chose au compte. Le relancer est sans danger.
+
+```
+sudo ~/cenacle-serveurs/serveurs/install.sh --bulletin-seul
+```
+
+Le bulletin y récite **la mesure de la maison** comme une sixième source, `maison`, lue à son chemin fixe, `/var/lib/maison/mesure/verdict` (`sauvegarde.maison.verdict`, `.instant`, `.depuis`, `.motifs` : jamais le texte d'un motif). Son dossier est à root, `0750` : le compte n'a que le **passage**, sans liste ni lecture du dossier (paquet `acl`) — jamais `chmod o+x`, ni un changement de propriétaire :
+
+```
+sudo apt install acl
+sudo setfacl -m u:cenacle:--x /var/lib/maison/mesure
+sudo -u cenacle head -1 /var/lib/maison/mesure/verdict
+```
+
+La dernière ligne doit montrer `verdict=…` ; `sudo -u cenacle ls /var/lib/maison/mesure` doit être refusé. Le verdict doit être à la forme commune (`instant` en secondes) : sinon le bulletin le dit `illisible`. La ronde le juge sur **8 jours** (il s'écrit chaque lundi), pas 36 h. Le Mac doit être à jour **avant** que la VM ne récite la source. Puis la clé du bulletin et son épinglage, comme plus haut, et la machine dans `parc.local.toml` avec `sauvegardes = ["maison"]`.
+
 ## L'essai à la main, avant tout bouton
 
 Depuis le Mac (`<vps>` : son nom Tailscale) :

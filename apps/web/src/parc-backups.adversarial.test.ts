@@ -202,3 +202,28 @@ describe("what is never believed", () => {
     expect(s.lines[0]?.words).toBe("MALADE, tombée il y a 15 h · 1 motif");
   });
 });
+
+describe("the house's weekly quality verdict (ADR-0047)", () => {
+  it("stale: said after 8 days, not 36 hours; read with sudo, its folder is root's", () => {
+    const s = one(b({ source: "maison", judgment: "perimee", at: NOW - 9 * 24 * HOUR }));
+    expect(s.lines[0]).toMatchObject({
+      tone: "mauvais",
+      words: "sans verdict depuis 8 jours (le dernier il y a 9 j)",
+      command: "sudo cat /var/lib/maison/mesure/verdict",
+    });
+  });
+
+  it("ill: red, its motifs counted, never their text", () => {
+    const s = one(b({ source: "maison", judgment: "malade", verdict: "MALADE", motifs: 2 }));
+    expect(s.tone).toBe("mauvais");
+    expect(s.lines[0]?.words).toBe("MALADE, tombée il y a 15 h · 2 motifs");
+  });
+
+  it.each(["maison/mesure", "constructor", "__proto__"])(
+    "a look-alike (%s): no command",
+    (source) => {
+      const s = one(b({ source, judgment: "malade", verdict: "MALADE" }));
+      expect(s.lines[0]?.command).toBeNull();
+    },
+  );
+});

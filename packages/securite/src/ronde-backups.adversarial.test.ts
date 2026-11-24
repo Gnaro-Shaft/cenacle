@@ -7,7 +7,7 @@
 // too old to recite any. Host names here are fictional.
 import { describe, expect, it } from "vitest";
 import type { Bulletin } from "./bulletin.ts";
-import type { BackupSource, BackupState } from "./bulletin-backups.ts";
+import { BACKUP_SOURCES, type BackupSource, type BackupState } from "./bulletin-backups.ts";
 import { fixFor } from "./catalogue.ts";
 import { parseParkMachines } from "./park-machines.ts";
 import { classifyMotif, parseLegionVerdict, VERDICT_MOTIF } from "./parse-legion.ts";
@@ -279,7 +279,9 @@ ${extra}
     ["a number", "sauvegardes = [1]", /unknown backup source/],
     [
       "more than there are sources",
-      `sauvegardes = [${Array(6).fill('"copie-dumps"').join(", ")}]`,
+      `sauvegardes = [${Array(BACKUP_SOURCES.length + 1)
+        .fill('"copie-dumps"')
+        .join(", ")}]`,
       /list of known sources/,
     ],
   ])("%s: the whole file refused, the text never echoed", (_what, line, said) => {

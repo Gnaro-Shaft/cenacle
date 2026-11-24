@@ -4,7 +4,7 @@
  * values the parsers checked — never copied from a tool's output, never
  * written by the model. The agent proposes; I run it myself, or not.
  */
-import { BACKUP_SOURCES } from "./bulletin-backups.ts";
+import { BACKUP_SOURCES, SOURCE_FACTS } from "./bulletin-backups.ts";
 import { NPM_NAME, SEMVER } from "./parse-npm.ts";
 import type { FindingKey } from "./types.ts";
 
@@ -168,8 +168,10 @@ const CATALOGUE: Readonly<Record<string, Builder>> = {
       advice:
         source === undefined
           ? `${on(p)}le bulletin ne récite pas les sauvegardes : le mettre à jour (version 3, deploy/serveurs).`
-          : `${on(p)}lire le verdict de ${source} et ses motifs ; une source sans verdict, c'est son écrivain qui ne tourne plus.`,
-      command: source === undefined ? null : `cat /var/lib/${source}/verdict`,
+          : SOURCE_FACTS[source].rhythm === "weekly"
+            ? `${on(p)}lire le verdict de la ${SOURCE_FACTS[source].name} (coût de la semaine, échecs) et son bilan à côté ; sans verdict, son minuteur du lundi ne tourne plus.`
+            : `${on(p)}lire le verdict de ${source} et ses motifs ; une source sans verdict, c'est son écrivain qui ne tourne plus.`,
+      command: source === undefined ? null : SOURCE_FACTS[source].read,
     };
   },
   serveur_autre: (_k, p) => ({

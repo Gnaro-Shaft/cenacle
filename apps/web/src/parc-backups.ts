@@ -22,18 +22,23 @@ export interface BackupLine {
 }
 
 /**
- * The sources the bulletin may recite (deploy/serveurs/cenacle-bulletin):
- * a command is only ever built for one of these, whatever the file says.
+ * The sources the bulletin may recite (deploy/serveurs/cenacle-bulletin),
+ * with the command that reads each by hand: a command is only ever given
+ * for one of these, whatever the file says.
  */
-const SOURCES: readonly string[] = [
-  "copie-dumps",
-  "veiller-sauvegardes",
-  "copie-bases",
-  "myriade-base",
-  "copie-cenacle",
-];
+const COMMANDS: Readonly<Record<string, string>> = {
+  "copie-dumps": "cat /var/lib/copie-dumps/verdict",
+  "veiller-sauvegardes": "cat /var/lib/veiller-sauvegardes/verdict",
+  "copie-bases": "cat /var/lib/copie-bases/verdict",
+  "myriade-base": "cat /var/lib/myriade-base/verdict",
+  "copie-cenacle": "cat /var/lib/copie-cenacle/verdict",
+  // The house's weekly quality verdict, in a folder closed to all but root (ADR-0047).
+  maison: "sudo cat /var/lib/maison/mesure/verdict",
+};
 const commandFor = (source: string) =>
-  SOURCES.includes(source) ? `cat /var/lib/${source}/verdict` : null;
+  (Object.hasOwn(COMMANDS, source) ? COMMANDS[source] : null) ?? null;
+/** Its writer runs each week (ADR-0047): the ronde's limit is 8 days, not 36 hours. */
+const staleWords = (source: string) => (source === "maison" ? "8 jours" : "36 h");
 
 const when = (ms: number | null, now: number) =>
   ms === null ? "à une date inconnue" : ago(new Date(ms).toISOString(), now);
@@ -59,7 +64,10 @@ function judgedLine(machine: string, b: BackupView, now: number): BackupLine {
     case "absente":
       return line("mauvais", "sans verdict sur la machine");
     case "perimee":
-      return line("mauvais", `sans verdict depuis 36 h (le dernier ${when(b.at, now)})`);
+      return line(
+        "mauvais",
+        `sans verdict depuis ${staleWords(b.source)} (le dernier ${when(b.at, now)})`,
+      );
     case "future":
       return line("mauvais", "verdict daté du futur : horloge fausse, ou verdict forgé");
     default:

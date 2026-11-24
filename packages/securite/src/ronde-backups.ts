@@ -2,7 +2,7 @@
  * The backups, judged by the ronde (ADR-0043, point 2): for each source a
  * machine declares in parc.local.toml, what its version 3 bulletin recites.
  * MALADE when a declared source is ill, missing, unreadable, older than 36
- * hours or dated more than 5 minutes ahead — both measured against the
+ * hours (8 days for a weekly writer, ADR-0047) or dated more than 5 minutes ahead — both measured against the
  * bulletin's own instant, the server's clock, never the Mac's. A source
  * present but not declared is never judged. A machine that declares sources
  * while its bulletin recites none (versions 1 and 2) is MALADE, never healthy
@@ -13,11 +13,17 @@
  * the bulletin never recites one.
  */
 import type { Bulletin } from "./bulletin.ts";
-import type { BackupSource, BackupState } from "./bulletin-backups.ts";
+import { type BackupSource, type BackupState, SOURCE_FACTS } from "./bulletin-backups.ts";
 import type { RondeState } from "./ronde-rules.ts";
 
-/** Every writer runs each night: a day and a half without a verdict is a night missed. */
+/** A writer that runs each night: a day and a half without a verdict is a night missed. */
 export const BACKUP_STALE_MS = 36 * 3_600_000;
+/** A writer that runs each week (the house, ADR-0047): a week and a day. */
+export const WEEKLY_STALE_MS = 8 * 24 * 3_600_000;
+
+/** How old a source's verdict may be, by its writer's rhythm. */
+export const staleMsOf = (source: BackupSource): number =>
+  SOURCE_FACTS[source].rhythm === "weekly" ? WEEKLY_STALE_MS : BACKUP_STALE_MS;
 /** Ahead of the bulletin by more than this: a clock wrong, or a verdict forged. */
 export const BACKUP_FUTURE_MS = 5 * 60_000;
 
@@ -27,6 +33,7 @@ export const BACKUP_WORDS = {
   unreadable: "illisible",
   missing: "sans verdict",
   stale: "sans verdict depuis 36 h",
+  staleWeekly: "sans verdict depuis 8 j",
   future: "datee du futur",
 } as const;
 /** The motif of a machine declaring sources whose bulletin is too old to recite them. */
@@ -54,19 +61,29 @@ export interface JudgedBackup {
   readonly recited: BackupState | null;
 }
 
-const WORDS_OF: Readonly<Record<Exclude<BackupJudgment, "sain" | "non-declaree">, string>> = {
-  malade: BACKUP_WORDS.ill,
-  illisible: BACKUP_WORDS.unreadable,
-  absente: BACKUP_WORDS.missing,
-  perimee: BACKUP_WORDS.stale,
-  future: BACKUP_WORDS.future,
+const wordsOf = (
+  source: BackupSource,
+  judgment: Exclude<BackupJudgment, "sain" | "non-declaree">,
+): string => {
+  switch (judgment) {
+    case "malade":
+      return BACKUP_WORDS.ill;
+    case "illisible":
+      return BACKUP_WORDS.unreadable;
+    case "absente":
+      return BACKUP_WORDS.missing;
+    case "perimee":
+      return staleMsOf(source) === WEEKLY_STALE_MS ? BACKUP_WORDS.staleWeekly : BACKUP_WORDS.stale;
+    case "future":
+      return BACKUP_WORDS.future;
+  }
 };
 
 function judgeOne(b: Bulletin, s: BackupState | undefined): BackupJudgment {
   if (s === undefined) return "absente";
   if (s.read === "illisible") return "illisible";
   if (s.at - b.at > BACKUP_FUTURE_MS) return "future";
-  if (b.at - s.at > BACKUP_STALE_MS) return "perimee";
+  if (b.at - s.at > staleMsOf(s.source)) return "perimee";
   return s.verdict === "MALADE" ? "malade" : "sain";
 }
 
@@ -104,7 +121,7 @@ export function backupMotifs(
   const out: [RondeState, string][] = [];
   for (const { source, judgment } of judged) {
     if (judgment === "sain" || judgment === "non-declaree") continue;
-    out.push(["MALADE", `sauvegarde ${source} ${WORDS_OF[judgment]}`]);
+    out.push(["MALADE", `sauvegarde ${source} ${wordsOf(source, judgment)}`]);
   }
   return out;
 }
