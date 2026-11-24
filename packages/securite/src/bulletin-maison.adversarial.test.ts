@@ -1,8 +1,9 @@
 // ADR-0047, on the house's side, for real in a throwaway Debian: install.sh
-// --bulletin-seul (the account and the bulletin, nothing else — no action
-// script, no sudo rule, no needrestart guard; refused on a machine that has
-// Cénacle's actions, or whose sudo grants the account anything, or whose
-// account sits in another group), then the real bulletin, run as that
+// --bulletin-seul (the account, the bulletin, needrestart's guard and its one
+// list-only sudo rule — no action script, no rule for one; refused on a
+// machine that has Cénacle's actions, without needrestart, whose sudo grants
+// the account more, or whose account sits in another group), then the real
+// bulletin, run as that
 // account, reading the house's verdict in a folder that is root's, 0750,
 // which the account may only pass through (an ACL, --x). What it must never
 // do: read a verdict out of its form as SAIN (the house's ISO dates of
@@ -14,7 +15,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { parseBulletin } from "./bulletin.ts";
 
 const BASE = process.env.CENACLE_TEST_DEBIAN_IMAGE ?? "debian:stable-slim";
-const IMAGE = "cenacle-test-bulletin-seul:1";
+const IMAGE = "cenacle-test-bulletin-seul:2";
 const DEPLOY = join(import.meta.dirname, "..", "..", "..", "deploy", "serveurs");
 const FOLDER = "/var/lib/maison/mesure";
 
@@ -63,7 +64,7 @@ beforeAll(() => {
   const dockerfile = [
     "ARG BASE",
     "FROM $BASE",
-    "RUN apt-get update && apt-get install -y --no-install-recommends sudo acl && rm -rf /var/lib/apt/lists/*",
+    "RUN apt-get update && apt-get install -y --no-install-recommends sudo acl needrestart && rm -rf /var/lib/apt/lists/*",
   ].join("\n");
   execFileSync("docker", ["build", "-q", "--build-arg", `BASE=${BASE}`, "-t", IMAGE, "-"], {
     input: dockerfile,
@@ -77,35 +78,55 @@ afterAll(() => {
   if (docker) spawnSync("docker", ["rm", "-f", name], { stdio: "ignore" });
 });
 
+const RULES = "/etc/sudoers.d/cenacle-bulletin";
+const allowed = (cmd: string) => sh(`sudo -n -l -U cenacle -- ${cmd}`).code === 0;
+
 describe.skipIf(!docker)("install.sh --bulletin-seul", () => {
-  it("the account and the bulletin, nothing else", () => {
+  it("the account, the bulletin, needrestart's guard and its rule — no action", () => {
     expect(install.code, install.out).toBe(0);
     expect(sh("id -Gn cenacle").out.trim()).toBe("cenacle");
     expect(sh("passwd -S cenacle").out.split(" ")[1]).toBe("L");
     const mode = sh("stat -c '%U:%G %a' /usr/local/bin/cenacle-bulletin").out.trim();
     expect(mode).toBe("root:root 755");
+    expect(sh("cat /etc/needrestart/conf.d/zz-cenacle.conf").out).toContain("restart} = 'l'");
+    expect(sh(`stat -c '%U:%G %a' ${RULES}`).out.trim()).toBe("root:root 440");
+    expect(sh(`cat ${RULES}`).out.trim()).toBe(
+      "cenacle ALL=(root) NOPASSWD: /usr/sbin/needrestart -r l -b",
+    );
     for (const absent of [
       "/etc/sudoers.d/cenacle",
       "/usr/local/sbin/cenacle-services",
       "/usr/local/sbin/cenacle-redemarrer",
       "/usr/local/sbin/cenacle-maj-securite",
-      "/etc/needrestart/conf.d/zz-cenacle.conf",
       "/etc/cenacle",
     ]) {
       expect(sh(`test -e ${absent}`).code, absent).not.toBe(0);
     }
   });
 
-  it("sudo grants the account nothing", () => {
-    for (const cmd of ["/bin/sh", `/usr/bin/cat ${FOLDER}/verdict`, "/usr/bin/setfacl"]) {
-      expect(sh(`sudo -n -l -U cenacle -- ${cmd}`).code, cmd).not.toBe(0);
+  it("sudo: needrestart in list mode, and nothing else", () => {
+    expect(allowed("/usr/sbin/needrestart -r l -b")).toBe(true);
+    for (const cmd of [
+      "/usr/sbin/needrestart",
+      "/usr/sbin/needrestart -r a -b",
+      "/usr/sbin/needrestart -r l -b -r a",
+      "/bin/sh",
+      `/usr/bin/cat ${FOLDER}/verdict`,
+      "/usr/bin/setfacl",
+      "/usr/local/sbin/cenacle-services",
+      "/usr/bin/pvecm status",
+    ]) {
+      expect(allowed(cmd), cmd).toBe(false);
     }
-    expect(sh("sudo -n true", "cenacle").code).not.toBe(0);
+  });
+
+  it("the bulletin recites how many services wait — through that rule alone", () => {
+    expect(house().text).toMatch(/^services\.a_relancer=\d+$/m);
   });
 
   it("run again: the same, nothing more", () => {
     expect(sh("/d/install.sh --bulletin-seul").code).toBe(0);
-    expect(sh("ls /etc/sudoers.d").out).not.toContain("cenacle");
+    expect(sh("ls /etc/sudoers.d").out.match(/cenacle\S*/g)).toEqual(["cenacle-bulletin"]);
   });
 
   it.each([
@@ -123,10 +144,22 @@ describe.skipIf(!docker)("install.sh --bulletin-seul", () => {
       /actions are installed here/,
     ],
     [
-      "a rule elsewhere that grants the account something",
+      "needrestart missing",
+      "mv /usr/sbin/needrestart /usr/sbin/needrestart.x",
+      "mv /usr/sbin/needrestart.x /usr/sbin/needrestart",
+      /needrestart is required/,
+    ],
+    [
+      "a rule elsewhere that grants the account more",
       "echo 'cenacle ALL=(root) NOPASSWD: /bin/sh' > /etc/sudoers.d/autre && chmod 440 /etc/sudoers.d/autre",
       "rm -f /etc/sudoers.d/autre",
-      /sudo grants the account cenacle something/,
+      /sudo allows more than it should/,
+    ],
+    [
+      "a rule elsewhere that lets needrestart restart",
+      "echo 'cenacle ALL=(root) NOPASSWD: /usr/sbin/needrestart' > /etc/sudoers.d/autre && chmod 440 /etc/sudoers.d/autre",
+      "rm -f /etc/sudoers.d/autre",
+      /sudo allows more than it should: \/usr\/sbin\/needrestart/,
     ],
     [
       "the account in another group",
@@ -140,6 +173,19 @@ describe.skipIf(!docker)("install.sh --bulletin-seul", () => {
     sh(after);
     expect(r.code).not.toBe(0);
     expect(r.out).toMatch(said);
+    // Put back as it was, for the cases that follow.
+    expect(sh("/d/install.sh --bulletin-seul").code).toBe(0);
+  });
+
+  it("refused for a rule elsewhere: its own rules withdrawn, never left half checked", () => {
+    sh(
+      "echo 'cenacle ALL=(root) NOPASSWD: /bin/sh' > /etc/sudoers.d/autre && chmod 440 /etc/sudoers.d/autre",
+    );
+    sh("/d/install.sh --bulletin-seul");
+    const left = sh(`test -e ${RULES}`).code;
+    sh("rm -f /etc/sudoers.d/autre");
+    expect(left).not.toBe(0);
+    expect(sh("/d/install.sh --bulletin-seul").code).toBe(0);
   });
 });
 

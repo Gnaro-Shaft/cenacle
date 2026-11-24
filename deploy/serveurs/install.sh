@@ -9,9 +9,10 @@
 # key: you add the Mac's key lines to ~cenacle/.ssh/authorized_keys yourself.
 #
 # --bulletin-seul (ADR-0047): on a machine Cénacle only looks at, never acts
-# on — the account and the bulletin, nothing else: no action script, no sudo
-# rule, no needrestart guard. It refuses a machine that already has Cénacle's
-# actions, and checks that sudo grants the account nothing.
+# on — the account, the bulletin, needrestart's guard and the bulletin's
+# list-only sudo rules (in /etc/sudoers.d/cenacle-bulletin), nothing else: no
+# action script, no rule for one. It refuses a machine that already has
+# Cénacle's actions; the rules are checked as in the full install.
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 case "${1:-}" in
@@ -32,25 +33,8 @@ make_account() {
   [ -e ~cenacle/.ssh/authorized_keys ] || install -m 0600 -o cenacle -g cenacle /dev/null ~cenacle/.ssh/authorized_keys
 }
 
-if [ "$only_bulletin" = 1 ]; then
-  [ -e /etc/sudoers.d/cenacle ] &&
-    fail "Cénacle's actions are installed here (/etc/sudoers.d/cenacle): run install.sh without --bulletin-seul."
-  make_account
-  [ "$(id -nG cenacle)" = "cenacle" ] ||
-    fail "the account cenacle is in other groups ($(id -nG cenacle)): take it out of them first."
-  install -m 0755 -o root -g root "$here/cenacle-bulletin" /usr/local/bin/cenacle-bulletin
-  # Nothing through sudo, whatever another rule may say: asked, never run.
-  if command -v sudo >/dev/null 2>&1; then
-    for asked in /bin/sh /usr/bin/id /usr/bin/cat /usr/local/bin/cenacle-bulletin \
-      "/usr/sbin/needrestart -r l -b" "/usr/bin/pvecm status"; do
-      # shellcheck disable=SC2086 # split on purpose: a command and its arguments
-      if sudo -n -l -U cenacle -- $asked >/dev/null 2>&1; then
-        fail "sudo grants the account cenacle something ($asked): look for the rule (sudo -l -U cenacle)."
-      fi
-    done
-  fi
-  echo "Installed (bulletin only). Now add the Mac's bulletin key to ~cenacle/.ssh/authorized_keys (README.md)."
-  exit 0
+if [ "$only_bulletin" = 1 ] && [ -e /etc/sudoers.d/cenacle ]; then
+  fail "Cénacle's actions are installed here (/etc/sudoers.d/cenacle): run install.sh without --bulletin-seul."
 fi
 
 # needrestart's guard FIRST (ADR-0040, after Legion's 24/09/2026): its apt
@@ -71,32 +55,43 @@ rm -f "$guard"
   fail "needrestart is required. Its guard is now in place: apt install needrestart, then run this again."
 
 make_account
-
-for script in cenacle-services cenacle-redemarrer cenacle-maj-securite; do
-  install -m 0755 -o root -g root "$here/$script" "/usr/local/sbin/$script"
-done
+if [ "$only_bulletin" = 1 ]; then
+  [ "$(id -nG cenacle)" = "cenacle" ] ||
+    fail "the account cenacle is in other groups ($(id -nG cenacle)): take it out of them first."
+else
+  for script in cenacle-services cenacle-redemarrer cenacle-maj-securite; do
+    install -m 0755 -o root -g root "$here/$script" "/usr/local/sbin/$script"
+  done
+fi
 # The bulletin (ADR-0039, ADR-0040): read-only — the account runs it itself,
 # and it goes through sudo only for the two list-only commands below.
 install -m 0755 -o root -g root "$here/cenacle-bulletin" /usr/local/bin/cenacle-bulletin
 
-install -d -m 0755 /etc/cenacle
-if [ ! -e /etc/cenacle/services-exclus ]; then
-  printf '%s\n' "# Services never restarted by cenacle-services, one per line (name.service)," \
-    "# on top of the defaults (cenacle-services: the way in, the containers, the cluster" \
-    "# and its high availability, and what needrestart itself spares)." \
-    > /etc/cenacle/services-exclus
-  chmod 0644 /etc/cenacle/services-exclus
+if [ "$only_bulletin" = 0 ]; then
+  install -d -m 0755 /etc/cenacle
+  if [ ! -e /etc/cenacle/services-exclus ]; then
+    printf '%s\n' "# Services never restarted by cenacle-services, one per line (name.service)," \
+      "# on top of the defaults (cenacle-services: the way in, the containers, the cluster" \
+      "# and its high availability, and what needrestart itself spares)." \
+      > /etc/cenacle/services-exclus
+    chmod 0644 /etc/cenacle/services-exclus
+  fi
 fi
 
 # sudo for the scripts alone, with no argument (the empty "" forbids any);
 # for the bulletin, two commands frozen with their arguments: needrestart in
 # list mode, and pvecm status on a cluster node only.
-rules=(
-  'cenacle ALL=(root) NOPASSWD: /usr/local/sbin/cenacle-services ""'
-  'cenacle ALL=(root) NOPASSWD: /usr/local/sbin/cenacle-redemarrer ""'
-  'cenacle ALL=(root) NOPASSWD: /usr/local/sbin/cenacle-maj-securite ""'
-  'cenacle ALL=(root) NOPASSWD: /usr/sbin/needrestart -r l -b'
-)
+# With --bulletin-seul, the bulletin's rules alone, in a file of their own.
+rules=('cenacle ALL=(root) NOPASSWD: /usr/sbin/needrestart -r l -b')
+target=/etc/sudoers.d/cenacle-bulletin
+if [ "$only_bulletin" = 0 ]; then
+  target=/etc/sudoers.d/cenacle
+  rules+=(
+    'cenacle ALL=(root) NOPASSWD: /usr/local/sbin/cenacle-services ""'
+    'cenacle ALL=(root) NOPASSWD: /usr/local/sbin/cenacle-redemarrer ""'
+    'cenacle ALL=(root) NOPASSWD: /usr/local/sbin/cenacle-maj-securite ""'
+  )
+fi
 node=0
 if [ -x /usr/bin/pvecm ]; then
   node=1
@@ -107,9 +102,9 @@ printf '%s\n' "${rules[@]}" > "$rule"
 visudo -cf "$rule" >/dev/null
 # Swapped in at once: written under a name sudo skips (it contains a dot),
 # then renamed — a sudo call during a re-run never reads half a file.
-install -m 0440 -o root -g root "$rule" /etc/sudoers.d/cenacle.new
+install -m 0440 -o root -g root "$rule" "$target.new"
 rm -f "$rule"
-mv -f /etc/sudoers.d/cenacle.new /etc/sudoers.d/cenacle
+mv -f "$target.new" "$target"
 visudo -c >/dev/null
 
 # The rules hold as frozen: each permitted form passes, any other is refused
@@ -118,15 +113,15 @@ visudo -c >/dev/null
 # whole: nothing is allowed until it is fixed.
 allowed() { sudo -n -l -U cenacle -- "$@" >/dev/null 2>&1; }
 withdraw() {
-  rm -f /etc/sudoers.d/cenacle
-  fail "$* — Cénacle's rules (/etc/sudoers.d/cenacle) removed until this is fixed; look for another rule that grants the account more (sudo -l -U cenacle)."
+  rm -f "$target"
+  fail "$* — Cénacle's rules ($target) removed until this is fixed; look for another rule that grants the account more (sudo -l -U cenacle)."
 }
 allowed /usr/sbin/needrestart -r l -b || withdraw "the needrestart rule does not hold"
 for refused in "/usr/sbin/needrestart" "/usr/sbin/needrestart -r a -b" "/usr/sbin/needrestart -r l" \
   "/usr/sbin/needrestart -r l -b x" "/usr/sbin/needrestart -r l -b -r a" \
   "/usr/local/sbin/cenacle-services x" "/usr/local/sbin/cenacle-redemarrer x" \
   "/usr/local/sbin/cenacle-maj-securite x" "/usr/local/bin/cenacle-bulletin" \
-  "/usr/bin/id" "/bin/sh" "/usr/bin/apt-get install x" "/usr/bin/systemctl restart x"; do
+  "/usr/bin/id" "/bin/sh" "/usr/bin/cat" "/usr/bin/apt-get install x" "/usr/bin/systemctl restart x"; do
   # shellcheck disable=SC2086 # split on purpose: a command and its arguments
   if allowed $refused; then withdraw "sudo allows more than it should: $refused"; fi
 done
@@ -139,4 +134,8 @@ if [ "$node" = 1 ]; then
   done
 fi
 
-echo "Installed. Now add the Mac's key to ~cenacle/.ssh/authorized_keys (README.md)."
+if [ "$only_bulletin" = 1 ]; then
+  echo "Installed (bulletin only). Now add the Mac's bulletin key to ~cenacle/.ssh/authorized_keys (README.md)."
+else
+  echo "Installed. Now add the Mac's key to ~cenacle/.ssh/authorized_keys (README.md)."
+fi

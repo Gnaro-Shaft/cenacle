@@ -112,7 +112,7 @@ Pour chaque machine, déclare aussi ce que la ronde doit trouver : `hote`, le no
 
 ## Une machine qu'on regarde sans y agir : la maison (ADR-0047)
 
-Sur une machine où Cénacle ne lance jamais rien — la VM de la maison, Legion v2 —, `install.sh --bulletin-seul` crée le compte `cenacle` et pose le bulletin, **rien d'autre** : aucun script d'action, aucune règle `sudo`, ni la garde de `needrestart` (inutile sans `sudo`). Il refuse une machine qui porte déjà les actions (`/etc/sudoers.d/cenacle`), un compte placé dans un autre groupe, et tout `sudo` qui accorderait quelque chose au compte. Le relancer est sans danger.
+Sur une machine où Cénacle ne lance jamais rien — la VM de la maison, Legion v2 —, `install.sh --bulletin-seul` crée le compte `cenacle`, pose le bulletin, la garde de `needrestart` et **la seule règle `sudo` du bulletin** (`needrestart -r l -b`, lister sans relancer ; `pvecm status` sur un nœud), dans `/etc/sudoers.d/cenacle-bulletin` — **rien d'autre** : aucun script d'action, aucune règle pour l'un d'eux. Comme l'installation complète, il exige `needrestart` (`sudo apt install needrestart`, garde déjà posée) et vérifie ses règles une à une, retirées au moindre doute. Il refuse une machine qui porte déjà les actions (`/etc/sudoers.d/cenacle`) et un compte placé dans un autre groupe. Le relancer est sans danger.
 
 ```
 sudo ~/cenacle-serveurs/serveurs/install.sh --bulletin-seul
