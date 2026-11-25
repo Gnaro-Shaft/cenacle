@@ -32,7 +32,10 @@ export const PLAFOND_PAR_JOUR = 10;
 export interface Demande {
   readonly id: number;
   readonly creeLe: Date;
-  readonly origine: "directe";
+  /** `mail`: drafted by the local model from a mail I filed (ADR-0049). */
+  readonly origine: "directe" | "mail";
+  /** Iris's fixed id of that mail; null for a demand I typed. */
+  readonly mailRef: number | null;
   readonly dossier: string;
   /** Null once wiped, 30 days after the demand closed. */
   readonly titre: string | null;
@@ -107,7 +110,8 @@ export interface LiaisonDemandes {
 interface Row {
   id: string | number;
   cree_le: Date;
-  origine: "directe";
+  origine: "directe" | "mail";
+  mail_ref: string | number | null;
   dossier: string;
   titre: string | null;
   description: string | null;
@@ -125,6 +129,7 @@ const fromRow = (r: Row): Demande => ({
   id: Number(r.id),
   creeLe: r.cree_le,
   origine: r.origine,
+  mailRef: r.mail_ref === null ? null : Number(r.mail_ref),
   dossier: r.dossier,
   titre: r.titre,
   description: r.description,

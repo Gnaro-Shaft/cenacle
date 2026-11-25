@@ -65,6 +65,14 @@ export function DemandeCard({
         {d.ticket !== null && <span className="demande-ticket">{d.ticket}</span>}
       </header>
 
+      {d.origine === "mail" && d.statut === "attente" && (
+        <p className="bloc verrou">
+          Rédigé par le modèle local depuis un mail : retire tout nom, toute coordonnée, tout détail
+          qui désigne quelqu'un, avant d'accepter. Le texte partira chez un modèle aux États-Unis,
+          par la maison.
+        </p>
+      )}
+
       {d.statut === "attente" ? (
         <div className="demande-edition">
           <label>

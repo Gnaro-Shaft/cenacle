@@ -51,6 +51,7 @@ function fakeStore(): LiaisonDemandes {
         id: rows.size + 1,
         creeLe: NOW,
         origine: "directe",
+        mailRef: null,
         dossier,
         titre: v.titre,
         description: v.description,

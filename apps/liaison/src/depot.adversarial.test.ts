@@ -50,6 +50,7 @@ class Faux {
       id,
       creeLe: decideLe,
       origine: "directe",
+      mailRef: null,
       dossier: "maison-etalon",
       titre: TITRE,
       description: "Avec des tests.",

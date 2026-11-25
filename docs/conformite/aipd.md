@@ -113,6 +113,20 @@ Rédigée par Claude le 2026-11-13. **À valider par le responsable.**
 
 Rédigé par Claude le 2026-11-25. **À valider par le responsable.**
 
+## Ajout du 2026-11-25 (bis) — une demande rédigée depuis un mail (L3, ADR-0049, IA-09)
+
+**Ce qui change** : le texte qui part vers la maison, puis chez Anthropic aux États-Unis, peut désormais être **tiré du mail d'un correspondant** — reformulé par le modèle local, sans nom ni coordonnée, relu et accepté par moi. Le mail lui-même ne quitte jamais le Mac (ADR-0003).
+
+**Critères de la grille** : aucun de plus. Je choisis chaque mail (un dossier où je le range), au plus 10 demandes par jour ; ni profilage, ni décision sur une personne, ni grande échelle. Ce n'est pas un avis juridique.
+
+| Risque | Ce que L3 y ajoute | Mesures |
+|---|---|---|
+| **R3 — Injection** | Le mail est écrit par un inconnu, et son brouillon partira chez un tiers | Marqueurs à nonce, DONNÉE jamais consigne ; sortie JSON stricte ; filtre sans IA ; le brouillon n'est qu'une demande en attente, que j'accepte ou non |
+| **R4 — Données sensibles** | Un mail sensible rédigé | Plancher de l'article 9 avant le modèle : jamais rédigé |
+| **R6 — Un tiers nommé chez un fournisseur américain** (aggravé) | Ce n'est plus mon texte : c'est celui d'un correspondant, reformulé | Consigne du modèle (aucun nom, aucune coordonnée, aucune citation) ; filtre du code ; bandeau « retire tout nom » ; ma relecture, seule garde contre un nom ; mention republiée **avant** l'ouverture ; un mail oublié emporte ses brouillons. **Risque résiduel** : un détail qui désigne la personne sans la nommer peut passer ma relecture |
+
+**Avant l'ouverture** : republier la mention, puis écrire `redaction_ouverte`. **À valider par le responsable.**
+
 ## 5. Validation
 
 Risques résiduels jugés **acceptables** sous réserve des actions 1 à 6, réalisées **avant** toute lecture d'une vraie boîte, si le responsable de traitement le valide.

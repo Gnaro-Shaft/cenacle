@@ -103,6 +103,7 @@ const NEUTRAL_EVENT_TYPES: ReadonlySet<string> = new Set([
   "liaison.caduques", // demands lapsed (waiting 30 days, accepted 24 hours ago)
   "liaison.plafond", // 10 demands handed over in 24 hours: said once an hour at most
   "liaison.purges", // texts wiped, rows erased: how many — never which
+  "redaction.passe", // drafting from mails (ADR-0049): how many read, drafted, set aside — never a text
   "maintenance.plan", // a maintenance plan: proposed, confirmed, a step, its end — counts only (J7d)
   "send.lapsed",
   "send.cancelled",

@@ -34,6 +34,7 @@
     "liaison": "node --env-file=.env --env-file-if-exists=.env.telegram apps/liaison/src/main.ts",
     "liaison:cle": "node apps/liaison/src/cle.ts",
     "liaison:verifier": "node --env-file=.env apps/liaison/src/verifier.ts",
+    "redaction": "node --env-file=.env --env-file-if-exists=.env.mail --env-file-if-exists=.env.telegram apps/redaction/src/main.ts",
     "copie": "node --env-file=.env --env-file-if-exists=.env.copie apps/copie/src/main.ts",
     "base:restaurer": "node --env-file=.env --env-file-if-exists=.env.owner apps/copie/src/restaurer-main.ts",
     "prospection": "node --env-file=.env --env-file-if-exists=.env.mail --env-file-if-exists=.env.telegram apps/prospection/src/main.ts",
