@@ -61,6 +61,7 @@ export {
   type PrNouvelle,
   type SousTicket,
 } from "./liaison-etats.ts";
+export { createLiaisonRedaction, type LiaisonRedaction } from "./liaison-redaction.ts";
 export {
   createLocationStore,
   type FolderCursor,

@@ -24,6 +24,7 @@ export const LIAISON_CONFIG_PROBLEMS = [
   "cle",
   "known_hosts",
   "dossiers",
+  "redaction",
 ] as const;
 export type LiaisonConfigProblem = (typeof LIAISON_CONFIG_PROBLEMS)[number];
 
@@ -43,7 +44,15 @@ export interface LiaisonPorte {
   readonly knownHosts: string;
 }
 
-const KEYS = ["hote", "compte", "cle", "known_hosts", "dossiers"];
+const KEYS = [
+  "hote",
+  "compte",
+  "cle",
+  "known_hosts",
+  "dossiers",
+  "dossier_travail",
+  "redaction_ouverte",
+];
 /** A DNS name (MagicDNS), never an address: an IP is refused. */
 const HOTE =
   /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/;
@@ -111,6 +120,37 @@ export function parseLiaisonDossiers(text: string): readonly string[] {
     throw new LiaisonConfigError("dossiers", "dossiers : de 1 à 20 noms de projet, sans doublon");
   }
   return d as string[];
+}
+
+/** Drafting from a mail (ADR-0049): the folder I file mails in, and the day it opened. */
+export interface LiaisonRedactionConfig {
+  /** The IMAP folder's path, as the server names it; compared by its HMAC key only. */
+  readonly dossierTravail: string;
+  /** Midnight (local) of the day the information notice was republished; no mail before. */
+  readonly ouverte: Date;
+}
+
+const FOLDER_PATH = /^[^\p{C}]{1,200}$/u;
+
+/**
+ * The drafting program only — never the door. Null when drafting is not opened
+ * (neither key written); both keys, or neither; a malformed one is refused.
+ */
+export function parseLiaisonRedaction(text: string): LiaisonRedactionConfig | null {
+  const t = section(text);
+  const dossier = t.dossier_travail;
+  const ouverte = t.redaction_ouverte;
+  if (dossier === undefined && ouverte === undefined) return null;
+  if (typeof dossier !== "string" || !FOLDER_PATH.test(dossier) || dossier.trim() !== dossier) {
+    throw new LiaisonConfigError("redaction", "dossier_travail : le chemin d'un dossier IMAP");
+  }
+  // A TOML local date (redaction_ouverte = 2026-12-01): smol-toml gives a Date.
+  if (!(ouverte instanceof Date) || Number.isNaN(ouverte.getTime())) {
+    throw new LiaisonConfigError("redaction", "redaction_ouverte : une date, 2026-12-01");
+  }
+  const day = ouverte.toISOString().slice(0, 10);
+  const [y, m, d] = day.split("-").map(Number) as [number, number, number];
+  return { dossierTravail: dossier, ouverte: new Date(y, m - 1, d) };
 }
 
 export type LiaisonSwitch = "actif" | "coupe" | "illisible";

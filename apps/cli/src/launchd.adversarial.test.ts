@@ -123,6 +123,7 @@ describe("the LaunchAgent", () => {
       "prospection",
       "ronde",
       "liaison",
+      "redaction",
     ]);
   });
 
@@ -236,6 +237,7 @@ describe("the runner", () => {
     ["ronde", "ronde"],
     ["copie", "copie"],
     ["liaison", "liaison"],
+    ["redaction", "redaction"],
   ])("starts %s with exactly the env files of `npm run %s`", (program, npmScript) => {
     const script = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).scripts[npmScript];
     const runner = readFileSync(RUNNER, "utf8");

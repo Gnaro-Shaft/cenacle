@@ -80,9 +80,11 @@ export {
   LiaisonConfigError,
   type LiaisonConfigProblem,
   type LiaisonPorte,
+  type LiaisonRedactionConfig,
   type LiaisonSwitch,
   parseLiaisonDossiers,
   parseLiaisonPorte,
+  parseLiaisonRedaction,
   parseLiaisonSwitch,
 } from "./liaison-config.ts";
 export {

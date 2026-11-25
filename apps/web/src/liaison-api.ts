@@ -21,6 +21,8 @@ export interface SousTicketView {
 export interface DemandeView {
   readonly id: number;
   readonly statut: StatutDemande;
+  /** `mail`: drafted by the local model from a mail I filed (ADR-0049). */
+  readonly origine: "directe" | "mail";
   readonly titre: string | null;
   readonly description: string | null;
   readonly dossier: string;

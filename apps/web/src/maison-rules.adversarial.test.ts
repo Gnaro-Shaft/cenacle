@@ -50,6 +50,7 @@ describe("time", () => {
   const d = (over: Partial<DemandeView>): DemandeView => ({
     id: 1,
     statut: "acceptee",
+    origine: "directe",
     titre: "t",
     description: "d",
     dossier: "x",

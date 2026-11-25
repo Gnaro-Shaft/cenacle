@@ -256,6 +256,9 @@ export async function migrate({
       await tx.unsafe(
         `GRANT SELECT, INSERT, UPDATE, DELETE ON liaison_demandes, liaison_etats TO ${APP_ROLE}`,
       );
+      // The mails the drafting program read (ADR-0049): marked once, erased with the mail.
+      await tx.unsafe(`REVOKE ALL ON liaison_mails_lus FROM ${APP_ROLE}`);
+      await tx.unsafe(`GRANT SELECT, INSERT, DELETE ON liaison_mails_lus TO ${APP_ROLE}`);
       // The executor reads what Iris remembers, journals, and moves proposals
       // (claim, sent, failed — refused to every other role by the database).
       await loginRole(tx, EXECUTOR_ROLE, executorPassword, EXECUTOR_PASSWORD_VAR);

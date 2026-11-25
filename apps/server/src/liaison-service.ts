@@ -35,6 +35,7 @@ export interface EtatMaison {
 export interface DemandeView {
   readonly id: number;
   readonly statut: Demande["statut"];
+  readonly origine: Demande["origine"];
   readonly titre: string | null;
   readonly description: string | null;
   readonly dossier: string;
@@ -121,6 +122,7 @@ export function createLiaisonService(deps: LiaisonServiceDeps): LiaisonService {
           return {
             id: x.id,
             statut: x.statut,
+            origine: x.origine,
             titre: x.titre,
             description: x.description,
             dossier: x.dossier,
