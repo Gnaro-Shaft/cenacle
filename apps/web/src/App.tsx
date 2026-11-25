@@ -4,6 +4,7 @@ import { AgentBox } from "./AgentBox.tsx";
 import type { Emblem } from "./Avatar.tsx";
 import { Board } from "./Board.tsx";
 import { CtoAsk } from "./CtoAsk.tsx";
+import { Maison } from "./Maison.tsx";
 import { Parc } from "./Parc.tsx";
 import { Proposals } from "./Proposals.tsx";
 import { takeToken } from "./token.ts";
@@ -42,7 +43,7 @@ const TEAM: readonly { agent: string; title: string; duty: string; emblem: Emble
 const AGENTS = TEAM.map((member) => member.agent);
 
 /** The tabs, in their order. */
-const VIEWS = { travail: "Travail", agenda: "Agenda", parc: "Parc" } as const;
+const VIEWS = { travail: "Travail", maison: "Maison", agenda: "Agenda", parc: "Parc" } as const;
 
 export function App() {
   const team = useTeamStream(AGENTS);
@@ -98,6 +99,8 @@ export function App() {
         </p>
       ) : view === "parc" ? (
         <Parc token={token} onLost={() => setToken(null)} />
+      ) : view === "maison" ? (
+        <Maison token={token} onLost={() => setToken(null)} />
       ) : view === "agenda" ? (
         <Agenda token={token} onLost={() => setToken(null)} />
       ) : (

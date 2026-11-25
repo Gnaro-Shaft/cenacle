@@ -38,6 +38,8 @@ describe("cadre.toml", () => {
       oppositionJours: 1095,
       prospectionJours: 60,
       rappelsJours: 90,
+      liaisonTexteJours: 30,
+      liaisonJours: 90,
     });
     expect(cadre.traitements).toEqual([]);
   });

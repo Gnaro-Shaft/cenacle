@@ -97,6 +97,12 @@ const NEUTRAL_EVENT_TYPES: ReadonlySet<string> = new Set([
   "maintenance.recap", // the maintenance summary: morning or asked, counts only (J7c)
   "maintenance.demande", // I asked for the maintenance summary on Telegram (J7c)
   "rappels.purges", // the reminders' purge: how many, before when — never which (ADR-0041)
+  // The liaison with the house (ADR-0048): numbers, states, categories — never a text.
+  "liaison.depot", // a demand handed over, failed or refused before leaving
+  "liaison.etat", // a reading of `etat`: how many tickets, left out, announced — or its failure
+  "liaison.caduques", // demands lapsed (waiting 30 days, accepted 24 hours ago)
+  "liaison.plafond", // 10 demands handed over in 24 hours: said once an hour at most
+  "liaison.purges", // texts wiped, rows erased: how many — never which
   "maintenance.plan", // a maintenance plan: proposed, confirmed, a step, its end — counts only (J7d)
   "send.lapsed",
   "send.cancelled",

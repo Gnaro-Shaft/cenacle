@@ -62,6 +62,9 @@
       "path": "apps/operateur"
     },
     {
+      "path": "apps/liaison"
+    },
+    {
       "path": "apps/ronde"
     },
     {

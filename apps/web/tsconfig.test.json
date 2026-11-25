@@ -13,6 +13,8 @@
     "src/parc-machines.ts",
     "src/parc-backups.ts",
     "src/agenda-rules.ts",
+    "src/maison-rules.ts",
+    "src/liaison-api.ts",
     "src/api.ts"
   ],
   "exclude": []

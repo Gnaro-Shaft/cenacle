@@ -30,7 +30,7 @@ export class ApiError extends Error {
   }
 }
 
-async function call<T>(token: string, path: string, init: RequestInit = {}): Promise<T> {
+export async function call<T>(token: string, path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(path, {
     ...init,
     headers: {

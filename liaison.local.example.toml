@@ -1,0 +1,13 @@
+# The liaison with the house (ADR-0048): copy to liaison.local.toml (ignored by
+# git) and fill in. Never commit the real values.
+[liaison]
+# The VM's name on the tailnet (MagicDNS), never an address.
+hote = "<nom-de-la-vm>"
+# The account whose authorized_keys holds the forced command maison-liaison.
+compte = "liaison"
+# Absolute paths, no whitespace. The key is drawn by `npm run liaison:cle` (600).
+cle = "/Users/<moi>/.ssh/cenacle-liaison"
+# The VM's host key, pinned: one line, compared with what the VM gives itself.
+known_hosts = "/Users/<moi>/.ssh/cenacle-liaison.known_hosts"
+# The projects a demand may aim at: the house's [liaison] dossiers, exactly.
+dossiers = ["<projet>"]

@@ -39,6 +39,29 @@ export {
   type StoredEvent,
 } from "./journal.ts";
 export {
+  ACCEPTATION_MAX_MS,
+  type AcceptationSignee,
+  ATTENTE_MAX_MS,
+  createLiaisonDemandes,
+  DELAI_ANNULATION_MS,
+  type Demande,
+  type Issue,
+  type LiaisonDemandeErreur,
+  LiaisonDemandeError,
+  type LiaisonDemandes,
+  PLAFOND_PAR_JOUR,
+  STATUTS_DEMANDE,
+  type StatutDemande,
+} from "./liaison-demandes.ts";
+export {
+  createLiaisonEtats,
+  type EtatLu,
+  type EtatTicket,
+  type LiaisonEtats,
+  type PrNouvelle,
+  type SousTicket,
+} from "./liaison-etats.ts";
+export {
   createLocationStore,
   type FolderCursor,
   type LocatedMail,

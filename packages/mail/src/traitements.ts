@@ -29,6 +29,12 @@ export interface Conservation {
   readonly prospectionJours?: number;
   /** The reminders (ADR-0041): days after a reminder rang; absent, no reminder is set. */
   readonly rappelsJours?: number;
+  /**
+   * The liaison with the house (ADR-0048, T-12): a closed demand's text, then
+   * its row, after it closed. Absent, the liaison does not run.
+   */
+  readonly liaisonTexteJours?: number;
+  readonly liaisonJours?: number;
 }
 
 export const LEGAL_BASES = [
@@ -76,6 +82,24 @@ function days(table: Record<string, unknown>, key: string, min: number, max: num
   return n;
 }
 
+/** Both retentions of the liaison, or neither: a text kept without its row's end is a gap. */
+function liaison(
+  raw: Record<string, unknown>,
+): Pick<Conservation, "liaisonTexteJours" | "liaisonJours"> {
+  const texte = raw.liaison_texte_jours;
+  const ligne = raw.liaison_jours;
+  if (texte === undefined && ligne === undefined) return {};
+  if (texte === undefined || ligne === undefined) {
+    throw new TraitementError("conservation: liaison_texte_jours and liaison_jours go together");
+  }
+  const t = days(raw, "liaison_texte_jours", 1, 90);
+  const l = days(raw, "liaison_jours", 1, 365);
+  if (l < t) {
+    throw new TraitementError("conservation.liaison_jours must be at least liaison_texte_jours");
+  }
+  return { liaisonTexteJours: t, liaisonJours: l };
+}
+
 export function parseConservation(raw: unknown): Conservation {
   if (!isTable(raw)) throw new TraitementError("missing [conservation] section");
   const keys = [
@@ -86,6 +110,8 @@ export function parseConservation(raw: unknown): Conservation {
     "opposition_jours",
     "prospection_jours",
     "rappels_jours",
+    "liaison_texte_jours",
+    "liaison_jours",
   ];
   onlyKeys(raw, keys, "[conservation]");
   const c: Conservation = {
@@ -101,6 +127,8 @@ export function parseConservation(raw: unknown): Conservation {
     ...(raw.rappels_jours === undefined
       ? {}
       : { rappelsJours: days(raw, "rappels_jours", 1, 365) }),
+    // The liaison with the house (ADR-0048, T-12): both, or neither.
+    ...liaison(raw),
   };
   // A proposal stays open at most as long as its mail is remembered (then it
   // lapses): the journal must outlive it, or the bubble on the page goes wrong.

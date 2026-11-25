@@ -25,6 +25,7 @@ export const PROGRAMS = [
   "prospection",
   "ronde",
   "copie",
+  "liaison",
 ] as const;
 export type Program = (typeof PROGRAMS)[number];
 
@@ -51,6 +52,8 @@ export const INTERVALS: Readonly<Partial<Record<Program, number>>> = {
   prospection: 900,
   // The ronde (ADR-0040): every machine read and judged every 5 minutes.
   ronde: 300,
+  // The liaison with the house (ADR-0048): an accepted demand leaves a minute after its delay.
+  liaison: 60,
 };
 
 export interface ServicePaths {
