@@ -74,6 +74,18 @@ export {
 } from "./delegations.ts";
 export { type HeldBack, heldBackRules, isHeldBack } from "./held-back.ts";
 export {
+  LIAISON_CONFIG_FILE,
+  LIAISON_CONFIG_PROBLEMS,
+  LIAISON_SWITCH_FILE,
+  LiaisonConfigError,
+  type LiaisonConfigProblem,
+  type LiaisonPorte,
+  type LiaisonSwitch,
+  parseLiaisonDossiers,
+  parseLiaisonPorte,
+  parseLiaisonSwitch,
+} from "./liaison-config.ts";
+export {
   type ActiveFinding,
   type ActiveStatus,
   DEBOUNCE_MINUTES,

@@ -94,6 +94,25 @@ Faits remis à jour ci-dessus (modèle, durées, information, plan d'action). Ce
 
 Rédigée par Claude le 2026-11-13. **À valider par le responsable.**
 
+## Ajout du 2026-11-25 — la liaison avec la maison (T-12, ADR-0048)
+
+**Ce qui change** : pour la première fois, un texte tapé par moi sort du Mac pour être traité par un modèle en ligne. Une demande de travail que j'accepte sur la page part, par `ssh`, vers la maison (ma VM du homelab), dont les agents tournent sur Claude, chez Anthropic, aux États-Unis. La maison me rend l'état de mes demandes, avec des titres écrits par son modèle.
+
+**Ce qui ne change pas** : la maison ne lit pas la boîte ; le contenu d'un mail ne quitte pas le Mac (ADR-0003) ; aucun modèle de Cénacle ne lit une demande ; rien ne part sans mon acceptation signée sur la page.
+
+**Critères de la grille** (`aipd-examen.md`) : aucun de plus. Ni profilage, ni donnée sensible, ni décision ayant un effet sur une personne, ni surveillance, ni grande échelle : je confie mon propre travail, au plus 10 demandes par jour. Une AIPD propre n'est pas demandée. Ce n'est pas un avis juridique.
+
+| Risque | Ce que la liaison y ajoute | Mesures |
+|---|---|---|
+| **R1 — Accès illégitime** | Une clé SSH de plus sur le Mac | Commande imposée sur la VM (`deposer`, `etat`, rien d'autre) ; plafond de 10 par 24 heures, des deux côtés ; empreinte de la VM épinglée ; clé en 600, au seul programme `liaison` ; révocable en retirant sa ligne. Volée : quelques demandes déposées et des statuts lus |
+| **R2 — Modification non désirée** | Une demande part sans que je l'aie voulue | Acceptation signée par la page, sur le texte affiché ; 2 minutes pour annuler ; jamais de relance d'un dépôt coupé (« état inconnu ») |
+| **R3 — Injection** | Les titres rendus par `etat` sont écrits par un modèle, qui lit ce que la maison lit | Ce sont des données : coupés, sans caractère de contrôle, affichés comme du texte, jamais suivis ni exécutés ; seuls des liens de PR de forme fixe sont gardés ; aucun titre sur Telegram |
+| **R6 — Un tiers nommé chez un fournisseur américain** (nouveau) | Un nom de client glissé dans une demande partirait chez Anthropic | Règle : ni nom de client ni contenu de mail, rappelée par la page, par `/maison` et à chaque accusé de réception ; courriel, téléphone, IBAN, lien et longues suites de chiffres refusés par le code, deux fois. **Risque résiduel** : un nom ne se détecte pas sûrement ; il repose sur ma relecture |
+
+**Avant L3** (une demande rédigée par le modèle local depuis un mail) : revoir cet ajout, R6 surtout. Le texte viendrait alors d'un correspondant, même relu et débarrassé de ses noms ; la mention d'information devra le dire.
+
+Rédigé par Claude le 2026-11-25. **À valider par le responsable.**
+
 ## 5. Validation
 
 Risques résiduels jugés **acceptables** sous réserve des actions 1 à 6, réalisées **avant** toute lecture d'une vraie boîte, si le responsable de traitement le valide.

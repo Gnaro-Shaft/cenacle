@@ -8,6 +8,7 @@ import "./brouillons.css";
 import "./prospection.css";
 import "./parc.css";
 import "./agenda.css";
+import "./maison.css";
 
 const root = document.getElementById("root");
 if (root === null) throw new Error("#root is missing from index.html");

@@ -16,17 +16,20 @@ import {
   loadAgendaConfig,
   send,
 } from "@cenacle/agenda";
-import { privateKeyFromEnv, refuseForeignSecrets } from "@cenacle/core";
+import { privateKeyFromEnv, refuseForeignSecrets, signerLiaison } from "@cenacle/core";
 import { askCtoService, ctoSocketPath } from "@cenacle/cto";
 import {
   connectOrQuit,
   createJournal,
+  createLiaisonDemandes,
+  createLiaisonEtats,
   createLocationStore,
   createMailStore,
   createParcStore,
   createProposalStore,
   createProspectionStore,
   holdOrQuit,
+  latestEvent,
   waitForDatabase,
 } from "@cenacle/journal";
 import {
@@ -41,10 +44,20 @@ import {
   signProposal,
 } from "@cenacle/mail";
 import { loadProspectionConfig } from "@cenacle/prospection";
-import { parseRondeSource, RONDE_BULLETINS_PATH, RONDE_SOURCES } from "@cenacle/securite";
+import {
+  LIAISON_CONFIG_FILE,
+  LIAISON_SWITCH_FILE,
+  LiaisonConfigError,
+  parseLiaisonDossiers,
+  parseLiaisonSwitch,
+  parseRondeSource,
+  RONDE_BULLETINS_PATH,
+  RONDE_SOURCES,
+} from "@cenacle/securite";
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
 import { defaultGuardConfig, newToken } from "./guard.ts";
+import { createLiaisonService } from "./liaison-service.ts";
 import { createMachines } from "./machines.ts";
 import { builtPageProblem } from "./page-files.ts";
 import { pageUrl, pageUrlPath, removePageUrl, writePageUrl } from "./page-url.ts";
@@ -64,6 +77,15 @@ const WEB_DIR = join(import.meta.dirname, "..", "..", "web");
 const SECURITE_TOML = join(import.meta.dirname, "..", "..", "..", "securite.toml");
 /** The agenda's accounts (ADR-0042), git-ignored, read again at each reading. */
 const AGENDA_TOML = join(import.meta.dirname, "..", "..", "..", "agenda.local.toml");
+const ROOT = join(import.meta.dirname, "..", "..", "..");
+/** A file read again at each call; absent or unreadable, null (said by the caller). */
+const readOrNull = (path: string): string | null => {
+  try {
+    return readFileSync(path, "utf8");
+  } catch {
+    return null;
+  }
+};
 /** securite.toml's [ronde] source; a file that cannot be read names none. */
 const rondeSource = () => {
   try {
@@ -165,6 +187,30 @@ const app = createApp({
   }),
   // The CTO holds no secret and runs apart (ADR-0017, ADR-0020): asked over his socket.
   askCto: (question) => askCtoService(ctoSocketPath(homedir()), question),
+  // The liaison with the house (ADR-0048): the page signs my acceptance; the
+  // liaison program alone holds the house's key. Folders only, read at each call.
+  liaison: createLiaisonService({
+    demandes: createLiaisonDemandes(sql),
+    etats: createLiaisonEtats(sql),
+    sign: (a) => signerLiaison(acceptKey, a),
+    interrupteur: () => parseLiaisonSwitch(readOrNull(join(ROOT, LIAISON_SWITCH_FILE))),
+    dossiers: () => {
+      const text = readOrNull(join(ROOT, LIAISON_CONFIG_FILE));
+      if (text === null) return { probleme: "absent" };
+      try {
+        return { ok: parseLiaisonDossiers(text) };
+      } catch (e) {
+        if (e instanceof LiaisonConfigError) return { probleme: e.problem };
+        throw e;
+      }
+    },
+    derniereLecture: async () => {
+      const e = await latestEvent(sql, "liaison", ["liaison.etat"]);
+      const issue = e?.payload.issue;
+      return e === undefined ? null : { le: e.occurredAt, issue: String(issue ?? "?") };
+    },
+    now: () => new Date(),
+  }),
 });
 
 const linkPath = pageUrlPath(homedir());

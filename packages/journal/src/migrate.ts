@@ -250,6 +250,12 @@ export async function migrate({
       await tx.unsafe(`REVOKE ALL ON rappels FROM ${APP_ROLE}`);
       await tx.unsafe(`GRANT SELECT, INSERT, DELETE ON rappels TO ${APP_ROLE}`);
       await tx.unsafe(`GRANT UPDATE (sonne_le) ON rappels TO ${APP_ROLE}`);
+      // The liaison with the house (ADR-0048): its life cycle is the table's
+      // (triggers of 038), an open demand is never deleted; the last reading of `etat`.
+      await tx.unsafe(`REVOKE ALL ON liaison_demandes, liaison_etats FROM ${APP_ROLE}`);
+      await tx.unsafe(
+        `GRANT SELECT, INSERT, UPDATE, DELETE ON liaison_demandes, liaison_etats TO ${APP_ROLE}`,
+      );
       // The executor reads what Iris remembers, journals, and moves proposals
       // (claim, sent, failed — refused to every other role by the database).
       await loginRole(tx, EXECUTOR_ROLE, executorPassword, EXECUTOR_PASSWORD_VAR);

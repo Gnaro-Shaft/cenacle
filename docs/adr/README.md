@@ -52,5 +52,6 @@ Elles sont rédigées en français (le code et le README sont en anglais).
 | [0045](0045-configurations-du-homelab.md) | Les configurations du homelab : rapatriées de Legion, à l'identique, sans vrai nom | Acceptée |
 | [0046](0046-retrait-de-legion.md) | Le retrait de Legion : sa confiance révoquée, ses traces retirées, ses données tranchées | Acceptée |
 | [0047](0047-mesure-de-la-maison.md) | La mesure de la maison : un verdict de plus pour la ronde, lu sans aucun autre droit | Acceptée |
+| [0048](0048-liaison-avec-la-maison.md) | La liaison avec la maison : je confie un travail, je lis où il en est | Acceptée |
 
 Les règles dures qui s'appliquent à tout le code sont dans [`../charte.md`](../charte.md).

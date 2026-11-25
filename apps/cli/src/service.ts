@@ -35,6 +35,7 @@ const NAMES: Record<Program, string> = {
   prospection: "L'agent prospection",
   ronde: "La ronde des machines",
   copie: "La copie de la base",
+  liaison: "La liaison avec la maison",
 };
 const COMMANDS = ["install", "uninstall", "status"] as const;
 type Command = (typeof COMMANDS)[number];

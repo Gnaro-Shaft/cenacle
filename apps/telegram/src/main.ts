@@ -11,6 +11,7 @@ import { askCtoService, ctoSocketPath } from "@cenacle/cto/client";
 import {
   connectOrQuit,
   createJournal,
+  createLiaisonDemandes,
   createPlanStore,
   createRappelStore,
   createSecuriteDecisions,
@@ -23,7 +24,12 @@ import {
   waitForDatabase,
 } from "@cenacle/journal";
 import { loadCadre } from "@cenacle/mail";
-import { parseMaintenanceSwitch, parseServerSwitch } from "@cenacle/securite";
+import {
+  LIAISON_CONFIG_FILE,
+  parseLiaisonDossiers,
+  parseMaintenanceSwitch,
+  parseServerSwitch,
+} from "@cenacle/securite";
 import { perform } from "./actions.ts";
 import { relayAgenda } from "./agenda-bot.ts";
 import { createTelegramApi, TelegramError, type TelegramFailure } from "./api.ts";
@@ -32,6 +38,7 @@ import { bellHeartbeat, bellMinute, createBellBeat } from "./bell.ts";
 import { confirmSigners } from "./confirm-signers.ts";
 import { relayToCto } from "./cto-relay.ts";
 import { handleUpdate } from "./handler.ts";
+import { performMaison } from "./maison-bot.ts";
 import { poll } from "./poll.ts";
 import { performReminder, purgeRang, ringDue } from "./rappels-bot.ts";
 import {
@@ -283,6 +290,22 @@ await poll({
             store: rappels,
             reply,
             now: () => new Date(),
+            log: (line) => console.error(line),
+          }),
+        // A demand to the house (ADR-0048): recorded waiting, in the first folder
+        // of liaison.local.toml (read at each use: folders only, never the door).
+        maison: (action) =>
+          performMaison(action, {
+            create: (t, dossier) => createLiaisonDemandes(sql).create(t, dossier),
+            dossier: () => {
+              try {
+                const text = readFileSync(join(ROOT, LIAISON_CONFIG_FILE), "utf8");
+                return parseLiaisonDossiers(text)[0] ?? null;
+              } catch {
+                return null;
+              }
+            },
+            reply,
             log: (line) => console.error(line),
           }),
         record: async (type, payload) => {

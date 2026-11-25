@@ -10,6 +10,7 @@ import { type AgentStatus, errorText, ProjectionError, type VisualState } from "
 import { QuestionError, validQuestion } from "@cenacle/cto/question";
 import { type AgendaAction, agendaAction } from "./agenda-bot.ts";
 import type { TelegramUpdate } from "./api.ts";
+import { type MaisonAction, maisonAction } from "./maison-bot.ts";
 import { type ReminderAction, reminderActions } from "./rappels-bot.ts";
 
 export type Action =
@@ -25,7 +26,9 @@ export type Action =
   /** A reminder set, listed or cancelled (ADR-0041). */
   | ReminderAction
   /** Tomorrow's or the week's hours, asked of the page's server (ADR-0042, P2). */
-  | AgendaAction;
+  | AgendaAction
+  /** A demand to the house, recorded waiting: accepted on the page alone (ADR-0048). */
+  | MaisonAction;
 
 export interface HandlerDeps {
   readonly allowedChatId: number;
@@ -72,6 +75,8 @@ const HELP = [
   "/rappels — les prochains rappels ; /annuler 12 : retire le n°12",
   "   ⚠ Jamais de nom de client ni de contenu de mail : le texte passe par Telegram.",
   "/demain — les heures de mes rendez-vous de demain ; /agenda : 7 jours, aujourd'hui compris (des heures, jamais d'intitulé)",
+  "/maison <titre> puis, à la ligne, la description — une demande de travail à la maison, à accepter sur la page",
+  "   ⚠ Jamais de nom de client ni de contenu de mail : le texte part chez un modèle aux États-Unis.",
   "/aide — cette aide",
 ].join("\n");
 
@@ -185,6 +190,11 @@ export async function handleUpdate(update: TelegramUpdate, deps: HandlerDeps): P
       const rest = (message.text ?? "").trim().replace(/^\S+\s*/, "");
       return [agendaAction(command, rest, message.chat.id)];
     }
+    case "/maison": {
+      // The text after the command, line breaks kept: the first line is the title.
+      const rest = (message.text ?? "").trim().replace(/^\S+[^\S\n]*\n?/, "");
+      return [maisonAction(rest, message.chat.id)];
+    }
     case "/start":
     case "/aide":
     case "/help":
@@ -192,7 +202,7 @@ export async function handleUpdate(update: TelegramUpdate, deps: HandlerDeps): P
     default:
       return [
         reply(
-          "Je ne comprends que /etat, /cto, /constats, /maintenance, /rappel, /rappels, /annuler, /demain, /agenda, /stop et /aide.",
+          "Je ne comprends que /etat, /cto, /constats, /maintenance, /rappel, /rappels, /annuler, /demain, /agenda, /maison, /stop et /aide.",
         ),
       ];
   }

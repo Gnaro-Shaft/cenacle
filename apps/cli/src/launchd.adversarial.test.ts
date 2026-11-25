@@ -117,7 +117,20 @@ describe("the LaunchAgent", () => {
     expect(plist).toContain("<key>RunAtLoad</key><false/>");
     expect(plist).not.toContain("KeepAlive");
     expect(plist).not.toContain("StartCalendarInterval");
-    expect(Object.keys(INTERVALS)).toEqual(["securite", "operateur", "prospection", "ronde"]);
+    expect(Object.keys(INTERVALS)).toEqual([
+      "securite",
+      "operateur",
+      "prospection",
+      "ronde",
+      "liaison",
+    ]);
+  });
+
+  it("the liaison every minute (ADR-0048): never at load, never kept alive", () => {
+    const plist = buildPlist("liaison", deps());
+    expect(plist).toContain("<key>StartInterval</key><integer>60</integer>");
+    expect(plist).toContain("<key>RunAtLoad</key><false/>");
+    expect(plist).not.toContain("KeepAlive");
   });
 
   it("the operator every minute (ADR-0027): never at load, never kept alive", () => {
@@ -222,6 +235,7 @@ describe("the runner", () => {
     ["prospection", "prospection"],
     ["ronde", "ronde"],
     ["copie", "copie"],
+    ["liaison", "liaison"],
   ])("starts %s with exactly the env files of `npm run %s`", (program, npmScript) => {
     const script = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).scripts[npmScript];
     const runner = readFileSync(RUNNER, "utf8");

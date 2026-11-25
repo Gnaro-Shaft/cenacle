@@ -93,6 +93,25 @@ export {
   SENTINEL_TOKEN_VAR,
   SENTINEL_URL_VAR,
 } from "./heartbeat.ts";
+export {
+  CATEGORIES_TIERS,
+  type CategorieTexte,
+  type CategorieTiers,
+  DESCRIPTION_MAX,
+  DOSSIER_RULE,
+  LiaisonTexteRefus,
+  type TexteDemande,
+  TITRE_MAX,
+  tiersDans,
+  validerTexteDemande,
+} from "./liaison-filtre.ts";
+export {
+  type LiaisonAcceptation,
+  liaisonMessage,
+  signerLiaison,
+  texteHash,
+  verifierLiaison,
+} from "./liaison-signature.ts";
 export { type MailCounts, MailCountsError } from "./mail-counts.ts";
 export { type MailForModel, MODEL_FIELD_MAX, MODEL_TEXT_MAX } from "./mail-for-model.ts";
 export {

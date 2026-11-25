@@ -77,6 +77,16 @@ Le journal du serveur ne dit d'une lecture manquée que le nom du compte et un m
 
 **Sur Telegram (P2)** : `/demain` et `/agenda` passent par une prise locale du serveur de la page, `~/Library/Application Support/cenacle/agenda.sock` (droits 600, dans un dossier 700, à côté de celle du CTO). Le bot n'a aucun mot de passe de l'agenda ; il reçoit des dates, des heures, des nombres, des noms de compte et des mots de panne — un schéma fermé, vérifié des deux côtés, qui n'a pas de place pour un intitulé. La prise sert une lecture à la fois. Tout programme lancé sous mon compte pourrait l'ouvrir et déclencher une lecture : c'est l'exposition que l'ADR-0042 accepte, bornée par ce schéma. Si le serveur ne peut pas l'ouvrir, il écrit `agenda : prise indisponible` et la page continue de marcher.
 
+## La clé de la liaison avec la maison (ADR-0048)
+
+Le programme `liaison` est le seul à détenir une clé vers la maison (ma VM du homelab). Ce n'est pas un fichier `.env` : c'est une paire ed25519 qui lui est propre.
+
+1. **La tirer** : `npm run liaison:cle`. La partie privée est écrite au chemin que donne `liaison.local.toml`, droits 600, et n'est jamais affichée ; la commande refuse d'écraser une clé existante. Elle imprime la seule ligne à inscrire sur la VM : `restrict,command="/opt/maison/liaison/maison-liaison" ssh-ed25519 … cenacle-liaison`.
+2. **L'inscrire** : sur la VM, dans `/var/lib/maison/liaison/.ssh/authorized_keys` (à root). C'est mon geste, ou un `sudo` avec mon accord explicite.
+3. **Épingler la VM** : son empreinte va dans le `known_hosts` de la liaison, comparée à celle que la VM donne elle-même.
+
+Une clé lisible par un autre que moi est refusée au démarrage. Aucun autre programme ne lit `liaison.local.toml` ni la clé (test de frontière). **Elle n'est pas sauvegardée** : perdue ou douteuse, je retire sa ligne sur la VM (la clé ne sert plus à rien), j'en tire une autre et j'inscris la nouvelle. Volée, elle dépose au plus 10 demandes par jour et lit leurs statuts, rien d'autre.
+
 ## Sauvegarder
 
 ```

@@ -14,6 +14,8 @@ import { HTTPException } from "hono/http-exception";
 import { streamSSE } from "hono/streaming";
 import { type ApiLog, internalLine, streamLine } from "./api-log.ts";
 import { type GuardConfig, hostGuard, tokenGuard } from "./guard.ts";
+import { mountLiaison } from "./liaison-routes.ts";
+import type { LiaisonService } from "./liaison-service.ts";
 import { securityHeaders, servePage } from "./page-files.ts";
 import type { ParcView } from "./parc.ts";
 import type { ProposalsService } from "./proposals-service.ts";
@@ -39,6 +41,8 @@ export interface AppDeps {
   readonly parc?: () => Promise<ParcView>;
   /** The agenda (ADR-0042), read at each call, nothing kept; absent, the route says so. */
   readonly agenda?: (days: number) => Promise<AgendaView>;
+  /** The « Maison » tab (ADR-0048): my demands to the house; absent, its routes say so. */
+  readonly liaison?: LiaisonService;
   /** The built page's folder (apps/web/dist), served at / (ADR-0037); absent, only the API. */
   readonly page?: { readonly dist: string };
   /** Where a 500 or a broken stream is said in one line (api-log.ts); the console by default. */
@@ -82,6 +86,8 @@ export function createApp(deps: AppDeps): Hono {
   app.use("/api/prospection/*", tokenGuard(deps.guard));
   app.use("/api/parc", tokenGuard(deps.guard));
   app.use("/api/agenda", tokenGuard(deps.guard));
+  app.use("/api/liaison", tokenGuard(deps.guard));
+  app.use("/api/liaison/*", tokenGuard(deps.guard));
 
   app.get("/api/health", (c) => c.json({ ok: true }));
   // Errors go to onError: one line in the log, a silent 500 to the page.
@@ -98,6 +104,7 @@ export function createApp(deps: AppDeps): Hono {
     return c.json(await deps.agenda(days));
   });
   mountProspection(app, deps.prospection, log);
+  mountLiaison(app, deps.liaison, log);
 
   // The whole team on one stream (?agents=iris,cto,…): one connection, not one per card.
   app.get("/api/agents/stream", (c) => {

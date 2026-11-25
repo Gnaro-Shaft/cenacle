@@ -11,6 +11,7 @@
 import type { Ask } from "@cenacle/agenda/prise";
 import { InvalidEventError } from "@cenacle/journal";
 import type { Action } from "./handler.ts";
+import type { MaisonAction } from "./maison-bot.ts";
 import type { ReminderAction } from "./rappels-bot.ts";
 
 export const STOP_NOT_RECORDED =
@@ -22,6 +23,8 @@ export const MAINTENANCE_NOT_RECORDED =
 
 export const AGENDA_NOT_WIRED = "📅 L'agenda n'est pas branché sur ce bot.";
 
+export const MAISON_NOT_WIRED = "🏠 La liaison avec la maison n'est pas branchée sur ce bot.";
+
 export interface ActionDeps {
   readonly reply: (chatId: number, text: string) => Promise<void>;
   readonly askCto: (chatId: number, question: string) => void;
@@ -30,6 +33,8 @@ export interface ActionDeps {
   readonly listFindings?: (chatId: number, id?: number) => Promise<void>;
   /** A reminder set, listed or cancelled (ADR-0041): its own answer, never a false "set". */
   readonly reminder?: (action: ReminderAction) => Promise<void>;
+  /** A demand to the house, recorded waiting (ADR-0048): its own answer, never a false "recorded". */
+  readonly maison?: (action: MaisonAction) => Promise<void>;
   readonly record: (type: string, payload: Record<string, unknown>) => Promise<void>;
   readonly log: (line: string) => void;
 }
@@ -46,6 +51,9 @@ export async function perform(actions: readonly Action[], deps: ActionDeps): Pro
     } else if (action.kind === "agenda") {
       if (deps.agenda === undefined) await deps.reply(action.chatId, AGENDA_NOT_WIRED);
       else deps.agenda(action.chatId, action.ask);
+    } else if (action.kind === "maison_deposer") {
+      if (deps.maison === undefined) await deps.reply(action.chatId, MAISON_NOT_WIRED);
+      else await deps.maison(action);
     } else if (action.kind === "securite_list") {
       await deps.listFindings?.(action.chatId, action.id);
     } else if (

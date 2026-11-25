@@ -64,12 +64,16 @@ describe("ssh, and the servers' list, belong to the operator alone", () => {
   // The second (ADR-0044): the nightly copy pushes one file through rrsync -wo,
   // naming ssh in this file alone, with its push key only.
   const PUSH = join(ROOT, "apps", "copie", "src", "pousser.ts");
+  // The third (ADR-0048): the liaison hands my demands over to the house, and
+  // reads where they are, launching ssh in this file alone, with its own key.
+  const LIAISON_SSH = join(ROOT, "apps", "liaison", "src", "ssh.ts");
+  const LIAISON = sources(join(ROOT, "apps", "liaison"));
 
   it("no other program launches ssh or reads serveurs.local.toml", () => {
     const outside = all.filter((p) => !p.startsWith(join(ROOT, "apps", "operateur")));
     for (const file of outside) {
       const text = readFileSync(file, "utf8");
-      if (file !== BULLETINS && file !== PUSH) {
+      if (file !== BULLETINS && file !== PUSH && file !== LIAISON_SSH) {
         expect(text, relative(ROOT, file)).not.toMatch(/["'`]\/usr\/bin\/ssh["'`]/);
       }
       expect(text, relative(ROOT, file)).not.toMatch(/serveurs\.local\.toml["'`]\)/);
@@ -130,6 +134,42 @@ describe("ssh, and the servers' list, belong to the operator alone", () => {
     // In the ronde, ssh.ts alone may start a process.
     for (const file of RONDE.filter((f) => f !== BULLETINS)) {
       expect(readFileSync(file, "utf8"), relative(ROOT, file)).not.toMatch(/child_process/);
+    }
+  });
+
+  it("the house's door is the liaison's alone, and the liaison holds no other key", () => {
+    expect(LIAISON).toContain(LIAISON_SSH);
+    // Only the liaison parses the door (host, account, key); the page and the
+    // bot may read the folders, nothing else.
+    for (const file of all) {
+      if (LIAISON.includes(file) || file.includes(join("packages", "securite", "src"))) continue;
+      const text = readFileSync(file, "utf8");
+      expect(text, relative(ROOT, file)).not.toMatch(/parseLiaisonPorte|@cenacle\/liaison/);
+    }
+    for (const file of LIAISON) {
+      const t = readFileSync(file, "utf8");
+      expect(t, relative(ROOT, file)).not.toMatch(
+        /serveurs\.local|parc\.local|parseServers|parseParkMachines|\.env\.page|\.env\.bot/,
+      );
+      expect(t, relative(ROOT, file)).not.toMatch(/cenacle-(services|redemarrer|maj|bulletin)/);
+      expect(t, relative(ROOT, file)).not.toMatch(/SSH_AUTH_SOCK|\.\.\.process\.env/);
+      expect(t, relative(ROOT, file)).not.toMatch(/\b(spawn|execSync|execFileSync|fork)\(/);
+      // Processes: ssh in ssh.ts, ssh-keygen in cle.ts — nowhere else.
+      const procs = t.match(/\bexecFile\(/g) ?? [];
+      if (file === LIAISON_SSH || file.endsWith(join("src", "cle.ts"))) {
+        expect(procs, relative(ROOT, file)).toHaveLength(1);
+      } else expect(t, relative(ROOT, file)).not.toMatch(/child_process/);
+    }
+    const ssh = readFileSync(LIAISON_SSH, "utf8");
+    expect(ssh).toMatch(/StrictHostKeyChecking=yes/);
+    expect(ssh).toMatch(/IdentitiesOnly=yes/);
+    expect(ssh).toMatch(/IdentityAgent=none/);
+    expect(ssh).toMatch(/"-F",\s*"\/dev\/null"/);
+    // The operator and the ronde never read the liaison's file.
+    for (const file of [...sources(join(ROOT, "apps", "operateur")), ...RONDE]) {
+      expect(readFileSync(file, "utf8"), relative(ROOT, file)).not.toMatch(
+        /liaison\.local|Liaison/,
+      );
     }
   });
 

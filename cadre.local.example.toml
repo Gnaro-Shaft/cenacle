@@ -42,6 +42,9 @@ prospection_jours = 60
 # rung is never purged; a cancelled one is erased at once. Absent: no reminder
 # can be set.
 rappels_jours = 90
+# The liaison with the house (ADR-0048, T-12). Both or neither.
+liaison_texte_jours = 30
+liaison_jours = 90
 
 # The processing that covers this mailbox (docs/conformite/registre-traitements.md).
 [[traitement]]

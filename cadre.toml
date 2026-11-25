@@ -55,6 +55,10 @@ prospection_jours = 60
 # rung is never purged; a cancelled one is erased at once. Absent: no reminder
 # can be set.
 rappels_jours = 90
+# The liaison with the house (ADR-0048, T-12): a closed demand's text, then its
+# row (no text left), after it closed. Both or neither; absent, it does not run.
+liaison_texte_jours = 30
+liaison_jours = 90
 
 # The OPEN processings, and only them (ADR-0009). None today: only the
 # fictional mailbox is read. A processing opens once its information notice is

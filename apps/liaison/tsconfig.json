@@ -1,0 +1,26 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "types": ["node"]
+  },
+  "include": ["src"],
+  "references": [
+    {
+      "path": "../../packages/core"
+    },
+    {
+      "path": "../../packages/journal"
+    },
+    {
+      "path": "../../packages/mail"
+    },
+    {
+      "path": "../../packages/securite"
+    },
+    {
+      "path": "../telegram"
+    }
+  ]
+}
