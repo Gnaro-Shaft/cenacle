@@ -1,6 +1,6 @@
 # Mention d'information — Cénacle
 
-> **À republier avant l'ouverture de la rédaction depuis un mail** (ADR-0049, 2026-11-25) : le paragraphe « Les demandes de travail » est nouveau, et « Aucun tiers » ne vaut plus sans réserve. Tant que la page en ligne ne les porte pas, `redaction_ouverte` ne s'écrit pas, et aucun mail n'est rédigé. Une fois publiée et vérifiée en ligne, noter ici la date ; c'est elle qui ouvre la rédaction.
+> **Republiée le 25 novembre 2026**, et **vérifiée en ligne** le même jour, après le déploiement du site (14 h 04 UTC) : le paragraphe « Les demandes de travail » (ADR-0049) et la réserve « En dehors des demandes de travail décrites ci-dessous » ; « Dernière mise à jour : 25 novembre 2026 ». La rédaction depuis un mail est ouverte à cette date (`redaction_ouverte = 2026-11-25`) : aucun message reçu avant n'est rédigé. La rédaction publiée est plus ramassée que celle ci-dessous, pour le même contenu.
 >
 > **Publiée le 4 octobre 2026** dans les mentions légales du site, et **vérifiée en ligne** le même jour (section « Mon assistant de messagerie », entre « Mon assistant de travail » et « Questions sur les articles » ; « Dernière mise à jour : 4 octobre 2026 »). À l'ouverture du traitement, `cadre.toml` portera `mention_publiee = 2026-10-04` : rien de ce qui est arrivé avant ce jour ne sera lu.
 >
