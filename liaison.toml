@@ -3,4 +3,4 @@
 # `actif = true` or `actif = false` is unreadable: the liaison stops and says so.
 # The VM's name, the account, the key and the folders live in liaison.local.toml.
 [liaison]
-actif = false
+actif = true
